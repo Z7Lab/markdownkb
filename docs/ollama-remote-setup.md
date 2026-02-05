@@ -240,6 +240,58 @@ If Anthropic is down or you're out of credits, mdkb automatically falls back to 
 
 ---
 
+## Performance Optimization (CPU-only, Snapdragon X Elite)
+
+### Optimized systemd override
+
+The full optimized override for a 12-core Snapdragon X Elite with 32GB RAM:
+
+```bash
+sudo systemctl edit ollama
+```
+
+```ini
+[Service]
+Environment="OLLAMA_HOST=0.0.0.0"
+Environment="OLLAMA_MODELS=/home/user/llms"
+Environment="OLLAMA_FLASH_ATTENTION=1"
+Environment="OLLAMA_KV_CACHE_TYPE=q8_0"
+Environment="OLLAMA_KEEP_ALIVE=24h"
+Environment="OLLAMA_MAX_LOADED_MODELS=1"
+Environment="OLLAMA_NUM_PARALLEL=1"
+Environment="OLLAMA_NUM_THREADS=10"
+```
+
+Then:
+```bash
+sudo systemctl restart ollama
+```
+
+### What each setting does
+
+| Setting | Value | Why |
+|---------|-------|-----|
+| `OLLAMA_FLASH_ATTENTION=1` | Enabled | Reduces memory usage, enables KV cache quantization |
+| `OLLAMA_KV_CACHE_TYPE=q8_0` | 8-bit cache | Halves KV cache memory vs default f16, negligible quality loss |
+| `OLLAMA_KEEP_ALIVE=24h` | 24 hours | Keeps model loaded in RAM — avoids reload cost between requests |
+| `OLLAMA_MAX_LOADED_MODELS=1` | 1 model | Single model at a time — safe for 32GB RAM |
+| `OLLAMA_NUM_PARALLEL=1` | 1 request | Single user, no need to split resources |
+| `OLLAMA_NUM_THREADS=10` | 10 of 12 cores | Leaves 2 cores for OS and other tasks |
+
+These settings benefit **all** quantization levels (Q4_0, Q6_K, Q8_0, etc.).
+
+### ARM-specific Q4_0 acceleration
+
+On Snapdragon X Elite, **Q4_0 quantizations get additional ARM-specific GEMM/GEMV acceleration** built into llama.cpp (which Ollama uses). This fast path activates automatically when ARM hardware + Q4_0 format is detected — no special builds or settings needed.
+
+This makes Q4_0 models disproportionately fast on Snapdragon compared to other quant levels (comparable to Apple M2 with Metal GPU acceleration). The tradeoff is slightly lower quality vs Q6_K/Q8_0.
+
+If speed is a priority, consider grabbing Q4_0 versions of your models as well:
+- [Qwen3-8B Q4_K_M](https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q4_K_M.gguf) — 5.03GB
+- [DeepSeek-Coder-V2-Lite-Instruct Q4_K_M](https://huggingface.co/bartowski/DeepSeek-Coder-V2-Lite-Instruct-GGUF) — 10.4GB
+
+---
+
 ## Removing Models
 
 To unregister a model from Ollama:
