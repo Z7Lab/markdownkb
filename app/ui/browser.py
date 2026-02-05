@@ -127,7 +127,10 @@ def _test_ollama(api_base):
             f"{api_base.rstrip('/')}/api/tags", timeout=10,
         )
     except requests.ConnectionError:
-        return f"Cannot reach {api_base} - is Ollama running?"
+        return (
+            f"Cannot reach {api_base}\n"
+            "Try: OLLAMA_HOST=0.0.0.0 ollama serve"
+        )
     except requests.RequestException as e:
         return f"Connection error: {e}"
 
