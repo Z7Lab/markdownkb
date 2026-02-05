@@ -40,3 +40,34 @@ export interface AppSettings {
   active_model: string
   active_api_base: string
 }
+
+export interface TestPromptResult {
+  response: string
+  model: string
+  time_seconds: number
+  tokens: {
+    prompt: number | null
+    completion: number | null
+    total: number | null
+  }
+}
+
+export interface ModelInfo {
+  max_input_tokens?: number | null
+  max_output_tokens?: number | null
+  input_cost_per_token?: number | null
+  output_cost_per_token?: number | null
+  supports_vision?: boolean
+  supports_function_calling?: boolean
+  supports_response_schema?: boolean
+  supports_pdf_input?: boolean
+  litellm_provider?: string
+  mode?: string
+  error?: string
+  ollama_details?: {
+    family?: string
+    parameter_size?: string
+    quantization_level?: string
+    format?: string
+  }
+}

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react"
 import { api } from "@/lib/api"
-import type { AppSettings } from "@/lib/types"
+import type { AppSettings, ModelInfo } from "@/lib/types"
 
 export function useSettings() {
   const [settings, setSettings] = useState<AppSettings | null>(null)
-  const [status, setStatus] = useState("")
+  const [providerStatus, setProviderStatus] = useState("")
+  const [modelStatus, setModelStatus] = useState("")
   const [indexStatus, setIndexStatus] = useState("")
 
   const load = useCallback(async () => {
@@ -23,7 +24,7 @@ export function useSettings() {
         model,
         api_base: apiBase,
       })
-      setStatus(`Saved: ${name} / ${model}`)
+      setModelStatus(`Saved: ${name} / ${model}`)
       await load()
     },
     [load],
@@ -31,13 +32,13 @@ export function useSettings() {
 
   const testConnection = useCallback(
     async (name: string, model: string, apiBase: string) => {
-      setStatus("Testing...")
+      setProviderStatus("Testing...")
       const res = await api.post<{ result: string }>("/api/settings/test-connection", {
         name,
         model,
         api_base: apiBase,
       })
-      setStatus(res.result)
+      setProviderStatus(res.result)
     },
     [],
   )
@@ -49,6 +50,27 @@ export function useSettings() {
     )
     return res
   }, [])
+
+  const pingModel = useCallback(
+    async (model: string, apiBase: string, signal?: AbortSignal) => {
+      setModelStatus("Pinging model...")
+      try {
+        const res = await api.post<{ result: string }>("/api/settings/ping-model", {
+          name: "",
+          model,
+          api_base: apiBase,
+        }, signal)
+        setModelStatus(res.result)
+      } catch (err) {
+        if ((err as Error).name === "AbortError") {
+          setModelStatus("")
+        } else {
+          setModelStatus(`Error: ${err}`)
+        }
+      }
+    },
+    [],
+  )
 
   const toggleFeature = useCallback(
     async (name: string, enabled: boolean) => {
@@ -74,6 +96,17 @@ export function useSettings() {
     [load],
   )
 
+  const fetchModelInfo = useCallback(
+    async (model: string, apiBase: string) => {
+      const res = await api.post<ModelInfo>("/api/settings/model-info", {
+        model,
+        api_base: apiBase,
+      })
+      return res
+    },
+    [],
+  )
+
   const reindex = useCallback(async () => {
     setIndexStatus("Indexing...")
     try {
@@ -91,11 +124,14 @@ export function useSettings() {
 
   return {
     settings,
-    status,
+    providerStatus,
+    modelStatus,
     indexStatus,
     saveProvider,
     testConnection,
     refreshModels,
+    pingModel,
+    fetchModelInfo,
     toggleFeature,
     addSource,
     removeSource,

@@ -7,11 +7,14 @@ import { FeaturesPanel } from "./features-panel"
 export function SettingsTab() {
   const {
     settings,
-    status,
+    providerStatus,
+    modelStatus,
     indexStatus,
     saveProvider,
     testConnection,
     refreshModels,
+    pingModel,
+    fetchModelInfo,
     toggleFeature,
     addSource,
     removeSource,
@@ -24,16 +27,19 @@ export function SettingsTab() {
   }
 
   return (
-    <div className="p-4 space-y-6 overflow-y-auto h-[calc(100vh-4.5rem)]">
+    <div className="p-4 space-y-6 overflow-y-auto h-full">
       <h2 className="text-lg font-semibold">Settings</h2>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <LlmConfig
           settings={settings}
-          status={status}
+          providerStatus={providerStatus}
+          modelStatus={modelStatus}
           onSave={saveProvider}
-          onTest={testConnection}
+          onTestProvider={testConnection}
+          onPingModel={pingModel}
           onRefreshModels={refreshModels}
+          onFetchModelInfo={fetchModelInfo}
         />
         <SourcesPanel
           sources={settings.sources}

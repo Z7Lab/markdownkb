@@ -25,6 +25,9 @@ from app.services.chat_service import (
 )
 from app.services.llm_service import (
     build_model_list,
+    get_model_capabilities,
+    ping_model,
+    stream_test_prompt,
     test_llm_connection,
 )
 from app.storage.chatdb import ChatDB
@@ -90,6 +93,18 @@ class RefreshModelsRequest(BaseModel):
 class FeatureToggleRequest(BaseModel):
     name: str
     enabled: bool
+
+
+class TestPromptRequest(BaseModel):
+    prompt: str
+    provider: str = ""
+    model: str = ""
+    api_base: str = ""
+
+
+class ModelInfoRequest(BaseModel):
+    model: str
+    api_base: str = ""
 
 
 class RenameThreadRequest(BaseModel):
@@ -204,10 +219,15 @@ def create_api(
 
     @api.post("/api/chat/stream")
     def chat_stream(req: StreamChatRequest):
-        thread_id = req.thread_id or chatdb.create_thread()
+        if req.thread_id:
+            thread_id = req.thread_id
+            title = ""
+        else:
+            title = _short_title(req.message)
+            thread_id = chatdb.create_thread(title)
 
         def generate():
-            yield _sse("thread", {"thread_id": thread_id})
+            yield _sse("thread", {"thread_id": thread_id, "title": title})
 
             last_yielded = ""
             for partial in chat_respond(
@@ -378,12 +398,48 @@ def create_api(
         )
         return {"result": result}
 
+    @api.post("/api/settings/ping-model")
+    def ping_model_endpoint(req: TestConnectionRequest):
+        result = ping_model(req.model, req.api_base)
+        return {"result": result}
+
     @api.post("/api/settings/refresh-models")
     def refresh_models(req: RefreshModelsRequest):
         models, status = build_model_list(
             req.name, req.api_base,
         )
         return {"models": models, "status": status}
+
+    @api.post("/api/settings/test-prompt")
+    def test_prompt(req: TestPromptRequest):
+        if req.provider and req.model:
+            model = req.model
+            api_base = req.api_base or ""
+        else:
+            active = settings.get_active_llm_config()
+            model = active.get("model", "")
+            api_base = active.get("api_base", "") or ""
+
+        if not model:
+            raise HTTPException(status_code=400, detail="No model configured")
+
+        def generate():
+            try:
+                for event, data in stream_test_prompt(
+                    req.prompt, model, api_base,
+                    settings.llm_temperature, settings.llm_max_tokens,
+                ):
+                    yield _sse(event, data)
+            except Exception as e:
+                yield _sse("error", {"message": str(e)})
+
+        return StreamingResponse(
+            generate(), media_type="text/event-stream",
+        )
+
+    @api.post("/api/settings/model-info")
+    def model_info(req: ModelInfoRequest):
+        return get_model_capabilities(req.model, req.api_base)
 
     @api.put("/api/settings/features")
     def toggle_feature(req: FeatureToggleRequest):
@@ -438,3 +494,20 @@ def create_api(
 def _sse(event: str, data: dict) -> str:
     """Format a server-sent event."""
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+
+
+def _short_title(message: str, limit: int = 50) -> str:
+    """Derive a short thread title from the first user message."""
+    text = message.strip().split("\n")[0]
+    # Take first sentence if there's punctuation
+    for ch in ".?!":
+        idx = text.find(ch)
+        if 0 < idx < limit:
+            return text[: idx + 1]
+    # Otherwise truncate at word boundary
+    if len(text) <= limit:
+        return text
+    cut = text[:limit].rfind(" ")
+    if cut > 20:
+        return text[:cut] + "..."
+    return text[:limit] + "..."

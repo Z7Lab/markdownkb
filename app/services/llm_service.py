@@ -1,12 +1,15 @@
 """LLM service functions: model discovery, connection testing."""
 
 import logging
+import time
 
 import litellm
 import requests
 
 logger = logging.getLogger(__name__)
 
+
+# ── Model Discovery ───────────────────────────────────────
 
 def fetch_ollama_models(api_base: str) -> list[str]:
     """Fetch available models from an Ollama instance."""
@@ -21,6 +24,57 @@ def fetch_ollama_models(api_base: str) -> list[str]:
         pass
     return []
 
+
+_PROVIDER_PREFIX_MAP = {
+    "anthropic": "anthropic",
+    "openai": "openai",
+    "groq": "groq",
+    "deepseek": "deepseek",
+    "mistral": "mistral",
+    "gemini": "gemini",
+    "xai": "xai",
+    "together": "together_ai",
+    "fireworks": "fireworks_ai",
+    "perplexity": "perplexity",
+    "cerebras": "cerebras",
+    "openrouter": "openrouter",
+}
+
+_OPENAI_CHAT_PREFIXES = ("gpt-", "o1", "o3", "o4", "chatgpt-")
+
+
+def get_provider_models(provider_name: str) -> list[str]:
+    """Return known chat models for API-based providers via LiteLLM registry."""
+    name = provider_name.lower()
+    for key, litellm_key in _PROVIDER_PREFIX_MAP.items():
+        if key in name:
+            models = sorted(litellm.models_by_provider.get(litellm_key, set()))
+            if litellm_key == "openai":
+                models = [m for m in models
+                          if any(m.startswith(p) for p in _OPENAI_CHAT_PREFIXES)]
+            prefix = litellm_key + "/"
+            return [m if m.startswith(prefix) else f"{prefix}{m}" for m in models]
+    return []
+
+
+def build_model_list(
+    provider_name: str, api_base: str,
+) -> tuple[list[str], str]:
+    """Fetch and return model list with status message."""
+    if "ollama" in provider_name.lower() and api_base:
+        raw = fetch_ollama_models(api_base)
+        if raw:
+            choices = [f"ollama/{m}" for m in raw]
+            return choices, f"Found {len(raw)} model(s)"
+        return [], f"No models found at {api_base}"
+
+    known = get_provider_models(provider_name)
+    if known:
+        return known, f"Found {len(known)} known model(s)"
+    return [], "No models available for this provider"
+
+
+# ── Connection Testing ────────────────────────────────────
 
 def test_ollama(api_base: str) -> str:
     """Test connectivity to an Ollama instance."""
@@ -89,14 +143,101 @@ def test_llm_connection(
     return test_api_provider(model, api_base)
 
 
-def build_model_list(
-    provider_name: str, api_base: str,
-) -> tuple[list[str], str]:
-    """Fetch and return model list with status message."""
-    if "ollama" in provider_name.lower() and api_base:
-        raw = fetch_ollama_models(api_base)
-        if raw:
-            choices = [f"ollama/{m}" for m in raw]
-            return choices, f"Found {len(raw)} model(s)"
-        return [], f"No models found at {api_base}"
-    return [], "Refresh only works for Ollama providers"
+def ping_model(model: str, api_base: str) -> str:
+    """Quick test that a specific model loads and responds."""
+    if not model:
+        return "No model configured."
+    return test_api_provider(model, api_base)
+
+
+# ── Model Capabilities ────────────────────────────────────
+
+def get_model_capabilities(model: str, api_base: str = "") -> dict:
+    """Fetch model capabilities from LiteLLM and optionally Ollama."""
+    result: dict = {}
+
+    try:
+        info = litellm.get_model_info(model)
+        result = {
+            "max_input_tokens": info.get("max_input_tokens"),
+            "max_output_tokens": info.get("max_output_tokens"),
+            "input_cost_per_token": info.get("input_cost_per_token"),
+            "output_cost_per_token": info.get("output_cost_per_token"),
+            "supports_vision": info.get("supports_vision", False),
+            "supports_function_calling": info.get("supports_function_calling", False),
+            "supports_response_schema": info.get("supports_response_schema", False),
+            "supports_pdf_input": info.get("supports_pdf_input", False),
+            "litellm_provider": info.get("litellm_provider", ""),
+            "mode": info.get("mode", ""),
+        }
+    except Exception:
+        pass
+
+    # For Ollama, query the Ollama API for extra details
+    if "ollama" in model.lower() and api_base:
+        try:
+            ollama_name = model.split("/", 1)[-1] if "/" in model else model
+            resp = requests.post(
+                f"{api_base.rstrip('/')}/api/show",
+                json={"name": ollama_name},
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                details = data.get("details", {})
+                result["ollama_details"] = {
+                    "family": details.get("family"),
+                    "parameter_size": details.get("parameter_size"),
+                    "quantization_level": details.get("quantization_level"),
+                    "format": details.get("format"),
+                }
+        except requests.RequestException:
+            pass
+
+    if not result:
+        result["error"] = "No model info available"
+    return result
+
+
+# ── Test Prompt (streaming) ────────────────────────────────
+
+def stream_test_prompt(
+    prompt: str,
+    model: str,
+    api_base: str,
+    temperature: float,
+    max_tokens: int,
+):
+    """Stream a raw prompt to the model, yielding (event, data) tuples."""
+    litellm.drop_params = True
+    kwargs: dict = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "stream": True,
+    }
+    if api_base:
+        kwargs["api_base"] = api_base
+
+    start = time.time()
+    token_count = 0
+
+    try:
+        response = litellm.completion(**kwargs)
+    except Exception as e:
+        yield "error", {"message": str(e)}
+        return
+
+    for chunk in response:
+        delta = chunk.choices[0].delta if chunk.choices else None
+        if delta and delta.content:
+            token_count += 1
+            yield "token", {"content": delta.content}
+
+    elapsed = time.time() - start
+    yield "done", {
+        "model": model,
+        "time_seconds": round(elapsed, 2),
+        "chunks": token_count,
+    }

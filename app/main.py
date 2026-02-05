@@ -6,7 +6,7 @@ from pathlib import Path
 
 import uvicorn
 from fastapi import Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api import create_api
@@ -73,6 +73,8 @@ def main():
         @app.get("/{path:path}")
         async def spa_fallback(request: Request, path: str):
             """Serve index.html for all non-API routes (SPA routing)."""
+            if path.startswith("api/"):
+                return JSONResponse({"detail": "Not Found"}, status_code=404)
             file_path = FRONTEND_DIR / path
             if file_path.is_file():
                 return FileResponse(file_path)
