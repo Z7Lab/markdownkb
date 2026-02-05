@@ -19,7 +19,7 @@ export function ChatControls({
   }
 
   return (
-    <div className="flex gap-2 px-4 pb-3">
+    <div className="flex gap-2 px-4 pb-3 border-2 border-orange-500 border-dashed bg-orange-500/10">
       <Button variant="outline" size="sm" onClick={onClear} disabled={!hasMessages}>
         <Eraser className="h-3.5 w-3.5 mr-1.5" />
         Clear

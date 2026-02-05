@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Trash2, MessageSquare } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import type { Thread } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -32,8 +31,8 @@ export function ThreadSidebar({
   onDeleteThread: (id: string) => void;
 }) {
   return (
-    <div className="w-64 border-r flex flex-col bg-muted/30">
-      <div className="p-3">
+    <div className="w-90 shrink-0 border-r flex flex-col min-h-0 overflow-hidden bg-muted/30">
+      <div className="p-3 shrink-0">
         <Button
           onClick={onNewChat}
           variant="outline"
@@ -44,39 +43,39 @@ export function ThreadSidebar({
         </Button>
       </div>
       <Separator />
-      <ScrollArea className="flex-1">
-        <div className="p-2 space-y-1">
+      {/* NOTE: Using plain div instead of ScrollArea — Radix viewport caused persistent alignment issues */}
+      <div className="flex-1 min-h-0 overflow-y-auto [scrollbar-width:thin]">
+        <div className="p-3 space-y-2">
           {threads.map((thread) => (
             <div
               key={thread.id}
               className={cn(
-                "flex items-center gap-2 rounded-md px-3 py-2 text-sm cursor-pointer hover:bg-accent",
+                "flex items-center gap-2 rounded-md px-3 py-2 text-sm cursor-pointer hover:bg-accent border border-orange-400",
                 activeThreadId === thread.id && "bg-accent",
               )}
               onClick={() => onLoadThread(thread.id)}
             >
-              <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <div className="flex-1 min-w-0 border border-orange-500 border-dashed" title={`DEBUG: title="${thread.title}" len=${thread.title?.length ?? 0}`}>
+              <div className="flex-1 min-w-0 overflow-hidden">
                 <p
-                  className="truncate font-medium bg-pink-500/20"
+                  className="truncate font-medium bg-purple-500/20"
                   title={thread.title || "New chat"}
                 >
                   {thread.title || "New chat"}
                 </p>
-                <p className="text-xs text-muted-foreground bg-cyan-500/20">
+                <p className="text-xs text-muted-foreground truncate">
                   {relativeTime(thread.updated_at)}
                 </p>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 shrink-0 text-muted-foreground/50 hover:text-destructive"
+                className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
                 onClick={(e) => {
                   e.stopPropagation();
                   onDeleteThread(thread.id);
                 }}
               >
-                <Trash2 className="h-3 w-3" />
+                <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>
           ))}
@@ -86,7 +85,7 @@ export function ThreadSidebar({
             </p>
           )}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }

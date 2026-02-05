@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, memo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -53,6 +53,8 @@ function parseThinkBlocks(text: string): ThinkBlock[] {
   return blocks;
 }
 
+const plugins = [remarkGfm];
+
 function ThinkCollapsible({
   content,
   isLive,
@@ -77,37 +79,56 @@ function ThinkCollapsible({
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="mt-1 pl-4 border-l-2 border-foreground/20 text-sm text-foreground/60">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={plugins}>{content}</ReactMarkdown>
         </div>
       </CollapsibleContent>
     </Collapsible>
   );
 }
 
-export function MessageBubble({ message }: { message: ChatMessage }) {
+export const MessageBubble = memo(function MessageBubble({
+  message,
+  showDiagnostics = false,
+}: {
+  message: ChatMessage;
+  showDiagnostics?: boolean;
+}) {
   const isUser = message.role === "user";
 
-  const blocks = !isUser ? parseThinkBlocks(message.content) : [];
+  const blocks = useMemo(
+    () => (!isUser ? parseThinkBlocks(message.content) : []),
+    [isUser, message.content],
+  );
+
   const hasThink = blocks.some((b) => b.type !== "text");
 
   return (
     <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
       <div
         className={cn(
-          "max-w-[70%] rounded-lg px-4 py-2",
+          "rounded-lg px-4 py-2",
           isUser
-            ? "bg-primary text-primary-foreground"
-            : "bg-muted text-foreground",
+            ? "max-w-[85%] bg-primary text-primary-foreground"
+            : "max-w-full bg-muted text-foreground",
         )}
       >
-        {/* DEBUG: raw content inspector for assistant messages */}
-        {!isUser && (
+        {/* Diagnostics: raw content inspector for assistant messages */}
+        {showDiagnostics && !isUser && (
           <div className="text-[10px] font-mono bg-black/80 text-green-400 p-2 rounded mb-2 max-h-24 overflow-auto whitespace-pre-wrap break-all">
-            <div>BLOCKS: {blocks.length} [{blocks.map(b => b.type).join(", ")}]</div>
+            <div>
+              BLOCKS: {blocks.length} [{blocks.map((b) => b.type).join(", ")}]
+            </div>
             <div>hasThink: {String(hasThink)}</div>
-            <div>RAW[0..120]: {JSON.stringify(message.content.slice(0, 120))}</div>
-            <div>HAS &lt;think&gt;: {String(message.content.includes("<think>"))}</div>
-            <div>HAS &lt;thinking&gt;: {String(message.content.includes("<thinking>"))}</div>
+            <div>
+              RAW[0..120]: {JSON.stringify(message.content.slice(0, 120))}
+            </div>
+            <div>
+              HAS &lt;think&gt;: {String(message.content.includes("<think>"))}
+            </div>
+            <div>
+              HAS &lt;thinking&gt;:{" "}
+              {String(message.content.includes("<thinking>"))}
+            </div>
           </div>
         )}
         {isUser ? (
@@ -116,13 +137,13 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
           <div className="mdkb-prose">
             {blocks.map((block, i) =>
               block.type === "text" ? (
-                <div key={i} className="border-2 border-green-500 border-dashed p-1 my-1">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <div key={i} className="p-1 my-1">
+                  <ReactMarkdown remarkPlugins={plugins}>
                     {block.content}
                   </ReactMarkdown>
                 </div>
               ) : (
-                <div key={i} className={cn("border-2 border-dashed p-1 my-1", block.type === "thinking" ? "border-blue-500" : "border-red-500")}>
+                <div key={i} className="p-1 my-1">
                   <ThinkCollapsible
                     content={block.content}
                     isLive={block.type === "thinking"}
@@ -132,8 +153,8 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
             )}
           </div>
         ) : (
-          <div className="mdkb-prose border-2 border-yellow-500 border-dashed p-1">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          <div className="mdkb-prose p-1">
+            <ReactMarkdown remarkPlugins={plugins}>
               {message.content}
             </ReactMarkdown>
           </div>
@@ -141,4 +162,4 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
       </div>
     </div>
   );
-}
+});

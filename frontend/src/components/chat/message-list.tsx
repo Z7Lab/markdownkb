@@ -1,34 +1,40 @@
-import { useEffect, useRef } from "react"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import type { ChatMessage } from "@/lib/types"
-import { MessageBubble } from "./message-bubble"
+import { useEffect, useRef } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import type { ChatMessage } from "@/lib/types";
+import { MessageBubble } from "./message-bubble";
 
 export function MessageList({
   messages,
   isStreaming,
+  showDiagnostics = false,
 }: {
-  messages: ChatMessage[]
-  isStreaming: boolean
+  messages: ChatMessage[];
+  isStreaming: boolean;
+  showDiagnostics?: boolean;
 }) {
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages, isStreaming])
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isStreaming]);
 
   if (messages.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center text-muted-foreground">
+      <div className="flex-1 min-h-0 flex items-center justify-center text-muted-foreground">
         Ask your knowledge base a question to get started.
       </div>
-    )
+    );
   }
 
   return (
-    <ScrollArea className="flex-1">
+    <ScrollArea className="flex-1 min-h-0">
       <div className="space-y-4 p-4">
         {messages.map((msg, i) => (
-          <MessageBubble key={i} message={msg} />
+          <MessageBubble
+            key={i}
+            message={msg}
+            showDiagnostics={showDiagnostics}
+          />
         ))}
         {isStreaming && messages[messages.length - 1]?.content === "" && (
           <div className="flex justify-start">
@@ -40,5 +46,5 @@ export function MessageList({
         <div ref={bottomRef} />
       </div>
     </ScrollArea>
-  )
+  );
 }

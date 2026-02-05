@@ -7,9 +7,9 @@ import { MessageSquare, Search, FolderOpen, Settings } from "lucide-react"
 
 function App() {
   return (
-    <div className="h-screen flex flex-col">
-      <Tabs defaultValue="chat" className="flex-1 flex flex-col">
-        <header className="sticky top-0 z-20 bg-background border-b px-6 py-3 flex items-center justify-between">
+    <div className="h-screen flex flex-col overflow-hidden">
+      <Tabs defaultValue="chat" className="flex-1 flex flex-col min-h-0">
+        <header className="shrink-0 z-20 bg-background border-b px-6 py-3 flex items-center justify-between">
           <div>
             <h1 className="text-lg font-bold tracking-tight">mdkb</h1>
             <p className="text-xs text-muted-foreground">

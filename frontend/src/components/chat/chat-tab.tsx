@@ -1,8 +1,9 @@
-import { useChat } from "@/hooks/use-chat"
-import { ChatControls } from "./chat-controls"
-import { ChatInput } from "./chat-input"
-import { MessageList } from "./message-list"
-import { ThreadSidebar } from "./thread-sidebar"
+import { useChat } from "@/hooks/use-chat";
+import { useSettings } from "@/hooks/use-settings";
+import { ChatControls } from "./chat-controls";
+import { ChatInput } from "./chat-input";
+import { MessageList } from "./message-list";
+import { ThreadSidebar } from "./thread-sidebar";
 
 export function ChatTab() {
   const {
@@ -18,10 +19,13 @@ export function ChatTab() {
     newChat,
     loadThread,
     deleteThread,
-  } = useChat()
+  } = useChat();
+
+  const { settings } = useSettings();
+  const showDiagnostics = settings?.features?.diagnostics ?? false;
 
   return (
-    <div className="flex flex-row h-full">
+    <div className="flex flex-row h-full overflow-hidden">
       <ThreadSidebar
         threads={threads}
         activeThreadId={activeThreadId}
@@ -29,16 +33,22 @@ export function ChatTab() {
         onLoadThread={loadThread}
         onDeleteThread={deleteThread}
       />
-      <div className="flex flex-col flex-1 min-w-0">
-        <MessageList messages={messages} isStreaming={isStreaming} />
-        <ChatControls
-          onClear={clear}
-          onContinue={continueChat}
-          onSavePlan={savePlan}
-          hasMessages={messages.length > 0}
+      <div className="flex flex-col flex-1 min-w-0 min-h-0">
+        <MessageList
+          messages={messages}
+          isStreaming={isStreaming}
+          showDiagnostics={showDiagnostics}
         />
-        <ChatInput onSend={send} onStop={stop} isStreaming={isStreaming} />
+        <div className="shrink-0 bg-background">
+          <ChatControls
+            onClear={clear}
+            onContinue={continueChat}
+            onSavePlan={savePlan}
+            hasMessages={messages.length > 0}
+          />
+          <ChatInput onSend={send} onStop={stop} isStreaming={isStreaming} />
+        </div>
       </div>
     </div>
-  )
+  );
 }
