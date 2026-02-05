@@ -3,7 +3,12 @@
 import re
 from dataclasses import dataclass, field
 
+import logging
+
 import frontmatter
+import yaml
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -28,9 +33,14 @@ def parse_markdown(filepath: str,
     with open(filepath, "r", encoding="utf-8", errors="replace") as f:
         raw = f.read()
 
-    post = frontmatter.loads(raw)
-    front = dict(post.metadata) if post.metadata else {}
-    content = post.content
+    try:
+        post = frontmatter.loads(raw)
+        front = dict(post.metadata) if post.metadata else {}
+        content = post.content
+    except yaml.YAMLError:
+        logger.warning("Bad frontmatter in %s, skipping metadata", filepath)
+        front = {}
+        content = raw
 
     chunks = _split_by_headers(content)
 

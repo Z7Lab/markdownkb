@@ -189,7 +189,9 @@ def _build_sources_column(settings):
         placeholder="/path/to/markdown/files",
     )
     add_source_btn = gr.Button("Add Source")
-    source_status = gr.Textbox(label="", interactive=False)
+    source_status = gr.Textbox(
+        label="Status", interactive=False, show_label=False,
+    )
 
     def add_source(path):
         """Add a new source directory."""

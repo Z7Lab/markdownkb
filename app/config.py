@@ -90,13 +90,22 @@ class Settings:
 
     def add_source(self, path: str):
         """Add a source directory if not already present."""
-        if path not in self.sources:
-            self.sources.append(path)
+        raw = self._data.setdefault("sources", [])
+        if path not in raw and path not in self.sources:
+            raw.append(path)
 
     def remove_source(self, path: str):
         """Remove a source directory from the list."""
-        if path in self.sources:
-            self.sources.remove(path)
+        raw = self._data.setdefault("sources", [])
+        if path in raw:
+            raw.remove(path)
+        else:
+            # Try matching by resolved path
+            resolved = self._resolve_path(path)
+            for s in list(raw):
+                if self._resolve_path(s) == resolved:
+                    raw.remove(s)
+                    break
 
     @property
     def global_ignore(self) -> list[str]:
