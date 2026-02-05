@@ -1,12 +1,16 @@
+"""Discover and scan markdown files from configured source directories."""
+
 import fnmatch
 import hashlib
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 
 @dataclass
 class FileInfo:
+    """Metadata about a discovered markdown file."""
+
     path: str
     relative_path: str
     size: int
@@ -16,6 +20,7 @@ class FileInfo:
 
 
 def _matches_ignore(path: str, patterns: list[str]) -> bool:
+    """Check whether a path matches any of the ignore patterns."""
     for pattern in patterns:
         if fnmatch.fnmatch(path, pattern):
             return True
@@ -23,6 +28,7 @@ def _matches_ignore(path: str, patterns: list[str]) -> bool:
 
 
 def compute_file_hash(filepath: str) -> str:
+    """Compute the SHA-256 hash of a file's contents."""
     h = hashlib.sha256()
     with open(filepath, "rb") as f:
         for chunk in iter(lambda: f.read(8192), b""):
@@ -31,6 +37,7 @@ def compute_file_hash(filepath: str) -> str:
 
 
 def scan_sources(sources: list[str], ignore_patterns: list[str]) -> list[FileInfo]:
+    """Walk all source directories and return FileInfo for each markdown file."""
     files: list[FileInfo] = []
     seen: set[str] = set()
 

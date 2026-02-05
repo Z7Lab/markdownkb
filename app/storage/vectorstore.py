@@ -1,3 +1,5 @@
+"""ChromaDB vector store for persistent chunk storage and retrieval."""
+
 import logging
 from pathlib import Path
 from typing import Any
@@ -8,6 +10,8 @@ logger = logging.getLogger(__name__)
 
 
 class VectorStore:
+    """Persistent vector store backed by ChromaDB for chunk storage and search."""
+
     def __init__(self, persist_directory: str = "./data/chromadb",
                  collection_name: str = "mdkb"):
         Path(persist_directory).mkdir(parents=True, exist_ok=True)
@@ -17,17 +21,18 @@ class VectorStore:
             metadata={"hnsw:space": "cosine"},
         )
         logger.info(
-            f"VectorStore initialized: {persist_directory}, "
-            f"collection={collection_name}, "
-            f"count={self._collection.count()}"
+            "VectorStore initialized: %s, collection=%s, count=%d",
+            persist_directory, collection_name, self._collection.count(),
         )
 
     @property
     def count(self) -> int:
+        """Return the number of chunks in the collection."""
         return self._collection.count()
 
     def add(self, ids: list[str], documents: list[str],
             embeddings: list[list[float]], metadatas: list[dict] | None = None):
+        """Add or update chunks in the vector store."""
         # ChromaDB metadata values must be str, int, float, or bool
         clean_metadatas = None
         if metadatas:
@@ -45,6 +50,7 @@ class VectorStore:
 
     def query(self, query_embedding: list[float], n_results: int = 5,
               where: dict | None = None) -> dict:
+        """Query the vector store and return matching documents with scores."""
         kwargs: dict[str, Any] = {
             "query_embeddings": [query_embedding],
             "n_results": min(n_results, max(self._collection.count(), 1)),
@@ -62,28 +68,32 @@ class VectorStore:
         }
 
     def get_all_metadatas(self) -> list[dict]:
+        """Return metadata for all stored chunks."""
         if self._collection.count() == 0:
             return []
         result = self._collection.get(include=["metadatas"])
         return result["metadatas"] or []
 
     def delete_by_source(self, source_path: str):
+        """Delete all chunks from a given source file."""
         try:
             self._collection.delete(where={"source_path": source_path})
-        except Exception as e:
-            logger.warning(f"Failed to delete chunks for {source_path}: {e}")
+        except ValueError as e:
+            logger.warning("Failed to delete chunks for %s: %s", source_path, e)
 
     def get_ids_by_source(self, source_path: str) -> list[str]:
+        """Return chunk IDs belonging to a given source file."""
         try:
             result = self._collection.get(
                 where={"source_path": source_path},
                 include=[],
             )
             return result["ids"] or []
-        except Exception:
+        except ValueError:
             return []
 
     def clear(self):
+        """Delete all chunks and recreate the collection."""
         self._client.delete_collection(self._collection.name)
         self._collection = self._client.get_or_create_collection(
             name=self._collection.name,
@@ -92,6 +102,7 @@ class VectorStore:
 
 
 def _flatten_metadata(meta: dict) -> dict:
+    """Flatten metadata values to types supported by ChromaDB."""
     flat: dict[str, str | int | float | bool] = {}
     for k, v in meta.items():
         if isinstance(v, (str, int, float, bool)):
