@@ -1,17 +1,27 @@
 export interface SSECallbacks {
+  onThread: (threadId: string) => void
   onToken: (content: string) => void
   onSources: (sources: string[]) => void
   onDone: () => void
   onError: (error: Error) => void
 }
 
-export function streamChat(message: string, callbacks: SSECallbacks): AbortController {
+export function streamChat(
+  message: string,
+  callbacks: SSECallbacks,
+  threadId?: string | null,
+): AbortController {
   const controller = new AbortController()
+
+  const body: Record<string, string> = { message }
+  if (threadId) {
+    body.thread_id = threadId
+  }
 
   fetch("/api/chat/stream", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify(body),
     signal: controller.signal,
   })
     .then(async (res) => {
@@ -23,6 +33,7 @@ export function streamChat(message: string, callbacks: SSECallbacks): AbortContr
 
       const decoder = new TextDecoder()
       let buffer = ""
+      let doneReceived = false
 
       while (true) {
         const { done, value } = await reader.read()
@@ -38,17 +49,22 @@ export function streamChat(message: string, callbacks: SSECallbacks): AbortContr
             eventType = line.slice(7)
           } else if (line.startsWith("data: ")) {
             const data = JSON.parse(line.slice(6))
-            if (eventType === "token") {
+            if (eventType === "thread") {
+              callbacks.onThread(data.thread_id)
+            } else if (eventType === "token") {
               callbacks.onToken(data.content)
             } else if (eventType === "sources") {
               callbacks.onSources(data.sources)
             } else if (eventType === "done") {
+              doneReceived = true
               callbacks.onDone()
             }
           }
         }
       }
-      callbacks.onDone()
+      if (!doneReceived) {
+        callbacks.onDone()
+      }
     })
     .catch((err) => {
       if (err.name !== "AbortError") {

@@ -30,7 +30,7 @@ export function MessageList({
         {messages.map((msg, i) => (
           <MessageBubble key={i} message={msg} />
         ))}
-        {isStreaming && (
+        {isStreaming && messages[messages.length - 1]?.content === "" && (
           <div className="flex justify-start">
             <div className="text-muted-foreground text-sm animate-pulse">
               Thinking...

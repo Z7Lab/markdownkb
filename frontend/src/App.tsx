@@ -36,16 +36,16 @@ function App() {
           </TabsList>
         </header>
 
-        <TabsContent value="chat" className="flex-1 mt-0">
+        <TabsContent value="chat" forceMount className="flex-1 mt-0 data-[state=inactive]:hidden">
           <ChatTab />
         </TabsContent>
-        <TabsContent value="search" className="flex-1 mt-0">
+        <TabsContent value="search" forceMount className="flex-1 mt-0 data-[state=inactive]:hidden">
           <SearchTab />
         </TabsContent>
-        <TabsContent value="browse" className="flex-1 mt-0">
+        <TabsContent value="browse" forceMount className="flex-1 mt-0 data-[state=inactive]:hidden">
           <BrowseTab />
         </TabsContent>
-        <TabsContent value="settings" className="flex-1 mt-0">
+        <TabsContent value="settings" forceMount className="flex-1 mt-0 data-[state=inactive]:hidden">
           <SettingsTab />
         </TabsContent>
       </Tabs>

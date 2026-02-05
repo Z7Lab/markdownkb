@@ -1,58 +1,87 @@
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { api } from "@/lib/api"
 import { streamChat } from "@/lib/sse"
-import type { ChatMessage } from "@/lib/types"
+import type { ChatMessage, Thread } from "@/lib/types"
 
 export function useChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
+  const [threads, setThreads] = useState<Thread[]>([])
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null)
   const controllerRef = useRef<AbortController | null>(null)
 
-  const send = useCallback((text: string) => {
-    if (!text.trim() || isStreaming) return
+  const refreshThreads = useCallback(async () => {
+    try {
+      const res = await api.get<{ threads: Thread[] }>("/api/threads")
+      setThreads(res.threads)
+    } catch {
+      // Silently fail — threads list is non-critical
+    }
+  }, [])
 
-    const userMsg: ChatMessage = { role: "user", content: text }
-    setMessages((prev) => [...prev, userMsg, { role: "assistant", content: "" }])
-    setIsStreaming(true)
+  useEffect(() => {
+    refreshThreads()
+  }, [refreshThreads])
 
-    controllerRef.current = streamChat(text, {
-      onToken(content) {
-        setMessages((prev) => {
-          const updated = [...prev]
-          const last = updated[updated.length - 1]
-          if (last.role === "assistant") {
-            updated[updated.length - 1] = {
-              ...last,
-              content: last.content + content,
-            }
-          }
-          return updated
-        })
-      },
-      onSources() {
-        // Sources are already appended inline by the backend
-      },
-      onDone() {
-        setIsStreaming(false)
-        controllerRef.current = null
-      },
-      onError(error) {
-        setMessages((prev) => {
-          const updated = [...prev]
-          const last = updated[updated.length - 1]
-          if (last.role === "assistant") {
-            updated[updated.length - 1] = {
-              ...last,
-              content: `Error: ${error.message}`,
-            }
-          }
-          return updated
-        })
-        setIsStreaming(false)
-        controllerRef.current = null
-      },
-    })
-  }, [isStreaming])
+  const send = useCallback(
+    (text: string) => {
+      if (!text.trim() || isStreaming) return
+
+      const userMsg: ChatMessage = { role: "user", content: text }
+      setMessages((prev) => [
+        ...prev,
+        userMsg,
+        { role: "assistant", content: "" },
+      ])
+      setIsStreaming(true)
+
+      controllerRef.current = streamChat(
+        text,
+        {
+          onThread(threadId) {
+            setActiveThreadId(threadId)
+            refreshThreads()
+          },
+          onToken(content) {
+            setMessages((prev) => {
+              const updated = [...prev]
+              const last = updated[updated.length - 1]
+              if (last.role === "assistant") {
+                updated[updated.length - 1] = {
+                  ...last,
+                  content: last.content + content,
+                }
+              }
+              return updated
+            })
+          },
+          onSources() {},
+          onDone() {
+            setIsStreaming(false)
+            controllerRef.current = null
+            refreshThreads()
+          },
+          onError(error) {
+            setMessages((prev) => {
+              const updated = [...prev]
+              const last = updated[updated.length - 1]
+              if (last.role === "assistant") {
+                updated[updated.length - 1] = {
+                  ...last,
+                  content: `Error: ${error.message}`,
+                }
+              }
+              return updated
+            })
+            setIsStreaming(false)
+            controllerRef.current = null
+          },
+        },
+        activeThreadId,
+      )
+    },
+    [isStreaming, activeThreadId, refreshThreads],
+  )
 
   const stop = useCallback(() => {
     controllerRef.current?.abort()
@@ -60,9 +89,49 @@ export function useChat() {
     controllerRef.current = null
   }, [])
 
+  const newChat = useCallback(() => {
+    stop()
+    setMessages([])
+    setActiveThreadId(null)
+  }, [stop])
+
+  const loadThread = useCallback(
+    async (threadId: string) => {
+      stop()
+      setActiveThreadId(threadId)
+      try {
+        const res = await api.get<{
+          messages: Array<{ role: string; content: string }>
+        }>(`/api/threads/${threadId}/messages`)
+        setMessages(
+          res.messages.map((m) => ({
+            role: m.role as "user" | "assistant",
+            content: m.content,
+          })),
+        )
+      } catch {
+        setMessages([])
+      }
+    },
+    [stop],
+  )
+
+  const deleteThread = useCallback(
+    async (threadId: string) => {
+      await api.del(`/api/threads/${threadId}`)
+      if (activeThreadId === threadId) {
+        setMessages([])
+        setActiveThreadId(null)
+      }
+      await refreshThreads()
+    },
+    [activeThreadId, refreshThreads],
+  )
+
   const clear = useCallback(async () => {
     stop()
     setMessages([])
+    setActiveThreadId(null)
     await api.del("/api/chat/history")
   }, [stop])
 
@@ -77,5 +146,18 @@ export function useChat() {
     return res.message
   }, [messages])
 
-  return { messages, isStreaming, send, stop, clear, continueChat, savePlan }
+  return {
+    messages,
+    isStreaming,
+    threads,
+    activeThreadId,
+    send,
+    stop,
+    clear,
+    continueChat,
+    savePlan,
+    newChat,
+    loadThread,
+    deleteThread,
+  }
 }

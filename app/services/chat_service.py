@@ -100,7 +100,8 @@ def extract_unique_sources(metadatas: list[dict]) -> list[str]:
 
 
 def chat_respond(message: str, retriever: Retriever,
-                 settings: Settings) -> Generator:
+                 settings: Settings, chatdb=None,
+                 thread_id: str | None = None) -> Generator:
     """Generate a streaming RAG response for the given message."""
     if not message.strip():
         yield ""
@@ -116,46 +117,69 @@ def chat_respond(message: str, retriever: Retriever,
     documents = [r.document for r in results]
     metadatas = [r.metadata for r in results]
 
+    # Load conversation history from thread DB or in-memory fallback
+    if thread_id and chatdb:
+        db_msgs = chatdb.get_messages(thread_id)
+        history = [{"role": m["role"], "content": m["content"]}
+                   for m in db_msgs]
+        history = history[-(MAX_HISTORY * 2):]
+    else:
+        history = conversation_history.get_history()
+
     messages = build_rag_messages(
         message, documents, metadatas,
-        conversation_history=conversation_history.get_history(),
+        conversation_history=history,
     )
 
     raw_response = ""
-    full_response = ""
+    cleaned = ""
+    last_yielded = ""
     last_check = 0
     try:
         for chunk in get_streaming_completion(messages, settings):
             raw_response += chunk
-            cleaned = _strip_thinking(raw_response)
-            if cleaned != full_response:
-                full_response = cleaned
-                yield full_response
+            # Yield raw (with think blocks) for frontend collapsible UI
+            if raw_response != last_yielded:
+                yield raw_response
+                last_yielded = raw_response
 
-            if len(full_response) - last_check >= 200:
-                last_check = len(full_response)
-                if _is_repeating(full_response):
-                    full_response = _truncate_at_repeat(full_response)
+            # Track cleaned version for repetition detection
+            cleaned = _strip_thinking(raw_response)
+            if len(cleaned) - last_check >= 200:
+                last_check = len(cleaned)
+                if _is_repeating(cleaned):
+                    cleaned = _truncate_at_repeat(cleaned)
                     logger.warning("Repetition detected, truncating")
-                    yield full_response
+                    yield cleaned
                     break
     except RuntimeError as e:
         logger.error("LLM error: %s", e)
         yield f"Error communicating with LLM: {e}"
         return
 
+    # Final clean for storage
+    cleaned = _strip_thinking(raw_response)
+
     sources = extract_unique_sources(metadatas)
-    if sources and "Source:" not in full_response:
+    if sources and "Source:" not in cleaned:
         source_block = "\n\n---\n**Sources:**\n" + "\n".join(
             f"- `{s}`" for s in sources
         )
-        full_response += source_block
-        yield full_response
+        raw_response += source_block
+        yield raw_response
 
-    conversation_history.add("user", message)
-    conversation_history.add(
-        "assistant", _strip_source_block(full_response),
-    )
+    # Persist messages
+    store_text = _strip_source_block(cleaned)
+    if thread_id and chatdb:
+        chatdb.add_message(thread_id, "user", message)
+        chatdb.add_message(thread_id, "assistant", store_text)
+        # Auto-title from first user message
+        thread = chatdb.get_thread(thread_id)
+        if thread and not thread["title"]:
+            chatdb.rename_thread(thread_id, message[:80])
+    else:
+        conversation_history.add("user", message)
+        conversation_history.add("assistant", store_text)
 
 
 def save_last_response_as_plan(history: list, settings: Settings) -> str:

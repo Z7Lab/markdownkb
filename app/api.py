@@ -27,6 +27,7 @@ from app.services.llm_service import (
     build_model_list,
     test_llm_connection,
 )
+from app.storage.chatdb import ChatDB
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 
@@ -50,6 +51,7 @@ class ChatRequest(BaseModel):
 
 class StreamChatRequest(BaseModel):
     message: str
+    thread_id: str | None = None
 
 
 class AddSourceRequest(BaseModel):
@@ -90,6 +92,10 @@ class FeatureToggleRequest(BaseModel):
     enabled: bool
 
 
+class RenameThreadRequest(BaseModel):
+    title: str
+
+
 class ExportRequest(BaseModel):
     format: str = "json"
 
@@ -102,6 +108,7 @@ def create_api(
     store: VectorStore,
     retriever: Retriever,
     tracking: TrackingDB,
+    chatdb: ChatDB,
     cancel_event: threading.Event,
 ) -> FastAPI:
     """Create and configure the FastAPI application."""
@@ -197,11 +204,15 @@ def create_api(
 
     @api.post("/api/chat/stream")
     def chat_stream(req: StreamChatRequest):
+        thread_id = req.thread_id or chatdb.create_thread()
+
         def generate():
+            yield _sse("thread", {"thread_id": thread_id})
+
             last_yielded = ""
-            sources = []
             for partial in chat_respond(
                 req.message, retriever, settings,
+                chatdb=chatdb, thread_id=thread_id,
             ):
                 new_text = partial[len(last_yielded):]
                 if new_text:
@@ -213,8 +224,8 @@ def create_api(
             if results:
                 metadatas = [r.metadata for r in results]
                 sources = extract_unique_sources(metadatas)
-            if sources:
-                yield _sse("sources", {"sources": sources})
+                if sources:
+                    yield _sse("sources", {"sources": sources})
 
             yield _sse("done", {})
 
@@ -233,6 +244,32 @@ def create_api(
             req.history, settings,
         )
         return {"message": result}
+
+    # ── Threads ──────────────────────────────────────────
+
+    @api.get("/api/threads")
+    def list_threads():
+        return {"threads": chatdb.list_threads()}
+
+    @api.get("/api/threads/{thread_id}/messages")
+    def get_thread_messages(thread_id: str):
+        if not chatdb.get_thread(thread_id):
+            raise HTTPException(status_code=404, detail="Thread not found")
+        return {"messages": chatdb.get_messages(thread_id)}
+
+    @api.delete("/api/threads/{thread_id}")
+    def delete_thread(thread_id: str):
+        if not chatdb.get_thread(thread_id):
+            raise HTTPException(status_code=404, detail="Thread not found")
+        chatdb.delete_thread(thread_id)
+        return {"status": "deleted"}
+
+    @api.patch("/api/threads/{thread_id}")
+    def rename_thread(thread_id: str, req: RenameThreadRequest):
+        if not chatdb.get_thread(thread_id):
+            raise HTTPException(status_code=404, detail="Thread not found")
+        chatdb.rename_thread(thread_id, req.title)
+        return {"status": "renamed"}
 
     # ── Files / Browse ───────────────────────────────────
 

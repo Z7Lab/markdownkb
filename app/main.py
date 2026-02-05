@@ -14,6 +14,7 @@ from app.config import Settings
 from app.ingestion.indexer import run_index
 from app.ingestion.watcher import start_watching
 from app.rag.retriever import Retriever
+from app.storage.chatdb import ChatDB
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 
@@ -48,6 +49,7 @@ def main():
         settings.persist_directory, settings.collection_name,
     )
     tracking = TrackingDB(settings.data_directory)
+    chatdb = ChatDB(settings.data_directory)
 
     if store.count == 0:
         logger.info("Empty store, running initial index...")
@@ -57,7 +59,7 @@ def main():
     cancel_event = threading.Event()
 
     app = create_api(
-        settings, store, retriever, tracking, cancel_event,
+        settings, store, retriever, tracking, chatdb, cancel_event,
     )
 
     # Serve frontend static files in production

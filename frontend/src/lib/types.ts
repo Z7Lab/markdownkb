@@ -25,6 +25,13 @@ export interface Provider {
   api_base: string
 }
 
+export interface Thread {
+  id: string
+  title: string
+  created_at: string
+  updated_at: string
+}
+
 export interface AppSettings {
   active_provider: string
   providers: Provider[]
