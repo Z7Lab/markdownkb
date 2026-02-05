@@ -1,11 +1,12 @@
+"""Command-line interface for mdkb indexing and search."""
+
 import argparse
-import json
 import logging
 import sys
 
 from app.config import Settings
-from app.embeddings.embedder import embed_texts, embed_query
-from app.ingestion.parser import parse_and_chunk
+from app.embeddings.embedder import embed_query
+from app.ingestion.indexer import run_index
 from app.ingestion.scanner import scan_sources
 from app.storage.vectorstore import VectorStore
 
@@ -14,38 +15,14 @@ logger = logging.getLogger(__name__)
 
 
 def cmd_index(settings: Settings):
-    logger.info("Scanning sources...")
-    files = scan_sources(settings.sources, settings.global_ignore)
-    logger.info(f"Found {len(files)} markdown files")
-
+    """Index all configured source directories."""
     store = VectorStore(settings.persist_directory, settings.collection_name)
-
-    all_chunks = []
-    for fi in files:
-        chunks = parse_and_chunk(
-            fi.path, fi.source_root,
-            settings.chunk_size, settings.chunk_overlap,
-        )
-        all_chunks.extend(chunks)
-        logger.info(f"  {fi.relative_path}: {len(chunks)} chunks")
-
-    if not all_chunks:
-        logger.info("No chunks to index.")
-        return
-
-    logger.info(f"Embedding {len(all_chunks)} chunks...")
-    texts = [c.content for c in all_chunks]
-    embeddings = embed_texts(texts, settings.embedding_model)
-
-    ids = [c.chunk_id for c in all_chunks]
-    metadatas = [c.metadata for c in all_chunks]
-
-    logger.info("Storing in ChromaDB...")
-    store.add(ids, texts, embeddings, metadatas)
-    logger.info(f"Done. Total chunks in store: {store.count}")
+    result = run_index(settings, store)
+    logger.info(result)
 
 
 def cmd_search(settings: Settings, query: str, top_k: int | None = None):
+    """Search the knowledge base for a query string."""
     store = VectorStore(settings.persist_directory, settings.collection_name)
 
     if store.count == 0:
@@ -53,15 +30,15 @@ def cmd_search(settings: Settings, query: str, top_k: int | None = None):
         return
 
     k = top_k or settings.top_k
-    logger.info(f"Searching for: {query}")
+    logger.info("Searching for: %s", query)
 
-    qe = embed_query(query, settings.embedding_model)
+    qe = embed_query(query)
     results = store.query(qe, n_results=k)
 
     for i, (doc, meta, dist) in enumerate(
         zip(results["documents"], results["metadatas"], results["distances"])
     ):
-        score = 1 - dist  # cosine distance to similarity
+        score = 1 - dist
         source = meta.get("source_path", "unknown")
         heading = meta.get("heading", "")
         print(f"\n--- Result {i+1} (score: {score:.3f}) ---")
@@ -72,12 +49,14 @@ def cmd_search(settings: Settings, query: str, top_k: int | None = None):
 
 
 def cmd_add_source(settings: Settings, path: str):
+    """Add a source directory to the configuration."""
     settings.add_source(path)
     settings.save()
-    logger.info(f"Added source: {path}")
+    logger.info("Added source: %s", path)
 
 
 def cmd_stats(settings: Settings):
+    """Display index statistics."""
     store = VectorStore(settings.persist_directory, settings.collection_name)
     files = scan_sources(settings.sources, settings.global_ignore)
     print(f"Sources configured: {len(settings.sources)}")
@@ -90,6 +69,7 @@ def cmd_stats(settings: Settings):
 
 
 def main():
+    """Parse CLI arguments and run the appropriate command."""
     parser = argparse.ArgumentParser(description="mdkb - Markdown Knowledge Base CLI")
     parser.add_argument("--config", default=None, help="Path to settings.yaml")
     sub = parser.add_subparsers(dest="command")

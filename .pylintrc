@@ -1,0 +1,15 @@
+[TYPECHECK]
+# Gradio components expose these event methods dynamically at runtime.
+# Patterns are regex — match any object's .click/.submit/.select/.load etc.
+generated-members=.*\.click,.*\.submit,.*\.select,.*\.change,.*\.load,.*\.then,.*\.success
+
+[DESIGN]
+max-locals=20
+max-public-methods=30
+max-attributes=10
+max-args=8
+max-positional-arguments=8
+min-public-methods=1
+
+[SIMILARITIES]
+min-similarity-lines=10

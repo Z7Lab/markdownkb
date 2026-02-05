@@ -1,3 +1,5 @@
+"""Chat interface with streaming responses and conversation memory."""
+
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -7,31 +9,45 @@ import gradio as gr
 
 from app.config import Settings
 from app.rag.llm import get_streaming_completion
-from app.rag.prompts import build_rag_messages, format_context
-from app.rag.retriever import Retriever, SearchResult
+from app.rag.prompts import build_rag_messages
+from app.rag.retriever import Retriever
 
 logger = logging.getLogger(__name__)
 
-# Conversation memory: list of {"role": ..., "content": ...}
-_conversation_history: list[dict] = []
-MAX_HISTORY = 20  # Keep last N exchanges
+MAX_HISTORY = 20
 
 
-def _trim_history():
-    global _conversation_history
-    if len(_conversation_history) > MAX_HISTORY * 2:
-        _conversation_history = _conversation_history[-(MAX_HISTORY * 2):]
+class ConversationHistory:
+    """Thread-safe conversation memory for chat context."""
+
+    def __init__(self):
+        self._history: list[dict] = []
+
+    def add(self, role: str, content: str):
+        """Append a message and trim if over limit."""
+        self._history.append({"role": role, "content": content})
+        if len(self._history) > MAX_HISTORY * 2:
+            self._history = self._history[-(MAX_HISTORY * 2):]
+
+    def get_history(self) -> list[dict]:
+        """Return the recent conversation history."""
+        return list(self._history[-(MAX_HISTORY * 2):])
+
+    def clear(self):
+        """Clear all conversation history."""
+        self._history = []
 
 
-def chat_respond(message: str, history: list, retriever: Retriever,
+conversation_history = ConversationHistory()
+
+
+def chat_respond(message: str, retriever: Retriever,
                  settings: Settings) -> Generator:
-    global _conversation_history
-
+    """Generate a streaming RAG response for the given message."""
     if not message.strip():
         yield ""
         return
 
-    # Retrieve relevant context
     results = retriever.search(message)
 
     if not results:
@@ -44,21 +60,19 @@ def chat_respond(message: str, history: list, retriever: Retriever,
 
     messages = build_rag_messages(
         message, documents, metadatas,
-        conversation_history=_conversation_history[-MAX_HISTORY * 2:],
+        conversation_history=conversation_history.get_history(),
     )
 
-    # Stream response
     full_response = ""
     try:
         for chunk in get_streaming_completion(messages, settings):
             full_response += chunk
             yield full_response
-    except Exception as e:
-        logger.error(f"LLM error: {e}")
+    except RuntimeError as e:
+        logger.error("LLM error: %s", e)
         yield f"Error communicating with LLM: {e}"
         return
 
-    # Add source citations if not already present
     sources = _extract_unique_sources(metadatas)
     if sources and "Source:" not in full_response:
         source_block = "\n\n---\n**Sources:**\n" + "\n".join(
@@ -67,18 +81,12 @@ def chat_respond(message: str, history: list, retriever: Retriever,
         full_response += source_block
         yield full_response
 
-    # Update conversation memory
-    _conversation_history.append({"role": "user", "content": message})
-    _conversation_history.append({"role": "assistant", "content": full_response})
-    _trim_history()
-
-
-def clear_history():
-    global _conversation_history
-    _conversation_history = []
+    conversation_history.add("user", message)
+    conversation_history.add("assistant", full_response)
 
 
 def save_last_response_as_plan(history: list, settings: Settings) -> str:
+    """Save the last assistant response as a markdown plan file."""
     if not history:
         return "No conversation to save."
 
@@ -98,7 +106,6 @@ def save_last_response_as_plan(history: list, settings: Settings) -> str:
     filename = f"plan_{timestamp}.md"
     filepath = save_dir / filename
 
-    # Get the user's question that prompted this response
     user_msg = ""
     for msg in reversed(history):
         if msg.get("role") == "user":
@@ -114,6 +121,7 @@ def save_last_response_as_plan(history: list, settings: Settings) -> str:
 
 
 def _extract_unique_sources(metadatas: list[dict]) -> list[str]:
+    """Extract deduplicated source file paths from metadata list."""
     seen = set()
     sources = []
     for m in metadatas:
@@ -125,11 +133,11 @@ def _extract_unique_sources(metadatas: list[dict]) -> list[str]:
 
 
 def build_chat_tab(retriever: Retriever, settings: Settings) -> gr.Blocks:
+    """Build the Gradio chat tab with send, clear, and save controls."""
     with gr.Blocks() as tab:
         chatbot = gr.Chatbot(
             label="mdkb Chat",
             height=500,
-            type="messages",
         )
         with gr.Row():
             msg = gr.Textbox(
@@ -149,13 +157,13 @@ def build_chat_tab(retriever: Retriever, settings: Settings) -> gr.Blocks:
             history = history or []
             history.append({"role": "user", "content": message})
             history.append({"role": "assistant", "content": ""})
-            for partial in chat_respond(message, history, retriever, settings):
+            for partial in chat_respond(message, retriever, settings):
                 history[-1]["content"] = partial
                 yield history, ""
             yield history, ""
 
         def clear():
-            clear_history()
+            conversation_history.clear()
             return [], ""
 
         def save_plan(history):

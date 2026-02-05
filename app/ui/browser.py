@@ -1,3 +1,5 @@
+"""File browser and settings UI components."""
+
 import logging
 from pathlib import Path
 
@@ -9,7 +11,8 @@ from app.rag.retriever import Retriever
 logger = logging.getLogger(__name__)
 
 
-def build_browser_tab(retriever: Retriever, settings: Settings) -> gr.Blocks:
+def build_browser_tab(retriever: Retriever) -> gr.Blocks:
+    """Build the file browser tab for viewing indexed files."""
     with gr.Blocks() as tab:
         gr.Markdown("## Browse Knowledge Base")
 
@@ -48,9 +51,8 @@ def build_browser_tab(retriever: Retriever, settings: Settings) -> gr.Blocks:
             if not p.exists():
                 return f"File not found: {filepath}"
             try:
-                content = p.read_text(encoding="utf-8", errors="replace")
-                return content
-            except Exception as e:
+                return p.read_text(encoding="utf-8", errors="replace")
+            except OSError as e:
                 return f"Error reading file: {e}"
 
         def on_row_select(evt: gr.SelectData, data):
@@ -66,14 +68,13 @@ def build_browser_tab(retriever: Retriever, settings: Settings) -> gr.Blocks:
         refresh_btn.click(get_file_list, outputs=[file_list])
         load_btn.click(load_file, [selected_file], [file_content])
         file_list.select(on_row_select, [file_list], [selected_file, file_content])
-
-        # Load initial file list
         tab.load(get_file_list, outputs=[file_list])
 
     return tab
 
 
 def build_settings_tab(settings: Settings, reindex_fn) -> gr.Blocks:
+    """Build the settings tab for LLM config and source management."""
     with gr.Blocks() as tab:
         gr.Markdown("## Settings")
 
@@ -107,9 +108,7 @@ def build_settings_tab(settings: Settings, reindex_fn) -> gr.Blocks:
                     label="Add Source Directory",
                     placeholder="/path/to/your/markdown/files",
                 )
-                with gr.Row():
-                    add_source_btn = gr.Button("Add Source")
-                    remove_source_btn = gr.Button("Remove Selected")
+                add_source_btn = gr.Button("Add Source")
                 source_status = gr.Textbox(label="", interactive=False)
 
         with gr.Row():
@@ -137,9 +136,8 @@ def build_settings_tab(settings: Settings, reindex_fn) -> gr.Blocks:
 
         def do_reindex():
             try:
-                result = reindex_fn()
-                return result
-            except Exception as e:
+                return reindex_fn()
+            except RuntimeError as e:
                 return f"Error during reindex: {e}"
 
         save_provider_btn.click(save_provider, [provider_dropdown], [provider_status])
