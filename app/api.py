@@ -41,6 +41,8 @@ logger = logging.getLogger(__name__)
 
 
 class SearchRequest(BaseModel):
+    """Request model for search API endpoint."""
+
     query: str
     top_k: int = 5
     folder: str | None = None
@@ -48,54 +50,76 @@ class SearchRequest(BaseModel):
 
 
 class ChatRequest(BaseModel):
+    """Request model for chat API endpoint."""
+
     message: str
     conversation_history: list[dict] | None = None
 
 
 class StreamChatRequest(BaseModel):
+    """Request model for streaming chat API endpoint."""
+
     message: str
     thread_id: str | None = None
 
 
 class AddSourceRequest(BaseModel):
+    """Request model for adding a source."""
+
     path: str
 
 
 class RemoveSourceRequest(BaseModel):
+    """Request model for removing a source."""
+
     path: str
 
 
 class FilePathRequest(BaseModel):
+    """Request model for file path operations."""
+
     path: str
 
 
 class SavePlanRequest(BaseModel):
+    """Request model for saving conversation plan."""
+
     history: list[dict]
 
 
 class ProviderSettingsRequest(BaseModel):
+    """Request model for provider settings."""
+
     name: str
     model: str
     api_base: str = ""
 
 
 class TestConnectionRequest(BaseModel):
+    """Request model for testing LLM connection."""
+
     name: str
     model: str
     api_base: str = ""
 
 
 class RefreshModelsRequest(BaseModel):
+    """Request model for refreshing available models."""
+
     name: str
     api_base: str
 
 
 class FeatureToggleRequest(BaseModel):
+    """Request model for toggling feature flags."""
+
     name: str
     enabled: bool
 
 
 class TestPromptRequest(BaseModel):
+    """Request model for testing prompt with LLM."""
+
     prompt: str
     provider: str = ""
     model: str = ""
@@ -103,15 +127,21 @@ class TestPromptRequest(BaseModel):
 
 
 class ModelInfoRequest(BaseModel):
+    """Request model for getting model capabilities."""
+
     model: str
     api_base: str = ""
 
 
 class RenameThreadRequest(BaseModel):
+    """Request model for renaming conversation thread."""
+
     title: str
 
 
 class ExportRequest(BaseModel):
+    """Request model for exporting conversation history."""
+
     format: str = "json"
 
 
@@ -162,8 +192,10 @@ def create_api(
     @api.post("/api/search")
     def search(req: SearchRequest):
         results = retriever.search(
-            req.query, top_k=req.top_k,
-            folder_filter=req.folder, tag_filter=req.tag,
+            req.query,
+            top_k=req.top_k,
+            folder_filter=req.folder,
+            tag_filter=req.tag,
         )
         return {
             "results": [
@@ -199,7 +231,9 @@ def create_api(
         metadatas = [r.metadata for r in results]
 
         messages = build_rag_messages(
-            req.message, documents, metadatas,
+            req.message,
+            documents,
+            metadatas,
             conversation_history=req.conversation_history,
         )
 
@@ -207,13 +241,13 @@ def create_api(
             response = get_completion(messages, settings)
         except RuntimeError as e:
             raise HTTPException(
-                status_code=502, detail=str(e),
+                status_code=502,
+                detail=str(e),
             ) from e
 
-        sources = list({
-            m.get("source_path", "")
-            for m in metadatas if m.get("source_path")
-        })
+        sources = list(
+            {m.get("source_path", "") for m in metadatas if m.get("source_path")}
+        )
 
         return {"response": response, "sources": sources}
 
@@ -231,10 +265,13 @@ def create_api(
 
             last_yielded = ""
             for partial in chat_respond(
-                req.message, retriever, settings,
-                chatdb=chatdb, thread_id=thread_id,
+                req.message,
+                retriever,
+                settings,
+                chatdb=chatdb,
+                thread_id=thread_id,
             ):
-                new_text = partial[len(last_yielded):]
+                new_text = partial[len(last_yielded) :]
                 if new_text:
                     yield _sse("token", {"content": new_text})
                     last_yielded = partial
@@ -250,7 +287,8 @@ def create_api(
             yield _sse("done", {})
 
         return StreamingResponse(
-            generate(), media_type="text/event-stream",
+            generate(),
+            media_type="text/event-stream",
         )
 
     @api.delete("/api/chat/history")
@@ -261,7 +299,8 @@ def create_api(
     @api.post("/api/chat/save-plan")
     def save_plan(req: SavePlanRequest):
         result = save_last_response_as_plan(
-            req.history, settings,
+            req.history,
+            settings,
         )
         return {"message": result}
 
@@ -295,6 +334,14 @@ def create_api(
 
     @api.get("/api/files")
     def list_files():
+        # Prune files that no longer exist on disk
+        all_files = tracking.get_all_files()
+        existing_paths = {f["path"] for f in all_files if Path(f["path"]).exists()}
+        removed = tracking.remove_files_not_in(existing_paths)
+        for path in removed:
+            store.delete_by_source(path)
+            logger.info("Pruned missing file: %s", path)
+        # Return the pruned list
         return {"files": tracking.get_all_files()}
 
     @api.get("/api/file")
@@ -302,16 +349,19 @@ def create_api(
         p = Path(path)
         if not p.exists():
             raise HTTPException(
-                status_code=404, detail="File not found",
+                status_code=404,
+                detail="File not found",
             )
         try:
             content = p.read_text(
-                encoding="utf-8", errors="replace",
+                encoding="utf-8",
+                errors="replace",
             )
             return {"path": str(p), "content": content}
         except OSError as e:
             raise HTTPException(
-                status_code=500, detail=str(e),
+                status_code=500,
+                detail=str(e),
             ) from e
 
     @api.post("/api/files/exclude")
@@ -319,7 +369,8 @@ def create_api(
         record = tracking.get_file(req.path)
         if not record:
             raise HTTPException(
-                status_code=404, detail="File not tracked",
+                status_code=404,
+                detail="File not tracked",
             )
         tracking.exclude_file(req.path)
         store.delete_by_source(req.path)
@@ -333,11 +384,15 @@ def create_api(
         record = tracking.get_file(req.path)
         if not record:
             raise HTTPException(
-                status_code=404, detail="File not tracked",
+                status_code=404,
+                detail="File not tracked",
             )
         tracking.include_file(req.path)
         result = reindex_file(
-            req.path, settings, store, tracking,
+            req.path,
+            settings,
+            store,
+            tracking,
         )
         return {"status": "included", "message": result}
 
@@ -394,7 +449,9 @@ def create_api(
     @api.post("/api/settings/test-connection")
     def test_connection(req: TestConnectionRequest):
         result = test_llm_connection(
-            req.name, req.model, req.api_base,
+            req.name,
+            req.model,
+            req.api_base,
         )
         return {"result": result}
 
@@ -406,7 +463,8 @@ def create_api(
     @api.post("/api/settings/refresh-models")
     def refresh_models(req: RefreshModelsRequest):
         models, status = build_model_list(
-            req.name, req.api_base,
+            req.name,
+            req.api_base,
         )
         return {"models": models, "status": status}
 
@@ -426,15 +484,19 @@ def create_api(
         def generate():
             try:
                 for event, data in stream_test_prompt(
-                    req.prompt, model, api_base,
-                    settings.llm_temperature, settings.llm_max_tokens,
+                    req.prompt,
+                    model,
+                    api_base,
+                    settings.llm_temperature,
+                    settings.llm_max_tokens,
                 ):
                     yield _sse(event, data)
-            except Exception as e:
+            except (RuntimeError, ConnectionError, TimeoutError) as e:
                 yield _sse("error", {"message": str(e)})
 
         return StreamingResponse(
-            generate(), media_type="text/event-stream",
+            generate(),
+            media_type="text/event-stream",
         )
 
     @api.post("/api/settings/model-info")
@@ -453,7 +515,10 @@ def create_api(
     def index():
         cancel_event.clear()
         result = run_index(
-            settings, store, tracking, cancel=cancel_event,
+            settings,
+            store,
+            tracking,
+            cancel=cancel_event,
         )
         return {"message": result}
 
@@ -469,15 +534,10 @@ def create_api(
         history = conversation_history.get_history()
         if req.format == "markdown":
             lines = ["# mdkb Conversation Export\n"]
-            lines.append(
-                f"*Exported: {datetime.now().isoformat()}*"
-                "\n\n---\n"
-            )
+            lines.append(f"*Exported: {datetime.now().isoformat()}*" "\n\n---\n")
             for msg in history:
                 role = msg["role"].capitalize()
-                lines.append(
-                    f"**{role}:** {msg['content']}\n\n"
-                )
+                lines.append(f"**{role}:** {msg['content']}\n\n")
             return {
                 "content": "\n".join(lines),
                 "format": "markdown",
