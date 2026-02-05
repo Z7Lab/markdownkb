@@ -18,7 +18,7 @@ MAX_HISTORY = 20
 REPEAT_WINDOW = 150
 
 # Matches <think>...</think> blocks (qwen3, deepseek, etc.)
-_THINK_RE = re.compile(r"<think>[\s\S]*?</think>\s*", re.IGNORECASE)
+_THINK_RE = re.compile(r"<think>[\s\S]*?</think>[\s:]*", re.IGNORECASE)
 # Matches an unclosed <think> tag at the end of streaming text
 _THINK_OPEN_RE = re.compile(r"<think>[\s\S]*$", re.IGNORECASE)
 
@@ -173,10 +173,6 @@ def chat_respond(message: str, retriever: Retriever,
     if thread_id and chatdb:
         chatdb.add_message(thread_id, "user", message)
         chatdb.add_message(thread_id, "assistant", store_text)
-        # Auto-title from first user message
-        thread = chatdb.get_thread(thread_id)
-        if thread and not thread["title"]:
-            chatdb.rename_thread(thread_id, message[:80])
     else:
         conversation_history.add("user", message)
         conversation_history.add("assistant", store_text)

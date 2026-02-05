@@ -38,9 +38,17 @@ export function useChat() {
       controllerRef.current = streamChat(
         text,
         {
-          onThread(threadId) {
+          onThread(threadId, title) {
             setActiveThreadId(threadId)
-            refreshThreads()
+            setThreads((prev) => [
+              {
+                id: threadId,
+                title: title || "New chat",
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              },
+              ...prev,
+            ])
           },
           onToken(content) {
             setMessages((prev) => {

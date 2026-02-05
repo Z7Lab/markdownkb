@@ -1,5 +1,5 @@
 export interface SSECallbacks {
-  onThread: (threadId: string) => void
+  onThread: (threadId: string, title: string) => void
   onToken: (content: string) => void
   onSources: (sources: string[]) => void
   onDone: () => void
@@ -50,7 +50,7 @@ export function streamChat(
           } else if (line.startsWith("data: ")) {
             const data = JSON.parse(line.slice(6))
             if (eventType === "thread") {
-              callbacks.onThread(data.thread_id)
+              callbacks.onThread(data.thread_id, data.title ?? "")
             } else if (eventType === "token") {
               callbacks.onToken(data.content)
             } else if (eventType === "sources") {
