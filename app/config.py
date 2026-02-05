@@ -229,7 +229,9 @@ class Settings:
 
     @property
     def server_port(self) -> int:
-        """Return the server port number."""
+        """Return the server port number (API_PORT env var > settings.yaml > 9713)."""
+        if os.environ.get("API_PORT"):
+            return int(os.environ["API_PORT"])
         return self._data.get("server", {}).get("port", 9713)
 
     # --- Plans ---

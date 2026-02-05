@@ -12,8 +12,15 @@ from app.rag.retriever import Retriever
 
 logger = logging.getLogger(__name__)
 
+import re
+
 MAX_HISTORY = 20
 REPEAT_WINDOW = 150
+
+# Matches <think>...</think> blocks (qwen3, deepseek, etc.)
+_THINK_RE = re.compile(r"<think>[\s\S]*?</think>\s*", re.IGNORECASE)
+# Matches an unclosed <think> tag at the end of streaming text
+_THINK_OPEN_RE = re.compile(r"<think>[\s\S]*$", re.IGNORECASE)
 
 
 class ConversationHistory:
@@ -62,6 +69,15 @@ def _truncate_at_repeat(text: str) -> str:
     return text
 
 
+def _strip_thinking(text: str) -> str:
+    """Remove <think>...</think> blocks from model output."""
+    # Strip completed thinking blocks
+    text = _THINK_RE.sub("", text)
+    # Strip unclosed thinking block at the end (still streaming)
+    text = _THINK_OPEN_RE.sub("", text)
+    return text
+
+
 def _strip_source_block(text: str) -> str:
     """Remove source citations before storing in history."""
     for marker in ("\n\n---\n**Sources:**", "\n\nSource: "):
@@ -105,12 +121,16 @@ def chat_respond(message: str, retriever: Retriever,
         conversation_history=conversation_history.get_history(),
     )
 
+    raw_response = ""
     full_response = ""
     last_check = 0
     try:
         for chunk in get_streaming_completion(messages, settings):
-            full_response += chunk
-            yield full_response
+            raw_response += chunk
+            cleaned = _strip_thinking(raw_response)
+            if cleaned != full_response:
+                full_response = cleaned
+                yield full_response
 
             if len(full_response) - last_check >= 200:
                 last_check = len(full_response)

@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 import threading
 from datetime import datetime
 from pathlib import Path
@@ -108,7 +109,9 @@ def create_api(
 
     api.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:5173"],
+        allow_origins=[
+            f"http://localhost:{os.environ.get('FRONTEND_PORT', '9714')}",
+        ],
         allow_methods=["*"],
         allow_headers=["*"],
     )

@@ -7,7 +7,7 @@ export function ChatTab() {
   const { messages, isStreaming, send, stop, clear, continueChat, savePlan } = useChat()
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)]">
+    <div className="flex flex-col h-[calc(100vh-4.5rem)]">
       <MessageList messages={messages} isStreaming={isStreaming} />
       <ChatControls
         onClear={clear}

@@ -24,7 +24,7 @@ export function SettingsTab() {
   }
 
   return (
-    <div className="p-4 space-y-6 overflow-y-auto h-[calc(100vh-8rem)]">
+    <div className="p-4 space-y-6 overflow-y-auto h-[calc(100vh-4.5rem)]">
       <h2 className="text-lg font-semibold">Settings</h2>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

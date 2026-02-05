@@ -2,212 +2,147 @@
 
 A personal knowledge management system. Index your markdown files, search them semantically, and chat with your knowledge base using any LLM.
 
-## Quick Start (Local)
+Python (FastAPI) backend + React (Vite + TypeScript + Shadcn/ui) frontend.
+
+## Quick Start
 
 ```bash
-# Install
-./setup.sh
-
-# Activate the environment
-source .venv/bin/activate
-
-# Run
-python -m app
+./run.sh
 ```
 
-Open `http://localhost:9713` in your browser.
+That's it. Creates `.venv`, installs Python and Node dependencies if needed, starts both services. Open `http://localhost:9714` (dev) or `http://localhost:9713` (production).
 
-## Quick Start (Docker)
+## run.sh
 
 ```bash
-docker compose up --build
+./run.sh           # dev mode (default): hot reload, backend:9713 + frontend:9714
+./run.sh -p        # production: builds frontend, serves everything on :9713
+./run.sh -b        # backend only, no frontend
+./run.sh -h        # help
 ```
 
-Open `http://localhost:9713` in your browser.
-
-## Setup
-
-### Local Development
-
-```bash
-# First time — creates .venv and installs everything
-./setup.sh
-
-# Activate the venv (needed every new terminal)
-source .venv/bin/activate
-
-# Run mdkb
-python -m app
-```
-
-**Reinstall from scratch** (if deps break or you want a clean slate):
-```bash
-./setup.sh clean && ./setup.sh
-```
-
-**Just remove the venv:**
-```bash
-./setup.sh clean
-```
-
-### Docker
-
-Edit `docker-compose.yml` to mount your markdown directories:
-
-```yaml
-volumes:
-  - ./data:/app/data
-  - ./config:/app/config
-  - ./skills:/app/skills
-  # Add your markdown folders here (read-only):
-  - /home/user/notes:/app/docs/notes:ro
-  - /home/user/documents:/app/docs/downloads:ro
-```
-
-Set your LLM API keys via environment variables:
-
-```bash
-export ANTHROPIC_API_KEY=sk-ant-PLACEHOLDER
-# or
-export OPENAI_API_KEY=sk-...
-# or
-export OLLAMA_API_BASE=http://<your-docker-host-ip>:11434
-```
-
-Then:
-```bash
-docker compose up --build
-```
+- Auto-creates `.venv` and installs `requirements.txt` if missing
+- Auto-installs `frontend/node_modules` if missing
+- Kills existing processes on ports before starting
+- Ctrl+C kills everything
+- Health checks both services with color-coded status
+- Reads `.env` for port overrides (copy `.env.example` to `.env`)
 
 ## Configuration
 
-Edit `config/settings.yaml` or use the **Settings** tab in the UI. The YAML file has inline comments explaining every option. Here's a reference:
+Edit `config/settings.yaml` or use the **Settings** tab in the UI.
 
 ### Sources
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `sources` | `[./docs]` | Directories to scan for markdown files. Relative paths resolve from project root. |
-| `global_ignore` | node_modules, .git, etc. | Glob patterns to skip during scanning. |
+| `sources` | `[./docs]` | Directories to scan for markdown files |
+| `global_ignore` | node_modules, .git, etc. | Glob patterns to skip |
 
 ### Embeddings
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `embeddings.model` | `all-MiniLM-L6-v2` | Embedding model. Uses ChromaDB's built-in ONNX runtime (no PyTorch). |
-| `embeddings.chunk_size` | `512` | Max characters per chunk when splitting documents. |
-| `embeddings.chunk_overlap` | `50` | Character overlap between consecutive chunks. |
-
-Embedding uses ONNX and defaults to half your CPU cores to avoid locking up your system. Override with:
-
-```bash
-OMP_NUM_THREADS=2 python -m app    # use only 2 cores
-```
-
-Indexing processes chunks in batches of 500 and saves each batch to disk, so partial progress survives crashes.
+| `embeddings.model` | `all-MiniLM-L6-v2` | Embedding model (ONNX, no PyTorch) |
+| `embeddings.chunk_size` | `512` | Max characters per chunk |
+| `embeddings.chunk_overlap` | `50` | Overlap between chunks |
 
 ### LLM Providers
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `llm.providers` | anthropic, openai, ollama | List of LLM backends. Each has `name`, `model`, `api_key`, `api_base`. |
-| `llm.active_provider` | `ollama` | Which provider to use. Must match a provider `name`. |
-| `llm.temperature` | `0.3` | Response randomness (0.0 = deterministic, 1.0 = creative). |
-| `llm.max_tokens` | `2048` | Max response length from the LLM. |
+| `llm.providers` | anthropic, openai, ollama | LLM backends with `name`, `model`, `api_key`, `api_base` |
+| `llm.active_provider` | `ollama` | Which provider to use |
+| `llm.temperature` | `0.3` | Response randomness |
+| `llm.max_tokens` | `2048` | Max response length |
 
-Model names use [litellm format](https://docs.litellm.ai/docs/providers): `provider/model` (e.g. `ollama/qwen3:32b`, `anthropic/claude-3-5-sonnet-20241022`).
+Model names use [LiteLLM format](https://docs.litellm.ai/docs/providers): `provider/model` (e.g. `ollama/qwen3:8b`, `anthropic/claude-3-5-sonnet-20241022`).
 
-Providers without an `api_key` are skipped automatically (except ollama, which doesn't need one). If the active provider fails, others are tried as fallbacks.
+Providers without an `api_key` are skipped (except Ollama). If the active provider fails, others are tried as fallbacks.
 
 ### Retrieval
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `retrieval.top_k` | `5` | Number of document chunks to retrieve per query. |
-| `retrieval.score_threshold` | `0.1` | Minimum cosine similarity score (0-1) to include a result. MiniLM scores for relevant matches are typically 0.15-0.45. Lower = more inclusive. |
-| `retrieval.hybrid_search` | `true` | Combine vector search with BM25 keyword matching for better results. |
-| `retrieval.bm25_weight` | `0.3` | Keyword vs. vector balance (0.0 = pure vector, 1.0 = pure keyword). |
-
-### Storage
-
-| Key | Default | Description |
-|-----|---------|-------------|
-| `storage.persist_directory` | `./data/chromadb` | Where the vector index is stored on disk. |
-| `storage.collection_name` | `mdkb` | ChromaDB collection name. |
+| `retrieval.top_k` | `5` | Chunks to retrieve per query |
+| `retrieval.score_threshold` | `0.1` | Minimum similarity score |
+| `retrieval.hybrid_search` | `true` | Combine vector + BM25 keyword search |
+| `retrieval.bm25_weight` | `0.3` | Keyword vs vector balance |
 
 ### Features
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `features.rag_chat` | `true` | Main chat interface with RAG. |
-| `features.file_watcher` | `true` | Auto-reindex when files change on disk. |
-| `features.mcp_filesystem` | `false` | MCP file browsing tool. |
-| `features.mcp_terminal` | `false` | MCP terminal command tool. |
-| `features.mcts_planner` | `false` | MCTS-based plan generation. |
-| `features.agent_skills` | `false` | Agent skill system for plan review. |
-
-### Server
-
-| Key | Default | Description |
-|-----|---------|-------------|
-| `server.host` | `0.0.0.0` | Bind address (0.0.0.0 = all interfaces). |
-| `server.port` | `9713` | Web UI and API port. |
-
-## CLI
-
-```bash
-source .venv/bin/activate
-
-# Index your markdown files
-python -m app.cli index
-
-# Search
-python -m app.cli search "what did I write about authentication"
-
-# Add a source directory
-python -m app.cli add-source /path/to/your/notes
-
-# Show stats
-python -m app.cli stats
-```
+| `features.rag_chat` | `true` | Chat with RAG |
+| `features.file_watcher` | `true` | Auto-reindex on file changes |
+| `features.mcp_filesystem` | `false` | MCP file browsing tool |
+| `features.mcp_terminal` | `false` | MCP terminal tool |
+| `features.mcts_planner` | `false` | MCTS plan generation |
+| `features.agent_skills` | `false` | Agent skill system |
 
 ## LLM Setup
 
-mdkb doesn't run LLMs locally — it calls them over the network.
+mdkb calls LLMs over the network — it doesn't run them locally.
 
-**Anthropic / OpenAI:** Set your API key in `config/settings.yaml` or via environment variable.
+**Anthropic / OpenAI:** Set your API key in `config/settings.yaml` or via environment variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`).
 
 **Ollama on another machine:** See [docs/ollama-remote-setup.md](docs/ollama-remote-setup.md).
 
-Providers are tried in order — if one fails, mdkb falls back to the next.
-
 ## API
 
-FastAPI endpoints are available alongside the UI at `http://localhost:9713/api/`:
+All endpoints at `http://localhost:9713/api/`:
 
-- `GET /api/health` — health check
-- `POST /api/search` — semantic search
-- `POST /api/chat` — RAG chat
-- `POST /api/index` — trigger re-index
-- `GET /api/stats` — index statistics
-- `GET /api/files` — list indexed files
-- `GET /api/file?path=...` — read a file
-- `POST /api/export` — export conversation history
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/health` | Health check |
+| GET | `/api/stats` | Index statistics |
+| POST | `/api/search` | Semantic search |
+| POST | `/api/chat` | RAG chat (non-streaming) |
+| POST | `/api/chat/stream` | SSE streaming chat |
+| DELETE | `/api/chat/history` | Clear conversation |
+| POST | `/api/chat/save-plan` | Save response as markdown |
+| GET | `/api/files` | List indexed files |
+| GET | `/api/file?path=...` | Read file content |
+| POST | `/api/files/exclude` | Exclude file from RAG |
+| POST | `/api/files/include` | Re-include file in RAG |
+| GET | `/api/sources` | List source directories |
+| POST | `/api/sources` | Add source directory |
+| DELETE | `/api/sources` | Remove source directory |
+| GET | `/api/settings` | Get full settings |
+| PUT | `/api/settings/provider` | Save LLM provider config |
+| POST | `/api/settings/test-connection` | Test LLM connectivity |
+| POST | `/api/settings/refresh-models` | Fetch Ollama model list |
+| PUT | `/api/settings/features` | Toggle feature flag |
+| POST | `/api/index` | Trigger re-index |
+| POST | `/api/index/cancel` | Cancel running index |
+| POST | `/api/export` | Export conversation history |
+| GET | `/api/folders` | List unique folders |
+| GET | `/api/tags` | List unique tags |
 
 ## Project Structure
 
 ```
 app/
-├── main.py              # Gradio app + FastAPI mount
-├── config.py            # Settings management
-├── cli.py               # CLI commands
-├── api.py               # REST API endpoints
-├── ingestion/           # File scanning, parsing, watching
+├── main.py              # Entry point, static serving, SPA catch-all
+├── config.py            # Settings from YAML
+├── api.py               # All FastAPI endpoints (REST + SSE)
+├── services/
+│   ├── chat_service.py  # Conversation memory, streaming RAG, think-block stripping
+│   └── llm_service.py   # Ollama model discovery, connection testing
+├── ingestion/           # File scanning, parsing, watching, indexing
 ├── embeddings/          # ONNX embedding (all-MiniLM-L6-v2, no PyTorch)
-├── storage/             # ChromaDB vector store
-├── rag/                 # LLM calls, retrieval, prompts
-├── ui/                  # Gradio chat + browser + settings
+├── storage/             # ChromaDB vector store + SQLite file tracking
+├── rag/                 # LLM calls (LiteLLM), retrieval, prompts
 ├── mcp/                 # Filesystem + terminal tools (optional)
 ├── planner/             # MCTS planning engine (optional)
-└── skills/              # Agent Skills for plan review (optional)
+└── skills/              # Agent skills for plan review (optional)
+
+frontend/
+├── src/
+│   ├── App.tsx          # Tab layout (Chat, Search, Browse, Settings)
+│   ├── lib/             # api.ts, sse.ts, types.ts
+│   ├── hooks/           # use-chat, use-search, use-files, use-settings
+│   └── components/      # chat/, search/, browse/, settings/, ui/ (shadcn)
+├── index.css            # Centralized styles
+└── vite.config.ts       # Proxy /api -> backend in dev
 ```

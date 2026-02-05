@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@plugin "@tailwindcss/typography";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -120,4 +122,48 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* ── Markdown prose overrides ─────────────────────────── */
+
+.mdkb-prose {
+  @apply prose prose-sm max-w-none text-foreground;
+
+  a {
+    @apply text-blue-600 underline decoration-blue-600/40 hover:decoration-blue-600;
+  }
+  code {
+    @apply bg-muted px-1.5 py-0.5 rounded text-[0.8em] font-mono;
+  }
+  pre {
+    @apply bg-muted rounded-md;
+  }
+  pre code {
+    @apply bg-transparent px-0 py-0;
+  }
+  hr {
+    @apply border-border;
+  }
+  strong {
+    @apply text-foreground;
+  }
+  h1, h2, h3, h4 {
+    @apply text-foreground;
+  }
+  p, li {
+    @apply text-foreground;
+  }
+  blockquote {
+    @apply border-border text-muted-foreground;
+  }
+}
+
+/* ── Tabs ─────────────────────────────────────────────── */
+
+[data-slot="tabs-list"] {
+  @apply h-11 gap-1 rounded-lg px-1;
+}
+
+[data-slot="tabs-trigger"] {
+  @apply px-4 py-2 text-sm font-medium;
 }

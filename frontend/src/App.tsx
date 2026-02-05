@@ -3,24 +3,38 @@ import { ChatTab } from "@/components/chat/chat-tab"
 import { SearchTab } from "@/components/search/search-tab"
 import { BrowseTab } from "@/components/browse/browse-tab"
 import { SettingsTab } from "@/components/settings/settings-tab"
+import { MessageSquare, Search, FolderOpen, Settings } from "lucide-react"
 
 function App() {
   return (
     <div className="h-screen flex flex-col">
-      <header className="border-b px-6 py-3">
-        <h1 className="text-xl font-bold">mdkb</h1>
-        <p className="text-sm text-muted-foreground">
-          Personal knowledge base assistant
-        </p>
-      </header>
-
       <Tabs defaultValue="chat" className="flex-1 flex flex-col">
-        <TabsList className="mx-6 mt-2 w-fit">
-          <TabsTrigger value="chat">Chat</TabsTrigger>
-          <TabsTrigger value="search">Search</TabsTrigger>
-          <TabsTrigger value="browse">Browse</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-        </TabsList>
+        <header className="border-b px-6 py-3 flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-bold tracking-tight">mdkb</h1>
+            <p className="text-xs text-muted-foreground">
+              Knowledge base assistant
+            </p>
+          </div>
+          <TabsList>
+            <TabsTrigger value="chat">
+              <MessageSquare className="h-4 w-4" />
+              Chat
+            </TabsTrigger>
+            <TabsTrigger value="search">
+              <Search className="h-4 w-4" />
+              Search
+            </TabsTrigger>
+            <TabsTrigger value="browse">
+              <FolderOpen className="h-4 w-4" />
+              Browse
+            </TabsTrigger>
+            <TabsTrigger value="settings">
+              <Settings className="h-4 w-4" />
+              Settings
+            </TabsTrigger>
+          </TabsList>
+        </header>
 
         <TabsContent value="chat" className="flex-1 mt-0">
           <ChatTab />

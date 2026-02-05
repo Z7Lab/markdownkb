@@ -11,9 +11,10 @@ export default defineConfig({
     },
   },
   server: {
+    port: parseInt(process.env.FRONTEND_PORT || "9714"),
     proxy: {
       "/api": {
-        target: "http://localhost:9713",
+        target: `http://localhost:${process.env.API_PORT || "9713"}`,
         changeOrigin: true,
       },
     },
