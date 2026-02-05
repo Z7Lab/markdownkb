@@ -81,14 +81,69 @@ docker compose up --build
 
 ## Configuration
 
-Edit `config/settings.yaml` to configure:
+Edit `config/settings.yaml` or use the **Settings** tab in the UI. The YAML file has inline comments explaining every option. Here's a reference:
 
-- **sources** — directories to index for markdown files
-- **llm.providers** — LLM backends (Anthropic, OpenAI, Ollama, etc.)
-- **llm.active_provider** — which provider to use
-- **features** — toggle optional features (file watcher, MCP, MCTS planner, etc.)
+### Sources
 
-You can also configure sources and LLM provider from the **Settings** tab in the UI.
+| Key | Default | Description |
+|-----|---------|-------------|
+| `sources` | `[./docs]` | Directories to scan for markdown files. Relative paths resolve from project root. |
+| `global_ignore` | node_modules, .git, etc. | Glob patterns to skip during scanning. |
+
+### Embeddings
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `embeddings.model` | `all-MiniLM-L6-v2` | Embedding model. Uses ChromaDB's built-in ONNX runtime (no PyTorch). |
+| `embeddings.chunk_size` | `512` | Max characters per chunk when splitting documents. |
+| `embeddings.chunk_overlap` | `50` | Character overlap between consecutive chunks. |
+
+### LLM Providers
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `llm.providers` | anthropic, openai, ollama | List of LLM backends. Each has `name`, `model`, `api_key`, `api_base`. |
+| `llm.active_provider` | `ollama` | Which provider to use. Must match a provider `name`. |
+| `llm.temperature` | `0.3` | Response randomness (0.0 = deterministic, 1.0 = creative). |
+| `llm.max_tokens` | `2048` | Max response length from the LLM. |
+
+Model names use [litellm format](https://docs.litellm.ai/docs/providers): `provider/model` (e.g. `ollama/qwen3:32b`, `anthropic/claude-3-5-sonnet-20241022`).
+
+Providers without an `api_key` are skipped automatically (except ollama, which doesn't need one). If the active provider fails, others are tried as fallbacks.
+
+### Retrieval
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `retrieval.top_k` | `5` | Number of document chunks to retrieve per query. |
+| `retrieval.score_threshold` | `0.1` | Minimum cosine similarity score (0-1) to include a result. MiniLM scores for relevant matches are typically 0.15-0.45. Lower = more inclusive. |
+| `retrieval.hybrid_search` | `true` | Combine vector search with BM25 keyword matching for better results. |
+| `retrieval.bm25_weight` | `0.3` | Keyword vs. vector balance (0.0 = pure vector, 1.0 = pure keyword). |
+
+### Storage
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `storage.persist_directory` | `./data/chromadb` | Where the vector index is stored on disk. |
+| `storage.collection_name` | `mdkb` | ChromaDB collection name. |
+
+### Features
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `features.rag_chat` | `true` | Main chat interface with RAG. |
+| `features.file_watcher` | `true` | Auto-reindex when files change on disk. |
+| `features.mcp_filesystem` | `false` | MCP file browsing tool. |
+| `features.mcp_terminal` | `false` | MCP terminal command tool. |
+| `features.mcts_planner` | `false` | MCTS-based plan generation. |
+| `features.agent_skills` | `false` | Agent skill system for plan review. |
+
+### Server
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `server.host` | `0.0.0.0` | Bind address (0.0.0.0 = all interfaces). |
+| `server.port` | `9713` | Web UI and API port. |
 
 ## CLI
 
@@ -130,15 +185,6 @@ FastAPI endpoints are available alongside the UI at `http://localhost:9713/api/`
 - `GET /api/files` — list indexed files
 - `GET /api/file?path=...` — read a file
 - `POST /api/export` — export conversation history
-
-## Port
-
-mdkb runs on port **9713** by default. Change it in `config/settings.yaml`:
-
-```yaml
-server:
-  port: 9713
-```
 
 ## Project Structure
 

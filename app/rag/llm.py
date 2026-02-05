@@ -12,6 +12,38 @@ litellm.drop_params = True
 logger = logging.getLogger(__name__)
 
 
+def _needs_api_key(provider: dict) -> bool:
+    """Check whether a provider requires an API key to function."""
+    name = provider.get("name", "").lower()
+    # Ollama and other local providers don't need API keys
+    if "ollama" in name or "local" in name:
+        return False
+    return True
+
+
+def _usable_providers(settings: Settings) -> list[dict]:
+    """Return providers in fallback order, skipping unconfigured ones."""
+    active = settings.get_active_llm_config()
+    others = [
+        p for p in settings.llm_providers
+        if p.get("name") != active.get("name")
+    ]
+    ordered = [active] + others
+
+    usable = []
+    for p in ordered:
+        if not p.get("model"):
+            continue
+        if _needs_api_key(p) and not p.get("api_key"):
+            logger.debug(
+                "Skipping provider %s: no API key configured",
+                p.get("name"),
+            )
+            continue
+        usable.append(p)
+    return usable
+
+
 def get_completion(
     messages: list[dict],
     settings: Settings | None = None,
@@ -20,17 +52,15 @@ def get_completion(
     """Get a completion from the active LLM provider, with fallback."""
     settings = settings or Settings.get()
 
-    providers = settings.llm_providers
-    active = settings.get_active_llm_config()
-
-    # Build ordered list: active provider first, then fallbacks
-    ordered = [active] + [
-        p for p in providers
-        if p.get("name") != active.get("name")
-    ]
+    providers = _usable_providers(settings)
+    if not providers:
+        raise RuntimeError(
+            "No usable LLM providers configured. "
+            "Add an API key or configure an Ollama provider."
+        )
 
     last_error = None
-    for provider in ordered:
+    for provider in providers:
         model = provider.get("model", "")
         api_key = provider.get("api_key", "") or None
         api_base = provider.get("api_base", "") or None
@@ -58,6 +88,7 @@ def get_completion(
         except (
             litellm.APIError,
             litellm.APIConnectionError,
+            litellm.AuthenticationError,
             litellm.Timeout,
             RuntimeError,
             OSError,
