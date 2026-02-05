@@ -1,13 +1,18 @@
+"""Application configuration loaded from settings.yaml."""
+
 import os
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-_DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "settings.yaml"
+_DEFAULT_CONFIG_PATH = (
+    Path(__file__).resolve().parent.parent / "config" / "settings.yaml"
+)
 
 
 def _resolve_env(value: str) -> str:
+    """Replace ${VAR} placeholders with environment variable values."""
     if isinstance(value, str) and value.startswith("${") and value.endswith("}"):
         env_var = value[2:-1]
         return os.environ.get(env_var, "")
@@ -15,6 +20,7 @@ def _resolve_env(value: str) -> str:
 
 
 def _resolve_env_recursive(obj: Any) -> Any:
+    """Recursively resolve environment variable placeholders."""
     if isinstance(obj, str):
         return _resolve_env(obj)
     if isinstance(obj, dict):
@@ -25,81 +31,116 @@ def _resolve_env_recursive(obj: Any) -> Any:
 
 
 class Settings:
+    """Singleton settings manager backed by YAML config file."""
+
     _instance: "Settings | None" = None
 
     def __init__(self, config_path: str | Path | None = None):
         path = Path(config_path) if config_path else _DEFAULT_CONFIG_PATH
         if path.exists():
-            with open(path) as f:
+            with open(path, encoding="utf-8") as f:
                 self._data = yaml.safe_load(f) or {}
         else:
             self._data = {}
         self._data = _resolve_env_recursive(self._data)
         self._path = path
+        self._project_root = path.resolve().parent.parent
 
     @classmethod
     def get(cls, config_path: str | Path | None = None) -> "Settings":
+        """Return the singleton instance, creating it if needed."""
         if cls._instance is None:
             cls._instance = cls(config_path)
         return cls._instance
 
     @classmethod
     def reset(cls):
+        """Reset the singleton for testing or reconfiguration."""
         cls._instance = None
 
     def save(self):
+        """Write current configuration back to the YAML file."""
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self._path, "w") as f:
-            yaml.dump(self._data, f, default_flow_style=False, sort_keys=False)
+        with open(self._path, "w", encoding="utf-8") as f:
+            yaml.dump(
+                self._data, f,
+                default_flow_style=False, sort_keys=False,
+            )
+
+    def _resolve_path(self, p: str) -> str:
+        """Resolve a relative path against the project root."""
+        path = Path(p)
+        if not path.is_absolute():
+            path = self._project_root / path
+        return str(path.resolve())
 
     # --- Sources ---
     @property
     def sources(self) -> list[str]:
-        return self._data.get("sources", [])
+        """Return resolved paths for all configured sources."""
+        return [
+            self._resolve_path(s)
+            for s in self._data.get("sources", [])
+        ]
 
     @sources.setter
     def sources(self, value: list[str]):
+        """Set the list of source directories."""
         self._data["sources"] = value
 
     def add_source(self, path: str):
+        """Add a source directory if not already present."""
         if path not in self.sources:
             self.sources.append(path)
 
     def remove_source(self, path: str):
+        """Remove a source directory from the list."""
         if path in self.sources:
             self.sources.remove(path)
 
     @property
     def global_ignore(self) -> list[str]:
+        """Return glob patterns for files to ignore."""
         return self._data.get("global_ignore", [])
 
     # --- Embeddings ---
     @property
     def embedding_model(self) -> str:
-        return self._data.get("embeddings", {}).get("model", "all-MiniLM-L6-v2")
+        """Return the configured embedding model name."""
+        return self._data.get("embeddings", {}).get(
+            "model", "all-MiniLM-L6-v2"
+        )
 
     @property
     def chunk_size(self) -> int:
+        """Return the maximum chunk size in characters."""
         return self._data.get("embeddings", {}).get("chunk_size", 512)
 
     @property
     def chunk_overlap(self) -> int:
+        """Return the overlap between consecutive chunks."""
         return self._data.get("embeddings", {}).get("chunk_overlap", 50)
 
     # --- LLM ---
     @property
     def llm_providers(self) -> list[dict]:
+        """Return the list of LLM provider configurations."""
         return self._data.get("llm", {}).get("providers", [])
 
     @property
     def active_provider(self) -> str:
-        return self._data.get("llm", {}).get("active_provider", "anthropic")
+        """Return the currently active LLM provider name."""
+        return self._data.get("llm", {}).get(
+            "active_provider", "anthropic"
+        )
 
     @active_provider.setter
     def active_provider(self, value: str):
+        """Set the active LLM provider by name."""
         self._data.setdefault("llm", {})["active_provider"] = value
 
     def get_active_llm_config(self) -> dict:
+        """Return the config dict for the active provider."""
         for p in self.llm_providers:
             if p.get("name") == self.active_provider:
                 return p
@@ -107,66 +148,93 @@ class Settings:
 
     @property
     def llm_temperature(self) -> float:
+        """Return the LLM sampling temperature."""
         return self._data.get("llm", {}).get("temperature", 0.3)
 
     @property
     def llm_max_tokens(self) -> int:
+        """Return the maximum tokens for LLM completions."""
         return self._data.get("llm", {}).get("max_tokens", 2048)
 
     # --- Retrieval ---
     @property
     def top_k(self) -> int:
+        """Return the number of results per search."""
         return self._data.get("retrieval", {}).get("top_k", 5)
 
     @property
     def score_threshold(self) -> float:
-        return self._data.get("retrieval", {}).get("score_threshold", 0.3)
+        """Return the minimum similarity score threshold."""
+        return self._data.get("retrieval", {}).get(
+            "score_threshold", 0.3
+        )
 
     @property
     def hybrid_search(self) -> bool:
-        return self._data.get("retrieval", {}).get("hybrid_search", True)
+        """Return whether hybrid BM25+vector search is enabled."""
+        return self._data.get("retrieval", {}).get(
+            "hybrid_search", True
+        )
 
     @property
     def bm25_weight(self) -> float:
+        """Return the BM25 weight in hybrid search."""
         return self._data.get("retrieval", {}).get("bm25_weight", 0.3)
 
     # --- Storage ---
     @property
     def persist_directory(self) -> str:
-        return self._data.get("storage", {}).get("persist_directory", "./data/chromadb")
+        """Return the resolved path for ChromaDB persistence."""
+        raw = self._data.get("storage", {}).get(
+            "persist_directory", "./data/chromadb"
+        )
+        return self._resolve_path(raw)
 
     @property
     def collection_name(self) -> str:
-        return self._data.get("storage", {}).get("collection_name", "mdkb")
+        """Return the ChromaDB collection name."""
+        return self._data.get("storage", {}).get(
+            "collection_name", "mdkb"
+        )
 
     # --- Features ---
     @property
     def features(self) -> dict[str, bool]:
+        """Return the feature flags dictionary."""
         return self._data.get("features", {})
 
     def feature_enabled(self, name: str) -> bool:
+        """Check whether a named feature is enabled."""
         return self.features.get(name, False)
 
     # --- Server ---
     @property
     def server_host(self) -> str:
+        """Return the server bind host address."""
         return self._data.get("server", {}).get("host", "0.0.0.0")
 
     @property
     def server_port(self) -> int:
+        """Return the server port number."""
         return self._data.get("server", {}).get("port", 9713)
 
     # --- Plans ---
     @property
     def plans_save_directory(self) -> str:
-        return self._data.get("plans", {}).get("save_directory", "./data/plans")
+        """Return the resolved path for saving plans."""
+        raw = self._data.get("plans", {}).get(
+            "save_directory", "./data/plans"
+        )
+        return self._resolve_path(raw)
 
     # --- Raw access ---
     @property
     def raw(self) -> dict:
+        """Return the raw configuration dictionary."""
         return self._data
 
     def set(self, key_path: str, value: Any):
+        """Set a value using dot-separated key path."""
         keys = key_path.split(".")
         d = self._data
         for k in keys[:-1]:
