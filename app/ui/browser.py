@@ -8,27 +8,44 @@ import litellm
 import requests
 
 from app.config import Settings
+from app.ingestion.indexer import reindex_file
 from app.storage.trackingdb import TrackingDB
+from app.storage.vectorstore import VectorStore
 
 logger = logging.getLogger(__name__)
 
 
-def build_browser_tab(tracking: TrackingDB) -> gr.Blocks:
-    """Build the file browser tab for viewing indexed files."""
+def build_browser_tab(
+    tracking: TrackingDB, store: VectorStore,
+    settings: Settings,
+) -> gr.Blocks:
+    """Build the file browser tab with RAG exclude/include controls."""
     with gr.Blocks() as tab:
         gr.Markdown("## Browse Knowledge Base")
 
         with gr.Row():
             with gr.Column(scale=1):
-                gr.Markdown("### Indexed Files")
+                gr.Markdown("### Files")
                 file_list = gr.Dataframe(
                     headers=[
-                        "File", "Folder", "Status", "Chunks",
+                        "File", "Folder", "RAG", "Status",
+                        "Chunks",
                     ],
                     label="Files",
                     interactive=False,
                 )
-                refresh_btn = gr.Button("Refresh File List")
+                with gr.Row():
+                    refresh_btn = gr.Button("Refresh")
+                    exclude_btn = gr.Button(
+                        "Exclude from RAG",
+                        variant="secondary",
+                    )
+                    include_btn = gr.Button(
+                        "Include in RAG",
+                    )
+                action_status = gr.Textbox(
+                    interactive=False, show_label=False,
+                )
 
             with gr.Column(scale=2):
                 gr.Markdown("### File Content")
@@ -40,13 +57,17 @@ def build_browser_tab(tracking: TrackingDB) -> gr.Blocks:
                 file_content = gr.Markdown(label="Content")
                 load_btn = gr.Button("Load File")
 
+        selected_path = gr.State("")
+
         def get_file_list():
-            """Return indexed files from tracking DB."""
+            """Return files from tracking DB with RAG status."""
             rows = tracking.get_all_files()
             return [
                 [
                     Path(r["path"]).name,
                     str(Path(r["path"]).parent),
+                    "No" if r["status"] == "excluded"
+                    else "Yes",
                     r["status"],
                     r["chunk_count"],
                 ]
@@ -79,17 +100,51 @@ def build_browser_tab(tracking: TrackingDB) -> gr.Blocks:
                 if row_idx < len(rows):
                     path = rows[row_idx]["path"]
                     content = load_file(path)
-                    return path, content
-            return "", ""
+                    return path, content, path
+            return "", "", ""
 
-        refresh_btn.click(get_file_list, outputs=[file_list])
+        def do_exclude(path):
+            """Exclude a file from RAG search."""
+            if not path:
+                return get_file_list(), "Select a file first."
+            tracking.exclude_file(path)
+            store.delete_by_source(path)
+            name = Path(path).name
+            return (
+                get_file_list(),
+                f"Excluded: {name}",
+            )
+
+        def do_include(path):
+            """Include a file back into RAG search."""
+            if not path:
+                return get_file_list(), "Select a file first."
+            tracking.include_file(path)
+            result = reindex_file(
+                path, settings, store, tracking,
+            )
+            return get_file_list(), result
+
+        refresh_btn.click(
+            get_file_list, outputs=[file_list],
+        )
         load_btn.click(
-            load_file, [selected_file], [file_content]
+            load_file, [selected_file], [file_content],
         )
         file_list.select(
             on_row_select,
             [file_list],
-            [selected_file, file_content],
+            [selected_file, file_content, selected_path],
+        )
+        exclude_btn.click(
+            do_exclude,
+            [selected_path],
+            [file_list, action_status],
+        )
+        include_btn.click(
+            do_include,
+            [selected_path],
+            [file_list, action_status],
         )
         tab.load(get_file_list, outputs=[file_list])
 

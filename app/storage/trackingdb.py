@@ -182,6 +182,35 @@ class TrackingDB:
         )
         self._conn.commit()
 
+    def exclude_file(self, path: str):
+        """Mark a file as excluded from RAG."""
+        self._conn.execute(
+            """UPDATE indexed_files
+            SET status = 'excluded', chunk_count = 0,
+                updated_at = datetime('now')
+            WHERE path = ?""",
+            (path,),
+        )
+        self._conn.commit()
+
+    def include_file(self, path: str):
+        """Mark an excluded file for re-indexing."""
+        self._conn.execute(
+            """UPDATE indexed_files
+            SET status = 'pending',
+                updated_at = datetime('now')
+            WHERE path = ? AND status = 'excluded'""",
+            (path,),
+        )
+        self._conn.commit()
+
+    def get_excluded_paths(self) -> set[str]:
+        """Return paths of all excluded files."""
+        rows = self._conn.execute(
+            "SELECT path FROM indexed_files WHERE status = 'excluded'"
+        ).fetchall()
+        return {r["path"] for r in rows}
+
     def remove_file(self, path: str):
         """Remove a file from tracking."""
         self._conn.execute(
@@ -218,7 +247,7 @@ class TrackingDB:
         stats = {
             "total_files": 0, "total_chunks": 0,
             "complete": 0, "pending": 0,
-            "indexing": 0, "error": 0,
+            "indexing": 0, "error": 0, "excluded": 0,
         }
         for r in rows:
             stats[r["status"]] = r["cnt"]

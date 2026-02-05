@@ -53,7 +53,7 @@ def build_app(settings: Settings) -> gr.Blocks:
                 _build_search_tab(retriever)
 
             with gr.Tab("Browse"):
-                build_browser_tab(tracking)
+                build_browser_tab(tracking, store, settings)
 
             with gr.Tab("Settings"):
                 build_settings_tab(

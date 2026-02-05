@@ -2,12 +2,13 @@
 
 import logging
 import threading
+from pathlib import Path
 from typing import Callable
 
 from app.config import Settings
 from app.embeddings.embedder import embed_texts
 from app.ingestion.parser import parse_and_chunk
-from app.ingestion.scanner import scan_sources, FileInfo
+from app.ingestion.scanner import scan_sources, compute_file_hash, FileInfo
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 
@@ -19,10 +20,14 @@ BATCH_SIZE = 500
 def _classify_files(files, tracking, incomplete):
     """Split files into (to_index, skipped_count) based on hash comparison."""
     hash_map = tracking.get_hash_map()
+    excluded = tracking.get_excluded_paths()
     to_index = []
     skipped = 0
 
     for fi in files:
+        if fi.path in excluded:
+            skipped += 1
+            continue
         stored_hash = hash_map.get(fi.path)
         if stored_hash is None or fi.content_hash != stored_hash:
             to_index.append(fi)
@@ -139,3 +144,33 @@ def run_index(
     msg = ", ".join(parts)
     report(1.0, msg)
     return msg
+
+
+def reindex_file(
+    path: str, settings: Settings,
+    store: VectorStore, tracking: TrackingDB,
+) -> str:
+    """Re-index a single file and return a status message."""
+    p = Path(path)
+    if not p.exists():
+        return f"File not found: {p.name}"
+
+    record = tracking.get_file(path)
+    if not record:
+        return f"File not tracked: {p.name}"
+
+    stat = p.stat()
+    fi = FileInfo(
+        path=path,
+        relative_path=p.name,
+        size=stat.st_size,
+        modified=stat.st_mtime,
+        content_hash=compute_file_hash(path),
+        source_root=record["source_root"],
+    )
+    try:
+        chunks = _index_file(fi, settings, store, tracking)
+        return f"Included: {p.name} ({chunks} chunks)"
+    except (OSError, ValueError, RuntimeError) as exc:
+        tracking.mark_error(path, str(exc))
+        return f"Error indexing {p.name}: {exc}"
