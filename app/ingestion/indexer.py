@@ -1,6 +1,7 @@
 """Shared indexing logic for CLI, API, and main app."""
 
 import logging
+import threading
 from typing import Callable
 
 from app.config import Settings
@@ -67,6 +68,7 @@ def run_index(
     store: VectorStore,
     tracking: TrackingDB,
     progress: Callable[[float, str], None] | None = None,
+    cancel: threading.Event | None = None,
 ) -> str:
     """Smart index: skip unchanged, reindex changed, clean deleted.
 
@@ -81,13 +83,14 @@ def run_index(
 
     report(0.0, "Scanning source directories...")
     files = scan_sources(settings.sources, settings.global_ignore)
-    scanned_paths = {fi.path for fi in files}
 
     incomplete = set(tracking.recover_incomplete())
     if incomplete:
         report(0.02, f"Recovering {len(incomplete)} interrupted files...")
 
-    removed = tracking.remove_files_not_in(scanned_paths)
+    removed = tracking.remove_files_not_in(
+        {fi.path for fi in files}
+    )
     for path in removed:
         store.delete_by_source(path)
     if removed:
@@ -104,8 +107,13 @@ def run_index(
 
     total_chunks = 0
     errors = 0
-    for i, fi in enumerate(to_index):
-        frac = 0.1 + 0.85 * (i / max(len(to_index), 1))
+    done = 0
+    for fi in to_index:
+        if cancel and cancel.is_set():
+            report(0.95, "Cancelled by user")
+            break
+
+        frac = 0.1 + 0.85 * (done / max(len(to_index), 1))
         report(frac, f"Indexing {fi.relative_path}...")
 
         try:
@@ -114,11 +122,14 @@ def run_index(
             tracking.mark_error(fi.path, str(exc))
             logger.error("Failed to index %s: %s", fi.path, exc)
             errors += 1
+        done += 1
 
     parts = [
-        f"Indexed {len(to_index)} files ({total_chunks} chunks)",
+        f"Indexed {done}/{len(to_index)} files ({total_chunks} chunks)",
         f"{skipped} unchanged",
     ]
+    if cancel and cancel.is_set():
+        parts.insert(0, "Cancelled")
     if removed:
         parts.append(f"{len(removed)} deleted")
     if errors:

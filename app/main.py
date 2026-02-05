@@ -31,9 +31,12 @@ def build_app(settings: Settings) -> gr.Blocks:
     tracking = TrackingDB(settings.data_directory)
     retriever = Retriever(store, settings)
 
+    cancel_event = threading.Event()
+
     def reindex_fn(progress=None):
         return run_index(
-            settings, store, tracking, progress=progress,
+            settings, store, tracking,
+            progress=progress, cancel=cancel_event,
         )
 
     with gr.Blocks(title="mdkb - Markdown Knowledge Base") as app:
@@ -53,7 +56,9 @@ def build_app(settings: Settings) -> gr.Blocks:
                 build_browser_tab(tracking)
 
             with gr.Tab("Settings"):
-                build_settings_tab(settings, reindex_fn)
+                build_settings_tab(
+                    settings, reindex_fn, cancel_event,
+                )
 
     if settings.feature_enabled("file_watcher"):
         _start_watcher(settings, store, tracking)

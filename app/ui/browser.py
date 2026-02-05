@@ -183,7 +183,7 @@ def _test_llm_connection(provider_name, model, api_base):
 
 
 def _build_sources_column(settings):
-    """Build the source directories column with add functionality."""
+    """Build the source directories column with add/remove."""
     gr.Markdown("### Source Directories")
     sources_display = gr.Dataframe(
         headers=["Source Path"],
@@ -195,10 +195,16 @@ def _build_sources_column(settings):
         label="Add Source Directory",
         placeholder="/path/to/markdown/files",
     )
-    add_source_btn = gr.Button("Add Source")
+    with gr.Row():
+        add_source_btn = gr.Button("Add Source")
+        remove_source_btn = gr.Button(
+            "Remove Selected", variant="secondary",
+        )
     source_status = gr.Textbox(
-        label="Status", interactive=False, show_label=False,
+        interactive=False, show_label=False,
     )
+
+    selected_source = gr.State("")
 
     def add_source(path):
         """Add a new source directory."""
@@ -214,35 +220,94 @@ def _build_sources_column(settings):
             f"Added: {path.strip()}",
         )
 
+    def on_source_select(evt: gr.SelectData, data):
+        """Capture which source row was clicked."""
+        if evt.index is not None and data is not None:
+            row_idx = (
+                evt.index[0]
+                if isinstance(evt.index, (list, tuple))
+                else evt.index
+            )
+            sources = settings.sources
+            if row_idx < len(sources):
+                return sources[row_idx]
+        return ""
+
+    def remove_source(path):
+        """Remove the selected source directory."""
+        if not path:
+            return (
+                [[s] for s in settings.sources],
+                "Select a source to remove.",
+                "",
+            )
+        settings.remove_source(path)
+        settings.save()
+        return (
+            [[s] for s in settings.sources],
+            f"Removed: {path} (indexed files kept until next re-index)",
+            "",
+        )
+
     add_source_btn.click(
         add_source,
         [new_source],
         [sources_display, source_status],
     )
+    sources_display.select(
+        on_source_select,
+        [sources_display],
+        [selected_source],
+    )
+    remove_source_btn.click(
+        remove_source,
+        [selected_source],
+        [sources_display, source_status, selected_source],
+    )
 
 
-def _build_index_features_row(settings, reindex_fn):
+def _build_index_features_row(settings, reindex_fn, cancel_event):
     """Build the indexing and features row."""
     with gr.Row():
         with gr.Column():
             gr.Markdown("### Indexing")
-            reindex_btn = gr.Button(
-                "Re-index All Sources", variant="primary"
-            )
+            with gr.Row():
+                reindex_btn = gr.Button(
+                    "Re-index All Sources", variant="primary",
+                )
+                cancel_btn = gr.Button(
+                    "Cancel", variant="secondary",
+                )
             index_status = gr.Textbox(
                 label="Indexing Status", interactive=False,
             )
 
         with gr.Column():
             gr.Markdown("### Features")
+            feature_status = gr.Textbox(
+                interactive=False, show_label=False,
+            )
             for fname, enabled in settings.features.items():
-                gr.Checkbox(
+                cb = gr.Checkbox(
                     value=enabled, label=fname,
-                    interactive=False,
+                    interactive=True,
+                )
+
+                def make_toggle(name):
+                    def toggle(val):
+                        settings.features[name] = val
+                        settings.save()
+                        return f"Saved. Restart app for {name} to take effect."
+                    return toggle
+
+                cb.change(
+                    make_toggle(fname), [cb], [feature_status],
                 )
 
     def do_reindex(progress=gr.Progress(track_tqdm=False)):
         """Trigger a full re-index with progress reporting."""
+        cancel_event.clear()
+
         def on_progress(frac, msg):
             progress(frac, desc=msg)
 
@@ -251,7 +316,13 @@ def _build_index_features_row(settings, reindex_fn):
         except RuntimeError as e:
             return f"Error during reindex: {e}"
 
+    def do_cancel():
+        """Request cancellation of the current re-index."""
+        cancel_event.set()
+        return "Cancelling..."
+
     reindex_btn.click(do_reindex, outputs=[index_status])
+    cancel_btn.click(do_cancel, outputs=[index_status])
 
 
 def _initial_model_choices(settings):
@@ -275,7 +346,7 @@ def _initial_model_choices(settings):
 
 
 def build_settings_tab(
-    settings: Settings, reindex_fn
+    settings: Settings, reindex_fn, cancel_event,
 ) -> gr.Blocks:
     """Build the settings tab for LLM config and sources."""
     active_cfg = settings.get_active_llm_config()
@@ -329,7 +400,7 @@ def build_settings_tab(
             with gr.Column():
                 _build_sources_column(settings)
 
-        _build_index_features_row(settings, reindex_fn)
+        _build_index_features_row(settings, reindex_fn, cancel_event)
 
         def on_provider_change(provider_name):
             """Load the selected provider's settings."""
