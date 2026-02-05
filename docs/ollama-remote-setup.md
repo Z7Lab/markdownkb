@@ -64,11 +64,35 @@ Verify:
 ollama list
 ```
 
-**Additional model: Qwen3-8B Q8_0 (general purpose, RAG, reasoning)**
+**Additional model: Qwen3-8B (general purpose, RAG, reasoning)**
+
+Qwen3-8B is a dense 8B model with thinking/non-thinking mode switching. Great for general RAG, reasoning, and multilingual tasks.
+
+**Recommended: Q4_K_M (5.03GB)** — benefits from ARM Q4 acceleration on Snapdragon, runs faster than Q8_0, and avoids thinking mode repetition loops. See [ARM-specific Q4_0 acceleration](#arm-specific-q40-acceleration) and [Qwen3 thinking mode issues](#qwen3-thinking-mode-issues-and-fix) below.
+
+[Qwen3-8B Q4_K_M](https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q4_K_M.gguf) — 5.03GB, single file, from the official Qwen repo.
+
+Download:
+```bash
+cd /home/user/llms
+wget https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q4_K_M.gguf
+```
+
+Create a Modelfile with `/no_think` (prevents thinking mode repetition loops) and register:
+```bash
+echo 'FROM /home/user/llms/Qwen3-8B-Q4_K_M.gguf
+PARAMETER temperature 0.7
+PARAMETER top_p 0.8
+PARAMETER top_k 20
+PARAMETER repeat_penalty 1.5
+SYSTEM "You are a helpful assistant. /no_think"' > /home/user/llms/Modelfile-qwen3-8b-q4
+
+ollama create qwen3:8b-q4_k_m -f /home/user/llms/Modelfile-qwen3-8b-q4
+```
+
+**Alternative: Q8_0 (8.71GB)** — near-lossless quality but slower on ARM and prone to thinking mode loops. Only recommended if you need maximum quality and can tolerate slower inference.
 
 [Qwen3-8B Q8_0](https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q8_0.gguf) — 8.71GB, single file, from the official Qwen repo.
-
-Qwen3-8B is a dense 8B model with thinking/non-thinking mode switching. Great for general RAG, reasoning, and multilingual tasks. Q8_0 is near-lossless quality and fits easily alongside DeepSeek-Coder-V2-Lite on 32GB RAM.
 
 Download:
 ```bash
@@ -76,9 +100,15 @@ cd /home/user/llms
 wget https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q8_0.gguf
 ```
 
-Create a Modelfile and register:
+Create a Modelfile and register (same `/no_think` fix):
 ```bash
-echo 'FROM /home/user/llms/Qwen3-8B-Q8_0.gguf' > /home/user/llms/Modelfile-qwen3-8b
+echo 'FROM /home/user/llms/Qwen3-8B-Q8_0.gguf
+PARAMETER temperature 0.7
+PARAMETER top_p 0.8
+PARAMETER top_k 20
+PARAMETER repeat_penalty 1.5
+SYSTEM "You are a helpful assistant. /no_think"' > /home/user/llms/Modelfile-qwen3-8b
+
 ollama create qwen3:8b-q8_0 -f /home/user/llms/Modelfile-qwen3-8b
 ```
 
@@ -240,6 +270,37 @@ If Anthropic is down or you're out of credits, mdkb automatically falls back to 
 
 ---
 
+## Benchmarking Models (tokens/sec)
+
+Test a model's speed with a single curl command:
+
+```bash
+curl -s http://localhost:11434/api/generate -d '{
+  "model": "deepseek-coder-v2",
+  "prompt": "Write a Python function that reads a CSV and returns top 5 rows sorted by a column.",
+  "stream": false
+}' | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+tps = d['eval_count'] / (d['eval_duration'] / 1e9)
+print(f'Tokens generated: {d[\"eval_count\"]}')
+print(f'Tokens/sec: {tps:.2f}')
+print(f'Response:\n{d[\"response\"]}')
+"
+```
+
+Swap the model name to test different models. The response JSON includes `eval_count` (tokens generated) and `eval_duration` (nanoseconds). The formula: `tokens/sec = eval_count / (eval_duration / 1e9)`.
+
+**Note:** First run after loading a model will be slower (model load into RAM). Use `OLLAMA_KEEP_ALIVE=24h` to keep models loaded between requests (see Performance Optimization below).
+
+For a quick interactive test:
+```bash
+ollama run deepseek-coder-v2
+# Type a message and hit enter. /bye to exit.
+```
+
+---
+
 ## Performance Optimization (CPU-only, Snapdragon X Elite)
 
 ### Optimized systemd override
@@ -290,20 +351,83 @@ If speed is a priority, consider grabbing Q4_0 versions of your models as well:
 - [Qwen3-8B Q4_K_M](https://huggingface.co/Qwen/Qwen3-8B-GGUF/resolve/main/Qwen3-8B-Q4_K_M.gguf) — 5.03GB
 - [DeepSeek-Coder-V2-Lite-Instruct Q4_K_M](https://huggingface.co/bartowski/DeepSeek-Coder-V2-Lite-Instruct-GGUF) — 10.4GB
 
+### Qwen3 thinking mode: issues and fix
+
+Qwen3 models have a "thinking mode" that generates a `<think>` reasoning chain before the actual response. **On quantized ARM inference (Q8_0 and sometimes Q4_K_M), this causes a repetition loop** — the model gets stuck repeating its thinking chain endlessly. Symptoms:
+
+- `ollama run` shows the same paragraph repeating over and over
+- `stream: false` curl requests hang for 3+ minutes with no response (the model is generating an infinite think chain)
+- Cancelled requests can leave the model in a stuck state requiring `sudo systemctl restart ollama`
+
+**Fix: Disable thinking by default via Modelfile**
+
+Create a Modelfile that disables thinking mode and adds repeat penalty:
+
+```bash
+echo 'FROM /home/user/llms/Qwen3-8B-Q4_K_M.gguf
+PARAMETER temperature 0.7
+PARAMETER top_p 0.8
+PARAMETER top_k 20
+PARAMETER repeat_penalty 1.5
+SYSTEM "You are a helpful assistant. /no_think"' > /home/user/llms/Modelfile-qwen3-8b-q4
+
+ollama create qwen3:8b-q4_k_m -f /home/user/llms/Modelfile-qwen3-8b-q4
+```
+
+The `/no_think` in the system prompt disables thinking by default. Users can still enable it per-message by appending `/think` to a prompt when needed.
+
+**For Q8_0 (if you keep it):**
+```bash
+echo 'FROM /home/user/llms/Qwen3-8B-Q8_0.gguf
+PARAMETER temperature 0.7
+PARAMETER top_p 0.8
+PARAMETER top_k 20
+PARAMETER repeat_penalty 1.5
+SYSTEM "You are a helpful assistant. /no_think"' > /home/user/llms/Modelfile-qwen3-8b
+
+ollama create qwen3:8b-q8_0 -f /home/user/llms/Modelfile-qwen3-8b
+```
+
+### Thinking mode vs /no_think for RAG
+
+For RAG workloads, **thinking mode is not recommended**. The model's job in RAG is to read the retrieved context and give a clear, grounded answer — not to reason through a problem from scratch.
+
+Thinking mode hurts RAG because:
+- It wastes tokens "reasoning" about the context instead of just answering
+- It's slower (which matters for interactive chat)
+- It's prone to repetition loops on quantized ARM inference
+
+**Recommended setup for mdkb:**
+- **DeepSeek-Coder-V2** — code-related queries, fast, no thinking mode
+- **Qwen3-8B in `/no_think` mode** — general RAG/chat, fast direct answers grounded in retrieved context
+
+If you ever need thinking for a specific hard question, append `/think` to that one message — the system prompt default just sets `/no_think` as the baseline.
+
 ---
 
 ## Removing Models
 
-To unregister a model from Ollama:
+### Unregister only (keep the GGUF file on disk)
+
+This removes the model from `ollama list` but leaves the downloaded GGUF file intact so you can re-register it later without re-downloading:
+
 ```bash
 ollama rm <model-name>
-# e.g. ollama rm qwen3:32b-q4_K_M
+# e.g. ollama rm qwen3:8b-q8_0
 ```
 
-To also free up disk space, delete the GGUF file:
+To re-register later, just run `ollama create` with the Modelfile again.
+
+### Fully remove (unregister + delete GGUF)
+
+To also free up disk space, delete the GGUF file after unregistering:
+
 ```bash
+ollama rm <model-name>
 rm /home/user/llms/<filename>.gguf
-# e.g. rm /home/user/llms/Qwen3-32B-Q4_K_M.gguf
+# e.g.
+# ollama rm qwen3:8b-q8_0
+# rm /home/user/llms/Qwen3-8B-Q8_0.gguf
 ```
 
 ---
@@ -319,15 +443,21 @@ rm /home/user/llms/<filename>.gguf
 | Slow responses | Expected for large models on CPU. Use smaller models or lower quantization |
 | Firewall blocking | Open port `11434` — `sudo ufw allow 11434` (Linux) |
 | `ollama pull` times out | Download GGUF manually from Hugging Face and use `ollama create` (see Step 2, Option B) |
+| Qwen3 repeating/looping output | Thinking mode repetition loop. Use a Modelfile with `/no_think` system prompt and `repeat_penalty 1.5` (see [Qwen3 thinking mode fix](#qwen3-thinking-mode-issues-and-fix)) |
+| `stream: false` request hangs for minutes | Likely Qwen3 generating an infinite think chain. Cancel with Ctrl+C, restart Ollama, and use `/no_think` |
+| Model stuck after cancelled request | The previous request may still be running. Force clean: `sudo systemctl stop ollama && sudo killall ollama && sleep 2 && sudo systemctl start ollama` |
 
 ## Recommended Models (CPU-only, 32GB RAM)
 
 | Model | Size | Quantization | Good For |
 |-------|------|--------------|----------|
-| `deepseek-coder-v2` (Lite 16B, MoE) | 14.1GB | Q6_K | Code-focused, fast on CPU (2.4B active params) |
-| `qwen3:8b` | 8.71GB | Q8_0 | **General RAG, reasoning, multilingual.** Near-lossless quality |
+| `deepseek-coder-v2` (Lite 16B, MoE) | 14.1GB | Q6_K | **Code-focused, fast on CPU (2.4B active params). No thinking mode.** |
+| `qwen3:8b-q4_k_m` | 5.03GB | Q4_K_M | **General RAG, reasoning, multilingual.** ARM Q4 acceleration, needs `/no_think` Modelfile |
+| `qwen3:8b-q8_0` | 8.71GB | Q8_0 | General RAG, near-lossless quality. Slower on ARM, needs `/no_think` Modelfile |
 | `llama3` | 4.7GB | Q4_K_M | General purpose, good quality |
 | `mistral` | 4.1GB | Q4_K_M | Fast, good for chat |
 | `phi3` | 2.3GB | Q4_K_M | Lightweight, fastest on CPU |
 
-Both `deepseek-coder-v2` (14.1GB) and `qwen3:8b` (8.71GB) fit comfortably on 32GB RAM (~22.8GB total). Ollama loads one model at a time by default.
+Both `deepseek-coder-v2` (14.1GB) and `qwen3:8b-q4_k_m` (5.03GB) fit comfortably on 32GB RAM (~19GB total). Ollama loads one model at a time by default.
+
+**For mdkb RAG workloads:** Use DeepSeek-Coder-V2 for code queries and Qwen3-8B Q4_K_M (with `/no_think`) for general chat. Thinking mode is not recommended for RAG — see [Thinking mode vs /no_think for RAG](#thinking-mode-vs-no_think-for-rag).
