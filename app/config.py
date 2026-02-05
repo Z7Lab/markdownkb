@@ -192,6 +192,11 @@ class Settings:
 
     # --- Storage ---
     @property
+    def data_directory(self) -> str:
+        """Return the resolved parent data directory (e.g. ./data/)."""
+        return str(Path(self.persist_directory).parent)
+
+    @property
     def persist_directory(self) -> str:
         """Return the resolved path for ChromaDB persistence."""
         raw = self._data.get("storage", {}).get(

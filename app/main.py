@@ -10,15 +10,11 @@ from app.api import create_api
 from app.config import Settings
 from app.ingestion.indexer import run_index
 from app.rag.retriever import Retriever
+from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 from app.ui.browser import build_browser_tab, build_settings_tab
+from app.ingestion.watcher import start_watching
 from app.ui.chat import build_chat_tab
-
-try:
-    from app.ingestion.watcher import start_watching
-    _HAS_WATCHER = True
-except ImportError:
-    _HAS_WATCHER = False
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,10 +28,13 @@ def build_app(settings: Settings) -> gr.Blocks:
     store = VectorStore(
         settings.persist_directory, settings.collection_name
     )
+    tracking = TrackingDB(settings.data_directory)
     retriever = Retriever(store, settings)
 
     def reindex_fn(progress=None):
-        return run_index(settings, store, progress=progress)
+        return run_index(
+            settings, store, tracking, progress=progress,
+        )
 
     with gr.Blocks(title="mdkb - Markdown Knowledge Base") as app:
         gr.Markdown("# mdkb - Markdown Knowledge Base")
@@ -51,13 +50,13 @@ def build_app(settings: Settings) -> gr.Blocks:
                 _build_search_tab(retriever)
 
             with gr.Tab("Browse"):
-                build_browser_tab(retriever)
+                build_browser_tab(tracking)
 
             with gr.Tab("Settings"):
                 build_settings_tab(settings, reindex_fn)
 
     if settings.feature_enabled("file_watcher"):
-        _start_watcher(settings, store)
+        _start_watcher(settings, store, tracking)
 
     return app
 
@@ -149,17 +148,14 @@ def _build_search_tab(retriever: Retriever) -> gr.Blocks:
     return tab
 
 
-def _start_watcher(settings: Settings, store: VectorStore):
+def _start_watcher(
+    settings: Settings, store: VectorStore,
+    tracking: TrackingDB,
+):
     """Start the file watcher daemon thread."""
-    if not _HAS_WATCHER:
-        logger.warning(
-            "watchdog not installed, file watcher disabled"
-        )
-        return
-
     thread = threading.Thread(
         target=start_watching,
-        args=(settings, store),
+        args=(settings, store, tracking),
         daemon=True,
     )
     thread.start()
@@ -173,14 +169,16 @@ def main():
     store = VectorStore(
         settings.persist_directory, settings.collection_name
     )
+    tracking = TrackingDB(settings.data_directory)
+
     if store.count == 0:
         logger.info("Empty store, running initial index...")
-        run_index(settings, store)
+        run_index(settings, store, tracking)
 
     app = build_app(settings)
 
     retriever = Retriever(store, settings)
-    fastapi_app = create_api(settings, store, retriever)
+    fastapi_app = create_api(settings, store, retriever, tracking)
     gr.mount_gradio_app(fastapi_app, app, path="/")
 
     uvicorn.run(

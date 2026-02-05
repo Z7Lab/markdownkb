@@ -8,12 +8,12 @@ import litellm
 import requests
 
 from app.config import Settings
-from app.rag.retriever import Retriever
+from app.storage.trackingdb import TrackingDB
 
 logger = logging.getLogger(__name__)
 
 
-def build_browser_tab(retriever: Retriever) -> gr.Blocks:
+def build_browser_tab(tracking: TrackingDB) -> gr.Blocks:
     """Build the file browser tab for viewing indexed files."""
     with gr.Blocks() as tab:
         gr.Markdown("## Browse Knowledge Base")
@@ -22,7 +22,9 @@ def build_browser_tab(retriever: Retriever) -> gr.Blocks:
             with gr.Column(scale=1):
                 gr.Markdown("### Indexed Files")
                 file_list = gr.Dataframe(
-                    headers=["File", "Folder"],
+                    headers=[
+                        "File", "Folder", "Status", "Chunks",
+                    ],
                     label="Files",
                     interactive=False,
                 )
@@ -39,11 +41,16 @@ def build_browser_tab(retriever: Retriever) -> gr.Blocks:
                 load_btn = gr.Button("Load File")
 
         def get_file_list():
-            """Return indexed files as rows."""
-            sources = retriever.get_unique_sources()
+            """Return indexed files from tracking DB."""
+            rows = tracking.get_all_files()
             return [
-                [Path(s).name, str(Path(s).parent)]
-                for s in sources
+                [
+                    Path(r["path"]).name,
+                    str(Path(r["path"]).parent),
+                    r["status"],
+                    r["chunk_count"],
+                ]
+                for r in rows
             ]
 
         def load_file(filepath: str):
@@ -68,9 +75,9 @@ def build_browser_tab(retriever: Retriever) -> gr.Blocks:
                     if isinstance(evt.index, (list, tuple))
                     else evt.index
                 )
-                sources = retriever.get_unique_sources()
-                if row_idx < len(sources):
-                    path = sources[row_idx]
+                rows = tracking.get_all_files()
+                if row_idx < len(rows):
+                    path = rows[row_idx]["path"]
                     content = load_file(path)
                     return path, content
             return "", ""

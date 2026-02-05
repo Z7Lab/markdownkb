@@ -67,13 +67,6 @@ class VectorStore:
             "distances": results["distances"][0] if results["distances"] else [],
         }
 
-    def get_existing_ids(self) -> set[str]:
-        """Return the set of all chunk IDs in the collection."""
-        if self._collection.count() == 0:
-            return set()
-        result = self._collection.get(include=[])
-        return set(result["ids"]) if result["ids"] else set()
-
     def get_all_metadatas(self) -> list[dict]:
         """Return metadata for all stored chunks."""
         if self._collection.count() == 0:
@@ -87,17 +80,6 @@ class VectorStore:
             self._collection.delete(where={"source_path": source_path})
         except ValueError as e:
             logger.warning("Failed to delete chunks for %s: %s", source_path, e)
-
-    def get_ids_by_source(self, source_path: str) -> list[str]:
-        """Return chunk IDs belonging to a given source file."""
-        try:
-            result = self._collection.get(
-                where={"source_path": source_path},
-                include=[],
-            )
-            return result["ids"] or []
-        except ValueError:
-            return []
 
     def clear(self):
         """Delete all chunks and recreate the collection."""

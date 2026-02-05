@@ -8,6 +8,7 @@ from app.config import Settings
 from app.embeddings.embedder import embed_query
 from app.ingestion.indexer import run_index
 from app.ingestion.scanner import scan_sources
+from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -17,7 +18,8 @@ logger = logging.getLogger(__name__)
 def cmd_index(settings: Settings):
     """Index all configured source directories."""
     store = VectorStore(settings.persist_directory, settings.collection_name)
-    result = run_index(settings, store)
+    tracking = TrackingDB(settings.data_directory)
+    result = run_index(settings, store, tracking)
     logger.info(result)
 
 

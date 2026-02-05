@@ -9,10 +9,10 @@ from pydantic import BaseModel
 
 from app.config import Settings
 from app.ingestion.indexer import run_index
-from app.ingestion.scanner import scan_sources
 from app.rag.llm import get_completion
 from app.rag.prompts import build_rag_messages
 from app.rag.retriever import Retriever
+from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 from app.ui.chat import conversation_history
 
@@ -47,6 +47,7 @@ def create_api(
     settings: Settings,
     store: VectorStore,
     retriever: Retriever,
+    tracking: TrackingDB,
 ) -> FastAPI:
     """Create and configure the FastAPI application."""
     api = FastAPI(title="mdkb API", version="1.0.0")
@@ -105,7 +106,7 @@ def create_api(
 
     @api.post("/api/index")
     def index():
-        result = run_index(settings, store)
+        result = run_index(settings, store, tracking)
         return {"message": result}
 
     @api.get("/api/sources")
@@ -120,12 +121,12 @@ def create_api(
 
     @api.get("/api/stats")
     def stats():
-        files = scan_sources(
-            settings.sources, settings.global_ignore
-        )
+        db_stats = tracking.get_stats()
         return {
             "sources": settings.sources,
-            "files_found": len(files),
+            "files_tracked": db_stats["total_files"],
+            "files_complete": db_stats["complete"],
+            "files_error": db_stats["error"],
             "chunks_indexed": store.count,
             "embedding_model": settings.embedding_model,
             "active_provider": settings.active_provider,
@@ -133,8 +134,7 @@ def create_api(
 
     @api.get("/api/files")
     def list_files():
-        sources = retriever.get_unique_sources()
-        return {"files": sources}
+        return {"files": tracking.get_all_files()}
 
     @api.get("/api/file")
     def read_file(path: str):
