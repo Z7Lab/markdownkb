@@ -34,8 +34,8 @@ def build_app(settings: Settings) -> gr.Blocks:
     )
     retriever = Retriever(store, settings)
 
-    def reindex_fn():
-        return run_index(settings, store)
+    def reindex_fn(progress=None):
+        return run_index(settings, store, progress=progress)
 
     with gr.Blocks(title="mdkb - Markdown Knowledge Base") as app:
         gr.Markdown("# mdkb - Markdown Knowledge Base")

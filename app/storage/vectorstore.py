@@ -67,6 +67,13 @@ class VectorStore:
             "distances": results["distances"][0] if results["distances"] else [],
         }
 
+    def get_existing_ids(self) -> set[str]:
+        """Return the set of all chunk IDs in the collection."""
+        if self._collection.count() == 0:
+            return set()
+        result = self._collection.get(include=[])
+        return set(result["ids"]) if result["ids"] else set()
+
     def get_all_metadatas(self) -> list[dict]:
         """Return metadata for all stored chunks."""
         if self._collection.count() == 0:

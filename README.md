@@ -98,6 +98,14 @@ Edit `config/settings.yaml` or use the **Settings** tab in the UI. The YAML file
 | `embeddings.chunk_size` | `512` | Max characters per chunk when splitting documents. |
 | `embeddings.chunk_overlap` | `50` | Character overlap between consecutive chunks. |
 
+Embedding uses ONNX and defaults to half your CPU cores to avoid locking up your system. Override with:
+
+```bash
+OMP_NUM_THREADS=2 python -m app    # use only 2 cores
+```
+
+Indexing processes chunks in batches of 500 and saves each batch to disk, so partial progress survives crashes.
+
 ### LLM Providers
 
 | Key | Default | Description |

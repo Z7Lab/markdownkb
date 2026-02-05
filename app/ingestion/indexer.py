@@ -1,6 +1,7 @@
 """Shared indexing logic for CLI, API, and main app."""
 
 import logging
+from typing import Callable
 
 from app.config import Settings
 from app.embeddings.embedder import embed_texts
@@ -10,12 +11,28 @@ from app.storage.vectorstore import VectorStore
 
 logger = logging.getLogger(__name__)
 
+BATCH_SIZE = 500
 
-def run_index(settings: Settings, store: VectorStore) -> str:
-    """Scan sources, parse, embed, and store all markdown chunks."""
-    logger.info("Starting indexing...")
+
+def run_index(
+    settings: Settings,
+    store: VectorStore,
+    progress: Callable[[float, str], None] | None = None,
+) -> str:
+    """Scan sources, parse, embed, and store all markdown chunks.
+
+    Skips chunks that are already in the store (by ID). Processes new
+    chunks in batches and saves incrementally so partial progress
+    survives crashes. The optional progress callback receives (fraction, message).
+    """
+    def report(frac: float, msg: str):
+        logger.info(msg)
+        if progress:
+            progress(frac, msg)
+
+    report(0.0, "Scanning source directories...")
     files = scan_sources(settings.sources, settings.global_ignore)
-    logger.info("Found %d markdown files", len(files))
+    report(0.05, f"Found {len(files)} markdown files, parsing...")
 
     all_chunks = []
     for fi in files:
@@ -28,17 +45,45 @@ def run_index(settings: Settings, store: VectorStore) -> str:
     if not all_chunks:
         return "No markdown files found to index."
 
-    logger.info("Embedding %d chunks...", len(all_chunks))
-    texts = [c.content for c in all_chunks]
-    embeddings = embed_texts(texts)
+    # Filter out chunks already in the store
+    existing_ids = store.get_existing_ids()
+    new_chunks = [c for c in all_chunks if c.chunk_id not in existing_ids]
+    skipped = len(all_chunks) - len(new_chunks)
 
-    ids = [c.chunk_id for c in all_chunks]
-    metadatas = [c.metadata for c in all_chunks]
+    if not new_chunks:
+        msg = (
+            f"All {len(all_chunks)} chunks already indexed. "
+            f"Store total: {store.count}"
+        )
+        report(1.0, msg)
+        return msg
 
-    store.add(ids, texts, embeddings, metadatas)
-    msg = (
-        f"Indexed {len(files)} files, {len(all_chunks)} chunks. "
-        f"Store total: {store.count}"
+    report(
+        0.1,
+        f"{len(new_chunks)} new chunks to embed "
+        f"({skipped} already indexed)...",
     )
-    logger.info(msg)
+
+    stored = 0
+    total = len(new_chunks)
+    for start in range(0, total, BATCH_SIZE):
+        end = min(start + BATCH_SIZE, total)
+        batch = new_chunks[start:end]
+
+        texts = [c.content for c in batch]
+        embeddings = embed_texts(texts)
+        ids = [c.chunk_id for c in batch]
+        metadatas = [c.metadata for c in batch]
+
+        store.add(ids, texts, embeddings, metadatas)
+        stored += len(batch)
+
+        frac = 0.1 + 0.9 * (stored / total)
+        report(frac, f"Embedded {stored}/{total} new chunks...")
+
+    msg = (
+        f"Indexed {len(files)} files: {stored} new, "
+        f"{skipped} unchanged. Store total: {store.count}"
+    )
+    report(1.0, msg)
     return msg

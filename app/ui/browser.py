@@ -234,10 +234,13 @@ def _build_index_features_row(settings, reindex_fn):
                     interactive=False,
                 )
 
-    def do_reindex():
-        """Trigger a full re-index."""
+    def do_reindex(progress=gr.Progress(track_tqdm=False)):
+        """Trigger a full re-index with progress reporting."""
+        def on_progress(frac, msg):
+            progress(frac, desc=msg)
+
         try:
-            return reindex_fn()
+            return reindex_fn(progress=on_progress)
         except RuntimeError as e:
             return f"Error during reindex: {e}"
 
