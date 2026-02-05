@@ -1,0 +1,17 @@
+services:
+  mdkb:
+    build: .
+    ports:
+      - "9713:9713"
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+      - ./skills:/app/skills
+      # Mount your markdown directories below (read-only)
+      # - /home/user/notes:/app/docs/notes:ro
+      # - /home/user/documents:/app/docs/downloads:ro
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OLLAMA_API_BASE=${OLLAMA_API_BASE:-}
+    restart: unless-stopped
