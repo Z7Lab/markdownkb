@@ -243,6 +243,43 @@ class Settings:
         )
         return self._resolve_path(raw)
 
+    # --- Prompts ---
+    _DEFAULT_SYSTEM_PROMPT = (
+        "You are mdkb, a personal knowledge base assistant. "
+        "You answer questions based on the user's indexed markdown documents.\n\n"
+        "Rules:\n"
+        "- Answer ONLY based on the provided context. "
+        "If the context doesn't contain enough information, say so.\n"
+        "- Always cite your sources at the end of your response "
+        "using the format: Source: <file path>\n"
+        "- When synthesizing information from multiple files, "
+        "cite all relevant sources.\n"
+        "- Be concise but thorough. "
+        "Summarize across multiple documents when relevant.\n"
+        "- If the user asks about something not in the context, "
+        "say \"I don't have information about that in your knowledge base.\"\n"
+        "- Preserve technical accuracy "
+        "- don't paraphrase code or configuration incorrectly.\n"
+        "- Use markdown formatting in your responses."
+    )
+
+    @property
+    def system_prompt(self) -> str:
+        """Return the RAG system prompt."""
+        return self._data.get("prompts", {}).get(
+            "system_prompt", self._DEFAULT_SYSTEM_PROMPT
+        )
+
+    @system_prompt.setter
+    def system_prompt(self, value: str):
+        """Set the RAG system prompt."""
+        self._data.setdefault("prompts", {})["system_prompt"] = value
+
+    @property
+    def default_system_prompt(self) -> str:
+        """Return the built-in default system prompt."""
+        return self._DEFAULT_SYSTEM_PROMPT
+
     # --- Raw access ---
     @property
     def raw(self) -> dict:

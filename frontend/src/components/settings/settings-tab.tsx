@@ -3,6 +3,7 @@ import { LlmConfig } from "./llm-config"
 import { SourcesPanel } from "./sources-panel"
 import { IndexPanel } from "./index-panel"
 import { FeaturesPanel } from "./features-panel"
+import { SystemPromptPanel } from "./system-prompt-panel"
 
 export function SettingsTab() {
   const {
@@ -20,6 +21,7 @@ export function SettingsTab() {
     removeSource,
     reindex,
     cancelIndex,
+    saveSystemPrompt,
   } = useSettings()
 
   if (!settings) {
@@ -59,6 +61,12 @@ export function SettingsTab() {
           onToggle={toggleFeature}
         />
       </div>
+
+      <SystemPromptPanel
+        prompt={settings.system_prompt}
+        defaultPrompt={settings.default_system_prompt}
+        onSave={saveSystemPrompt}
+      />
     </div>
   )
 }

@@ -97,12 +97,13 @@ def build_rag_messages(
     documents: list[str],
     metadatas: list[dict],
     conversation_history: list[dict] | None = None,
+    system_prompt: str | None = None,
 ) -> list[dict]:
     """Build the message list for a RAG completion request."""
     context = format_context(documents, metadatas)
 
     messages: list[dict] = [
-        {"role": "system", "content": RAG_SYSTEM_PROMPT}
+        {"role": "system", "content": system_prompt or RAG_SYSTEM_PROMPT}
     ]
 
     if conversation_history:

@@ -129,6 +129,7 @@ def chat_respond(message: str, retriever: Retriever,
     messages = build_rag_messages(
         message, documents, metadatas,
         conversation_history=history,
+        system_prompt=settings.system_prompt,
     )
 
     raw_response = ""

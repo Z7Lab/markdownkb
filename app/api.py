@@ -145,6 +145,12 @@ class ExportRequest(BaseModel):
     format: str = "json"
 
 
+class SystemPromptRequest(BaseModel):
+    """Request model for updating system prompt."""
+
+    prompt: str
+
+
 # ── API factory ──────────────────────────────────────────────
 
 
@@ -235,6 +241,7 @@ def create_api(
             documents,
             metadatas,
             conversation_history=req.conversation_history,
+            system_prompt=settings.system_prompt,
         )
 
         try:
@@ -433,6 +440,8 @@ def create_api(
             "sources": settings.sources,
             "active_model": active_cfg.get("model", ""),
             "active_api_base": active_cfg.get("api_base", ""),
+            "system_prompt": settings.system_prompt,
+            "default_system_prompt": settings.default_system_prompt,
         }
 
     @api.put("/api/settings/provider")
@@ -506,6 +515,12 @@ def create_api(
     @api.put("/api/settings/features")
     def toggle_feature(req: FeatureToggleRequest):
         settings.features[req.name] = req.enabled
+        settings.save()
+        return {"status": "saved"}
+
+    @api.put("/api/settings/system-prompt")
+    def update_system_prompt(req: SystemPromptRequest):
+        settings.system_prompt = req.prompt
         settings.save()
         return {"status": "saved"}
 

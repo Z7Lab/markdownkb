@@ -122,6 +122,14 @@ export function useSettings() {
     setIndexStatus("Cancelling...")
   }, [])
 
+  const saveSystemPrompt = useCallback(
+    async (prompt: string) => {
+      await api.put("/api/settings/system-prompt", { prompt })
+      await load()
+    },
+    [load],
+  )
+
   return {
     settings,
     providerStatus,
@@ -137,5 +145,6 @@ export function useSettings() {
     removeSource,
     reindex,
     cancelIndex,
+    saveSystemPrompt,
   }
 }

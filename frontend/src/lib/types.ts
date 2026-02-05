@@ -39,6 +39,8 @@ export interface AppSettings {
   sources: string[]
   active_model: string
   active_api_base: string
+  system_prompt: string
+  default_system_prompt: string
 }
 
 export interface TestPromptResult {
