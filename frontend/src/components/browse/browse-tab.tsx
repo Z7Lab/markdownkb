@@ -32,7 +32,7 @@ export function BrowseTab() {
   const isIncluded = selectedFile?.status !== "excluded"
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4.5rem)] gap-4 p-4">
+    <div className="flex flex-col h-full gap-4 p-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Browse Knowledge Base</h2>
         <Button variant="outline" size="sm" onClick={refresh}>

@@ -21,7 +21,7 @@ export function ChatTab() {
   } = useChat()
 
   return (
-    <div className="flex flex-row h-[calc(100vh-4.5rem)]">
+    <div className="flex flex-row h-full">
       <ThreadSidebar
         threads={threads}
         activeThreadId={activeThreadId}

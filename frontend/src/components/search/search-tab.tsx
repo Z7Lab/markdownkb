@@ -28,7 +28,7 @@ export function SearchTab() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4.5rem)] gap-4 p-4">
+    <div className="flex flex-col h-full gap-4 p-4">
       <div className="flex gap-2">
         <Input
           value={query}
