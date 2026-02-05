@@ -3,6 +3,7 @@ import { useFiles } from "@/hooks/use-files"
 import { useTableSort } from "@/hooks/use-table-sort"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
@@ -37,6 +38,8 @@ const getValue = (f: TrackedFile, key: string): string | number | null => {
       return basename(f.path)
     case "folder":
       return dirname(f.path)
+    case "rag":
+      return f.status === "excluded" ? 0 : 1
     case "status":
       return f.status
     case "chunks":
@@ -47,7 +50,7 @@ const getValue = (f: TrackedFile, key: string): string | number | null => {
 }
 
 export function BrowseTab() {
-  const { files, selectedFile, content, loading, refresh, selectFile, toggleRag } = useFiles()
+  const { files, selectedFile, content, loading, pendingExclude, refresh, selectFile, toggleRag, confirmExclude, setPendingExclude } = useFiles()
   const [filterText, setFilterText] = useState("")
   const { sorted, sortKey, sortDir, onSort } = useTableSort(files, getValue)
 
@@ -73,7 +76,7 @@ export function BrowseTab() {
             <Input
               value={filterText}
               onChange={(e) => setFilterText(e.target.value)}
-              placeholder="Filter files..."
+              placeholder="Filter by file or folder..."
               className="pl-8 h-9 w-56"
             />
           </div>
@@ -100,7 +103,9 @@ export function BrowseTab() {
               <SortableTableHead sortKey="folder" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort}>
                 Folder
               </SortableTableHead>
-              <TableHead>RAG</TableHead>
+              <SortableTableHead sortKey="rag" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort}>
+                RAG
+              </SortableTableHead>
               <SortableTableHead sortKey="status" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort}>
                 Status
               </SortableTableHead>
@@ -171,6 +176,14 @@ export function BrowseTab() {
           </ScrollArea>
         </div>
       )}
+      <ConfirmDialog
+        open={!!pendingExclude}
+        onOpenChange={(open) => { if (!open) setPendingExclude(null) }}
+        title="Remove from RAG index?"
+        description={`This will remove "${pendingExclude?.path.split("/").pop()}" from the vector store and exclude it from future indexing.`}
+        confirmLabel="Remove"
+        onConfirm={confirmExclude}
+      />
     </div>
   )
 }

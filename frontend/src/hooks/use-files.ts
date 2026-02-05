@@ -29,19 +29,40 @@ export function useFiles() {
     }
   }, [])
 
+  const [pendingExclude, setPendingExclude] = useState<TrackedFile | null>(null)
+
   const toggleRag = useCallback(async (file: TrackedFile, include: boolean) => {
+    if (!include) {
+      setPendingExclude(file)
+      return
+    }
     setLoading(true)
     try {
-      if (include) {
-        await api.post("/api/files/include", { path: file.path })
-      } else {
-        await api.post("/api/files/exclude", { path: file.path })
-      }
-      await refresh()
+      await api.post("/api/files/include", { path: file.path })
+      const res = await api.get<{ files: TrackedFile[] }>("/api/files")
+      setFiles(res.files)
+      const updated = res.files.find((f) => f.path === file.path)
+      if (updated) setSelectedFile(updated)
     } finally {
       setLoading(false)
     }
-  }, [refresh])
+  }, [])
 
-  return { files, selectedFile, content, loading, refresh, selectFile, toggleRag }
+  const confirmExclude = useCallback(async () => {
+    if (!pendingExclude) return
+    const file = pendingExclude
+    setPendingExclude(null)
+    setLoading(true)
+    try {
+      await api.post("/api/files/exclude", { path: file.path })
+      const res = await api.get<{ files: TrackedFile[] }>("/api/files")
+      setFiles(res.files)
+      const updated = res.files.find((f) => f.path === file.path)
+      if (updated) setSelectedFile(updated)
+    } finally {
+      setLoading(false)
+    }
+  }, [pendingExclude])
+
+  return { files, selectedFile, content, loading, pendingExclude, refresh, selectFile, toggleRag, confirmExclude, setPendingExclude }
 }
