@@ -1,11 +1,9 @@
-"""Chat interface with streaming responses and conversation memory."""
+"""Chat business logic: conversation memory, streaming RAG, plan saving."""
 
 import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Generator
-
-import gradio as gr
 
 from app.config import Settings
 from app.rag.llm import get_streaming_completion
@@ -15,6 +13,7 @@ from app.rag.retriever import Retriever
 logger = logging.getLogger(__name__)
 
 MAX_HISTORY = 20
+REPEAT_WINDOW = 150
 
 
 class ConversationHistory:
@@ -41,6 +40,49 @@ class ConversationHistory:
 conversation_history = ConversationHistory()
 
 
+def _is_repeating(text: str) -> bool:
+    """Check if the response has entered a repetition loop."""
+    if len(text) < REPEAT_WINDOW * 2:
+        return False
+    tail = text[-REPEAT_WINDOW:]
+    return tail in text[:-REPEAT_WINDOW]
+
+
+def _truncate_at_repeat(text: str) -> str:
+    """Cut text where it starts repeating."""
+    tail = text[-REPEAT_WINDOW:]
+    first = text.find(tail)
+    if 0 <= first < len(text) - REPEAT_WINDOW:
+        second = text.find(tail, first + 1)
+        if second > first:
+            cut = text.rfind("\n\n", first + REPEAT_WINDOW, second)
+            if cut > 0:
+                return text[:cut].rstrip()
+            return text[:second].rstrip()
+    return text
+
+
+def _strip_source_block(text: str) -> str:
+    """Remove source citations before storing in history."""
+    for marker in ("\n\n---\n**Sources:**", "\n\nSource: "):
+        idx = text.find(marker)
+        if idx >= 0:
+            return text[:idx].rstrip()
+    return text
+
+
+def extract_unique_sources(metadatas: list[dict]) -> list[str]:
+    """Extract deduplicated source file paths from metadata list."""
+    seen = set()
+    sources = []
+    for m in metadatas:
+        src = m.get("source_path", "")
+        if src and src not in seen:
+            seen.add(src)
+            sources.append(src)
+    return sources
+
+
 def chat_respond(message: str, retriever: Retriever,
                  settings: Settings) -> Generator:
     """Generate a streaming RAG response for the given message."""
@@ -64,16 +106,25 @@ def chat_respond(message: str, retriever: Retriever,
     )
 
     full_response = ""
+    last_check = 0
     try:
         for chunk in get_streaming_completion(messages, settings):
             full_response += chunk
             yield full_response
+
+            if len(full_response) - last_check >= 200:
+                last_check = len(full_response)
+                if _is_repeating(full_response):
+                    full_response = _truncate_at_repeat(full_response)
+                    logger.warning("Repetition detected, truncating")
+                    yield full_response
+                    break
     except RuntimeError as e:
         logger.error("LLM error: %s", e)
         yield f"Error communicating with LLM: {e}"
         return
 
-    sources = _extract_unique_sources(metadatas)
+    sources = extract_unique_sources(metadatas)
     if sources and "Source:" not in full_response:
         source_block = "\n\n---\n**Sources:**\n" + "\n".join(
             f"- `{s}`" for s in sources
@@ -82,7 +133,9 @@ def chat_respond(message: str, retriever: Retriever,
         yield full_response
 
     conversation_history.add("user", message)
-    conversation_history.add("assistant", full_response)
+    conversation_history.add(
+        "assistant", _strip_source_block(full_response),
+    )
 
 
 def save_last_response_as_plan(history: list, settings: Settings) -> str:
@@ -118,60 +171,3 @@ def save_last_response_as_plan(history: list, settings: Settings) -> str:
 
     filepath.write_text(content, encoding="utf-8")
     return f"Plan saved to: {filepath}"
-
-
-def _extract_unique_sources(metadatas: list[dict]) -> list[str]:
-    """Extract deduplicated source file paths from metadata list."""
-    seen = set()
-    sources = []
-    for m in metadatas:
-        src = m.get("source_path", "")
-        if src and src not in seen:
-            seen.add(src)
-            sources.append(src)
-    return sources
-
-
-def build_chat_tab(retriever: Retriever, settings: Settings) -> gr.Blocks:
-    """Build the Gradio chat tab with send, clear, and save controls."""
-    with gr.Blocks() as tab:
-        chatbot = gr.Chatbot(
-            label="mdkb Chat",
-            height=500,
-        )
-        with gr.Row():
-            msg = gr.Textbox(
-                label="Ask your knowledge base",
-                placeholder="What did I write about...?",
-                scale=8,
-                lines=1,
-            )
-            send_btn = gr.Button("Send", variant="primary", scale=1)
-
-        with gr.Row():
-            clear_btn = gr.Button("Clear Chat")
-            save_btn = gr.Button("Save Last Response as Plan")
-            save_status = gr.Textbox(label="", interactive=False, scale=2)
-
-        def respond(message, history):
-            history = history or []
-            history.append({"role": "user", "content": message})
-            history.append({"role": "assistant", "content": ""})
-            for partial in chat_respond(message, retriever, settings):
-                history[-1]["content"] = partial
-                yield history, ""
-            yield history, ""
-
-        def clear():
-            conversation_history.clear()
-            return [], ""
-
-        def save_plan(history):
-            return save_last_response_as_plan(history, settings)
-
-        msg.submit(respond, [msg, chatbot], [chatbot, msg])
-        send_btn.click(respond, [msg, chatbot], [chatbot, msg])
-        clear_btn.click(clear, outputs=[chatbot, msg])
-        save_btn.click(save_plan, [chatbot], [save_status])
-
-    return tab

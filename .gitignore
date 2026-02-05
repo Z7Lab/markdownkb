@@ -10,3 +10,7 @@ data/
 dist/
 build/
 .env
+
+# Frontend
+node_modules/
+frontend/dist/

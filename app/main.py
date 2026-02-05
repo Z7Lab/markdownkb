@@ -1,20 +1,21 @@
-"""Main application entry point - Gradio UI with FastAPI backend."""
+"""Main application entry point — FastAPI backend with static frontend."""
 
 import logging
 import threading
+from pathlib import Path
 
-import gradio as gr
 import uvicorn
+from fastapi import Request
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api import create_api
 from app.config import Settings
 from app.ingestion.indexer import run_index
+from app.ingestion.watcher import start_watching
 from app.rag.retriever import Retriever
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
-from app.ui.browser import build_browser_tab, build_settings_tab
-from app.ingestion.watcher import start_watching
-from app.ui.chat import build_chat_tab
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,135 +23,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
-def build_app(settings: Settings) -> gr.Blocks:
-    """Build the Gradio application with all tabs."""
-    store = VectorStore(
-        settings.persist_directory, settings.collection_name
-    )
-    tracking = TrackingDB(settings.data_directory)
-    retriever = Retriever(store, settings)
-
-    cancel_event = threading.Event()
-
-    def reindex_fn(progress=None):
-        return run_index(
-            settings, store, tracking,
-            progress=progress, cancel=cancel_event,
-        )
-
-    with gr.Blocks(title="mdkb - Markdown Knowledge Base") as app:
-        gr.Markdown("# mdkb - Markdown Knowledge Base")
-        gr.Markdown(
-            "*Your personal dev assistant with long-term memory*"
-        )
-
-        with gr.Tabs():
-            with gr.Tab("Chat"):
-                build_chat_tab(retriever, settings)
-
-            with gr.Tab("Search"):
-                _build_search_tab(retriever)
-
-            with gr.Tab("Browse"):
-                build_browser_tab(tracking, store, settings)
-
-            with gr.Tab("Settings"):
-                build_settings_tab(
-                    settings, reindex_fn, cancel_event,
-                )
-
-    if settings.feature_enabled("file_watcher"):
-        _start_watcher(settings, store, tracking)
-
-    return app
-
-
-def _build_search_tab(retriever: Retriever) -> gr.Blocks:
-    """Build the semantic search tab with folder/tag filtering."""
-    with gr.Blocks() as tab:
-        gr.Markdown("## Semantic Search")
-        with gr.Row():
-            query_input = gr.Textbox(
-                label="Search Query",
-                placeholder="Search your knowledge base...",
-                scale=6,
-            )
-            folder_filter = gr.Dropdown(
-                label="Filter by folder",
-                choices=["(all)"],
-                value="(all)",
-                scale=2,
-            )
-            tag_filter = gr.Dropdown(
-                label="Filter by tag",
-                choices=["(all)"],
-                value="(all)",
-                scale=2,
-            )
-            search_btn = gr.Button(
-                "Search", variant="primary", scale=1
-            )
-
-        results_display = gr.Markdown(label="Results")
-
-        def do_search(query, folder, tag):
-            if not query.strip():
-                return "Enter a search query."
-
-            f_val = None if folder == "(all)" else folder
-            t_val = None if tag == "(all)" else tag
-            results = retriever.search(
-                query.strip(),
-                folder_filter=f_val,
-                tag_filter=t_val,
-            )
-
-            if not results:
-                return "No results found."
-
-            output = ""
-            for i, r in enumerate(results):
-                source = r.metadata.get("source_path", "unknown")
-                heading = r.metadata.get("heading", "")
-                output += (
-                    f"### Result {i+1} "
-                    f"(score: {r.score:.3f})\n"
-                )
-                output += f"**Source:** `{source}`"
-                if heading:
-                    output += f" | **Section:** {heading}"
-                truncated = r.document[:500]
-                ellipsis = "..." if len(r.document) > 500 else ""
-                output += (
-                    f"\n\n{truncated}{ellipsis}\n\n---\n\n"
-                )
-            return output
-
-        def refresh_filters():
-            folders = ["(all)"] + retriever.get_unique_folders()
-            tags = ["(all)"] + retriever.get_unique_tags()
-            return (
-                gr.update(choices=folders, value="(all)"),
-                gr.update(choices=tags, value="(all)"),
-            )
-
-        search_btn.click(
-            do_search,
-            [query_input, folder_filter, tag_filter],
-            [results_display],
-        )
-        query_input.submit(
-            do_search,
-            [query_input, folder_filter, tag_filter],
-            [results_display],
-        )
-        tab.load(
-            refresh_filters,
-            outputs=[folder_filter, tag_filter],
-        )
-
-    return tab
+FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
 
 def _start_watcher(
@@ -168,11 +41,11 @@ def _start_watcher(
 
 
 def main():
-    """Start the mdkb server with Gradio UI and FastAPI."""
+    """Start the mdkb server."""
     settings = Settings.get()
 
     store = VectorStore(
-        settings.persist_directory, settings.collection_name
+        settings.persist_directory, settings.collection_name,
     )
     tracking = TrackingDB(settings.data_directory)
 
@@ -180,14 +53,40 @@ def main():
         logger.info("Empty store, running initial index...")
         run_index(settings, store, tracking)
 
-    app = build_app(settings)
-
     retriever = Retriever(store, settings)
-    fastapi_app = create_api(settings, store, retriever, tracking)
-    gr.mount_gradio_app(fastapi_app, app, path="/")
+    cancel_event = threading.Event()
+
+    app = create_api(
+        settings, store, retriever, tracking, cancel_event,
+    )
+
+    # Serve frontend static files in production
+    if FRONTEND_DIR.is_dir():
+        app.mount(
+            "/assets",
+            StaticFiles(directory=FRONTEND_DIR / "assets"),
+            name="assets",
+        )
+
+        @app.get("/{path:path}")
+        async def spa_fallback(request: Request, path: str):
+            """Serve index.html for all non-API routes (SPA routing)."""
+            file_path = FRONTEND_DIR / path
+            if file_path.is_file():
+                return FileResponse(file_path)
+            return FileResponse(FRONTEND_DIR / "index.html")
+    else:
+        logger.warning(
+            "Frontend not built (%s missing). "
+            "Run: cd frontend && npm run build",
+            FRONTEND_DIR,
+        )
+
+    if settings.feature_enabled("file_watcher"):
+        _start_watcher(settings, store, tracking)
 
     uvicorn.run(
-        fastapi_app,
+        app,
         host=settings.server_host,
         port=settings.server_port,
     )
