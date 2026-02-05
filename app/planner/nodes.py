@@ -1,3 +1,5 @@
+"""MCTS tree node structure for plan exploration and evaluation."""
+
 import math
 from dataclasses import dataclass, field
 from typing import Any
@@ -5,6 +7,8 @@ from typing import Any
 
 @dataclass
 class PlanNode:
+    """A node in the MCTS planning tree representing a plan or sub-plan."""
+
     content: str
     node_type: str  # "root", "approach", "detail", "evaluation"
     parent: "PlanNode | None" = None
@@ -20,12 +24,14 @@ class PlanNode:
 
     @property
     def score(self) -> float:
+        """Return the average score across all visits."""
         if self.visits == 0:
             return 0.0
         return self.total_score / self.visits
 
     @property
     def ucb1(self) -> float:
+        """Compute the UCB1 value for node selection."""
         if self.visits == 0:
             return float("inf")
         if self.parent is None or self.parent.visits == 0:
@@ -34,6 +40,7 @@ class PlanNode:
         return self.score + exploration
 
     def add_child(self, content: str, node_type: str, **kwargs) -> "PlanNode":
+        """Create and append a child node."""
         child = PlanNode(
             content=content,
             node_type=node_type,
@@ -44,6 +51,7 @@ class PlanNode:
         return child
 
     def backpropagate(self, score: float):
+        """Propagate a score up the tree from this node to the root."""
         node: PlanNode | None = self
         while node is not None:
             node.visits += 1
@@ -51,16 +59,19 @@ class PlanNode:
             node = node.parent
 
     def best_child(self) -> "PlanNode | None":
+        """Return the child with the highest average score."""
         if not self.children:
             return None
         return max(self.children, key=lambda c: c.score)
 
     def select_child_ucb1(self) -> "PlanNode | None":
+        """Return the child with the highest UCB1 value."""
         if not self.children:
             return None
         return max(self.children, key=lambda c: c.ucb1)
 
     def to_dict(self) -> dict:
+        """Serialize the node and its subtree to a dictionary."""
         return {
             "content": self.content,
             "type": self.node_type,
@@ -71,6 +82,7 @@ class PlanNode:
         }
 
     def get_best_path(self) -> list["PlanNode"]:
+        """Return the path from this node to the best leaf."""
         path = [self]
         current = self
         while current.children:
@@ -82,6 +94,7 @@ class PlanNode:
         return path
 
     def flatten_plan(self) -> str:
+        """Flatten the best path into a single plan string."""
         path = self.get_best_path()
         sections = []
         for node in path:

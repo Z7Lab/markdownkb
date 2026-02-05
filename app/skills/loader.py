@@ -1,3 +1,5 @@
+"""Discover and load Agent Skills from builtin and custom directories."""
+
 import logging
 from dataclasses import dataclass
 from pathlib import Path
@@ -7,6 +9,8 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Skill:
+    """A loaded agent skill with its name, description, and content."""
+
     name: str
     description: str
     content: str
@@ -16,6 +20,7 @@ class Skill:
 
 def discover_skills(builtin_dir: str | None = None,
                     custom_dir: str | None = None) -> list[Skill]:
+    """Discover and load skills from builtin and custom directories."""
     skills: list[Skill] = []
 
     # Built-in skills
@@ -39,12 +44,13 @@ def discover_skills(builtin_dir: str | None = None,
                 if skill:
                     skills.append(skill)
 
-    logger.info(f"Discovered {len(skills)} skills: "
-                f"{[s.name for s in skills]}")
+    logger.info("Discovered %d skills: %s",
+                len(skills), [s.name for s in skills])
     return skills
 
 
 def _load_skill(skill_dir: Path, source: str) -> Skill | None:
+    """Load a single skill from its directory, returning None if invalid."""
     skill_file = skill_dir / "SKILL.md"
     if not skill_file.exists():
         return None
@@ -63,10 +69,11 @@ def _load_skill(skill_dir: Path, source: str) -> Skill | None:
 
 
 def _extract_description(content: str) -> str:
+    """Extract the first descriptive line from skill content."""
     lines = content.strip().split("\n")
 
     # Try to find a description after the title
-    for i, line in enumerate(lines):
+    for line in lines:
         stripped = line.strip()
         if stripped.startswith("#"):
             continue
@@ -79,6 +86,7 @@ def _extract_description(content: str) -> str:
 
 
 def get_skill_by_name(name: str, skills: list[Skill] | None = None) -> Skill | None:
+    """Look up a skill by name from the provided or discovered skill list."""
     if skills is None:
         skills = discover_skills()
     for skill in skills:

@@ -1,3 +1,5 @@
+"""Execute skill-based plan reviews and multi-agent refinement."""
+
 import logging
 from dataclasses import dataclass
 
@@ -12,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class SkillReview:
+    """Result of a skill-based plan review."""
+
     skill_name: str
     review: str
     issues: list[str]
@@ -20,6 +24,7 @@ class SkillReview:
 
 def run_skill_review(plan: str, skill: Skill, retriever: Retriever,
                      settings: Settings | None = None) -> SkillReview:
+    """Run a single skill review against a plan."""
     settings = settings or Settings.get()
 
     # Search for context relevant to the plan
@@ -36,8 +41,8 @@ def run_skill_review(plan: str, skill: Skill, retriever: Retriever,
 
     try:
         response = get_completion(messages, settings)
-    except Exception as e:
-        logger.error(f"Skill review failed for {skill.name}: {e}")
+    except RuntimeError as e:
+        logger.error("Skill review failed for %s: %s", skill.name, e)
         return SkillReview(
             skill_name=skill.name,
             review=f"Review failed: {e}",
@@ -60,6 +65,7 @@ def run_multi_skill_review(plan: str, skill_names: list[str],
                            retriever: Retriever,
                            settings: Settings | None = None,
                            custom_skills_dir: str | None = None) -> list[SkillReview]:
+    """Run reviews from multiple skills against a plan."""
     settings = settings or Settings.get()
     skills = discover_skills(custom_dir=custom_skills_dir)
 
@@ -67,7 +73,7 @@ def run_multi_skill_review(plan: str, skill_names: list[str],
     for name in skill_names:
         skill = next((s for s in skills if s.name == name), None)
         if skill is None:
-            logger.warning(f"Skill not found: {name}")
+            logger.warning("Skill not found: %s", name)
             reviews.append(SkillReview(
                 skill_name=name,
                 review=f"Skill '{name}' not found.",
@@ -76,7 +82,7 @@ def run_multi_skill_review(plan: str, skill_names: list[str],
             ))
             continue
 
-        logger.info(f"Running review: {name}")
+        logger.info("Running review: %s", name)
         review = run_skill_review(plan, skill, retriever, settings)
         reviews.append(review)
 
@@ -85,6 +91,7 @@ def run_multi_skill_review(plan: str, skill_names: list[str],
 
 def refine_plan_with_reviews(plan: str, reviews: list[SkillReview],
                              settings: Settings | None = None) -> str:
+    """Refine a plan by incorporating feedback from skill reviews."""
     settings = settings or Settings.get()
 
     review_summary = ""
@@ -104,12 +111,13 @@ def refine_plan_with_reviews(plan: str, reviews: list[SkillReview],
 
     try:
         return get_completion(messages, settings)
-    except Exception as e:
-        logger.error(f"Plan refinement failed: {e}")
+    except RuntimeError as e:
+        logger.error("Plan refinement failed: %s", e)
         return plan
 
 
 def _extract_items(text: str, markers: list[str]) -> list[str]:
+    """Extract lines from text that contain any of the given marker words."""
     items: list[str] = []
     for line in text.split("\n"):
         line_lower = line.strip().lower()
@@ -121,6 +129,7 @@ def _extract_items(text: str, markers: list[str]) -> list[str]:
 
 
 def format_reviews(reviews: list[SkillReview]) -> str:
+    """Format a list of skill reviews into a readable markdown string."""
     parts: list[str] = []
     for r in reviews:
         parts.append(f"### {r.skill_name}")

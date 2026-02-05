@@ -1,5 +1,6 @@
+"""Safe terminal command execution with allowlist-based security."""
+
 import logging
-import shlex
 import subprocess
 from dataclasses import dataclass
 
@@ -26,6 +27,8 @@ ALLOWED_PREFIXES = {
 
 @dataclass
 class CommandResult:
+    """Result of a terminal command execution."""
+
     command: str
     stdout: str
     stderr: str
@@ -34,10 +37,12 @@ class CommandResult:
 
     @property
     def success(self) -> bool:
+        """Return True if the command exited with code 0."""
         return self.return_code == 0
 
     @property
     def output(self) -> str:
+        """Format the command output for display."""
         parts = []
         if self.stdout:
             parts.append(self.stdout)
@@ -49,6 +54,7 @@ class CommandResult:
 
 
 def is_safe_command(command: str) -> tuple[bool, str]:
+    """Check whether a command is safe to execute against the allowlist."""
     cmd_lower = command.strip().lower()
 
     for blocked in BLOCKED_COMMANDS:
@@ -69,6 +75,7 @@ def is_safe_command(command: str) -> tuple[bool, str]:
 
 def execute_command(command: str, cwd: str | None = None,
                     timeout: int = 30, force: bool = False) -> CommandResult:
+    """Execute a shell command with safety checks and timeout."""
     if not force:
         safe, reason = is_safe_command(command)
         if not safe:
@@ -79,7 +86,7 @@ def execute_command(command: str, cwd: str | None = None,
                 return_code=-1,
             )
 
-    logger.info(f"Executing: {command}")
+    logger.info("Executing: %s", command)
 
     try:
         result = subprocess.run(
@@ -89,6 +96,7 @@ def execute_command(command: str, cwd: str | None = None,
             capture_output=True,
             text=True,
             timeout=timeout,
+            check=False,
         )
         return CommandResult(
             command=command,
@@ -104,7 +112,7 @@ def execute_command(command: str, cwd: str | None = None,
             return_code=-1,
             timed_out=True,
         )
-    except Exception as e:
+    except OSError as e:
         return CommandResult(
             command=command,
             stdout="",
@@ -114,6 +122,7 @@ def execute_command(command: str, cwd: str | None = None,
 
 
 def create_execution_plan(commands: list[str]) -> list[dict]:
+    """Create a safety-checked execution plan for a list of commands."""
     plan = []
     for cmd in commands:
         safe, reason = is_safe_command(cmd)

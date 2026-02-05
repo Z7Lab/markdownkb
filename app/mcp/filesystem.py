@@ -1,3 +1,5 @@
+"""Filesystem exploration tools for browsing directories and reading files."""
+
 import logging
 import os
 from dataclasses import dataclass
@@ -8,6 +10,8 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class FileEntry:
+    """Represents a single file or directory entry."""
+
     name: str
     path: str
     is_dir: bool
@@ -15,6 +19,7 @@ class FileEntry:
 
 
 def list_directory(path: str, max_depth: int = 1) -> list[FileEntry]:
+    """List the contents of a directory up to a maximum depth."""
     target = Path(path).resolve()
     if not target.exists():
         raise FileNotFoundError(f"Path not found: {path}")
@@ -28,6 +33,7 @@ def list_directory(path: str, max_depth: int = 1) -> list[FileEntry]:
 
 def _walk(directory: Path, entries: list[FileEntry],
           current_depth: int, max_depth: int):
+    """Recursively walk a directory tree collecting FileEntry objects."""
     try:
         for item in sorted(directory.iterdir()):
             if item.name.startswith("."):
@@ -44,10 +50,11 @@ def _walk(directory: Path, entries: list[FileEntry],
             if item.is_dir() and current_depth < max_depth:
                 _walk(item, entries, current_depth + 1, max_depth)
     except PermissionError:
-        logger.warning(f"Permission denied: {directory}")
+        logger.warning("Permission denied: %s", directory)
 
 
 def read_file(path: str, max_size: int = 1_000_000) -> str:
+    """Read a file's contents, raising errors for missing, directory, or oversized files."""
     target = Path(path).resolve()
     if not target.exists():
         raise FileNotFoundError(f"File not found: {path}")
@@ -62,6 +69,7 @@ def read_file(path: str, max_size: int = 1_000_000) -> str:
 
 
 def get_file_info(path: str) -> dict:
+    """Return a dictionary of metadata about a file or directory."""
     target = Path(path).resolve()
     if not target.exists():
         raise FileNotFoundError(f"Path not found: {path}")
@@ -80,6 +88,7 @@ def get_file_info(path: str) -> dict:
 
 def find_files(directory: str, pattern: str = "*.md",
                max_results: int = 100) -> list[str]:
+    """Find files matching a glob pattern within a directory."""
     target = Path(directory).resolve()
     if not target.exists():
         return []
@@ -95,6 +104,7 @@ def find_files(directory: str, pattern: str = "*.md",
 
 
 def format_tree(path: str, max_depth: int = 2) -> str:
+    """Format a directory listing as an ASCII tree string."""
     entries = list_directory(path, max_depth=max_depth)
     if not entries:
         return f"{path}/ (empty)"
@@ -106,7 +116,6 @@ def format_tree(path: str, max_depth: int = 2) -> str:
         rel = os.path.relpath(entry.path, root)
         depth = rel.count(os.sep)
         indent = "    " * depth
-        prefix = "├── " if depth == 0 else "│   " * (depth - 1) + "├── "
 
         if entry.is_dir:
             lines.append(f"{indent}├── {entry.name}/")
@@ -118,6 +127,7 @@ def format_tree(path: str, max_depth: int = 2) -> str:
 
 
 def _format_size(size: int) -> str:
+    """Format a byte count into a human-readable string."""
     for unit in ["B", "KB", "MB", "GB"]:
         if size < 1024:
             return f"{size:.0f}{unit}" if unit == "B" else f"{size:.1f}{unit}"

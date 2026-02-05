@@ -1,13 +1,26 @@
-RAG_SYSTEM_PROMPT = """You are mdkb, a personal knowledge base assistant. You answer questions based on the user's indexed markdown documents.
+"""Prompt templates for RAG, planning, and skill review."""
 
-Rules:
-- Answer ONLY based on the provided context. If the context doesn't contain enough information, say so.
-- Always cite your sources at the end of your response using the format: Source: <file path>
-- When synthesizing information from multiple files, cite all relevant sources.
-- Be concise but thorough. Summarize across multiple documents when relevant.
-- If the user asks about something not in the context, say "I don't have information about that in your knowledge base."
-- Preserve technical accuracy — don't paraphrase code or configuration incorrectly.
-- Use markdown formatting in your responses."""
+RAG_SYSTEM_PROMPT = (
+    "You are mdkb, a personal knowledge base assistant. "
+    "You answer questions based on the user's indexed "
+    "markdown documents.\n\n"
+    "Rules:\n"
+    "- Answer ONLY based on the provided context. "
+    "If the context doesn't contain enough information, "
+    "say so.\n"
+    "- Always cite your sources at the end of your response "
+    "using the format: Source: <file path>\n"
+    "- When synthesizing information from multiple files, "
+    "cite all relevant sources.\n"
+    "- Be concise but thorough. "
+    "Summarize across multiple documents when relevant.\n"
+    "- If the user asks about something not in the context, "
+    'say "I don\'t have information about that in your '
+    'knowledge base."\n'
+    "- Preserve technical accuracy "
+    "- don't paraphrase code or configuration incorrectly.\n"
+    "- Use markdown formatting in your responses."
+)
 
 RAG_USER_TEMPLATE = """Context from your knowledge base:
 ---
@@ -16,16 +29,23 @@ RAG_USER_TEMPLATE = """Context from your knowledge base:
 
 Question: {question}"""
 
-PLANNING_SYSTEM_PROMPT = """You are mdkb in planning mode. Your job is to create precise implementation plans by analyzing the user's knowledge base, code, and patterns.
-
-Rules:
-- Research thoroughly before proposing solutions.
-- Reference specific files, functions, and patterns from the user's codebase.
-- Evaluate multiple approaches and explain trade-offs.
-- The output should be a detailed, actionable plan — not vague advice.
-- Always cite which documents/files informed each decision.
-- Match the user's existing patterns and stack choices.
-- Flag any potential issues (security, performance, compatibility)."""
+PLANNING_SYSTEM_PROMPT = (
+    "You are mdkb in planning mode. Your job is to create "
+    "precise implementation plans by analyzing the user's "
+    "knowledge base, code, and patterns.\n\n"
+    "Rules:\n"
+    "- Research thoroughly before proposing solutions.\n"
+    "- Reference specific files, functions, and patterns "
+    "from the user's codebase.\n"
+    "- Evaluate multiple approaches and explain trade-offs.\n"
+    "- The output should be a detailed, actionable plan "
+    "- not vague advice.\n"
+    "- Always cite which documents/files informed each "
+    "decision.\n"
+    "- Match the user's existing patterns and stack choices.\n"
+    "- Flag any potential issues "
+    "(security, performance, compatibility)."
+)
 
 PLANNING_USER_TEMPLATE = """Knowledge base context:
 ---
@@ -39,28 +59,27 @@ Additional context from file exploration:
 
 User's request: {request}
 
-Create a detailed implementation plan based on the user's existing code and patterns."""
+Create a detailed implementation plan based on the \
+user's existing code and patterns."""
 
-SKILL_REVIEW_TEMPLATE = """You are a specialist reviewer with the following expertise:
-
-{skill_description}
-
-Review the following plan and provide specific, actionable feedback:
-
-Plan:
----
-{plan}
----
-
-Context from the knowledge base:
----
-{context}
----
-
-Provide your review with specific issues, suggestions, and approvals. Be concrete — reference specific files, patterns, and potential problems."""
+SKILL_REVIEW_TEMPLATE = (
+    "You are a specialist reviewer with the following "
+    "expertise:\n\n{skill_description}\n\n"
+    "Review the following plan and provide specific, "
+    "actionable feedback:\n\n"
+    "Plan:\n---\n{plan}\n---\n\n"
+    "Context from the knowledge base:\n"
+    "---\n{context}\n---\n\n"
+    "Provide your review with specific issues, "
+    "suggestions, and approvals. Be concrete - reference "
+    "specific files, patterns, and potential problems."
+)
 
 
-def format_context(documents: list[str], metadatas: list[dict]) -> str:
+def format_context(
+    documents: list[str], metadatas: list[dict]
+) -> str:
+    """Format documents and metadata into a context string."""
     parts: list[str] = []
     for doc, meta in zip(documents, metadatas):
         source = meta.get("source_path", "unknown")
@@ -73,27 +92,39 @@ def format_context(documents: list[str], metadatas: list[dict]) -> str:
     return "\n\n---\n\n".join(parts)
 
 
-def build_rag_messages(question: str, documents: list[str],
-                       metadatas: list[dict],
-                       conversation_history: list[dict] | None = None) -> list[dict]:
+def build_rag_messages(
+    question: str,
+    documents: list[str],
+    metadatas: list[dict],
+    conversation_history: list[dict] | None = None,
+) -> list[dict]:
+    """Build the message list for a RAG completion request."""
     context = format_context(documents, metadatas)
 
-    messages: list[dict] = [{"role": "system", "content": RAG_SYSTEM_PROMPT}]
+    messages: list[dict] = [
+        {"role": "system", "content": RAG_SYSTEM_PROMPT}
+    ]
 
     if conversation_history:
         messages.extend(conversation_history)
 
     messages.append({
         "role": "user",
-        "content": RAG_USER_TEMPLATE.format(context=context, question=question),
+        "content": RAG_USER_TEMPLATE.format(
+            context=context, question=question
+        ),
     })
 
     return messages
 
 
-def build_planning_messages(request: str, documents: list[str],
-                            metadatas: list[dict],
-                            exploration_context: str = "") -> list[dict]:
+def build_planning_messages(
+    request: str,
+    documents: list[str],
+    metadatas: list[dict],
+    exploration_context: str = "",
+) -> list[dict]:
+    """Build the message list for a planning request."""
     context = format_context(documents, metadatas)
     return [
         {"role": "system", "content": PLANNING_SYSTEM_PROMPT},
@@ -105,12 +136,17 @@ def build_planning_messages(request: str, documents: list[str],
     ]
 
 
-def build_skill_review_messages(plan: str, skill_description: str,
-                                documents: list[str],
-                                metadatas: list[dict]) -> list[dict]:
+def build_skill_review_messages(
+    plan: str,
+    skill_description: str,
+    documents: list[str],
+    metadatas: list[dict],
+) -> list[dict]:
+    """Build the message list for a skill-based plan review."""
     context = format_context(documents, metadatas)
     return [
-        {"role": "system", "content": "You are a specialist plan reviewer."},
+        {"role": "system",
+         "content": "You are a specialist plan reviewer."},
         {"role": "user", "content": SKILL_REVIEW_TEMPLATE.format(
             skill_description=skill_description,
             plan=plan,
