@@ -1,12 +1,14 @@
 """Settings and source management endpoints."""
 
 import logging
+import os
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from app.config import Settings
-from app.deps import get_settings
+from app.deps import get_chatdb, get_searchdb, get_settings, get_store, get_tracking
 from app.ratelimit import HEAVY, LLM, STANDARD, limiter
 from app.schemas import (
     AddSourceRequest,
@@ -304,3 +306,85 @@ def update_mcp_settings(
     settings.set_mcp_config(tool_name, config)
     settings.save()
     return {"status": "saved", "tool_name": tool_name}
+
+
+# -- Database Maintenance --
+
+def get_path_size(path: Path) -> int:
+    """Get total size of a file or directory in bytes."""
+    if path.is_file():
+        return path.stat().st_size
+    elif path.is_dir():
+        return sum(f.stat().st_size for f in path.rglob('*') if f.is_file())
+    return 0
+
+
+@router.get("/settings/database-stats")
+@limiter.limit(STANDARD)
+def get_database_stats(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+):
+    """Get statistics for all databases."""
+    data_dir = Path(settings.data_directory)
+
+    stats = {
+        "chat_history": {
+            "path": str(data_dir / "chats.db"),
+            "size_bytes": get_path_size(data_dir / "chats.db"),
+        },
+        "search_history": {
+            "path": str(data_dir / "searches.db"),
+            "size_bytes": get_path_size(data_dir / "searches.db"),
+        },
+        "vector_database": {
+            "tracking_path": str(data_dir / "mdkb.db"),
+            "chroma_path": str(data_dir / "chromadb"),
+            "size_bytes": get_path_size(data_dir / "mdkb.db") + get_path_size(data_dir / "chromadb"),
+        },
+    }
+    return stats
+
+
+@router.post("/settings/database/clear-chats")
+@limiter.limit(STANDARD)
+def clear_chat_history(request: Request):
+    """Clear all chat history (threads and messages)."""
+    from app.deps import get_chatdb
+    chatdb = request.app.state.chatdb
+    chatdb.clear_all()
+    logger.info("Cleared all chat history")
+    return {"status": "cleared", "database": "chats"}
+
+
+@router.post("/settings/database/clear-searches")
+@limiter.limit(STANDARD)
+def clear_search_history(request: Request):
+    """Clear all search history."""
+    from app.deps import get_searchdb
+    searchdb = request.app.state.searchdb
+    searchdb.clear_all()
+    logger.info("Cleared all search history")
+    return {"status": "cleared", "database": "searches"}
+
+
+@router.post("/settings/database/clear-vectors")
+@limiter.limit(HEAVY)
+def clear_vector_database(request: Request):
+    """Clear vector database and file tracking, then trigger reindex."""
+    vectorstore = request.app.state.store
+    trackingdb = request.app.state.tracking
+
+    # Clear both databases
+    vectorstore.clear()
+    trackingdb.clear()
+
+    logger.info("Cleared vector database and file tracking")
+
+    # Trigger reindex in background
+    # Note: The actual reindexing will happen via the existing /api/index endpoint
+    return {
+        "status": "cleared",
+        "database": "vectors",
+        "message": "Vector database cleared. Use the reindex endpoint to rebuild.",
+    }

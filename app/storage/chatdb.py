@@ -182,3 +182,10 @@ class ChatDB:
                 (json.dumps(sources), thread_id, message_role),
             )
             self._conn.commit()
+
+    def clear_all(self):
+        """Delete all threads and messages."""
+        with self._lock:
+            self._conn.execute("DELETE FROM messages")
+            self._conn.execute("DELETE FROM threads")
+            self._conn.commit()

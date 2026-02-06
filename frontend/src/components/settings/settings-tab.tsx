@@ -5,6 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import {
   Cpu,
+  Database,
   FolderCog,
   Layers,
   MessageSquareText,
@@ -17,6 +18,7 @@ import { FeaturesPanel } from "./features-panel"
 import { SystemPromptPanel } from "./system-prompt-panel"
 import { EmbeddingPanel } from "./embedding-panel"
 import { SearchPanel } from "./search-panel"
+import { DatabasePanel } from "./database-panel"
 
 const sections = [
   { id: "llm", label: "LLM Provider", icon: Cpu },
@@ -25,6 +27,7 @@ const sections = [
   { id: "embeddings", label: "Embeddings", icon: Layers },
   { id: "features", label: "Features", icon: ToggleRight },
   { id: "prompt", label: "System Prompt", icon: MessageSquareText },
+  { id: "database", label: "Database", icon: Database },
 ] as const
 
 type SectionId = (typeof sections)[number]["id"]
@@ -142,6 +145,9 @@ export function SettingsTab() {
                 defaultPrompt={settings.default_system_prompt}
                 onSave={saveSystemPrompt}
               />
+            )}
+            {activeSection === "database" && (
+              <DatabasePanel />
             )}
           </div>
         </ScrollArea>

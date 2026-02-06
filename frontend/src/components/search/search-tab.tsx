@@ -1,4 +1,3 @@
-import { useEffect } from "react"
 import { useSearch } from "@/hooks/use-search"
 import { SearchSidebar } from "./search-sidebar"
 import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"

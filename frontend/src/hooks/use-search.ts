@@ -131,21 +131,46 @@ export function useSearch() {
     setTag(saved.tag)
     setActiveSearchId(saved.id)
 
-    // Always fetch results to display them
-    setLoading(true)
-    try {
-      const res = await api.post<{ results: SearchResult[]; search_id: string; llm_offline?: boolean }>("/api/search", {
-        query: saved.query,
-        folder: saved.folder || undefined,
-        tag: saved.tag || undefined,
-      })
-      setResults(res.results)
+    // Stop any running summary
+    summaryControllerRef.current?.abort()
+    setIsSummarizing(false)
 
-      // Use cached summary if available, otherwise generate it
-      if (saved.summary) {
-        setSummary(saved.summary)
-      } else {
-        // Generate summary for this search
+    // If we have a cached summary, use it and just refresh results
+    if (saved.summary) {
+      setSummary(saved.summary)
+      setSummarySources([]) // Sources aren't saved, so clear them
+
+      // Refresh results in background (results may have changed with new indexing)
+      setLoading(true)
+      try {
+        const res = await api.post<{ results: SearchResult[]; search_id: string }>("/api/search", {
+          query: saved.query,
+          folder: saved.folder || undefined,
+          tag: saved.tag || undefined,
+        })
+        setResults(res.results)
+        // Note: This creates a new search record, but we keep showing the old summary
+      } catch (err) {
+        console.error("Failed to refresh results:", err)
+        setError((err as Error).message)
+      } finally {
+        setLoading(false)
+      }
+    } else {
+      // No cached summary - fetch results and generate summary
+      setLoading(true)
+      setSummary("")
+      setSummarySources([])
+
+      try {
+        const res = await api.post<{ results: SearchResult[]; search_id: string }>("/api/search", {
+          query: saved.query,
+          folder: saved.folder || undefined,
+          tag: saved.tag || undefined,
+        })
+        setResults(res.results)
+
+        // Generate summary and save to the OLD search record (not the new one)
         setIsSummarizing(true)
         summaryControllerRef.current = streamSearchSummary(
           saved.query,
@@ -160,12 +185,12 @@ export function useSearch() {
           },
           { folder: saved.folder, tag: saved.tag, search_id: saved.id },
         )
+      } catch (err) {
+        console.error("Failed to load search:", err)
+        setError((err as Error).message)
+      } finally {
+        setLoading(false)
       }
-    } catch (err) {
-      console.error("Failed to load search:", err)
-      setError((err as Error).message)
-    } finally {
-      setLoading(false)
     }
   }, [])
 
