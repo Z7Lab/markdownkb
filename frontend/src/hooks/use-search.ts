@@ -25,16 +25,47 @@ export function useSearch() {
   const summaryControllerRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
-    api.get<PaginatedResponse<string>>("/api/folders").then((r) => setFolders(r.items)).catch(() => {})
-    api.get<PaginatedResponse<string>>("/api/tags").then((r) => setTags(r.items)).catch(() => {})
-    refreshSearches()
+    let retryTimer: ReturnType<typeof setTimeout> | null = null
+    let retryCount = 0
+    const MAX_RETRIES = 10
+
+    const loadWithRetry = async () => {
+      try {
+        const [foldersRes, tagsRes, searchesRes] = await Promise.all([
+          api.get<PaginatedResponse<string>>("/api/folders"),
+          api.get<PaginatedResponse<string>>("/api/tags"),
+          api.get<PaginatedResponse<SavedSearch>>("/api/searches?limit=100"),
+        ])
+        setFolders(foldersRes.items)
+        setTags(tagsRes.items)
+        setSearches(searchesRes.items)
+      } catch (err) {
+        // If load failed and we haven't exceeded max retries, retry in 2 seconds
+        if (retryCount < MAX_RETRIES) {
+          retryCount++
+          retryTimer = setTimeout(loadWithRetry, 2000)
+        }
+      }
+    }
+
+    loadWithRetry()
+
+    return () => {
+      if (retryTimer) clearTimeout(retryTimer)
+    }
   }, [])
 
-  const refreshSearches = useCallback(async () => {
+  const refreshSearches = useCallback(async (silent = false): Promise<boolean> => {
     try {
       const res = await api.get<PaginatedResponse<SavedSearch>>("/api/searches?limit=100")
       setSearches(res.items)
-    } catch { /* ignore */ }
+      return true
+    } catch (err) {
+      if (!silent) {
+        console.warn("Failed to load searches:", err)
+      }
+      return false
+    }
   }, [])
 
   const search = useCallback(async () => {

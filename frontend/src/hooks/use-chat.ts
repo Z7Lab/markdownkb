@@ -65,20 +65,44 @@ export function useChat() {
     }
   }, [])
 
-  const refreshThreads = useCallback(async () => {
+  const refreshThreads = useCallback(async (silent = false): Promise<boolean> => {
     try {
       const res = await api.get<PaginatedResponse<Thread>>("/api/threads")
       setThreads(res.items)
-    } catch {
-      // Silently fail — threads list is non-critical
+      return true
+    } catch (err) {
+      if (!silent) {
+        console.warn("Failed to load threads:", err)
+      }
+      return false
     }
   }, [])
 
-  // Restore state on mount and refresh threads
+  // Restore state on mount and refresh threads with retry
   useEffect(() => {
     restoreState()
-    refreshThreads()
-  }, [restoreState, refreshThreads])
+
+    let retryTimer: ReturnType<typeof setTimeout> | null = null
+    let retryCount = 0
+    const MAX_RETRIES = 10
+
+    const loadWithRetry = async () => {
+      const success = await refreshThreads(true) // silent = true
+
+      // If load failed and we haven't exceeded max retries, retry in 2 seconds
+      if (!success && retryCount < MAX_RETRIES) {
+        retryCount++
+        retryTimer = setTimeout(loadWithRetry, 2000)
+      }
+    }
+
+    loadWithRetry()
+
+    return () => {
+      if (retryTimer) clearTimeout(retryTimer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only run on mount
 
   // Auto-save state whenever messages or activeThreadId changes
   useEffect(() => {
