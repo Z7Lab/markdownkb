@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Download, Loader2, RefreshCw, X } from "lucide-react"
+import { Download, Loader2, RefreshCw, Square } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -98,15 +98,24 @@ export function EmbeddingPanel({
                       Use
                     </Button>
                   )}
-                  {isActive && (
+                  {isActive && !switching && (
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => setConfirmReindex(true)}
-                      disabled={switching}
                     >
                       <RefreshCw className="h-4 w-4 mr-1" />
                       Re-index
+                    </Button>
+                  )}
+                  {isActive && switching && (
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={onCancel}
+                    >
+                      <Square className="h-3.5 w-3.5 mr-1" />
+                      Stop
                     </Button>
                   )}
                 </div>
@@ -115,16 +124,10 @@ export function EmbeddingPanel({
           })}
 
           {status && (
-            <div className="flex items-center justify-between gap-3 bg-muted p-3 rounded-md">
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap flex-1">
+            <div className="bg-muted p-3 rounded-md">
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                 {status}
               </p>
-              {switching && (
-                <Button size="sm" variant="outline" onClick={onCancel}>
-                  <X className="h-4 w-4 mr-1" />
-                  Cancel
-                </Button>
-              )}
             </div>
           )}
         </CardContent>

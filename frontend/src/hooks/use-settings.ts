@@ -46,6 +46,46 @@ function useSettingsInternal() {
   useEffect(() => {
     load()
     loadEmbeddingModels()
+    // Check if a background reindex is already running (e.g. page refresh)
+    api.get<{
+      running: boolean
+      progress: number
+      message: string
+      result: string
+    }>("/api/settings/embedding-models/status").then((st) => {
+      if (st.running) {
+        setEmbeddingSwitching(true)
+        const pct = Math.round(st.progress * 100)
+        setEmbeddingStatus(`[${pct}%] ${st.message}`)
+        // Start polling
+        switchPollRef.current = setInterval(async () => {
+          try {
+            const s = await api.get<{
+              running: boolean
+              progress: number
+              message: string
+              result: string
+            }>("/api/settings/embedding-models/status")
+            if (s.running) {
+              const p = Math.round(s.progress * 100)
+              setEmbeddingStatus(`[${p}%] ${s.message}`)
+            } else {
+              if (switchPollRef.current) clearInterval(switchPollRef.current)
+              switchPollRef.current = null
+              setEmbeddingSwitching(false)
+              setEmbeddingStatus(s.result || "Reindex complete")
+              load()
+              loadEmbeddingModels()
+            }
+          } catch {
+            if (switchPollRef.current) clearInterval(switchPollRef.current)
+            switchPollRef.current = null
+            setEmbeddingSwitching(false)
+            setEmbeddingStatus("Lost connection during reindex")
+          }
+        }, 1500)
+      }
+    }).catch(() => { /* ignore */ })
   }, [load, loadEmbeddingModels])
 
   const saveProvider = useCallback(
@@ -204,7 +244,13 @@ function useSettingsInternal() {
 
   const cancelIndex = useCallback(async () => {
     await api.post("/api/index/cancel")
-    setIndexStatus("Cancelling...")
+    if (switchPollRef.current) {
+      clearInterval(switchPollRef.current)
+      switchPollRef.current = null
+    }
+    setEmbeddingSwitching(false)
+    setEmbeddingStatus("Cancelled")
+    setIndexStatus("Cancelled")
   }, [])
 
   const saveSystemPrompt = useCallback(
