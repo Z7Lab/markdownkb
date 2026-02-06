@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from "react"
 import { api } from "@/lib/api"
-import type { TrackedFile } from "@/lib/types"
+import type { PaginatedResponse, TrackedFile } from "@/lib/types"
 
 export function useFiles() {
   const [files, setFiles] = useState<TrackedFile[]>([])
   const [loading, setLoading] = useState(false)
 
   const refresh = useCallback(async () => {
-    const res = await api.get<{ files: TrackedFile[] }>("/api/files")
-    setFiles(res.files)
+    const res = await api.get<PaginatedResponse<TrackedFile>>("/api/files")
+    setFiles(res.items)
   }, [])
 
   useEffect(() => {

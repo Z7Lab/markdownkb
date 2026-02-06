@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { api } from "@/lib/api"
-import type { SearchResult } from "@/lib/types"
+import type { PaginatedResponse, SearchResult } from "@/lib/types"
 
 export function useSearch() {
   const [query, setQuery] = useState("")
@@ -12,8 +12,8 @@ export function useSearch() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    api.get<{ folders: string[] }>("/api/folders").then((r) => setFolders(r.folders))
-    api.get<{ tags: string[] }>("/api/tags").then((r) => setTags(r.tags))
+    api.get<PaginatedResponse<string>>("/api/folders").then((r) => setFolders(r.items))
+    api.get<PaginatedResponse<string>>("/api/tags").then((r) => setTags(r.items))
   }, [])
 
   const search = useCallback(async () => {

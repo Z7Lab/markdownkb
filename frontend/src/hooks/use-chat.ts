@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { api } from "@/lib/api"
 import { streamChat } from "@/lib/sse"
-import type { ChatMessage, Thread } from "@/lib/types"
+import type { ChatMessage, PaginatedResponse, Thread } from "@/lib/types"
 
 export function useChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -13,8 +13,8 @@ export function useChat() {
 
   const refreshThreads = useCallback(async () => {
     try {
-      const res = await api.get<{ threads: Thread[] }>("/api/threads")
-      setThreads(res.threads)
+      const res = await api.get<PaginatedResponse<Thread>>("/api/threads")
+      setThreads(res.items)
     } catch {
       // Silently fail — threads list is non-critical
     }

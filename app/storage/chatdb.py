@@ -92,13 +92,24 @@ class ChatDB:
             self._conn.commit()
         return thread_id
 
-    def list_threads(self) -> list[dict]:
-        """List all chat threads ordered by most recently updated."""
+    def list_threads(
+        self, *, offset: int = 0, limit: int | None = None,
+    ) -> list[dict]:
+        """List chat threads ordered by most recently updated, with optional pagination."""
         with self._lock:
-            rows = self._conn.execute(
-                "SELECT * FROM threads ORDER BY updated_at DESC",
-            ).fetchall()
+            sql = "SELECT * FROM threads ORDER BY updated_at DESC"
+            params: list = []
+            if limit is not None:
+                sql += " LIMIT ? OFFSET ?"
+                params = [limit, offset]
+            rows = self._conn.execute(sql, params).fetchall()
             return [dict(r) for r in rows]
+
+    def thread_count(self) -> int:
+        """Return total number of threads."""
+        with self._lock:
+            row = self._conn.execute("SELECT COUNT(*) as cnt FROM threads").fetchone()
+            return row["cnt"]
 
     def get_thread(self, thread_id: str) -> dict | None:
         """Get a specific thread by ID."""

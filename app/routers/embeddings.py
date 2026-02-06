@@ -1,0 +1,167 @@
+"""Embedding model management and indexing endpoints."""
+
+import logging
+import threading
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+
+from app.config import Settings
+from app.deps import get_cancel_event, get_settings, get_store, get_tracking
+from app.ingestion.indexer import run_index
+from app.ratelimit import INDEXING, STANDARD, limiter
+from app.schemas import EmbeddingModelRequest
+from app.storage.trackingdb import TrackingDB
+from app.storage.vectorstore import VectorStore
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api", tags=["embeddings"])
+
+# Background reindex state for model switching
+_switch_status = {
+    "running": False,
+    "progress": 0.0,
+    "message": "",
+    "result": "",
+}
+_switch_lock = threading.Lock()
+
+
+def _bg_reindex(
+    settings: Settings,
+    store: VectorStore,
+    tracking: TrackingDB,
+    cancel_event: threading.Event,
+):
+    """Run reindex in background thread, updating _switch_status."""
+    def on_progress(frac: float, msg: str):
+        with _switch_lock:
+            _switch_status["progress"] = frac
+            _switch_status["message"] = msg
+
+    try:
+        cancel_event.clear()
+        result = run_index(
+            settings, store, tracking,
+            progress=on_progress,
+            cancel=cancel_event,
+        )
+        with _switch_lock:
+            _switch_status["result"] = result
+    except (OSError, RuntimeError, ValueError) as e:
+        logger.error("Background reindex failed: %s", e)
+        with _switch_lock:
+            _switch_status["result"] = f"Error: {e}"
+    finally:
+        with _switch_lock:
+            _switch_status["running"] = False
+
+
+@router.get("/settings/embedding-models")
+@limiter.limit(STANDARD)
+def list_embedding_models(request: Request, settings: Settings = Depends(get_settings)):
+    from app.embeddings.downloader import list_models_with_status
+    return {
+        "models": list_models_with_status(),
+        "active_model": settings.embedding_model,
+    }
+
+
+@router.get("/settings/embedding-models/status")
+@limiter.limit(STANDARD)
+def embedding_switch_status(request: Request):
+    with _switch_lock:
+        return dict(_switch_status)
+
+
+@router.post("/settings/embedding-models/install")
+@limiter.limit(INDEXING)
+def install_embedding_model(request: Request, req: EmbeddingModelRequest):
+    from app.embeddings.downloader import install_model, is_installed
+    from app.embeddings.registry import MODELS
+
+    if req.model_id not in MODELS:
+        raise HTTPException(400, f"Unknown model: {req.model_id}")
+    if is_installed(req.model_id):
+        return {"status": "already_installed"}
+    try:
+        install_model(req.model_id)
+        return {"status": "installed"}
+    except (OSError, RuntimeError, ValueError) as e:
+        logger.error("Failed to install embedding model %s: %s", req.model_id, e)
+        raise HTTPException(500, "Failed to install embedding model") from e
+
+
+@router.put("/settings/embedding-models/switch")
+@limiter.limit(INDEXING)
+def switch_embedding_model(
+    request: Request,
+    req: EmbeddingModelRequest,
+    settings: Settings = Depends(get_settings),
+    store: VectorStore = Depends(get_store),
+    tracking: TrackingDB = Depends(get_tracking),
+    cancel_event: threading.Event = Depends(get_cancel_event),
+):
+    from app.embeddings.downloader import is_installed
+    from app.embeddings.embedder import unload_model
+    from app.embeddings.registry import MODELS
+
+    if req.model_id not in MODELS:
+        raise HTTPException(400, f"Unknown model: {req.model_id}")
+    if not is_installed(req.model_id):
+        raise HTTPException(400, f"Model not installed: {req.model_id}")
+    if req.model_id == settings.embedding_model:
+        return {"status": "already_active"}
+
+    with _switch_lock:
+        if _switch_status["running"]:
+            raise HTTPException(409, "A model switch is already in progress")
+        _switch_status["running"] = True
+        _switch_status["progress"] = 0.0
+        _switch_status["message"] = "Preparing to switch..."
+        _switch_status["result"] = ""
+
+    logger.info("Switching embedding model from %s to %s", settings.embedding_model, req.model_id)
+    settings.embedding_model = req.model_id
+    settings.save()
+    logger.info("Settings saved, embedding_model now: %s", settings.embedding_model)
+    unload_model()
+    logger.info("Model unloaded")
+    store.clear()
+    tracking.clear()
+    logger.info("Store and tracking cleared, starting reindex")
+
+    threading.Thread(
+        target=_bg_reindex,
+        args=(settings, store, tracking, cancel_event),
+        daemon=True,
+    ).start()
+    return {"status": "switching", "model": req.model_id}
+
+
+# -- Indexing --
+
+@router.post("/index")
+@limiter.limit(INDEXING)
+def index(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+    store: VectorStore = Depends(get_store),
+    tracking: TrackingDB = Depends(get_tracking),
+    cancel_event: threading.Event = Depends(get_cancel_event),
+):
+    cancel_event.clear()
+    result = run_index(
+        settings,
+        store,
+        tracking,
+        cancel=cancel_event,
+    )
+    return {"message": result}
+
+
+@router.post("/index/cancel")
+@limiter.limit(STANDARD)
+def cancel_index(request: Request, cancel_event: threading.Event = Depends(get_cancel_event)):
+    cancel_event.set()
+    return {"status": "cancelling"}

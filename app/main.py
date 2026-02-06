@@ -2,15 +2,17 @@
 
 import logging
 import threading
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
-from fastapi import Request
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.api import create_api
+from app.api import create_app
 from app.config import Settings
+from app.ratelimit import limiter
 from app.ingestion.indexer import run_index
 from app.ingestion.watcher import start_watching
 from app.rag.retriever import Retriever
@@ -27,22 +29,9 @@ logger = logging.getLogger(__name__)
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
 
-def _start_watcher(
-    settings: Settings, store: VectorStore,
-    tracking: TrackingDB,
-):
-    """Start the file watcher daemon thread."""
-    thread = threading.Thread(
-        target=start_watching,
-        args=(settings, store, tracking),
-        daemon=True,
-    )
-    thread.start()
-    logger.info("File watcher started")
-
-
-def main():
-    """Start the mdkb server."""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize services on startup, clean up on shutdown."""
     settings = Settings.get()
 
     store = VectorStore(
@@ -58,9 +47,41 @@ def main():
     retriever = Retriever(store, settings)
     cancel_event = threading.Event()
 
-    app = create_api(
-        settings, store, retriever, tracking, chatdb, cancel_event,
-    )
+    # Store services on app.state for dependency injection
+    app.state.settings = settings
+    app.state.store = store
+    app.state.retriever = retriever
+    app.state.tracking = tracking
+    app.state.chatdb = chatdb
+    app.state.cancel_event = cancel_event
+
+    # Enable rate limiting if configured
+    if settings.feature_enabled("rate_limiting"):
+        limiter.enabled = True
+        logger.info("Rate limiting enabled")
+
+    # Start file watcher if enabled
+    if settings.feature_enabled("file_watcher"):
+        thread = threading.Thread(
+            target=start_watching,
+            args=(settings, store, tracking),
+            daemon=True,
+        )
+        thread.start()
+        logger.info("File watcher started")
+
+    yield
+
+    # Shutdown: close DB connections
+    tracking.close()
+    chatdb.close()
+    logger.info("Shutdown complete")
+
+
+def main():
+    """Start the mdkb server."""
+    settings = Settings.get()
+    app = create_app(lifespan=lifespan)
 
     # Serve frontend static files in production
     if FRONTEND_DIR.is_dir():
@@ -71,7 +92,7 @@ def main():
         )
 
         @app.get("/{path:path}")
-        async def spa_fallback(request: Request, path: str):
+        async def spa_fallback(_request: Request, path: str):
             """Serve index.html for all non-API routes (SPA routing)."""
             if path.startswith("api/"):
                 return JSONResponse({"detail": "Not Found"}, status_code=404)
@@ -85,9 +106,6 @@ def main():
             "Run: cd frontend && npm run build",
             FRONTEND_DIR,
         )
-
-    if settings.feature_enabled("file_watcher"):
-        _start_watcher(settings, store, tracking)
 
     uvicorn.run(
         app,

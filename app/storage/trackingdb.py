@@ -92,12 +92,17 @@ class TrackingDB:
 
     # --- Bulk queries ---
 
-    def get_all_files(self) -> list[dict]:
-        """Return all tracked files ordered by path."""
+    def get_all_files(
+        self, *, offset: int = 0, limit: int | None = None,
+    ) -> list[dict]:
+        """Return tracked files ordered by path, with optional pagination."""
         with self._lock:
-            rows = self._conn.execute(
-                "SELECT * FROM indexed_files ORDER BY path"
-            ).fetchall()
+            sql = "SELECT * FROM indexed_files ORDER BY path"
+            params: list = []
+            if limit is not None:
+                sql += " LIMIT ? OFFSET ?"
+                params = [limit, offset]
+            rows = self._conn.execute(sql, params).fetchall()
             return [dict(r) for r in rows]
 
     def get_hash_map(self) -> dict[str, str]:
