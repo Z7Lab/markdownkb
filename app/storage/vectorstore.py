@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import chromadb
+from chromadb.config import Settings as ChromaSettings
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +16,10 @@ class VectorStore:
     def __init__(self, persist_directory: str = "./data/chromadb",
                  collection_name: str = "mdkb"):
         Path(persist_directory).mkdir(parents=True, exist_ok=True)
-        self._client = chromadb.PersistentClient(path=persist_directory)
+        self._client = chromadb.PersistentClient(
+            path=persist_directory,
+            settings=ChromaSettings(anonymized_telemetry=False),
+        )
         self._collection = self._client.get_or_create_collection(
             name=collection_name,
             metadata={"hnsw:space": "cosine"},

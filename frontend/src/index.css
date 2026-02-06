@@ -136,10 +136,10 @@
     @apply bg-muted px-1.5 py-0.5 rounded text-[0.8em] font-mono;
   }
   pre {
-    @apply bg-muted rounded-md;
+    @apply bg-muted text-foreground rounded-md;
   }
   pre code {
-    @apply bg-transparent px-0 py-0;
+    @apply bg-transparent px-0 py-0 text-inherit;
   }
   hr {
     @apply border-border;
