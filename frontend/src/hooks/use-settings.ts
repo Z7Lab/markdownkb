@@ -178,6 +178,9 @@ export function useSettings() {
           { model_id: modelId },
         )
 
+        // Refresh model list immediately to show new active model
+        await loadEmbeddingModels()
+
         // Poll for background reindex progress
         switchPollRef.current = setInterval(async () => {
           try {

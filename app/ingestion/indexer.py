@@ -57,10 +57,12 @@ def _index_file(fi: FileInfo, settings: Settings,
         tracking.mark_complete(fi.path, 0)
         return 0
 
+    # Capture model ID once per file to avoid mid-file model switches
+    embedding_model = settings.embedding_model
     for start in range(0, len(chunks), BATCH_SIZE):
         batch = chunks[start:start + BATCH_SIZE]
         texts = [c.content for c in batch]
-        embeddings = embed_texts(texts, settings.embedding_model)
+        embeddings = embed_texts(texts, embedding_model)
         ids = [c.chunk_id for c in batch]
         metadatas = [c.metadata for c in batch]
         store.add(ids, texts, embeddings, metadatas)
@@ -87,6 +89,7 @@ def run_index(
         if progress:
             progress(frac, msg)
 
+    logger.info("run_index starting with embedding_model=%s", settings.embedding_model)
     report(0.0, "Scanning source directories...")
     files = scan_sources(settings.sources, settings.global_ignore)
 

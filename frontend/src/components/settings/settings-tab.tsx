@@ -1,7 +1,6 @@
 import { useSettings } from "@/hooks/use-settings"
 import { LlmConfig } from "./llm-config"
 import { SourcesPanel } from "./sources-panel"
-import { IndexPanel } from "./index-panel"
 import { FeaturesPanel } from "./features-panel"
 import { SystemPromptPanel } from "./system-prompt-panel"
 import { EmbeddingPanel } from "./embedding-panel"
@@ -56,28 +55,21 @@ export function SettingsTab() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <EmbeddingPanel
-          models={embeddingModels}
-          activeModel={settings.embedding_model}
-          status={embeddingStatus}
-          switching={embeddingSwitching}
-          onInstall={installEmbeddingModel}
-          onSwitch={switchEmbeddingModel}
-        />
-        <IndexPanel
-          status={indexStatus}
-          onReindex={reindex}
-          onCancel={cancelIndex}
-        />
-      </div>
+      <EmbeddingPanel
+        models={embeddingModels}
+        activeModel={settings.embedding_model}
+        status={embeddingStatus}
+        switching={embeddingSwitching}
+        onInstall={installEmbeddingModel}
+        onSwitch={switchEmbeddingModel}
+        onReindex={reindex}
+        onCancel={cancelIndex}
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <FeaturesPanel
-          features={settings.features}
-          onToggle={toggleFeature}
-        />
-      </div>
+      <FeaturesPanel
+        features={settings.features}
+        onToggle={toggleFeature}
+      />
 
       <SystemPromptPanel
         prompt={settings.system_prompt}

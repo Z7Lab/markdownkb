@@ -81,8 +81,16 @@ class Retriever:
 
         # Filter by threshold and limit
         threshold = self._settings.score_threshold
+        pre_filter_count = len(results)
         results = [r for r in results if r.score >= threshold]
         results.sort(key=lambda r: r.score, reverse=True)
+
+        if pre_filter_count > len(results):
+            logger.info(
+                "Filtered %d/%d results below threshold %.2f (top score: %.3f)",
+                pre_filter_count - len(results), pre_filter_count, threshold,
+                results[0].score if results else 0.0
+            )
 
         return results[:k]
 

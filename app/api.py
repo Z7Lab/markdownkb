@@ -618,11 +618,15 @@ def create_api(
             _switch_status["message"] = "Preparing to switch..."
             _switch_status["result"] = ""
 
+        logger.info("Switching embedding model from %s to %s", settings.embedding_model, req.model_id)
         settings.embedding_model = req.model_id
         settings.save()
+        logger.info("Settings saved, embedding_model now: %s", settings.embedding_model)
         unload_model()
+        logger.info("Model unloaded")
         store.clear()
         tracking.clear()
+        logger.info("Store and tracking cleared, starting reindex")
 
         threading.Thread(target=_bg_reindex, daemon=True).start()
         return {"status": "switching", "model": req.model_id}

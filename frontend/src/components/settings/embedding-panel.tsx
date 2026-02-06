@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Download, Loader2 } from "lucide-react"
+import { Download, Loader2, RefreshCw, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,6 +13,8 @@ export function EmbeddingPanel({
   switching,
   onInstall,
   onSwitch,
+  onReindex,
+  onCancel,
 }: {
   models: EmbeddingModel[]
   activeModel: string
@@ -20,6 +22,8 @@ export function EmbeddingPanel({
   switching: boolean
   onInstall: (modelId: string) => Promise<void>
   onSwitch: (modelId: string) => Promise<void>
+  onReindex: () => Promise<void>
+  onCancel: () => Promise<void>
 }) {
   const [confirmModel, setConfirmModel] = useState<string | null>(null)
   const [installing, setInstalling] = useState<string | null>(null)
@@ -90,10 +94,18 @@ export function EmbeddingPanel({
                       onClick={() => setConfirmModel(m.model_id)}
                       disabled={switching}
                     >
-                      {switching ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                      ) : null}
                       Use
+                    </Button>
+                  )}
+                  {isActive && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={onReindex}
+                      disabled={switching}
+                    >
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                      Re-index
                     </Button>
                   )}
                 </div>
@@ -102,9 +114,17 @@ export function EmbeddingPanel({
           })}
 
           {status && (
-            <p className="text-sm text-muted-foreground bg-muted p-3 rounded-md whitespace-pre-wrap">
-              {status}
-            </p>
+            <div className="flex items-center justify-between gap-3 bg-muted p-3 rounded-md">
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap flex-1">
+                {status}
+              </p>
+              {switching && (
+                <Button size="sm" variant="outline" onClick={onCancel}>
+                  <X className="h-4 w-4 mr-1" />
+                  Cancel
+                </Button>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>
