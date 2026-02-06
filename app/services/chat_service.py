@@ -99,6 +99,16 @@ def extract_unique_sources(metadatas: list[dict]) -> list[str]:
     return sources
 
 
+def _persist(chatdb, thread_id: str | None, user_msg: str, assistant_msg: str):
+    """Save user + assistant messages to the thread DB."""
+    if thread_id and chatdb:
+        chatdb.add_message(thread_id, "user", user_msg)
+        chatdb.add_message(thread_id, "assistant", assistant_msg)
+    else:
+        conversation_history.add("user", user_msg)
+        conversation_history.add("assistant", assistant_msg)
+
+
 def chat_respond(message: str, retriever: Retriever,
                  settings: Settings, chatdb=None,
                  thread_id: str | None = None) -> Generator:
@@ -110,8 +120,10 @@ def chat_respond(message: str, retriever: Retriever,
     results = retriever.search(message)
 
     if not results:
-        yield ("I don't have any relevant information in your knowledge base. "
-               "Try indexing some documents first.")
+        reply = ("I don't have any relevant information in your knowledge base. "
+                 "Try indexing some documents first.")
+        yield reply
+        _persist(chatdb, thread_id, message, reply)
         return
 
     documents = [r.document for r in results]
@@ -155,7 +167,9 @@ def chat_respond(message: str, retriever: Retriever,
                     break
     except RuntimeError as e:
         logger.error("LLM error: %s", e)
-        yield f"Error communicating with LLM: {e}"
+        error_msg = f"Error communicating with LLM: {e}"
+        yield error_msg
+        _persist(chatdb, thread_id, message, error_msg)
         return
 
     # Final clean for storage
@@ -171,12 +185,7 @@ def chat_respond(message: str, retriever: Retriever,
 
     # Persist messages
     store_text = _strip_source_block(cleaned)
-    if thread_id and chatdb:
-        chatdb.add_message(thread_id, "user", message)
-        chatdb.add_message(thread_id, "assistant", store_text)
-    else:
-        conversation_history.add("user", message)
-        conversation_history.add("assistant", store_text)
+    _persist(chatdb, thread_id, message, store_text)
 
 
 def save_last_response_as_plan(history: list, settings: Settings) -> str:
