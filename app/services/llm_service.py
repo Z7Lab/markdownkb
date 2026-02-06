@@ -169,11 +169,13 @@ def get_model_capabilities(model: str, api_base: str = "") -> dict:
             "litellm_provider": info.get("litellm_provider", ""),
             "mode": info.get("mode", ""),
         }
-    except (KeyError, ValueError, AttributeError) as e:
+    except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
+        # LiteLLM raises bare Exception (not a subclass) for Ollama connection errors.
         logger.debug("Could not fetch model info for %s: %s", model, e)
 
-    # For Ollama, query the Ollama API for extra details
-    if "ollama" in model.lower() and api_base:
+    # Query the Ollama API directly for model details when api_base is set.
+    # This works for any model served by Ollama, regardless of name prefix.
+    if api_base:
         try:
             ollama_name = model.split("/", 1)[-1] if "/" in model else model
             resp = httpx.post(
@@ -190,7 +192,15 @@ def get_model_capabilities(model: str, api_base: str = "") -> dict:
                     "quantization_level": details.get("quantization_level"),
                     "format": details.get("format"),
                 }
-        except httpx.HTTPError:
+                # Pull context length from Ollama's model_info if LiteLLM
+                # didn't provide it (e.g. remote Ollama, no local connection).
+                model_info = data.get("model_info", {})
+                if not result.get("max_input_tokens"):
+                    for key, val in model_info.items():
+                        if key.endswith(".context_length") and isinstance(val, int):
+                            result["max_input_tokens"] = val
+                            break
+        except (httpx.HTTPError, httpx.ConnectError):
             pass
 
     if not result:
