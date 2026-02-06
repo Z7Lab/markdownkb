@@ -54,6 +54,7 @@ export interface AppSettings {
   active_provider: string
   providers: Provider[]
   features: Record<string, boolean>
+  mcp: Record<string, unknown>
   sources: string[]
   global_ignore: string[]
   active_model: string

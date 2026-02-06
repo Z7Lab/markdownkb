@@ -16,6 +16,7 @@ from app.routers import (
     health,
     search,
     settings,
+    tags,
     threads,
 )
 
@@ -37,10 +38,17 @@ def create_app(lifespan=None) -> FastAPI:
         allow_headers=["Content-Type", "Accept"],
     )
 
+    # Core routers
     for router_module in (
         health, search, chat, threads, files,
         settings, embeddings, export,
     ):
         app.include_router(router_module.router)
+
+    # Conditionally register tags router if feature is enabled
+    from app.config import Settings
+    settings_instance = Settings.get()
+    if settings_instance.feature_enabled("mcp_tag_generator"):
+        app.include_router(tags.router)
 
     return app

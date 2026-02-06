@@ -2,10 +2,6 @@ import { Moon, Sun } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { useEffect, useState } from "react"
 
-function isDark(): boolean {
-  return window.document.documentElement.classList.contains("dark")
-}
-
 function applyTheme(dark: boolean) {
   const root = window.document.documentElement
   root.classList.remove("light", "dark")

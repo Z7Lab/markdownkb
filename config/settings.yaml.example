@@ -59,10 +59,32 @@ features:
   file_watcher: true
   mcp_filesystem: false
   mcp_terminal: false
+  mcp_tag_generator: false
   mcts_planner: false
   agent_skills: false
   diagnostics: false
   rate_limiting: false
+
+# MCP Tool Configuration (only applies when respective features are enabled)
+mcp:
+  filesystem:
+    max_depth: 3  # Maximum directory depth for browsing
+    max_file_size: 1000000  # Maximum file size to read (bytes)
+  terminal:
+    allowed_commands:  # Whitelist of safe commands
+      - ls
+      - pwd
+      - echo
+      - cat
+      - grep
+      - find
+    timeout: 30  # Command timeout in seconds
+  tag_generator:
+    auto_apply: false  # Preview only by default, require approval
+    use_similar_docs: true  # Use similar documents for tag suggestions
+    merge_with_existing: true  # Merge with existing tags instead of replacing
+    max_tags: 7  # Maximum number of tags to generate
+    content_preview_length: 1000  # Characters of content to send to LLM
 
 # Server binding
 server:

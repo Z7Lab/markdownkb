@@ -118,6 +118,7 @@ export function SettingsTab() {
             {activeSection === "features" && (
               <FeaturesPanel
                 features={settings.features}
+                mcpConfig={settings.mcp}
                 onToggle={toggleFeature}
               />
             )}

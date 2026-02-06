@@ -111,6 +111,7 @@ def get_settings_endpoint(request: Request, settings: Settings = Depends(get_set
             for p in settings.llm_providers
         ],
         "features": settings.features,
+        "mcp": settings.mcp_config,
         "sources": settings.sources,
         "global_ignore": settings.global_ignore,
         "active_model": active_cfg.get("model", ""),
@@ -231,3 +232,45 @@ def update_system_prompt(
     settings.system_prompt = req.prompt
     settings.save()
     return {"status": "saved"}
+
+
+# -- MCP Settings --
+
+@router.get("/settings/mcp")
+@limiter.limit(STANDARD)
+def get_mcp_settings(request: Request, settings: Settings = Depends(get_settings)):
+    """Get all MCP tool configurations."""
+    return {"mcp": settings.mcp_config}
+
+
+@router.get("/settings/mcp/{tool_name}")
+@limiter.limit(STANDARD)
+def get_mcp_tool_settings(
+    request: Request,
+    tool_name: str,
+    settings: Settings = Depends(get_settings),
+):
+    """Get configuration for a specific MCP tool."""
+    return {"config": settings.get_mcp_config(tool_name)}
+
+
+@router.patch("/settings/mcp")
+@limiter.limit(STANDARD)
+def update_mcp_settings(
+    request: Request,
+    req: dict,
+    settings: Settings = Depends(get_settings),
+):
+    """Update configuration for a specific MCP tool."""
+    tool_name = req.get("tool_name")
+    config = req.get("config")
+
+    if not tool_name or config is None:
+        raise HTTPException(
+            status_code=400,
+            detail="tool_name and config are required"
+        )
+
+    settings.set_mcp_config(tool_name, config)
+    settings.save()
+    return {"status": "saved", "tool_name": tool_name}

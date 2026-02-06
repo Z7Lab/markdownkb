@@ -244,6 +244,20 @@ class Settings:
         """Check whether a named feature is enabled."""
         return self.features.get(name, False)
 
+    # --- MCP Tools Configuration ---
+    @property
+    def mcp_config(self) -> dict:
+        """Return the MCP tools configuration dictionary."""
+        return self._data.get("mcp", {})
+
+    def get_mcp_config(self, tool_name: str) -> dict:
+        """Get configuration for a specific MCP tool."""
+        return self.mcp_config.get(tool_name, {})
+
+    def set_mcp_config(self, tool_name: str, config: dict):
+        """Set configuration for a specific MCP tool."""
+        self._data.setdefault("mcp", {})[tool_name] = config
+
     # --- Server ---
     @property
     def server_host(self) -> str:
