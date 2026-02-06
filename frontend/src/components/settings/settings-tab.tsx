@@ -14,6 +14,7 @@ export function SettingsTab() {
     indexStatus,
     embeddingModels,
     embeddingStatus,
+    embeddingSwitching,
     saveProvider,
     testConnection,
     refreshModels,
@@ -60,6 +61,7 @@ export function SettingsTab() {
           models={embeddingModels}
           activeModel={settings.embedding_model}
           status={embeddingStatus}
+          switching={embeddingSwitching}
           onInstall={installEmbeddingModel}
           onSwitch={switchEmbeddingModel}
         />

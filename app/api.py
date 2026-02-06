@@ -536,6 +536,39 @@ def create_api(
 
     # ── Embedding Models ────────────────────────────────────
 
+    # Background reindex state for model switching
+    _switch_status = {
+        "running": False,
+        "progress": 0.0,
+        "message": "",
+        "result": "",
+    }
+    _switch_lock = threading.Lock()
+
+    def _bg_reindex():
+        """Run reindex in background thread, updating _switch_status."""
+        def on_progress(frac: float, msg: str):
+            with _switch_lock:
+                _switch_status["progress"] = frac
+                _switch_status["message"] = msg
+
+        try:
+            cancel_event.clear()
+            result = run_index(
+                settings, store, tracking,
+                progress=on_progress,
+                cancel=cancel_event,
+            )
+            with _switch_lock:
+                _switch_status["result"] = result
+        except Exception as e:
+            logger.error("Background reindex failed: %s", e)
+            with _switch_lock:
+                _switch_status["result"] = f"Error: {e}"
+        finally:
+            with _switch_lock:
+                _switch_status["running"] = False
+
     @api.get("/api/settings/embedding-models")
     def list_embedding_models():
         from app.embeddings.downloader import list_models_with_status
@@ -543,6 +576,11 @@ def create_api(
             "models": list_models_with_status(),
             "active_model": settings.embedding_model,
         }
+
+    @api.get("/api/settings/embedding-models/status")
+    def embedding_switch_status():
+        with _switch_lock:
+            return dict(_switch_status)
 
     @api.post("/api/settings/embedding-models/install")
     def install_embedding_model(req: EmbeddingModelRequest):
@@ -572,16 +610,22 @@ def create_api(
         if req.model_id == settings.embedding_model:
             return {"status": "already_active"}
 
+        with _switch_lock:
+            if _switch_status["running"]:
+                raise HTTPException(409, "A model switch is already in progress")
+            _switch_status["running"] = True
+            _switch_status["progress"] = 0.0
+            _switch_status["message"] = "Preparing to switch..."
+            _switch_status["result"] = ""
+
         settings.embedding_model = req.model_id
         settings.save()
         unload_model()
         store.clear()
         tracking.clear()
 
-        cancel_event.clear()
-        result = run_index(settings, store, tracking, cancel=cancel_event)
-        return {"status": "switched", "model": req.model_id,
-                "index_result": result}
+        threading.Thread(target=_bg_reindex, daemon=True).start()
+        return {"status": "switching", "model": req.model_id}
 
     # ── Indexing ─────────────────────────────────────────
 

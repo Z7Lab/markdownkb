@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { api } from "@/lib/api"
 import type { AppSettings, EmbeddingModel, ModelInfo } from "@/lib/types"
 
@@ -9,6 +9,7 @@ export function useSettings() {
   const [indexStatus, setIndexStatus] = useState("")
   const [embeddingModels, setEmbeddingModels] = useState<EmbeddingModel[]>([])
   const [embeddingStatus, setEmbeddingStatus] = useState("")
+  const [embeddingSwitching, setEmbeddingSwitching] = useState(false)
 
   const loadEmbeddingModels = useCallback(async () => {
     try {
@@ -158,18 +159,54 @@ export function useSettings() {
     [loadEmbeddingModels],
   )
 
+  const switchPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Clean up polling on unmount
+  useEffect(() => {
+    return () => {
+      if (switchPollRef.current) clearInterval(switchPollRef.current)
+    }
+  }, [])
+
   const switchEmbeddingModel = useCallback(
     async (modelId: string) => {
-      setEmbeddingStatus(`Switching to ${modelId} and reindexing...`)
+      setEmbeddingStatus(`Switching to ${modelId}...`)
+      setEmbeddingSwitching(true)
       try {
-        const res = await api.put<{ status: string; index_result: string }>(
+        await api.put<{ status: string }>(
           "/api/settings/embedding-models/switch",
           { model_id: modelId },
         )
-        setEmbeddingStatus(res.index_result || "Switched successfully")
-        await load()
-        await loadEmbeddingModels()
+
+        // Poll for background reindex progress
+        switchPollRef.current = setInterval(async () => {
+          try {
+            const st = await api.get<{
+              running: boolean
+              progress: number
+              message: string
+              result: string
+            }>("/api/settings/embedding-models/status")
+            if (st.running) {
+              const pct = Math.round(st.progress * 100)
+              setEmbeddingStatus(`[${pct}%] ${st.message}`)
+            } else {
+              if (switchPollRef.current) clearInterval(switchPollRef.current)
+              switchPollRef.current = null
+              setEmbeddingSwitching(false)
+              setEmbeddingStatus(st.result || "Switched successfully")
+              await load()
+              await loadEmbeddingModels()
+            }
+          } catch {
+            if (switchPollRef.current) clearInterval(switchPollRef.current)
+            switchPollRef.current = null
+            setEmbeddingSwitching(false)
+            setEmbeddingStatus("Lost connection during reindex")
+          }
+        }, 1500)
       } catch (e) {
+        setEmbeddingSwitching(false)
         setEmbeddingStatus(`Error: ${e}`)
       }
     },
@@ -183,6 +220,7 @@ export function useSettings() {
     indexStatus,
     embeddingModels,
     embeddingStatus,
+    embeddingSwitching,
     saveProvider,
     testConnection,
     refreshModels,

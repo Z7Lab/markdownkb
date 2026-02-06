@@ -10,18 +10,19 @@ export function EmbeddingPanel({
   models,
   activeModel,
   status,
+  switching,
   onInstall,
   onSwitch,
 }: {
   models: EmbeddingModel[]
   activeModel: string
   status: string
+  switching: boolean
   onInstall: (modelId: string) => Promise<void>
   onSwitch: (modelId: string) => Promise<void>
 }) {
   const [confirmModel, setConfirmModel] = useState<string | null>(null)
   const [installing, setInstalling] = useState<string | null>(null)
-  const [switching, setSwitching] = useState(false)
 
   async function handleInstall(modelId: string) {
     setInstalling(modelId)
@@ -33,9 +34,7 @@ export function EmbeddingPanel({
     if (!confirmModel) return
     const target = confirmModel
     setConfirmModel(null)
-    setSwitching(true)
     await onSwitch(target)
-    setSwitching(false)
   }
 
   return (

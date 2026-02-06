@@ -47,6 +47,8 @@ Edit `config/settings.yaml` or use the **Settings** tab in the UI.
 | `embeddings.chunk_size` | `512` | Max characters per chunk |
 | `embeddings.chunk_overlap` | `50` | Overlap between chunks |
 
+Three embedding models are available: `all-MiniLM-L6-v2`, `all-MiniLM-L12-v2`, and `bge-small-en-v1.5`. Install and switch between them from the **Settings** tab. See [docs/embedding-models.md](docs/embedding-models.md) for details.
+
 ### LLM Providers
 
 | Key | Default | Description |
@@ -113,6 +115,10 @@ All endpoints at `http://localhost:9713/api/`:
 | POST | `/api/settings/test-connection` | Test LLM connectivity |
 | POST | `/api/settings/refresh-models` | Fetch Ollama model list |
 | PUT | `/api/settings/features` | Toggle feature flag |
+| GET | `/api/settings/embedding-models` | List embedding models + install status |
+| GET | `/api/settings/embedding-models/status` | Poll background switch/reindex progress |
+| POST | `/api/settings/embedding-models/install` | Download an embedding model |
+| PUT | `/api/settings/embedding-models/switch` | Switch model + background reindex |
 | POST | `/api/index` | Trigger re-index |
 | POST | `/api/index/cancel` | Cancel running index |
 | POST | `/api/export` | Export conversation history |
@@ -130,7 +136,7 @@ app/
 │   ├── chat_service.py  # Conversation memory, streaming RAG, think-block stripping
 │   └── llm_service.py   # Ollama model discovery, connection testing
 ├── ingestion/           # File scanning, parsing, watching, indexing
-├── embeddings/          # ONNX embedding (all-MiniLM-L6-v2, no PyTorch)
+├── embeddings/          # ONNX embedding (3 models, no PyTorch)
 ├── storage/             # ChromaDB vector store + SQLite file tracking
 ├── rag/                 # LLM calls (LiteLLM), retrieval, prompts
 ├── mcp/                 # Filesystem + terminal tools (optional)

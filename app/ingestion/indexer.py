@@ -2,6 +2,7 @@
 
 import logging
 import threading
+import time
 from pathlib import Path
 from typing import Callable
 
@@ -128,6 +129,9 @@ def run_index(
             logger.error("Failed to index %s: %s", fi.path, exc)
             errors += 1
         done += 1
+
+        # Yield CPU between files to avoid pegging 100%
+        time.sleep(0.02)
 
     parts = [
         f"Indexed {done}/{len(to_index)} files ({total_chunks} chunks)",

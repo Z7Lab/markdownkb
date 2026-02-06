@@ -48,10 +48,13 @@ class ONNXEmbedder:
             pad_id=0, pad_token="[PAD]", length=self._max_seq_length,
         )
 
-        # Load ONNX session
+        # Load ONNX session (limit threads to avoid pegging CPU)
+        _threads = int(_DEFAULT_THREADS)
         so = ort.SessionOptions()
         so.log_severity_level = 3
         so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        so.intra_op_num_threads = _threads
+        so.inter_op_num_threads = _threads
 
         providers = [
             p for p in ort.get_available_providers()
