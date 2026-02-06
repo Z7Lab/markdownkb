@@ -10,7 +10,7 @@ import { ChevronRight, Brain, FileText, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { FileViewerDialog } from "./file-viewer-dialog";
+import { FileViewerDialog } from "@/components/ui/file-viewer-dialog";
 
 interface ThinkBlock {
   type: "think" | "text" | "thinking";

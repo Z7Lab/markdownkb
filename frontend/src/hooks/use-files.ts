@@ -4,8 +4,6 @@ import type { TrackedFile } from "@/lib/types"
 
 export function useFiles() {
   const [files, setFiles] = useState<TrackedFile[]>([])
-  const [selectedFile, setSelectedFile] = useState<TrackedFile | null>(null)
-  const [content, setContent] = useState("")
   const [loading, setLoading] = useState(false)
 
   const refresh = useCallback(async () => {
@@ -17,18 +15,6 @@ export function useFiles() {
     refresh()
   }, [refresh])
 
-  const selectFile = useCallback(async (file: TrackedFile) => {
-    setSelectedFile(file)
-    try {
-      const res = await api.get<{ content: string }>(
-        `/api/file?path=${encodeURIComponent(file.path)}`,
-      )
-      setContent(res.content)
-    } catch {
-      setContent("Error loading file content.")
-    }
-  }, [])
-
   const [pendingExclude, setPendingExclude] = useState<TrackedFile | null>(null)
 
   const toggleRag = useCallback(async (file: TrackedFile, include: boolean) => {
@@ -39,30 +25,23 @@ export function useFiles() {
     setLoading(true)
     try {
       await api.post("/api/files/include", { path: file.path })
-      const res = await api.get<{ files: TrackedFile[] }>("/api/files")
-      setFiles(res.files)
-      const updated = res.files.find((f) => f.path === file.path)
-      if (updated) setSelectedFile(updated)
+      await refresh()
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [refresh])
 
   const confirmExclude = useCallback(async () => {
     if (!pendingExclude) return
-    const file = pendingExclude
     setPendingExclude(null)
     setLoading(true)
     try {
-      await api.post("/api/files/exclude", { path: file.path })
-      const res = await api.get<{ files: TrackedFile[] }>("/api/files")
-      setFiles(res.files)
-      const updated = res.files.find((f) => f.path === file.path)
-      if (updated) setSelectedFile(updated)
+      await api.post("/api/files/exclude", { path: pendingExclude.path })
+      await refresh()
     } finally {
       setLoading(false)
     }
-  }, [pendingExclude])
+  }, [pendingExclude, refresh])
 
-  return { files, selectedFile, content, loading, pendingExclude, refresh, selectFile, toggleRag, confirmExclude, setPendingExclude }
+  return { files, loading, pendingExclude, refresh, toggleRag, confirmExclude, setPendingExclude }
 }

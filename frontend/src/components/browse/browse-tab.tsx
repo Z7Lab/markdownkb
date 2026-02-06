@@ -4,6 +4,7 @@ import { useTableSort } from "@/hooks/use-table-sort"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
@@ -14,11 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { SortableTableHead } from "@/components/ui/sortable-table-head"
-import { Badge } from "@/components/ui/badge"
 import { RefreshCw, Search } from "lucide-react"
-import ReactMarkdown from "react-markdown"
-import remarkGfm from "remark-gfm"
-import { cn } from "@/lib/utils"
 import type { TrackedFile } from "@/lib/types"
 
 function basename(path: string) {
@@ -62,15 +59,14 @@ const getValue = (f: TrackedFile, key: string): string | number | null => {
 }
 
 export function BrowseTab() {
-  const { files, selectedFile, content, loading, pendingExclude, refresh, selectFile, toggleRag, confirmExclude, setPendingExclude } = useFiles()
+  const { files, loading, pendingExclude, refresh, toggleRag, confirmExclude, setPendingExclude } = useFiles()
   const [filterText, setFilterText] = useState("")
+  const [viewingPath, setViewingPath] = useState<string | null>(null)
   const { sorted, sortKey, sortDir, onSort } = useTableSort(files, getValue)
 
   const filteredFiles = filterText
     ? sorted.filter((f) => fuzzyMatch(f.path, filterText))
     : sorted
-
-  const isIncluded = selectedFile?.status !== "excluded"
 
   return (
     <div className="flex flex-col h-full gap-4 p-4">
@@ -100,55 +96,56 @@ export function BrowseTab() {
         </div>
       </div>
 
-      <div className="h-[30vh] border rounded-md overflow-hidden flex flex-col">
-        <Table>
-          <TableHeader className="sticky top-0 bg-background z-10">
-            <TableRow>
-              <SortableTableHead sortKey="file" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort}>
-                File
-              </SortableTableHead>
-              <SortableTableHead sortKey="folder" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort}>
-                Folder
-              </SortableTableHead>
-              <SortableTableHead sortKey="rag" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort}>
-                RAG
-              </SortableTableHead>
-              <SortableTableHead sortKey="status" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort}>
-                Status
-              </SortableTableHead>
-              <SortableTableHead sortKey="chunks" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort} className="text-right">
-                Chunks
-              </SortableTableHead>
-            </TableRow>
-          </TableHeader>
-        </Table>
-        <ScrollArea className="flex-1">
+      <div className="flex-1 border rounded-md overflow-hidden min-h-0">
+        <ScrollArea className="h-full">
           <Table>
+            <TableHeader className="sticky top-0 bg-background z-10">
+              <TableRow>
+                <SortableTableHead sortKey="file" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort}>
+                  File
+                </SortableTableHead>
+                <SortableTableHead sortKey="folder" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort}>
+                  Folder
+                </SortableTableHead>
+                <SortableTableHead sortKey="rag" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort}>
+                  RAG
+                </SortableTableHead>
+                <SortableTableHead sortKey="status" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort}>
+                  Status
+                </SortableTableHead>
+                <SortableTableHead sortKey="chunks" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort} className="text-right">
+                  Chunks
+                </SortableTableHead>
+              </TableRow>
+            </TableHeader>
             <TableBody>
-              {filteredFiles.map((f) => (
-                <TableRow
-                  key={f.path}
-                  className={cn(
-                    "cursor-pointer",
-                    selectedFile?.path === f.path && "bg-muted",
-                  )}
-                  onClick={() => selectFile(f)}
-                >
-                  <TableCell className="font-mono text-sm truncate max-w-[200px]">
-                    {basename(f.path)}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground truncate max-w-[180px]">
-                    {dirname(f.path)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={f.status === "excluded" ? "destructive" : "default"}>
-                      {f.status === "excluded" ? "No" : "Yes"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm">{f.status}</TableCell>
-                  <TableCell className="text-right">{f.chunk_count}</TableCell>
-                </TableRow>
-              ))}
+              {filteredFiles.map((f) => {
+                const included = f.status !== "excluded"
+                return (
+                  <TableRow
+                    key={f.path}
+                    className="cursor-pointer"
+                    onClick={() => setViewingPath(f.path)}
+                  >
+                    <TableCell className="font-mono text-sm truncate max-w-[200px]">
+                      {basename(f.path)}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground truncate max-w-[180px]">
+                      {dirname(f.path)}
+                    </TableCell>
+                    <TableCell>
+                      <Checkbox
+                        checked={included}
+                        disabled={loading}
+                        onClick={(e) => e.stopPropagation()}
+                        onCheckedChange={(checked) => toggleRag(f, checked === true)}
+                      />
+                    </TableCell>
+                    <TableCell className="text-sm">{f.status}</TableCell>
+                    <TableCell className="text-right">{f.chunk_count}</TableCell>
+                  </TableRow>
+                )
+              })}
               {filteredFiles.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
@@ -161,32 +158,7 @@ export function BrowseTab() {
         </ScrollArea>
       </div>
 
-      {selectedFile && (
-        <div className="flex flex-col flex-1 gap-3 min-h-0">
-          <div className="flex items-center gap-4">
-            <span className="font-mono text-sm truncate flex-1">
-              {selectedFile.path}
-            </span>
-            <label className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={isIncluded}
-                disabled={loading}
-                onCheckedChange={(checked) =>
-                  toggleRag(selectedFile, checked === true)
-                }
-              />
-              Include in RAG
-            </label>
-          </div>
-          <ScrollArea className="flex-1 border rounded-md p-4">
-            <div className="mdkb-prose">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {content}
-              </ReactMarkdown>
-            </div>
-          </ScrollArea>
-        </div>
-      )}
+      <FileViewerDialog path={viewingPath} onClose={() => setViewingPath(null)} />
       <ConfirmDialog
         open={!!pendingExclude}
         onOpenChange={(open) => { if (!open) setPendingExclude(null) }}
