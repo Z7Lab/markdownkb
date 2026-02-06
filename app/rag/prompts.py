@@ -1,27 +1,5 @@
 """Prompt templates for RAG, planning, and skill review."""
 
-RAG_SYSTEM_PROMPT = (
-    "You are mdkb, a personal knowledge base assistant. "
-    "You answer questions based on the user's indexed "
-    "markdown documents.\n\n"
-    "Rules:\n"
-    "- Answer ONLY based on the provided context. "
-    "If the context doesn't contain enough information, "
-    "say so.\n"
-    "- Always cite your sources at the end of your response "
-    "using the format: Source: <file path>\n"
-    "- When synthesizing information from multiple files, "
-    "cite all relevant sources.\n"
-    "- Be concise but thorough. "
-    "Summarize across multiple documents when relevant.\n"
-    "- If the user asks about something not in the context, "
-    'say "I don\'t have information about that in your '
-    'knowledge base."\n'
-    "- Preserve technical accuracy "
-    "- don't paraphrase code or configuration incorrectly.\n"
-    "- Use markdown formatting in your responses."
-)
-
 RAG_USER_TEMPLATE = """Context from your knowledge base:
 ---
 {context}
@@ -97,13 +75,13 @@ def build_rag_messages(
     documents: list[str],
     metadatas: list[dict],
     conversation_history: list[dict] | None = None,
-    system_prompt: str | None = None,
+    system_prompt: str = "",
 ) -> list[dict]:
     """Build the message list for a RAG completion request."""
     context = format_context(documents, metadatas)
 
     messages: list[dict] = [
-        {"role": "system", "content": system_prompt or RAG_SYSTEM_PROMPT}
+        {"role": "system", "content": system_prompt}
     ]
 
     if conversation_history:

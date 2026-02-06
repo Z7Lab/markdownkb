@@ -260,6 +260,10 @@ class Settings:
         "say \"I don't have information about that in your knowledge base.\"\n"
         "- Preserve technical accuracy "
         "- don't paraphrase code or configuration incorrectly.\n"
+        "- NEVER guess or speculate about a file's contents based on its name or path. "
+        "If a file is mentioned but its content is not in the provided context, "
+        "say you don't have that file indexed — do not say \"this file likely\" "
+        "or make assumptions about what it contains.\n"
         "- Use markdown formatting in your responses."
     )
 
