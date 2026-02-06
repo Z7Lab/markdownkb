@@ -10,7 +10,6 @@ export function SettingsTab() {
     settings,
     providerStatus,
     modelStatus,
-    indexStatus,
     embeddingModels,
     embeddingStatus,
     embeddingSwitching,

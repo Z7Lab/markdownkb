@@ -6,17 +6,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useEffect, useState } from "react"
+import { useEffect, useRef } from "react"
 
 type Theme = "light" | "dark" | "system"
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>("system")
+  const themeRef = useRef<Theme>("system")
 
   useEffect(() => {
     const stored = localStorage.getItem("theme") as Theme | null
     if (stored) {
-      setTheme(stored)
+      themeRef.current = stored
       applyTheme(stored)
     } else {
       applyTheme("system")
@@ -39,7 +39,7 @@ export function ThemeToggle() {
   }
 
   function changeTheme(newTheme: Theme) {
-    setTheme(newTheme)
+    themeRef.current = newTheme
     localStorage.setItem("theme", newTheme)
     applyTheme(newTheme)
   }

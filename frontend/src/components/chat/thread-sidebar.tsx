@@ -16,7 +16,6 @@ import { ModelPicker } from "./model-picker";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 function relativeTime(iso: string): string {
-  // Normalize: SQLite gives "YYYY-MM-DD HH:MM:SS", JS gives "...T...Z"
   const normalized = iso.includes("T") ? iso : `${iso.replace(" ", "T")}Z`;
   const ms = Date.now() - new Date(normalized).getTime();
   if (Number.isNaN(ms)) return "";
@@ -82,19 +81,26 @@ export function ThreadSidebar({
         </Button>
       </div>
       <Separator />
-      {/* NOTE: Using plain div instead of ScrollArea — Radix viewport caused persistent alignment issues */}
-      <div className="flex-1 min-h-0 overflow-y-auto [scrollbar-width:thin]">
+      <div className="flex-1 min-h-0 overflow-y-auto [scrollbar-width:thin]" role="list">
         <TooltipProvider delayDuration={400}>
           <div className="p-3 space-y-1">
             {threads.map((thread) => (
-              <div
+              <button
                 key={thread.id}
+                type="button"
+                role="listitem"
                 className={cn(
-                  "rounded-md px-3 py-2 text-sm cursor-pointer hover:bg-accent",
+                  "w-full text-left rounded-md px-3 py-2 text-sm cursor-pointer hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   activeThreadId === thread.id &&
                     "bg-accent border-l-2 border-l-primary",
                 )}
                 onClick={() => onLoadThread(thread.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onLoadThread(thread.id);
+                  }
+                }}
               >
                 {editingId === thread.id ? (
                   <Input
@@ -111,12 +117,7 @@ export function ThreadSidebar({
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <p
-                        className="font-medium overflow-hidden"
-                        style={{
-                          display: "-webkit-box",
-                          WebkitBoxOrient: "vertical",
-                          WebkitLineClamp: 2,
-                        }}
+                        className="font-medium overflow-hidden line-clamp-2"
                         onDoubleClick={(e) => {
                           e.stopPropagation();
                           startRename(thread);
@@ -137,6 +138,7 @@ export function ThreadSidebar({
                   <Button
                     variant="ghost"
                     size="icon"
+                    aria-label="Rename conversation"
                     className="h-5 w-5 shrink-0 text-muted-foreground hover:text-foreground"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -148,6 +150,7 @@ export function ThreadSidebar({
                   <Button
                     variant="ghost"
                     size="icon"
+                    aria-label="Delete conversation"
                     className="h-5 w-5 shrink-0 text-muted-foreground hover:text-destructive"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -157,7 +160,7 @@ export function ThreadSidebar({
                     <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>
-              </div>
+              </button>
             ))}
             {threads.length === 0 && (
               <p className="text-xs text-muted-foreground text-center py-4">

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -12,24 +11,14 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { ChevronDown, HelpCircle } from "lucide-react"
+import { HelpCircle } from "lucide-react"
 import type { AppSettings, ModelInfo } from "@/lib/types"
-
-interface TestMeta {
-  model: string
-  time_seconds: number
-  chunks?: number
-}
+import { TestPrompt } from "./test-prompt"
 
 export function LlmConfig({
   settings,
@@ -57,27 +46,14 @@ export function LlmConfig({
   const [loading, setLoading] = useState(false)
   const [customMode, setCustomMode] = useState(false)
 
-  // Track whether the user has explicitly changed model (prevents auto-override)
   const userPickedModel = useRef(false)
 
-  // Model info
   const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null)
   const [infoLoading, setInfoLoading] = useState(false)
 
-  // Ping model
   const [pingLoading, setPingLoading] = useState(false)
   const pingAbortRef = useRef<AbortController | null>(null)
 
-  // Test prompt (streaming)
-  const [testOpen, setTestOpen] = useState(false)
-  const [testPromptText, setTestPromptText] = useState("")
-  const [testResponse, setTestResponse] = useState("")
-  const [testMeta, setTestMeta] = useState<TestMeta | null>(null)
-  const [testLoading, setTestLoading] = useState(false)
-  const abortRef = useRef<AbortController | null>(null)
-  const outputRef = useRef<HTMLPreElement>(null)
-
-  // Auto-fetch models on mount and when provider/apiBase changes
   useEffect(() => {
     let cancelled = false
     async function fetchModels() {
@@ -94,13 +70,11 @@ export function LlmConfig({
         if (!cancelled) setLoading(false)
       }
     }
-    // Reset the user-picked flag when provider changes
     userPickedModel.current = false
     fetchModels()
     return () => { cancelled = true }
   }, [provider, apiBase, onRefreshModels])
 
-  // Fetch model info when model changes (debounced)
   useEffect(() => {
     if (!model) { setModelInfo(null); return }
     const timer = setTimeout(async () => {
@@ -140,8 +114,6 @@ export function LlmConfig({
       const res = await onRefreshModels(provider, apiBase)
       if (res.models.length > 0) {
         setModels(res.models)
-        // Only auto-select first model if user hasn't explicitly picked one
-        // or their pick isn't in the new list
         if (!userPickedModel.current && !res.models.includes(model)) {
           setModel(res.models[0])
         }
@@ -170,89 +142,6 @@ export function LlmConfig({
     setPingLoading(false)
   }
 
-  async function handleTestPrompt() {
-    abortRef.current?.abort()
-    const controller = new AbortController()
-    abortRef.current = controller
-
-    // Capture current values at time of click
-    const targetModel = model
-    const targetApiBase = apiBase
-    const targetProvider = provider
-
-    setTestLoading(true)
-    setTestResponse("")
-    setTestMeta(null)
-
-    try {
-      const res = await fetch("/api/settings/test-prompt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: testPromptText,
-          provider: targetProvider,
-          model: targetModel,
-          api_base: targetApiBase,
-        }),
-        signal: controller.signal,
-      })
-
-      if (!res.ok) {
-        const text = await res.text()
-        setTestResponse(`Error: ${res.status} ${text}`)
-        setTestLoading(false)
-        return
-      }
-
-      const reader = res.body?.getReader()
-      if (!reader) { setTestLoading(false); return }
-
-      const decoder = new TextDecoder()
-      let buffer = ""
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split("\n")
-        buffer = lines.pop() ?? ""
-
-        let eventType = ""
-        for (const line of lines) {
-          if (line.startsWith("event: ")) {
-            eventType = line.slice(7)
-          } else if (line.startsWith("data: ")) {
-            const data = JSON.parse(line.slice(6))
-            if (eventType === "token") {
-              setTestResponse((prev) => prev + data.content)
-              if (outputRef.current) {
-                outputRef.current.scrollTop = outputRef.current.scrollHeight
-              }
-            } else if (eventType === "meta" || eventType === "done") {
-              setTestMeta(data)
-            } else if (eventType === "error") {
-              setTestResponse((prev) => prev + `\nError: ${data.message}`)
-            }
-          }
-        }
-      }
-    } catch (err) {
-      if ((err as Error).name !== "AbortError") {
-        setTestResponse((prev) => prev + `\nError: ${err}`)
-      }
-    } finally {
-      setTestLoading(false)
-    }
-  }
-
-  function handleStopTest() {
-    abortRef.current?.abort()
-    abortRef.current = null
-    setTestLoading(false)
-  }
-
-  // Build deduped options: fetched models + current model if not in list
   const selectOptions = [...models]
   if (model && !models.includes(model)) {
     selectOptions.unshift(model)
@@ -265,10 +154,10 @@ export function LlmConfig({
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <label className="text-sm font-medium">Provider</label>
+          <label htmlFor="llm-provider" className="text-sm font-medium">Provider</label>
           <div className="flex gap-2">
             <Select value={provider} onValueChange={onProviderChange}>
-              <SelectTrigger className="flex-1">
+              <SelectTrigger id="llm-provider" className="flex-1">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -291,8 +180,9 @@ export function LlmConfig({
         </div>
 
         <div>
-          <label className="text-sm font-medium">API Base</label>
+          <label htmlFor="llm-api-base" className="text-sm font-medium">API Base</label>
           <Input
+            id="llm-api-base"
             value={apiBase}
             onChange={(e) => setApiBase(e.target.value)}
             placeholder="Leave empty for default"
@@ -300,10 +190,11 @@ export function LlmConfig({
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">Model</label>
+          <label htmlFor="llm-model" className="text-sm font-medium">Model</label>
           <div className="flex gap-2">
             {customMode ? (
               <Input
+                id="llm-model"
                 value={model}
                 onChange={(e) => { userPickedModel.current = true; setModel(e.target.value) }}
                 className="flex-1"
@@ -312,7 +203,7 @@ export function LlmConfig({
               />
             ) : (
               <Select value={model} onValueChange={onModelChange}>
-                <SelectTrigger className="flex-1" disabled={loading}>
+                <SelectTrigger id="llm-model" className="flex-1" disabled={loading}>
                   <SelectValue placeholder={loading ? "Loading models..." : "Select model"} />
                 </SelectTrigger>
                 <SelectContent>
@@ -346,7 +237,6 @@ export function LlmConfig({
             </Tooltip>
           </TooltipProvider>
 
-          {/* Model info card */}
           {infoLoading && (
             <p className="text-xs text-muted-foreground">Loading model info...</p>
           )}
@@ -409,54 +299,7 @@ export function LlmConfig({
           </pre>
         )}
 
-        {/* Test Prompt section */}
-        <Collapsible open={testOpen} onOpenChange={setTestOpen}>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" className="w-full justify-between">
-              <span>
-                Test Prompt
-                <span className="ml-2 text-xs text-muted-foreground font-normal">{model}</span>
-              </span>
-              <ChevronDown className={`h-4 w-4 transition-transform ${testOpen ? "rotate-180" : ""}`} />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-3 pt-2">
-            <Textarea
-              value={testPromptText}
-              onChange={(e) => setTestPromptText(e.target.value)}
-              placeholder="Enter a test prompt (raw, no RAG)..."
-              rows={3}
-            />
-            <div className="flex gap-2">
-              <Button size="sm" onClick={handleTestPrompt} disabled={testLoading || !testPromptText.trim()}>
-                Send
-              </Button>
-              {testLoading && (
-                <Button size="sm" variant="secondary" onClick={handleStopTest}>
-                  Stop
-                </Button>
-              )}
-            </div>
-            {(testResponse || testLoading) && (
-              <div className="space-y-2">
-                <pre
-                  ref={outputRef}
-                  className="text-sm bg-muted p-3 rounded-md whitespace-pre-wrap max-h-64 overflow-auto"
-                >
-                  {testResponse || (testLoading ? "" : "")}
-                  {testLoading && <span className="animate-pulse">|</span>}
-                </pre>
-                {testMeta && (
-                  <div className="flex gap-4 text-xs text-muted-foreground">
-                    <span>Model: {testMeta.model}</span>
-                    <span>Time: {testMeta.time_seconds}s</span>
-                    {testMeta.chunks != null && <span>Chunks: {testMeta.chunks}</span>}
-                  </div>
-                )}
-              </div>
-            )}
-          </CollapsibleContent>
-        </Collapsible>
+        <TestPrompt provider={provider} model={model} apiBase={apiBase} />
       </CardContent>
     </Card>
   )

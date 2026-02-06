@@ -1,3 +1,36 @@
+/** Generic SSE stream reader — parses event/data lines from a ReadableStream. */
+export async function parseSSEStream(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  onEvent: (event: string, data: Record<string, unknown>) => void,
+): Promise<void> {
+  const decoder = new TextDecoder()
+  let buffer = ""
+  let eventType = ""
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split("\n")
+    buffer = lines.pop() ?? ""
+
+    for (const line of lines) {
+      if (line.startsWith("event: ")) {
+        eventType = line.slice(7)
+      } else if (line.startsWith("data: ")) {
+        let data: Record<string, unknown>
+        try {
+          data = JSON.parse(line.slice(6))
+        } catch {
+          continue
+        }
+        onEvent(eventType, data)
+      }
+    }
+  }
+}
+
 export interface SSECallbacks {
   onThread: (threadId: string, title: string) => void
   onToken: (content: string) => void
@@ -31,37 +64,19 @@ export function streamChat(
       const reader = res.body?.getReader()
       if (!reader) throw new Error("No response body")
 
-      const decoder = new TextDecoder()
-      let buffer = ""
       let doneReceived = false
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split("\n")
-        buffer = lines.pop() ?? ""
-
-        let eventType = ""
-        for (const line of lines) {
-          if (line.startsWith("event: ")) {
-            eventType = line.slice(7)
-          } else if (line.startsWith("data: ")) {
-            const data = JSON.parse(line.slice(6))
-            if (eventType === "thread") {
-              callbacks.onThread(data.thread_id, data.title ?? "")
-            } else if (eventType === "token") {
-              callbacks.onToken(data.content)
-            } else if (eventType === "sources") {
-              callbacks.onSources(data.sources)
-            } else if (eventType === "done") {
-              doneReceived = true
-              callbacks.onDone()
-            }
-          }
+      await parseSSEStream(reader, (event, data) => {
+        if (event === "thread") {
+          callbacks.onThread(data.thread_id as string, (data.title as string) ?? "")
+        } else if (event === "token") {
+          callbacks.onToken(data.content as string)
+        } else if (event === "sources") {
+          callbacks.onSources(data.sources as string[])
+        } else if (event === "done") {
+          doneReceived = true
+          callbacks.onDone()
         }
-      }
+      })
       if (!doneReceived) {
         callbacks.onDone()
       }

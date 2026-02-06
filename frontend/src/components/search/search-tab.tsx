@@ -20,7 +20,7 @@ export function SearchTab() {
     folder, setFolder,
     tag, setTag,
     results, folders, tags,
-    loading, search,
+    loading, error, search,
   } = useSearch()
 
   function handleKeyDown(e: KeyboardEvent) {
@@ -67,13 +67,18 @@ export function SearchTab() {
 
       <ScrollArea className="flex-1">
         <div className="space-y-3">
-          {results.length === 0 && !loading && (
+          {error && (
+            <p className="text-destructive text-center py-8">
+              Search error: {error}
+            </p>
+          )}
+          {results.length === 0 && !loading && !error && (
             <p className="text-muted-foreground text-center py-8">
               {query ? "No results found." : "Enter a query to search."}
             </p>
           )}
           {results.map((r, i) => (
-            <Card key={i}>
+            <Card key={`${r.metadata.source_path ?? ""}:${r.score}:${i}`}>
               <CardContent className="pt-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Badge variant="secondary">

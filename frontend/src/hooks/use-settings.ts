@@ -1,8 +1,24 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react"
+import { createElement } from "react"
 import { api } from "@/lib/api"
 import type { AppSettings, EmbeddingModel, ModelInfo } from "@/lib/types"
 
-export function useSettings() {
+type SettingsValue = ReturnType<typeof useSettingsInternal>
+
+const SettingsContext = createContext<SettingsValue | null>(null)
+
+export function SettingsProvider({ children }: { children: ReactNode }) {
+  const value = useSettingsInternal()
+  return createElement(SettingsContext.Provider, { value }, children)
+}
+
+export function useSettings(): SettingsValue {
+  const ctx = useContext(SettingsContext)
+  if (!ctx) throw new Error("useSettings must be used within SettingsProvider")
+  return ctx
+}
+
+function useSettingsInternal() {
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [providerStatus, setProviderStatus] = useState("")
   const [modelStatus, setModelStatus] = useState("")

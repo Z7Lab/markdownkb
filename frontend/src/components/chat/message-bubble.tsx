@@ -99,10 +99,14 @@ export const MessageBubble = memo(function MessageBubble({
   const [viewingFile, setViewingFile] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  function handleCopy() {
-    navigator.clipboard.writeText(message.content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard API unavailable (non-HTTPS or no focus)
+    }
   }
 
   const blocks = useMemo(
@@ -148,13 +152,13 @@ export const MessageBubble = memo(function MessageBubble({
           <div className="mdkb-prose">
             {blocks.map((block, i) =>
               block.type === "text" ? (
-                <div key={i} className="p-1 my-1">
+                <div key={`text-${i}`} className="p-1 my-1">
                   <ReactMarkdown remarkPlugins={plugins}>
                     {block.content}
                   </ReactMarkdown>
                 </div>
               ) : (
-                <div key={i} className="p-1 my-1">
+                <div key={`think-${i}`} className="p-1 my-1">
                   <ThinkCollapsible
                     content={block.content}
                     isLive={block.type === "thinking"}
@@ -196,6 +200,7 @@ export const MessageBubble = memo(function MessageBubble({
             <Button
               variant="ghost"
               size="icon"
+              aria-label="Copy message"
               className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
               onClick={handleCopy}
             >

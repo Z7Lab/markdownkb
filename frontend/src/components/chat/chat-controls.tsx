@@ -14,8 +14,12 @@ export function ChatControls({
   hasMessages: boolean
 }) {
   async function handleSave() {
-    const result = await onSavePlan()
-    toast(result)
+    try {
+      const result = await onSavePlan()
+      toast(result)
+    } catch (err) {
+      toast.error(`Save failed: ${(err as Error).message}`)
+    }
   }
 
   return (

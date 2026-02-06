@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { api } from "@/lib/api"
 import { streamChat } from "@/lib/sse"
+import { toast } from "sonner"
 import type { ChatMessage, PaginatedResponse, Thread } from "@/lib/types"
+
+let msgCounter = 0
+function nextId(): string {
+  return `msg-${Date.now()}-${++msgCounter}`
+}
 
 export function useChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -28,12 +34,9 @@ export function useChat() {
     (text: string) => {
       if (!text.trim() || isStreaming) return
 
-      const userMsg: ChatMessage = { role: "user", content: text }
-      setMessages((prev) => [
-        ...prev,
-        userMsg,
-        { role: "assistant", content: "" },
-      ])
+      const userMsg: ChatMessage = { id: nextId(), role: "user", content: text }
+      const assistantMsg: ChatMessage = { id: nextId(), role: "assistant", content: "" }
+      setMessages((prev) => [...prev, userMsg, assistantMsg])
       setIsStreaming(true)
 
       controllerRef.current = streamChat(
@@ -118,7 +121,6 @@ export function useChat() {
 
   const loadThread = useCallback(
     async (threadId: string) => {
-      console.log(`[mdkb] Loading thread ${threadId}`)
       stop()
       setActiveThreadId(threadId)
       const currentLoad = ++loadIdRef.current
@@ -126,11 +128,10 @@ export function useChat() {
         const res = await api.get<{
           messages: Array<{ role: string; content: string; sources?: string[] | null }>
         }>(`/api/threads/${threadId}/messages`)
-        // Guard against race: only apply if this is still the latest load
         if (currentLoad !== loadIdRef.current) return
-        console.log(`[mdkb] Thread ${threadId}: ${res.messages.length} messages`)
         setMessages(
           res.messages.map((m) => ({
+            id: nextId(),
             role: m.role as "user" | "assistant",
             content: m.content,
             ...(m.sources ? { sources: m.sources } : {}),
@@ -138,7 +139,7 @@ export function useChat() {
         )
       } catch (err) {
         if (currentLoad !== loadIdRef.current) return
-        console.error("[mdkb] Failed to load thread messages:", err)
+        toast.error(`Failed to load thread: ${(err as Error).message}`)
         setMessages([])
       }
     },
@@ -147,22 +148,30 @@ export function useChat() {
 
   const renameThread = useCallback(
     async (threadId: string, title: string) => {
-      await api.patch(`/api/threads/${threadId}`, { title })
-      setThreads((prev) =>
-        prev.map((t) => (t.id === threadId ? { ...t, title } : t)),
-      )
+      try {
+        await api.patch(`/api/threads/${threadId}`, { title })
+        setThreads((prev) =>
+          prev.map((t) => (t.id === threadId ? { ...t, title } : t)),
+        )
+      } catch (err) {
+        toast.error(`Failed to rename thread: ${(err as Error).message}`)
+      }
     },
     [],
   )
 
   const deleteThread = useCallback(
     async (threadId: string) => {
-      await api.del(`/api/threads/${threadId}`)
-      if (activeThreadId === threadId) {
-        setMessages([])
-        setActiveThreadId(null)
+      try {
+        await api.del(`/api/threads/${threadId}`)
+        if (activeThreadId === threadId) {
+          setMessages([])
+          setActiveThreadId(null)
+        }
+        await refreshThreads()
+      } catch (err) {
+        toast.error(`Failed to delete thread: ${(err as Error).message}`)
       }
-      await refreshThreads()
     },
     [activeThreadId, refreshThreads],
   )
@@ -171,7 +180,11 @@ export function useChat() {
     stop()
     setMessages([])
     setActiveThreadId(null)
-    await api.del("/api/chat/history")
+    try {
+      await api.del("/api/chat/history")
+    } catch {
+      // non-critical
+    }
   }, [stop])
 
   const continueChat = useCallback(() => {
@@ -179,10 +192,16 @@ export function useChat() {
   }, [send])
 
   const savePlan = useCallback(async () => {
-    const res = await api.post<{ message: string }>("/api/chat/save-plan", {
-      history: messages,
-    })
-    return res.message
+    try {
+      const res = await api.post<{ message: string }>("/api/chat/save-plan", {
+        history: messages,
+      })
+      return res.message
+    } catch (err) {
+      const msg = `Failed to save: ${(err as Error).message}`
+      toast.error(msg)
+      return msg
+    }
   }, [messages])
 
   return {

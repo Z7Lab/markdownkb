@@ -1,55 +1,81 @@
+import { lazy, Suspense } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ChatTab } from "@/components/chat/chat-tab"
-import { SearchTab } from "@/components/search/search-tab"
-import { BrowseTab } from "@/components/browse/browse-tab"
-import { SettingsTab } from "@/components/settings/settings-tab"
+import { ErrorBoundary } from "@/components/error-boundary"
+import { SettingsProvider } from "@/hooks/use-settings"
 import { MessageSquare, Search, FolderOpen, Settings } from "lucide-react"
+
+const SearchTab = lazy(() => import("@/components/search/search-tab").then(m => ({ default: m.SearchTab })))
+const BrowseTab = lazy(() => import("@/components/browse/browse-tab").then(m => ({ default: m.BrowseTab })))
+const SettingsTab = lazy(() => import("@/components/settings/settings-tab").then(m => ({ default: m.SettingsTab })))
+
+function TabFallback() {
+  return <div className="flex-1 flex items-center justify-center text-muted-foreground">Loading...</div>
+}
 
 function App() {
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
-      <Tabs defaultValue="chat" className="flex-1 flex flex-col min-h-0">
-        <header className="shrink-0 z-20 bg-background border-b px-6 py-3 flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold tracking-tight">mdkb</h1>
-            <p className="text-xs text-muted-foreground">
-              Knowledge base assistant
-            </p>
-          </div>
-          <TabsList>
-            <TabsTrigger value="chat">
-              <MessageSquare className="h-4 w-4" />
-              Chat
-            </TabsTrigger>
-            <TabsTrigger value="search">
-              <Search className="h-4 w-4" />
-              Search
-            </TabsTrigger>
-            <TabsTrigger value="browse">
-              <FolderOpen className="h-4 w-4" />
-              Browse
-            </TabsTrigger>
-            <TabsTrigger value="settings">
-              <Settings className="h-4 w-4" />
-              Settings
-            </TabsTrigger>
-          </TabsList>
-        </header>
+    <SettingsProvider>
+      <div className="h-screen flex flex-col overflow-hidden">
+        <Tabs defaultValue="chat" className="flex-1 flex flex-col min-h-0">
+          <header className="shrink-0 z-20 bg-background border-b px-6 py-3 flex items-center justify-between">
+            <div>
+              <h1 className="text-lg font-bold tracking-tight">mdkb</h1>
+              <p className="text-xs text-muted-foreground">
+                Knowledge base assistant
+              </p>
+            </div>
+            <TabsList>
+              <TabsTrigger value="chat">
+                <MessageSquare className="h-4 w-4" />
+                Chat
+              </TabsTrigger>
+              <TabsTrigger value="search">
+                <Search className="h-4 w-4" />
+                Search
+              </TabsTrigger>
+              <TabsTrigger value="browse">
+                <FolderOpen className="h-4 w-4" />
+                Browse
+              </TabsTrigger>
+              <TabsTrigger value="settings">
+                <Settings className="h-4 w-4" />
+                Settings
+              </TabsTrigger>
+            </TabsList>
+          </header>
 
-        <TabsContent value="chat" forceMount className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
-          <ChatTab />
-        </TabsContent>
-        <TabsContent value="search" forceMount className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
-          <SearchTab />
-        </TabsContent>
-        <TabsContent value="browse" forceMount className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
-          <BrowseTab />
-        </TabsContent>
-        <TabsContent value="settings" forceMount className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
-          <SettingsTab />
-        </TabsContent>
-      </Tabs>
-    </div>
+          <main className="flex-1 flex flex-col min-h-0">
+            <TabsContent value="chat" forceMount className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
+              <ErrorBoundary fallbackMessage="Chat encountered an error">
+                <ChatTab />
+              </ErrorBoundary>
+            </TabsContent>
+            <TabsContent value="search" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
+              <ErrorBoundary fallbackMessage="Search encountered an error">
+                <Suspense fallback={<TabFallback />}>
+                  <SearchTab />
+                </Suspense>
+              </ErrorBoundary>
+            </TabsContent>
+            <TabsContent value="browse" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
+              <ErrorBoundary fallbackMessage="Browse encountered an error">
+                <Suspense fallback={<TabFallback />}>
+                  <BrowseTab />
+                </Suspense>
+              </ErrorBoundary>
+            </TabsContent>
+            <TabsContent value="settings" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
+              <ErrorBoundary fallbackMessage="Settings encountered an error">
+                <Suspense fallback={<TabFallback />}>
+                  <SettingsTab />
+                </Suspense>
+              </ErrorBoundary>
+            </TabsContent>
+          </main>
+        </Tabs>
+      </div>
+    </SettingsProvider>
   )
 }
 
