@@ -120,6 +120,11 @@ class Settings:
             "model", "all-MiniLM-L6-v2"
         )
 
+    @embedding_model.setter
+    def embedding_model(self, value: str):
+        """Set the embedding model name."""
+        self._data.setdefault("embeddings", {})["model"] = value
+
     @property
     def chunk_size(self) -> int:
         """Return the maximum chunk size in characters."""

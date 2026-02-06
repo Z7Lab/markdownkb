@@ -59,7 +59,7 @@ def _index_file(fi: FileInfo, settings: Settings,
     for start in range(0, len(chunks), BATCH_SIZE):
         batch = chunks[start:start + BATCH_SIZE]
         texts = [c.content for c in batch]
-        embeddings = embed_texts(texts)
+        embeddings = embed_texts(texts, settings.embedding_model)
         ids = [c.chunk_id for c in batch]
         metadatas = [c.metadata for c in batch]
         store.add(ids, texts, embeddings, metadatas)

@@ -42,6 +42,16 @@ export interface AppSettings {
   active_api_base: string
   system_prompt: string
   default_system_prompt: string
+  embedding_model: string
+}
+
+export interface EmbeddingModel {
+  model_id: string
+  display_name: string
+  dimensions: number
+  max_seq_length: number
+  description: string
+  installed: boolean
 }
 
 export interface TestPromptResult {

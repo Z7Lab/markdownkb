@@ -255,6 +255,12 @@ class TrackingDB:
             stats["total_chunks"] += r["chunks"]
         return stats
 
+    def clear(self):
+        """Delete all file tracking records (used when switching models)."""
+        self._conn.execute("DELETE FROM indexed_files")
+        self._conn.commit()
+        logger.info("Tracking database cleared")
+
     def file_count(self) -> int:
         """Return the total number of tracked files."""
         row = self._conn.execute(

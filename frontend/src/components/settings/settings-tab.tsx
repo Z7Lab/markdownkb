@@ -4,6 +4,7 @@ import { SourcesPanel } from "./sources-panel"
 import { IndexPanel } from "./index-panel"
 import { FeaturesPanel } from "./features-panel"
 import { SystemPromptPanel } from "./system-prompt-panel"
+import { EmbeddingPanel } from "./embedding-panel"
 
 export function SettingsTab() {
   const {
@@ -11,6 +12,8 @@ export function SettingsTab() {
     providerStatus,
     modelStatus,
     indexStatus,
+    embeddingModels,
+    embeddingStatus,
     saveProvider,
     testConnection,
     refreshModels,
@@ -22,6 +25,8 @@ export function SettingsTab() {
     reindex,
     cancelIndex,
     saveSystemPrompt,
+    installEmbeddingModel,
+    switchEmbeddingModel,
   } = useSettings()
 
   if (!settings) {
@@ -51,11 +56,21 @@ export function SettingsTab() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <EmbeddingPanel
+          models={embeddingModels}
+          activeModel={settings.embedding_model}
+          status={embeddingStatus}
+          onInstall={installEmbeddingModel}
+          onSwitch={switchEmbeddingModel}
+        />
         <IndexPanel
           status={indexStatus}
           onReindex={reindex}
           onCancel={cancelIndex}
         />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <FeaturesPanel
           features={settings.features}
           onToggle={toggleFeature}

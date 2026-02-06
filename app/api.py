@@ -152,6 +152,12 @@ class SystemPromptRequest(BaseModel):
     prompt: str
 
 
+class EmbeddingModelRequest(BaseModel):
+    """Request model for embedding model operations."""
+
+    model_id: str
+
+
 # ── API factory ──────────────────────────────────────────────
 
 
@@ -445,6 +451,7 @@ def create_api(
             "active_api_base": active_cfg.get("api_base", ""),
             "system_prompt": settings.system_prompt,
             "default_system_prompt": settings.default_system_prompt,
+            "embedding_model": settings.embedding_model,
         }
 
     @api.put("/api/settings/provider")
@@ -526,6 +533,55 @@ def create_api(
         settings.system_prompt = req.prompt
         settings.save()
         return {"status": "saved"}
+
+    # ── Embedding Models ────────────────────────────────────
+
+    @api.get("/api/settings/embedding-models")
+    def list_embedding_models():
+        from app.embeddings.downloader import list_models_with_status
+        return {
+            "models": list_models_with_status(),
+            "active_model": settings.embedding_model,
+        }
+
+    @api.post("/api/settings/embedding-models/install")
+    def install_embedding_model(req: EmbeddingModelRequest):
+        from app.embeddings.downloader import install_model, is_installed
+        from app.embeddings.registry import MODELS
+
+        if req.model_id not in MODELS:
+            raise HTTPException(400, f"Unknown model: {req.model_id}")
+        if is_installed(req.model_id):
+            return {"status": "already_installed"}
+        try:
+            install_model(req.model_id)
+            return {"status": "installed"}
+        except Exception as e:
+            raise HTTPException(500, str(e)) from e
+
+    @api.put("/api/settings/embedding-models/switch")
+    def switch_embedding_model(req: EmbeddingModelRequest):
+        from app.embeddings.downloader import is_installed
+        from app.embeddings.embedder import unload_model
+        from app.embeddings.registry import MODELS
+
+        if req.model_id not in MODELS:
+            raise HTTPException(400, f"Unknown model: {req.model_id}")
+        if not is_installed(req.model_id):
+            raise HTTPException(400, f"Model not installed: {req.model_id}")
+        if req.model_id == settings.embedding_model:
+            return {"status": "already_active"}
+
+        settings.embedding_model = req.model_id
+        settings.save()
+        unload_model()
+        store.clear()
+        tracking.clear()
+
+        cancel_event.clear()
+        result = run_index(settings, store, tracking, cancel=cancel_event)
+        return {"status": "switched", "model": req.model_id,
+                "index_result": result}
 
     # ── Indexing ─────────────────────────────────────────
 

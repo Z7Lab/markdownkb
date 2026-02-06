@@ -47,7 +47,7 @@ class Retriever:
             return []
 
         # Vector search
-        query_embedding = embed_query(query)
+        query_embedding = embed_query(query, self._settings.embedding_model)
 
         where = None
         if folder_filter:

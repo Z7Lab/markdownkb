@@ -1,12 +1,25 @@
 import { useCallback, useEffect, useState } from "react"
 import { api } from "@/lib/api"
-import type { AppSettings, ModelInfo } from "@/lib/types"
+import type { AppSettings, EmbeddingModel, ModelInfo } from "@/lib/types"
 
 export function useSettings() {
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [providerStatus, setProviderStatus] = useState("")
   const [modelStatus, setModelStatus] = useState("")
   const [indexStatus, setIndexStatus] = useState("")
+  const [embeddingModels, setEmbeddingModels] = useState<EmbeddingModel[]>([])
+  const [embeddingStatus, setEmbeddingStatus] = useState("")
+
+  const loadEmbeddingModels = useCallback(async () => {
+    try {
+      const res = await api.get<{ models: EmbeddingModel[]; active_model: string }>(
+        "/api/settings/embedding-models",
+      )
+      setEmbeddingModels(res.models)
+    } catch {
+      /* ignore on initial load */
+    }
+  }, [])
 
   const load = useCallback(async () => {
     const res = await api.get<AppSettings>("/api/settings")
@@ -15,7 +28,8 @@ export function useSettings() {
 
   useEffect(() => {
     load()
-  }, [load])
+    loadEmbeddingModels()
+  }, [load, loadEmbeddingModels])
 
   const saveProvider = useCallback(
     async (name: string, model: string, apiBase: string) => {
@@ -130,11 +144,45 @@ export function useSettings() {
     [load],
   )
 
+  const installEmbeddingModel = useCallback(
+    async (modelId: string) => {
+      setEmbeddingStatus(`Installing ${modelId}...`)
+      try {
+        await api.post("/api/settings/embedding-models/install", { model_id: modelId })
+        setEmbeddingStatus(`Installed ${modelId}`)
+        await loadEmbeddingModels()
+      } catch (e) {
+        setEmbeddingStatus(`Error: ${e}`)
+      }
+    },
+    [loadEmbeddingModels],
+  )
+
+  const switchEmbeddingModel = useCallback(
+    async (modelId: string) => {
+      setEmbeddingStatus(`Switching to ${modelId} and reindexing...`)
+      try {
+        const res = await api.put<{ status: string; index_result: string }>(
+          "/api/settings/embedding-models/switch",
+          { model_id: modelId },
+        )
+        setEmbeddingStatus(res.index_result || "Switched successfully")
+        await load()
+        await loadEmbeddingModels()
+      } catch (e) {
+        setEmbeddingStatus(`Error: ${e}`)
+      }
+    },
+    [load, loadEmbeddingModels],
+  )
+
   return {
     settings,
     providerStatus,
     modelStatus,
     indexStatus,
+    embeddingModels,
+    embeddingStatus,
     saveProvider,
     testConnection,
     refreshModels,
@@ -146,5 +194,7 @@ export function useSettings() {
     reindex,
     cancelIndex,
     saveSystemPrompt,
+    installEmbeddingModel,
+    switchEmbeddingModel,
   }
 }
