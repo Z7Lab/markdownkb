@@ -11,6 +11,9 @@ dist/
 build/
 .env
 
+# Pip artifacts
+=*
+
 # Frontend
 node_modules/
 frontend/dist/
