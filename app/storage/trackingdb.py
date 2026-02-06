@@ -11,7 +11,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 _CREATE_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS indexed_files (
     status      TEXT NOT NULL DEFAULT 'pending',
     error_msg   TEXT,
     indexed_at  TEXT,
-    updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    include_rag INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE INDEX IF NOT EXISTS idx_files_source_root
@@ -36,6 +37,22 @@ CREATE INDEX IF NOT EXISTS idx_files_source_root
 CREATE INDEX IF NOT EXISTS idx_files_status
     ON indexed_files(status);
 """
+
+
+def _migrate_v1_to_v2(conn: sqlite3.Connection):
+    """Add include_rag column; convert status='excluded' to include_rag=0."""
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(indexed_files)")]
+    if "include_rag" not in cols:
+        conn.execute(
+            "ALTER TABLE indexed_files "
+            "ADD COLUMN include_rag INTEGER NOT NULL DEFAULT 1"
+        )
+    conn.execute(
+        "UPDATE indexed_files SET include_rag = 0, status = 'pending' "
+        "WHERE status = 'excluded'"
+    )
+    conn.commit()
+    logger.info("Migrated schema v1 → v2: added include_rag column")
 
 
 class TrackingDB:
@@ -54,7 +71,7 @@ class TrackingDB:
         logger.info("TrackingDB opened: %s", db_path)
 
     def _init_schema(self):
-        """Create tables if they don't exist."""
+        """Create tables if they don't exist, then run migrations."""
         self._conn.executescript(_CREATE_SQL)
         row = self._conn.execute(
             "SELECT version FROM schema_version LIMIT 1"
@@ -65,6 +82,16 @@ class TrackingDB:
                 (SCHEMA_VERSION,),
             )
             self._conn.commit()
+        else:
+            current = row["version"]
+            if current < 2:
+                _migrate_v1_to_v2(self._conn)
+            if current < SCHEMA_VERSION:
+                self._conn.execute(
+                    "UPDATE schema_version SET version = ?",
+                    (SCHEMA_VERSION,),
+                )
+                self._conn.commit()
 
     def close(self):
         """Close the database connection."""
@@ -200,37 +227,37 @@ class TrackingDB:
             )
             self._conn.commit()
 
-    def exclude_file(self, path: str):
-        """Mark a file as excluded from RAG."""
+    def set_include_rag(self, path: str, include: bool):
+        """Toggle whether a file is included in RAG search results."""
         with self._lock:
             self._conn.execute(
                 """UPDATE indexed_files
-                SET status = 'excluded', chunk_count = 0,
+                SET include_rag = ?, updated_at = datetime('now')
+                WHERE path = ?""",
+                (1 if include else 0, path),
+            )
+            self._conn.commit()
+
+    def get_rag_excluded_paths(self) -> set[str]:
+        """Return paths of files excluded from RAG search."""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT path FROM indexed_files WHERE include_rag = 0"
+            ).fetchall()
+            return {r["path"] for r in rows}
+
+    def unindex_file(self, path: str):
+        """Reset a file to un-indexed state (keeps tracking record)."""
+        with self._lock:
+            self._conn.execute(
+                """UPDATE indexed_files
+                SET status = 'pending', chunk_count = 0,
+                    content_hash = '', include_rag = 0,
                     updated_at = datetime('now')
                 WHERE path = ?""",
                 (path,),
             )
             self._conn.commit()
-
-    def include_file(self, path: str):
-        """Mark an excluded file for re-indexing."""
-        with self._lock:
-            self._conn.execute(
-                """UPDATE indexed_files
-                SET status = 'pending',
-                    updated_at = datetime('now')
-                WHERE path = ? AND status = 'excluded'""",
-                (path,),
-            )
-            self._conn.commit()
-
-    def get_excluded_paths(self) -> set[str]:
-        """Return paths of all excluded files."""
-        with self._lock:
-            rows = self._conn.execute(
-                "SELECT path FROM indexed_files WHERE status = 'excluded'"
-            ).fetchall()
-            return {r["path"] for r in rows}
 
     def remove_file(self, path: str):
         """Remove a file from tracking."""
@@ -271,7 +298,7 @@ class TrackingDB:
             stats = {
                 "total_files": 0, "total_chunks": 0,
                 "complete": 0, "pending": 0,
-                "indexing": 0, "error": 0, "excluded": 0,
+                "indexing": 0, "error": 0,
             }
             for r in rows:
                 stats[r["status"]] = r["cnt"]
@@ -285,7 +312,7 @@ class TrackingDB:
             self._conn.execute(
                 "UPDATE indexed_files SET content_hash = '', "
                 "updated_at = datetime('now') "
-                "WHERE status != 'excluded'"
+                "WHERE include_rag = 1"
             )
             self._conn.commit()
             logger.info("All content hashes cleared (force reindex)")

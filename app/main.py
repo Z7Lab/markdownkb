@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
         logger.info("Empty store, running initial index...")
         run_index(settings, store, tracking)
 
-    retriever = Retriever(store, settings)
+    retriever = Retriever(store, settings, tracking)
     cancel_event = threading.Event()
 
     # Store services on app.state for dependency injection

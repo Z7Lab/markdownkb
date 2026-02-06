@@ -14,6 +14,9 @@ build/
 # Pip artifacts
 =*
 
+# Config (contains private paths and API keys)
+config/settings.yaml
+
 # Frontend
 node_modules/
 frontend/dist/

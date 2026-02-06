@@ -101,7 +101,6 @@ def app():
         "pending": 1,
         "indexing": 0,
         "error": 0,
-        "excluded": 0,
         "total_chunks": 50,
     }
     tracking.get_all_files.return_value = [
@@ -113,13 +112,16 @@ def app():
             "content_hash": "abc123",
             "file_size": 1024,
             "mtime": 1700000000.0,
+            "include_rag": 1,
         }
     ]
     tracking.file_count.return_value = 1
     tracking.remove_files_not_in.return_value = []
     tracking.get_file.return_value = {
         "path": "/tmp/test-source/doc.md",
+        "source_root": "/tmp/test-source",
         "chunk_count": 3,
+        "include_rag": 1,
     }
     application.state.tracking = tracking
 

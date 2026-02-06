@@ -52,6 +52,19 @@ class FilePathRequest(BaseModel):
     path: str
 
 
+class ToggleRagRequest(BaseModel):
+    """Request model for toggling RAG inclusion."""
+
+    path: str
+    include: bool
+
+
+class FileActionRequest(BaseModel):
+    """Request model for single-file index/unindex/reindex."""
+
+    path: str
+
+
 class AddSourceRequest(BaseModel):
     """Request model for adding a source."""
 

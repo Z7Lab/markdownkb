@@ -7,10 +7,13 @@ Python (FastAPI) backend + React (Vite + TypeScript + Shadcn/ui) frontend.
 ## Quick Start
 
 ```bash
+cp config/settings.yaml.example config/settings.yaml  # first time only
 ./run.sh
 ```
 
-That's it. Creates `.venv`, installs Python and Node dependencies if needed, starts both services. Open `http://localhost:9714` (dev) or `http://localhost:9713` (production).
+Edit `config/settings.yaml` to add your source directories and LLM API keys. The example file has sensible defaults for everything else.
+
+Creates `.venv`, installs Python and Node dependencies if needed, starts both services. Open `http://localhost:5173` (dev) or `http://localhost:9713` (production).
 
 ## run.sh
 
@@ -103,10 +106,12 @@ All endpoints at `http://localhost:9713/api/`:
 | POST | `/api/chat/stream` | SSE streaming chat |
 | DELETE | `/api/chat/history` | Clear conversation |
 | POST | `/api/chat/save-plan` | Save response as markdown |
-| GET | `/api/files` | List indexed files |
+| GET | `/api/files` | List all discovered files |
 | GET | `/api/file?path=...` | Read file content |
-| POST | `/api/files/exclude` | Exclude file from RAG |
-| POST | `/api/files/include` | Re-include file in RAG |
+| PUT | `/api/files/toggle-rag` | Toggle RAG inclusion for a file |
+| POST | `/api/files/unindex` | Remove file chunks from index |
+| POST | `/api/files/index` | Index a single file |
+| POST | `/api/files/reindex` | Re-embed a file's chunks |
 | GET | `/api/sources` | List source directories |
 | POST | `/api/sources` | Add source directory |
 | DELETE | `/api/sources` | Remove source directory |

@@ -2,11 +2,11 @@ import { useState } from "react"
 import { useFiles } from "@/hooks/use-files"
 import { useTableSort } from "@/hooks/use-table-sort"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Switch } from "@/components/ui/switch"
 import {
   Table,
   TableBody,
@@ -15,7 +15,13 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { SortableTableHead } from "@/components/ui/sortable-table-head"
-import { RefreshCw, Search } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { Plus, RefreshCw, Search, Trash2 } from "lucide-react"
 import type { TrackedFile } from "@/lib/types"
 
 function basename(path: string) {
@@ -48,7 +54,7 @@ const getValue = (f: TrackedFile, key: string): string | number | null => {
     case "folder":
       return dirname(f.path)
     case "rag":
-      return (f.status === "excluded" || f.status === "not_indexed") ? 0 : 1
+      return f.include_rag
     case "status":
       return f.status
     case "chunks":
@@ -59,9 +65,10 @@ const getValue = (f: TrackedFile, key: string): string | number | null => {
 }
 
 export function BrowseTab() {
-  const { files, loading, pendingExclude, refresh, toggleRag, confirmExclude, setPendingExclude } = useFiles()
+  const { files, loading, refresh, toggleRag, unindexFile, indexFile, reindexFile } = useFiles()
   const [filterText, setFilterText] = useState("")
   const [viewingPath, setViewingPath] = useState<string | null>(null)
+  const [pendingUnindex, setPendingUnindex] = useState<string | null>(null)
   const { sorted, sortKey, sortDir, onSort } = useTableSort(files, getValue)
 
   const filteredFiles = filterText
@@ -98,6 +105,7 @@ export function BrowseTab() {
 
       <div className="flex-1 border rounded-md overflow-hidden min-h-0">
         <ScrollArea className="h-full">
+          <TooltipProvider delayDuration={300}>
           <Table>
             <TableHeader className="sticky top-0 bg-background z-10">
               <TableRow>
@@ -108,7 +116,7 @@ export function BrowseTab() {
                   Folder
                 </SortableTableHead>
                 <SortableTableHead sortKey="rag" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort}>
-                  RAG
+                  Include RAG
                 </SortableTableHead>
                 <SortableTableHead sortKey="status" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort}>
                   Status
@@ -116,11 +124,17 @@ export function BrowseTab() {
                 <SortableTableHead sortKey="chunks" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort} className="text-right">
                   Chunks
                 </SortableTableHead>
+                <SortableTableHead sortKey="" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort}>
+                  Actions
+                </SortableTableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredFiles.map((f) => {
-                const indexed = f.status !== "excluded" && f.status !== "not_indexed"
+                const isIndexed = f.status === "complete"
+                const isNotIndexed = f.status === "not_indexed" || f.status === "pending"
+                const ragOn = f.include_rag === 1
+
                 return (
                   <TableRow
                     key={f.path}
@@ -134,42 +148,105 @@ export function BrowseTab() {
                       {dirname(f.path)}
                     </TableCell>
                     <TableCell>
-                      <Checkbox
-                        checked={indexed}
+                      <Switch
+                        checked={ragOn}
                         disabled={loading || f.status === "not_indexed"}
                         onClick={(e) => e.stopPropagation()}
-                        onCheckedChange={(checked) => toggleRag(f, checked === true)}
+                        onCheckedChange={(checked) => toggleRag(f.path, checked)}
                       />
                     </TableCell>
                     <TableCell className="text-sm">
                       {f.status === "not_indexed" ? (
                         <span className="text-muted-foreground">not indexed</span>
+                      ) : f.status === "indexing" ? (
+                        <span className="text-blue-500">indexing</span>
+                      ) : f.status === "error" ? (
+                        <span className="text-destructive">error</span>
                       ) : f.status}
                     </TableCell>
                     <TableCell className="text-right">{f.chunk_count}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                        {isNotIndexed && ragOn && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                disabled={loading}
+                                onClick={() => indexFile(f.path)}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Index this file</TooltipContent>
+                          </Tooltip>
+                        )}
+                        {isIndexed && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                disabled={loading}
+                                onClick={() => reindexFile(f.path)}
+                              >
+                                <RefreshCw className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Re-index this file</TooltipContent>
+                          </Tooltip>
+                        )}
+                        {(isIndexed || f.status === "error") && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                disabled={loading}
+                                onClick={() => setPendingUnindex(f.path)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Remove from index</TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
+                    </TableCell>
                   </TableRow>
                 )
               })}
               {filteredFiles.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                     {files.length === 0 ? "No markdown files found in watch directories." : "No files match your filter."}
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
+          </TooltipProvider>
         </ScrollArea>
       </div>
 
       <FileViewerDialog path={viewingPath} onClose={() => setViewingPath(null)} />
       <ConfirmDialog
-        open={!!pendingExclude}
-        onOpenChange={(open) => { if (!open) setPendingExclude(null) }}
-        title="Remove from RAG index?"
-        description={`This will remove "${pendingExclude?.path.split("/").pop()}" from the vector store and exclude it from future indexing.`}
-        confirmLabel="Remove"
-        onConfirm={confirmExclude}
+        open={!!pendingUnindex}
+        onOpenChange={(open) => { if (!open) setPendingUnindex(null) }}
+        title="Remove from index?"
+        description={`This will delete all chunks for "${pendingUnindex?.split("/").pop()}" from the vector store and exclude it from RAG.`}
+        confirmLabel="Unindex"
+        variant="destructive"
+        onConfirm={async () => {
+          if (pendingUnindex) {
+            setPendingUnindex(null)
+            await unindexFile(pendingUnindex)
+          }
+        }}
       />
     </div>
   )

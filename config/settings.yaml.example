@@ -1,0 +1,74 @@
+# mdkb configuration — copy this file to settings.yaml and edit as needed:
+#   cp config/settings.yaml.example config/settings.yaml
+
+# Directories to watch for markdown files
+sources:
+- ./docs
+
+# Glob patterns to skip during file scanning
+global_ignore:
+- '**/node_modules/**'
+- '**/.git/**'
+- '**/.venv/**'
+- '**/__pycache__/**'
+- '**/build/**'
+- '**/dist/**'
+
+# Embedding model settings (ONNX, no PyTorch required)
+embeddings:
+  model: all-MiniLM-L6-v2
+  chunk_size: 512
+  chunk_overlap: 50
+
+# LLM provider configuration
+# Model names use LiteLLM format: provider/model
+# Providers without an api_key are skipped (except Ollama)
+llm:
+  providers:
+  - name: anthropic
+    model: anthropic/claude-3-5-sonnet-20241022
+    api_key: ''
+    api_base: ''
+  - name: openai
+    model: openai/gpt-4
+    api_key: ''
+    api_base: ''
+  - name: ollama
+    model: ollama/qwen3:8b
+    api_key: ''
+    api_base: http://localhost:11434
+  active_provider: ollama
+  temperature: 0.3
+  max_tokens: 2048
+
+# Semantic search tuning
+retrieval:
+  top_k: 5
+  score_threshold: 0.05
+  hybrid_search: true
+  bm25_weight: 0.3
+
+# Vector store persistence
+storage:
+  persist_directory: ./data/chromadb
+  collection_name: mdkb
+
+# Feature flags — toggle optional modules on/off
+features:
+  rag_chat: true
+  file_watcher: true
+  mcp_filesystem: false
+  mcp_terminal: false
+  mcts_planner: false
+  agent_skills: false
+  diagnostics: false
+  rate_limiting: false
+
+# Server binding
+server:
+  host: 127.0.0.1
+  port: 9713
+
+# Plan saving directory
+plans:
+  save_directory: ./data/plans

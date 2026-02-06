@@ -10,6 +10,7 @@ except ImportError:
 
 from app.config import Settings
 from app.embeddings.embedder import embed_query
+from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 
 logger = logging.getLogger(__name__)
@@ -28,9 +29,11 @@ class Retriever:
     """Combines vector similarity search with optional BM25 reranking."""
 
     def __init__(self, store: VectorStore,
-                 settings: Settings | None = None):
+                 settings: Settings | None = None,
+                 tracking: TrackingDB | None = None):
         self._store = store
         self._settings = settings or Settings.get()
+        self._tracking = tracking
 
     @property
     def store(self) -> VectorStore:
@@ -78,6 +81,15 @@ class Retriever:
                 r for r in results
                 if tag_filter in r.metadata.get("tags", "")
             ]
+
+        # Exclude files where include_rag is toggled off
+        if self._tracking:
+            excluded = self._tracking.get_rag_excluded_paths()
+            if excluded:
+                results = [
+                    r for r in results
+                    if r.metadata.get("source_path") not in excluded
+                ]
 
         # Filter by threshold and limit
         threshold = self._settings.score_threshold

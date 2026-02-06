@@ -40,14 +40,50 @@ async def test_read_file_traversal_dotdot(client):
 
 
 @pytest.mark.asyncio
-async def test_exclude_file(client):
-    resp = await client.post("/api/files/exclude", json={"path": "/tmp/test-source/doc.md"})
+async def test_toggle_rag_on(client):
+    resp = await client.put(
+        "/api/files/toggle-rag",
+        json={"path": "/tmp/test-source/doc.md", "include": True},
+    )
     assert resp.status_code == 200
-    assert resp.json()["status"] == "excluded"
+    assert resp.json()["include_rag"] is True
 
 
 @pytest.mark.asyncio
-async def test_exclude_file_not_tracked(client, app):
+async def test_toggle_rag_off(client):
+    resp = await client.put(
+        "/api/files/toggle-rag",
+        json={"path": "/tmp/test-source/doc.md", "include": False},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["include_rag"] is False
+
+
+@pytest.mark.asyncio
+async def test_toggle_rag_not_tracked(client, app):
     app.state.tracking.get_file.return_value = None
-    resp = await client.post("/api/files/exclude", json={"path": "/nonexistent"})
+    resp = await client.put(
+        "/api/files/toggle-rag",
+        json={"path": "/nonexistent", "include": True},
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_unindex_file(client):
+    resp = await client.post(
+        "/api/files/unindex",
+        json={"path": "/tmp/test-source/doc.md"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "unindexed"
+
+
+@pytest.mark.asyncio
+async def test_unindex_file_not_tracked(client, app):
+    app.state.tracking.get_file.return_value = None
+    resp = await client.post(
+        "/api/files/unindex",
+        json={"path": "/nonexistent"},
+    )
     assert resp.status_code == 404

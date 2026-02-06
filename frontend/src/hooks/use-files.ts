@@ -49,37 +49,53 @@ export function useFiles() {
     refresh()
   }, [refresh])
 
-  const [pendingExclude, setPendingExclude] = useState<TrackedFile | null>(null)
-
-  const toggleRag = useCallback(async (file: TrackedFile, include: boolean) => {
-    if (!include) {
-      setPendingExclude(file)
-      return
-    }
+  const toggleRag = useCallback(async (path: string, include: boolean) => {
     setLoading(true)
     try {
-      await api.post("/api/files/include", { path: file.path })
+      await api.put("/api/files/toggle-rag", { path, include })
       await refresh()
     } catch (err) {
-      toast.error(`Failed to include file: ${(err as Error).message}`)
+      toast.error(`Failed to toggle RAG: ${(err as Error).message}`)
     } finally {
       setLoading(false)
     }
   }, [refresh])
 
-  const confirmExclude = useCallback(async () => {
-    if (!pendingExclude) return
-    setPendingExclude(null)
+  const unindexFile = useCallback(async (path: string) => {
     setLoading(true)
     try {
-      await api.post("/api/files/exclude", { path: pendingExclude.path })
+      await api.post("/api/files/unindex", { path })
       await refresh()
     } catch (err) {
-      toast.error(`Failed to exclude file: ${(err as Error).message}`)
+      toast.error(`Failed to unindex: ${(err as Error).message}`)
     } finally {
       setLoading(false)
     }
-  }, [pendingExclude, refresh])
+  }, [refresh])
 
-  return { files, loading, error, pendingExclude, refresh, toggleRag, confirmExclude, setPendingExclude }
+  const indexFile = useCallback(async (path: string) => {
+    setLoading(true)
+    try {
+      await api.post("/api/files/index", { path })
+      await refresh()
+    } catch (err) {
+      toast.error(`Failed to index: ${(err as Error).message}`)
+    } finally {
+      setLoading(false)
+    }
+  }, [refresh])
+
+  const reindexFile = useCallback(async (path: string) => {
+    setLoading(true)
+    try {
+      await api.post("/api/files/reindex", { path })
+      await refresh()
+    } catch (err) {
+      toast.error(`Failed to reindex: ${(err as Error).message}`)
+    } finally {
+      setLoading(false)
+    }
+  }, [refresh])
+
+  return { files, loading, error, refresh, toggleRag, unindexFile, indexFile, reindexFile }
 }

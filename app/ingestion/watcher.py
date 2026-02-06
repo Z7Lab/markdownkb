@@ -34,7 +34,7 @@ def reindex_file(
         tracking.remove_file(filepath)
         return
 
-    if filepath in tracking.get_excluded_paths():
+    if filepath in tracking.get_rag_excluded_paths():
         logger.debug("File excluded from RAG, skipping: %s", filepath)
         return
 

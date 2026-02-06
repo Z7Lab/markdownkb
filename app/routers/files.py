@@ -10,7 +10,7 @@ from app.deps import get_settings, get_store, get_tracking
 from app.ingestion.indexer import reindex_file
 from app.ingestion.scanner import discover_sources
 from app.ratelimit import STANDARD, limiter
-from app.schemas import FilePathRequest
+from app.schemas import FileActionRequest, ToggleRagRequest
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 
@@ -62,9 +62,10 @@ def list_files(
                 "error_msg": None,
                 "indexed_at": None,
                 "updated_at": None,
+                "include_rag": 1,
             })
 
-    # Include any tracked files not in discovery (e.g. source removed but still tracked)
+    # Include any tracked files not in discovery
     for leftover in tracked_map.values():
         merged.append(leftover)
 
@@ -81,8 +82,8 @@ def read_file(
     path: str,
     settings: Settings = Depends(get_settings),
 ):
+    """Read file content, validating path is within configured sources."""
     p = Path(path).resolve()
-    # Validate the path is within a configured source directory
     allowed = False
     for source in settings.sources:
         source_resolved = Path(source).resolve()
@@ -116,48 +117,66 @@ def read_file(
         ) from e
 
 
-@router.post("/files/exclude")
+@router.put("/files/toggle-rag")
 @limiter.limit(STANDARD)
-def exclude_file(
+def toggle_rag(
     request: Request,
-    req: FilePathRequest,
+    req: ToggleRagRequest,
+    tracking: TrackingDB = Depends(get_tracking),
+):
+    """Toggle whether a file is included in RAG search results."""
+    record = tracking.get_file(req.path)
+    if not record:
+        raise HTTPException(status_code=404, detail="File not tracked")
+    tracking.set_include_rag(req.path, req.include)
+    return {"status": "ok", "include_rag": req.include}
+
+
+@router.post("/files/unindex")
+@limiter.limit(STANDARD)
+def unindex_file(
+    request: Request,
+    req: FileActionRequest,
     tracking: TrackingDB = Depends(get_tracking),
     store: VectorStore = Depends(get_store),
 ):
+    """Remove a file's chunks from the vector store and reset its status."""
     record = tracking.get_file(req.path)
     if not record:
-        raise HTTPException(
-            status_code=404,
-            detail="File not tracked",
-        )
-    tracking.exclude_file(req.path)
+        raise HTTPException(status_code=404, detail="File not tracked")
+    chunks_removed = record["chunk_count"]
     store.delete_by_source(req.path)
-    return {
-        "status": "excluded",
-        "chunks_removed": record["chunk_count"],
-    }
+    tracking.unindex_file(req.path)
+    return {"status": "unindexed", "chunks_removed": chunks_removed}
 
 
-@router.post("/files/include")
+@router.post("/files/index")
 @limiter.limit(STANDARD)
-def include_file(
+def index_file(
     request: Request,
-    req: FilePathRequest,
+    req: FileActionRequest,
     settings: Settings = Depends(get_settings),
     tracking: TrackingDB = Depends(get_tracking),
     store: VectorStore = Depends(get_store),
 ):
+    """Index a single file that hasn't been indexed yet."""
+    tracking.set_include_rag(req.path, True)
+    result = reindex_file(req.path, settings, store, tracking)
+    return {"status": "ok", "message": result}
+
+
+@router.post("/files/reindex")
+@limiter.limit(STANDARD)
+def reindex_single_file(
+    request: Request,
+    req: FileActionRequest,
+    settings: Settings = Depends(get_settings),
+    tracking: TrackingDB = Depends(get_tracking),
+    store: VectorStore = Depends(get_store),
+):
+    """Re-embed a single file's chunks."""
     record = tracking.get_file(req.path)
     if not record:
-        raise HTTPException(
-            status_code=404,
-            detail="File not tracked",
-        )
-    tracking.include_file(req.path)
-    result = reindex_file(
-        req.path,
-        settings,
-        store,
-        tracking,
-    )
-    return {"status": "included", "message": result}
+        raise HTTPException(status_code=404, detail="File not tracked")
+    result = reindex_file(req.path, settings, store, tracking)
+    return {"status": "ok", "message": result}

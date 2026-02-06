@@ -21,7 +21,7 @@ BATCH_SIZE = 500
 def _classify_files(files, tracking, incomplete):
     """Split files into (to_index, skipped_count) based on hash comparison."""
     hash_map = tracking.get_hash_map()
-    excluded = tracking.get_excluded_paths()
+    excluded = tracking.get_rag_excluded_paths()
     to_index = []
     skipped = 0
 
@@ -158,26 +158,36 @@ def reindex_file(
     store: VectorStore, tracking: TrackingDB,
 ) -> str:
     """Re-index a single file and return a status message."""
-    p = Path(path)
+    p = Path(path).resolve()
     if not p.exists():
         return f"File not found: {p.name}"
 
-    record = tracking.get_file(path)
-    if not record:
-        return f"File not tracked: {p.name}"
+    record = tracking.get_file(str(p))
+    if record:
+        source_root = record["source_root"]
+    else:
+        # Discover source_root from settings for untracked files
+        source_root = ""
+        for src in settings.sources:
+            src_resolved = str(Path(src).resolve())
+            if str(p).startswith(src_resolved):
+                source_root = src_resolved
+                break
+        if not source_root:
+            return f"File not in any watch directory: {p.name}"
 
     stat = p.stat()
     fi = FileInfo(
-        path=path,
+        path=str(p),
         relative_path=p.name,
         size=stat.st_size,
         modified=stat.st_mtime,
-        content_hash=compute_file_hash(path),
-        source_root=record["source_root"],
+        content_hash=compute_file_hash(str(p)),
+        source_root=source_root,
     )
     try:
         chunks = _index_file(fi, settings, store, tracking)
-        return f"Included: {p.name} ({chunks} chunks)"
+        return f"Indexed: {p.name} ({chunks} chunks)"
     except (OSError, ValueError, RuntimeError) as exc:
-        tracking.mark_error(path, str(exc))
+        tracking.mark_error(str(p), str(exc))
         return f"Error indexing {p.name}: {exc}"

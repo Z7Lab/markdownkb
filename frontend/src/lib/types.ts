@@ -26,6 +26,7 @@ export interface TrackedFile {
   content_hash: string
   file_size: number
   mtime: number
+  include_rag: number
 }
 
 export interface Provider {
