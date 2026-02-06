@@ -13,6 +13,7 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import type { Thread } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ModelPicker } from "./model-picker";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 function relativeTime(iso: string): string {
   // Normalize: SQLite gives "YYYY-MM-DD HH:MM:SS", JS gives "...T...Z"
@@ -165,6 +166,11 @@ export function ThreadSidebar({
             )}
           </div>
         </TooltipProvider>
+      </div>
+      <Separator />
+      <div className="p-3 shrink-0 flex items-center justify-between">
+        <span className="text-xs text-muted-foreground">Theme</span>
+        <ThemeToggle />
       </div>
       <ConfirmDialog
         open={!!pendingDelete}
