@@ -109,7 +109,7 @@ export const MessageBubble = memo(function MessageBubble({
           "rounded-lg px-4 py-2",
           isUser
             ? "max-w-[85%] bg-primary text-primary-foreground"
-            : "max-w-full bg-muted text-foreground",
+            : "w-full bg-muted text-foreground",
         )}
       >
         {/* Diagnostics: raw content inspector for assistant messages */}
