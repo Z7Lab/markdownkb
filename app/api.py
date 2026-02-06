@@ -21,6 +21,7 @@ from app.services.chat_service import (
     chat_respond,
     conversation_history,
     extract_unique_sources,
+    rewrite_query,
     save_last_response_as_plan,
 )
 from app.services.llm_service import (
@@ -226,7 +227,8 @@ def create_api(
 
     @api.post("/api/chat")
     def chat(req: ChatRequest):
-        results = retriever.search(req.message)
+        search_query = rewrite_query(req.message, settings)
+        results = retriever.search(search_query)
         if not results:
             return {
                 "response": "No relevant information found.",

@@ -6,8 +6,8 @@ from pathlib import Path
 from typing import Generator
 
 from app.config import Settings
-from app.rag.llm import get_streaming_completion
-from app.rag.prompts import build_rag_messages
+from app.rag.llm import get_completion, get_streaming_completion
+from app.rag.prompts import QUERY_REWRITE_PROMPT, build_rag_messages
 from app.rag.retriever import Retriever
 
 logger = logging.getLogger(__name__)
@@ -109,6 +109,28 @@ def _persist(chatdb, thread_id: str | None, user_msg: str, assistant_msg: str):
         conversation_history.add("assistant", assistant_msg)
 
 
+_REWRITE_THRESHOLD = 8  # word count above which we rewrite
+
+
+def rewrite_query(message: str, settings: Settings) -> str:
+    """Distill a conversational message into focused search keywords."""
+    if len(message.split()) <= _REWRITE_THRESHOLD:
+        return message
+    try:
+        messages = [
+            {"role": "system", "content": QUERY_REWRITE_PROMPT},
+            {"role": "user", "content": message},
+        ]
+        rewritten = get_completion(messages, settings)
+        rewritten = rewritten.strip().strip('"').strip("'")
+        if rewritten:
+            logger.info("Query rewrite: %r -> %r", message[:80], rewritten)
+            return rewritten
+    except Exception:
+        logger.warning("Query rewrite failed, using original")
+    return message
+
+
 def chat_respond(message: str, retriever: Retriever,
                  settings: Settings, chatdb=None,
                  thread_id: str | None = None) -> Generator:
@@ -117,7 +139,8 @@ def chat_respond(message: str, retriever: Retriever,
         yield ""
         return
 
-    results = retriever.search(message)
+    search_query = rewrite_query(message, settings)
+    results = retriever.search(search_query)
 
     if not results:
         reply = ("I don't have any relevant information in your knowledge base. "

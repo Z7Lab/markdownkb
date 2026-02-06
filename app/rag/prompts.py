@@ -1,5 +1,11 @@
 """Prompt templates for RAG, planning, and skill review."""
 
+QUERY_REWRITE_PROMPT = (
+    "Extract search keywords from the user's message. "
+    "Return ONLY the key topics and terms, no explanation. "
+    "Keep it under 10 words."
+)
+
 RAG_USER_TEMPLATE = """Context from your knowledge base:
 ---
 {context}
