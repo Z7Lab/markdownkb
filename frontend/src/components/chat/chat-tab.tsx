@@ -18,6 +18,7 @@ export function ChatTab() {
     savePlan,
     newChat,
     loadThread,
+    renameThread,
     deleteThread,
   } = useChat();
 
@@ -31,6 +32,7 @@ export function ChatTab() {
         activeThreadId={activeThreadId}
         onNewChat={newChat}
         onLoadThread={loadThread}
+        onRenameThread={renameThread}
         onDeleteThread={deleteThread}
       />
       <div className="flex flex-col flex-1 min-w-0 min-h-0">

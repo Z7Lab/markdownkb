@@ -41,15 +41,18 @@ export function useChat() {
         {
           onThread(threadId, title) {
             setActiveThreadId(threadId)
-            setThreads((prev) => [
-              {
-                id: threadId,
-                title: title || "New chat",
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              },
-              ...prev,
-            ])
+            setThreads((prev) => {
+              if (prev.some((t) => t.id === threadId)) return prev
+              return [
+                {
+                  id: threadId,
+                  title: title || "New chat",
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                },
+                ...prev,
+              ]
+            })
           },
           onToken(content) {
             setMessages((prev) => {
@@ -64,7 +67,16 @@ export function useChat() {
               return updated
             })
           },
-          onSources() {},
+          onSources(sources) {
+            setMessages((prev) => {
+              const updated = [...prev]
+              const last = updated[updated.length - 1]
+              if (last?.role === "assistant") {
+                updated[updated.length - 1] = { ...last, sources }
+              }
+              return updated
+            })
+          },
           onDone() {
             setIsStreaming(false)
             controllerRef.current = null
@@ -112,7 +124,7 @@ export function useChat() {
       const currentLoad = ++loadIdRef.current
       try {
         const res = await api.get<{
-          messages: Array<{ role: string; content: string }>
+          messages: Array<{ role: string; content: string; sources?: string[] | null }>
         }>(`/api/threads/${threadId}/messages`)
         // Guard against race: only apply if this is still the latest load
         if (currentLoad !== loadIdRef.current) return
@@ -121,6 +133,7 @@ export function useChat() {
           res.messages.map((m) => ({
             role: m.role as "user" | "assistant",
             content: m.content,
+            ...(m.sources ? { sources: m.sources } : {}),
           })),
         )
       } catch (err) {
@@ -130,6 +143,16 @@ export function useChat() {
       }
     },
     [stop],
+  )
+
+  const renameThread = useCallback(
+    async (threadId: string, title: string) => {
+      await api.patch(`/api/threads/${threadId}`, { title })
+      setThreads((prev) =>
+        prev.map((t) => (t.id === threadId ? { ...t, title } : t)),
+      )
+    },
+    [],
   )
 
   const deleteThread = useCallback(
@@ -174,6 +197,7 @@ export function useChat() {
     savePlan,
     newChat,
     loadThread,
+    renameThread,
     deleteThread,
   }
 }

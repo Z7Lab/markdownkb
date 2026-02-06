@@ -6,9 +6,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronRight, Brain } from "lucide-react";
+import { ChevronRight, Brain, FileText, Copy, Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { FileViewerDialog } from "./file-viewer-dialog";
 
 interface ThinkBlock {
   type: "think" | "text" | "thinking";
@@ -94,6 +96,14 @@ export const MessageBubble = memo(function MessageBubble({
   showDiagnostics?: boolean;
 }) {
   const isUser = message.role === "user";
+  const [viewingFile, setViewingFile] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(message.content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
 
   const blocks = useMemo(
     () => (!isUser ? parseThinkBlocks(message.content) : []),
@@ -101,6 +111,7 @@ export const MessageBubble = memo(function MessageBubble({
   );
 
   const hasThink = blocks.some((b) => b.type !== "text");
+  const sources = message.sources;
 
   return (
     <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
@@ -159,7 +170,45 @@ export const MessageBubble = memo(function MessageBubble({
             </ReactMarkdown>
           </div>
         )}
+        {(!isUser && (message.content || (sources && sources.length > 0))) && (
+          <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-foreground/10">
+            {sources && sources.length > 0 && (
+              <>
+                <span className="text-xs text-muted-foreground">
+                  Sources:
+                </span>
+                {sources.map((src) => (
+                  <button
+                    key={src}
+                    type="button"
+                    onClick={() => setViewingFile(src)}
+                    className="inline-flex items-center gap-1 text-xs bg-background/60 hover:bg-background px-2 py-0.5 rounded border border-border hover:border-primary/50 transition-colors cursor-pointer"
+                  >
+                    <FileText className="h-3 w-3 shrink-0" />
+                    <span className="truncate max-w-[200px]">
+                      {src.split("/").pop()}
+                    </span>
+                  </button>
+                ))}
+              </>
+            )}
+            <div className="flex-1" />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+              onClick={handleCopy}
+            >
+              {copied ? (
+                <Check className="h-3.5 w-3.5" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          </div>
+        )}
       </div>
+      <FileViewerDialog path={viewingFile} onClose={() => setViewingFile(null)} />
     </div>
   );
 });
