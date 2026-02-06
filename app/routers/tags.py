@@ -1,19 +1,17 @@
 """Tag generation API endpoints (optional MCP feature)."""
 
 import logging
-from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.config import Settings
 from app.deps import get_retriever, get_settings
-from app.mcp.tag_llm import (
+from app.mcp.tag_generator import (
+    apply_tags_to_file,
     auto_tag_file_interactive,
     bulk_tag_directory,
-    generate_tags_with_llm,
 )
-from app.mcp.tag_generator import apply_tags_to_file
 from app.rag.retriever import Retriever
 from app.ratelimit import LLM, STANDARD, limiter
 
@@ -72,7 +70,6 @@ def check_feature_enabled(settings: Settings = Depends(get_settings)):
             status_code=403,
             detail="Tag generation feature is disabled. Enable 'mcp_tag_generator' in settings.yaml"
         )
-    return None
 
 
 @router.post("/generate")

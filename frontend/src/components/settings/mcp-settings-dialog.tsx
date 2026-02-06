@@ -169,6 +169,19 @@ export function McpSettingsDialog({
               onCheckedChange={(checked) => updateField("merge_with_existing", checked)}
             />
           </div>
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="create_backup">Create Backup</Label>
+              <p className="text-xs text-muted-foreground">
+                Create backup before modifying files
+              </p>
+            </div>
+            <Switch
+              id="create_backup"
+              checked={config.create_backup as boolean !== false}
+              onCheckedChange={(checked) => updateField("create_backup", checked)}
+            />
+          </div>
           <div className="space-y-2">
             <Label htmlFor="max_tags">Maximum Tags</Label>
             <Input

@@ -1,0 +1,9 @@
+# MCP Tag Generator Tool Configuration
+# AI-powered automatic tag generation for markdown files
+
+auto_apply: false  # Preview only by default, require approval
+use_similar_docs: true  # Use similar documents for tag suggestions
+merge_with_existing: true  # Merge with existing tags instead of replacing
+create_backup: true  # Create backup before modifying files
+max_tags: 7  # Maximum number of tags to generate
+content_preview_length: 1000  # Characters of content to send to LLM

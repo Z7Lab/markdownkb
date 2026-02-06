@@ -4,14 +4,16 @@ import logging
 from pathlib import Path
 
 from app.config import Settings
-from app.mcp.tag_generator import (
+from app.rag.llm import get_completion
+from app.rag.retriever import Retriever
+
+from .generator import (
+    apply_tags_to_file,
     get_existing_tags,
     get_similar_document_tags,
     preview_frontmatter_changes,
     read_markdown_with_frontmatter,
 )
-from app.rag.llm import get_completion
-from app.rag.retriever import Retriever
 
 logger = logging.getLogger(__name__)
 
