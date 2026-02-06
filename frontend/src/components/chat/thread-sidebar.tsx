@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Separator } from "@/components/ui/separator";
 import { Plus, Trash2 } from "lucide-react";
 import type { Thread } from "@/lib/types";
@@ -30,6 +32,8 @@ export function ThreadSidebar({
   onLoadThread: (id: string) => void;
   onDeleteThread: (id: string) => void;
 }) {
+  const [pendingDelete, setPendingDelete] = useState<Thread | null>(null);
+
   return (
     <div className="w-90 shrink-0 border-r flex flex-col min-h-0 overflow-hidden bg-muted/30">
       <div className="p-3 shrink-0">
@@ -50,14 +54,15 @@ export function ThreadSidebar({
             <div
               key={thread.id}
               className={cn(
-                "flex items-center gap-2 rounded-md px-3 py-2 text-sm cursor-pointer hover:bg-accent border border-orange-400",
-                activeThreadId === thread.id && "bg-accent",
+                "flex items-center gap-2 rounded-md px-3 py-2 text-sm cursor-pointer hover:bg-accent",
+                activeThreadId === thread.id &&
+                  "bg-accent border-l-2 border-l-primary",
               )}
               onClick={() => onLoadThread(thread.id)}
             >
               <div className="flex-1 min-w-0 overflow-hidden">
                 <p
-                  className="truncate font-medium bg-purple-500/20"
+                  className="truncate font-medium"
                   title={thread.title || "New chat"}
                 >
                   {thread.title || "New chat"}
@@ -72,7 +77,7 @@ export function ThreadSidebar({
                 className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onDeleteThread(thread.id);
+                  setPendingDelete(thread);
                 }}
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -86,6 +91,17 @@ export function ThreadSidebar({
           )}
         </div>
       </div>
+      <ConfirmDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null); }}
+        title="Delete conversation?"
+        description={`This will permanently delete "${pendingDelete?.title || "New chat"}".`}
+        confirmLabel="Delete"
+        onConfirm={() => {
+          if (pendingDelete) onDeleteThread(pendingDelete.id);
+          setPendingDelete(null);
+        }}
+      />
     </div>
   );
 }

@@ -9,6 +9,7 @@ export function useChat() {
   const [threads, setThreads] = useState<Thread[]>([])
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null)
   const controllerRef = useRef<AbortController | null>(null)
+  const loadIdRef = useRef(0)
 
   const refreshThreads = useCallback(async () => {
     try {
@@ -105,19 +106,26 @@ export function useChat() {
 
   const loadThread = useCallback(
     async (threadId: string) => {
+      console.log(`[mdkb] Loading thread ${threadId}`)
       stop()
       setActiveThreadId(threadId)
+      const currentLoad = ++loadIdRef.current
       try {
         const res = await api.get<{
           messages: Array<{ role: string; content: string }>
         }>(`/api/threads/${threadId}/messages`)
+        // Guard against race: only apply if this is still the latest load
+        if (currentLoad !== loadIdRef.current) return
+        console.log(`[mdkb] Thread ${threadId}: ${res.messages.length} messages`)
         setMessages(
           res.messages.map((m) => ({
             role: m.role as "user" | "assistant",
             content: m.content,
           })),
         )
-      } catch {
+      } catch (err) {
+        if (currentLoad !== loadIdRef.current) return
+        console.error("[mdkb] Failed to load thread messages:", err)
         setMessages([])
       }
     },
