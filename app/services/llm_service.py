@@ -108,7 +108,6 @@ def test_ollama(api_base: str) -> str:
 
 def test_api_provider(model: str, api_base: str) -> str:
     """Test connectivity to an API-based LLM provider."""
-    litellm.drop_params = True
     kwargs = {
         "model": model,
         "messages": [{"role": "user", "content": "Say OK"}],
@@ -170,8 +169,8 @@ def get_model_capabilities(model: str, api_base: str = "") -> dict:
             "litellm_provider": info.get("litellm_provider", ""),
             "mode": info.get("mode", ""),
         }
-    except Exception:
-        pass
+    except (KeyError, ValueError, AttributeError) as e:
+        logger.debug("Could not fetch model info for %s: %s", model, e)
 
     # For Ollama, query the Ollama API for extra details
     if "ollama" in model.lower() and api_base:
@@ -209,7 +208,6 @@ def stream_test_prompt(
     max_tokens: int,
 ):
     """Stream a raw prompt to the model, yielding (event, data) tuples."""
-    litellm.drop_params = True
     kwargs: dict = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
@@ -225,7 +223,11 @@ def stream_test_prompt(
 
     try:
         response = litellm.completion(**kwargs)
-    except Exception as e:
+    except (
+        litellm.APIError, litellm.APIConnectionError,
+        litellm.Timeout, litellm.AuthenticationError,
+        RuntimeError, OSError, ValueError,
+    ) as e:
         yield "error", {"message": str(e)}
         return
 

@@ -1,6 +1,7 @@
 """Safe terminal command execution with allowlist-based security."""
 
 import logging
+import shlex
 import subprocess
 from dataclasses import dataclass
 
@@ -11,7 +12,6 @@ BLOCKED_COMMANDS = {
     "rm", "rmdir", "mkfs", "dd", "format",
     "shutdown", "reboot", "halt", "poweroff",
     "kill", "killall", "pkill",
-    "> /dev/sda", "chmod -R 777 /",
 }
 
 # Only allow these command prefixes by default
@@ -23,6 +23,9 @@ ALLOWED_PREFIXES = {
     "mkdir", "touch", "cp",
     "docker", "docker-compose",
 }
+
+# Shell metacharacters that indicate injection attempts
+_SHELL_METACHARACTERS = set("|;&$`(){}!><\n")
 
 
 @dataclass
@@ -55,16 +58,26 @@ class CommandResult:
 
 def is_safe_command(command: str) -> tuple[bool, str]:
     """Check whether a command is safe to execute against the allowlist."""
-    cmd_lower = command.strip().lower()
+    cmd_stripped = command.strip()
 
-    for blocked in BLOCKED_COMMANDS:
-        if blocked in cmd_lower:
-            return False, f"Blocked command detected: {blocked}"
+    # Reject commands containing shell metacharacters
+    for char in _SHELL_METACHARACTERS:
+        if char in cmd_stripped:
+            return False, f"Shell metacharacter '{char}' not allowed"
 
-    # Check if the command starts with an allowed prefix
-    first_word = cmd_lower.split()[0] if cmd_lower.split() else ""
-    # Strip path prefix (e.g., /usr/bin/ls -> ls)
-    first_word = first_word.rsplit("/", 1)[-1]
+    try:
+        parts = shlex.split(cmd_stripped)
+    except ValueError as e:
+        return False, f"Invalid command syntax: {e}"
+
+    if not parts:
+        return False, "Empty command"
+
+    # Extract the base command name (strip path prefix)
+    first_word = parts[0].rsplit("/", 1)[-1].lower()
+
+    if first_word in BLOCKED_COMMANDS:
+        return False, f"Blocked command: {first_word}"
 
     if first_word not in ALLOWED_PREFIXES:
         return False, (f"Command '{first_word}' not in allowed list. "
@@ -74,24 +87,24 @@ def is_safe_command(command: str) -> tuple[bool, str]:
 
 
 def execute_command(command: str, cwd: str | None = None,
-                    timeout: int = 30, force: bool = False) -> CommandResult:
-    """Execute a shell command with safety checks and timeout."""
-    if not force:
-        safe, reason = is_safe_command(command)
-        if not safe:
-            return CommandResult(
-                command=command,
-                stdout="",
-                stderr=f"Command blocked: {reason}",
-                return_code=-1,
-            )
+                    timeout: int = 30) -> CommandResult:
+    """Execute a terminal command with safety checks and timeout."""
+    safe, reason = is_safe_command(command)
+    if not safe:
+        return CommandResult(
+            command=command,
+            stdout="",
+            stderr=f"Command blocked: {reason}",
+            return_code=-1,
+        )
 
     logger.info("Executing: %s", command)
 
     try:
+        args = shlex.split(command)
         result = subprocess.run(
-            command,
-            shell=True,
+            args,
+            shell=False,
             cwd=cwd,
             capture_output=True,
             text=True,

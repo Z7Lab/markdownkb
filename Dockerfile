@@ -15,8 +15,6 @@ COPY config/ ./config/
 RUN mkdir -p /app/data /app/docs /app/skills
 
 ENV PYTHONUNBUFFERED=1
-ENV GRADIO_SERVER_NAME=0.0.0.0
-ENV GRADIO_SERVER_PORT=9713
 
 EXPOSE 9713
 

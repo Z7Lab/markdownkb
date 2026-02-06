@@ -7,8 +7,6 @@ import litellm
 
 from app.config import Settings
 
-litellm.drop_params = True
-
 logger = logging.getLogger(__name__)
 
 

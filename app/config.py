@@ -1,6 +1,7 @@
 """Application configuration loaded from settings.yaml."""
 
 import os
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +35,7 @@ class Settings:
     """Singleton settings manager backed by YAML config file."""
 
     _instance: "Settings | None" = None
+    _class_lock = threading.Lock()
 
     def __init__(self, config_path: str | Path | None = None):
         path = Path(config_path) if config_path else _DEFAULT_CONFIG_PATH
@@ -45,27 +47,31 @@ class Settings:
         self._data = _resolve_env_recursive(self._data)
         self._path = path
         self._project_root = path.resolve().parent.parent
+        self._lock = threading.Lock()
 
     @classmethod
     def get(cls, config_path: str | Path | None = None) -> "Settings":
         """Return the singleton instance, creating it if needed."""
-        if cls._instance is None:
-            cls._instance = cls(config_path)
-        return cls._instance
+        with cls._class_lock:
+            if cls._instance is None:
+                cls._instance = cls(config_path)
+            return cls._instance
 
     @classmethod
     def reset(cls):
         """Reset the singleton for testing or reconfiguration."""
-        cls._instance = None
+        with cls._class_lock:
+            cls._instance = None
 
     def save(self):
         """Write current configuration back to the YAML file."""
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self._path, "w", encoding="utf-8") as f:
-            yaml.dump(
-                self._data, f,
-                default_flow_style=False, sort_keys=False,
-            )
+        with self._lock:
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self._path, "w", encoding="utf-8") as f:
+                yaml.dump(
+                    self._data, f,
+                    default_flow_style=False, sort_keys=False,
+                )
 
     def _resolve_path(self, p: str) -> str:
         """Resolve a relative path against the project root."""
@@ -230,7 +236,7 @@ class Settings:
     @property
     def server_host(self) -> str:
         """Return the server bind host address."""
-        return self._data.get("server", {}).get("host", "0.0.0.0")
+        return self._data.get("server", {}).get("host", "127.0.0.1")
 
     @property
     def server_port(self) -> int:

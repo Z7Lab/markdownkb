@@ -3,6 +3,7 @@
 import json
 import logging
 import sqlite3
+import threading
 import uuid
 from pathlib import Path
 
@@ -48,6 +49,7 @@ class ChatDB:
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA foreign_keys=ON")
         self._conn.executescript(_CREATE_SQL)
+        self._lock = threading.Lock()
         self._run_migrations()
         self._conn.commit()
         logger.info("ChatDB opened: %s", db_path)
@@ -67,94 +69,105 @@ class ChatDB:
             except sqlite3.OperationalError:
                 # Column/table already exists (fresh DB created with latest schema)
                 logger.debug("Migration %d skipped (already applied): %s", version, description)
-        self._conn.execute(f"PRAGMA user_version = {target}")
+        # PRAGMA statements don't support parameterized queries in SQLite;
+        # target is derived from len(_MIGRATIONS) (code-controlled int), not user input.
+        self._conn.execute(f"PRAGMA user_version = {int(target)}")
         self._conn.commit()
 
     def close(self):
         """Close the database connection."""
-        self._conn.close()
+        with self._lock:
+            self._conn.close()
 
     # --- Threads ---
 
     def create_thread(self, title: str = "") -> str:
         """Create a new chat thread and return its ID."""
         thread_id = uuid.uuid4().hex[:12]
-        self._conn.execute(
-            "INSERT INTO threads (id, title) VALUES (?, ?)",
-            (thread_id, title),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO threads (id, title) VALUES (?, ?)",
+                (thread_id, title),
+            )
+            self._conn.commit()
         return thread_id
 
     def list_threads(self) -> list[dict]:
         """List all chat threads ordered by most recently updated."""
-        rows = self._conn.execute(
-            "SELECT * FROM threads ORDER BY updated_at DESC",
-        ).fetchall()
-        return [dict(r) for r in rows]
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM threads ORDER BY updated_at DESC",
+            ).fetchall()
+            return [dict(r) for r in rows]
 
     def get_thread(self, thread_id: str) -> dict | None:
         """Get a specific thread by ID."""
-        row = self._conn.execute(
-            "SELECT * FROM threads WHERE id = ?",
-            (thread_id,),
-        ).fetchone()
-        return dict(row) if row else None
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM threads WHERE id = ?",
+                (thread_id,),
+            ).fetchone()
+            return dict(row) if row else None
 
     def rename_thread(self, thread_id: str, title: str):
         """Rename a thread and update its timestamp."""
-        self._conn.execute(
-            "UPDATE threads SET title = ?, updated_at = datetime('now') WHERE id = ?",
-            (title, thread_id),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                "UPDATE threads SET title = ?, updated_at = datetime('now') WHERE id = ?",
+                (title, thread_id),
+            )
+            self._conn.commit()
 
     def delete_thread(self, thread_id: str):
         """Delete a thread and all its messages."""
-        self._conn.execute("DELETE FROM messages WHERE thread_id = ?", (thread_id,))
-        self._conn.execute("DELETE FROM threads WHERE id = ?", (thread_id,))
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute("DELETE FROM messages WHERE thread_id = ?", (thread_id,))
+            self._conn.execute("DELETE FROM threads WHERE id = ?", (thread_id,))
+            self._conn.commit()
 
     # --- Messages ---
 
     def get_messages(self, thread_id: str) -> list[dict]:
         """Get all messages for a thread in chronological order."""
-        rows = self._conn.execute(
-            "SELECT * FROM messages WHERE thread_id = ? ORDER BY id ASC",
-            (thread_id,),
-        ).fetchall()
-        out = []
-        for r in rows:
-            d = dict(r)
-            raw = d.get("sources")
-            d["sources"] = json.loads(raw) if raw else None
-            out.append(d)
-        return out
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM messages WHERE thread_id = ? ORDER BY id ASC",
+                (thread_id,),
+            ).fetchall()
+            out = []
+            for r in rows:
+                d = dict(r)
+                raw = d.get("sources")
+                d["sources"] = json.loads(raw) if raw else None
+                out.append(d)
+            return out
 
     def add_message(
         self, thread_id: str, role: str, content: str, sources: list[str] | None = None
     ):
         """Add a new message to a thread and update the thread's timestamp."""
         src_json = json.dumps(sources) if sources else None
-        self._conn.execute(
-            "INSERT INTO messages (thread_id, role, content, sources) VALUES (?, ?, ?, ?)",
-            (thread_id, role, content, src_json),
-        )
-        self._conn.execute(
-            "UPDATE threads SET updated_at = datetime('now') WHERE id = ?",
-            (thread_id,),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO messages (thread_id, role, content, sources) VALUES (?, ?, ?, ?)",
+                (thread_id, role, content, src_json),
+            )
+            self._conn.execute(
+                "UPDATE threads SET updated_at = datetime('now') WHERE id = ?",
+                (thread_id,),
+            )
+            self._conn.commit()
 
     def set_sources(self, thread_id: str, message_role: str, sources: list[str]):
         """Update sources on the most recent message of the given role in a thread."""
-        self._conn.execute(
-            """UPDATE messages SET sources = ?
-               WHERE id = (
-                   SELECT id FROM messages
-                   WHERE thread_id = ? AND role = ?
-                   ORDER BY id DESC LIMIT 1
-               )""",
-            (json.dumps(sources), thread_id, message_role),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                """UPDATE messages SET sources = ?
+                   WHERE id = (
+                       SELECT id FROM messages
+                       WHERE thread_id = ? AND role = ?
+                       ORDER BY id DESC LIMIT 1
+                   )""",
+                (json.dumps(sources), thread_id, message_role),
+            )
+            self._conn.commit()

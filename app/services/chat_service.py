@@ -1,6 +1,8 @@
 """Chat business logic: conversation memory, streaming RAG, plan saving."""
 
 import logging
+import re
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Generator
@@ -11,8 +13,6 @@ from app.rag.prompts import QUERY_REWRITE_PROMPT, build_rag_messages
 from app.rag.retriever import Retriever
 
 logger = logging.getLogger(__name__)
-
-import re
 
 MAX_HISTORY = 20
 REPEAT_WINDOW = 150
@@ -28,20 +28,24 @@ class ConversationHistory:
 
     def __init__(self):
         self._history: list[dict] = []
+        self._lock = threading.Lock()
 
     def add(self, role: str, content: str):
         """Append a message and trim if over limit."""
-        self._history.append({"role": role, "content": content})
-        if len(self._history) > MAX_HISTORY * 2:
-            self._history = self._history[-(MAX_HISTORY * 2):]
+        with self._lock:
+            self._history.append({"role": role, "content": content})
+            if len(self._history) > MAX_HISTORY * 2:
+                self._history = self._history[-(MAX_HISTORY * 2):]
 
     def get_history(self) -> list[dict]:
         """Return the recent conversation history."""
-        return list(self._history[-(MAX_HISTORY * 2):])
+        with self._lock:
+            return list(self._history[-(MAX_HISTORY * 2):])
 
     def clear(self):
         """Clear all conversation history."""
-        self._history = []
+        with self._lock:
+            self._history = []
 
 
 conversation_history = ConversationHistory()
@@ -126,7 +130,7 @@ def rewrite_query(message: str, settings: Settings) -> str:
         if rewritten:
             logger.info("Query rewrite: %r -> %r", message[:80], rewritten)
             return rewritten
-    except Exception:
+    except (RuntimeError, OSError, ValueError):
         logger.warning("Query rewrite failed, using original")
     return message
 

@@ -7,10 +7,10 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.config import Settings
 from app.ingestion.indexer import reindex_file, run_index
@@ -44,8 +44,8 @@ logger = logging.getLogger(__name__)
 class SearchRequest(BaseModel):
     """Request model for search API endpoint."""
 
-    query: str
-    top_k: int = 5
+    query: str = Field(..., min_length=1, max_length=10000)
+    top_k: int = Field(5, ge=1, le=50)
     folder: str | None = None
     tag: str | None = None
 
@@ -53,14 +53,14 @@ class SearchRequest(BaseModel):
 class ChatRequest(BaseModel):
     """Request model for chat API endpoint."""
 
-    message: str
+    message: str = Field(..., min_length=1, max_length=50000)
     conversation_history: list[dict] | None = None
 
 
 class StreamChatRequest(BaseModel):
     """Request model for streaming chat API endpoint."""
 
-    message: str
+    message: str = Field(..., min_length=1, max_length=50000)
     thread_id: str | None = None
 
 
@@ -121,7 +121,7 @@ class FeatureToggleRequest(BaseModel):
 class TestPromptRequest(BaseModel):
     """Request model for testing prompt with LLM."""
 
-    prompt: str
+    prompt: str = Field(..., min_length=1, max_length=50000)
     provider: str = ""
     model: str = ""
     api_base: str = ""
@@ -177,8 +177,8 @@ def create_api(
         allow_origins=[
             f"http://localhost:{os.environ.get('FRONTEND_PORT', '9714')}",
         ],
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Accept"],
     )
 
     # ── Health / Stats ───────────────────────────────────
@@ -255,9 +255,10 @@ def create_api(
         try:
             response = get_completion(messages, settings)
         except RuntimeError as e:
+            logger.error("LLM completion failed: %s", e)
             raise HTTPException(
                 status_code=502,
-                detail=str(e),
+                detail="LLM provider request failed",
             ) from e
 
         sources = list(
@@ -267,7 +268,7 @@ def create_api(
         return {"response": response, "sources": sources}
 
     @api.post("/api/chat/stream")
-    def chat_stream(req: StreamChatRequest):
+    def chat_stream(req: StreamChatRequest, request: Request):
         if req.thread_id:
             thread_id = req.thread_id
             title = ""
@@ -286,6 +287,9 @@ def create_api(
                 chatdb=chatdb,
                 thread_id=thread_id,
             ):
+                if request.is_disconnected():
+                    logger.info("Client disconnected during stream")
+                    return
                 new_text = partial[len(last_yielded) :]
                 if new_text:
                     yield _sse("token", {"content": new_text})
@@ -362,7 +366,22 @@ def create_api(
 
     @api.get("/api/file")
     def read_file(path: str):
-        p = Path(path)
+        p = Path(path).resolve()
+        # Validate the path is within a configured source directory
+        allowed = False
+        for source in settings.sources:
+            source_resolved = Path(source).resolve()
+            try:
+                p.relative_to(source_resolved)
+                allowed = True
+                break
+            except ValueError:
+                continue
+        if not allowed:
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied: path is outside configured sources",
+            )
         if not p.exists():
             raise HTTPException(
                 status_code=404,
@@ -375,9 +394,10 @@ def create_api(
             )
             return {"path": str(p), "content": content}
         except OSError as e:
+            logger.error("Failed to read file %s: %s", p, e)
             raise HTTPException(
                 status_code=500,
-                detail=str(e),
+                detail="Failed to read file",
             ) from e
 
     @api.post("/api/files/exclude")
@@ -561,7 +581,7 @@ def create_api(
             )
             with _switch_lock:
                 _switch_status["result"] = result
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError) as e:
             logger.error("Background reindex failed: %s", e)
             with _switch_lock:
                 _switch_status["result"] = f"Error: {e}"
@@ -594,8 +614,9 @@ def create_api(
         try:
             install_model(req.model_id)
             return {"status": "installed"}
-        except Exception as e:
-            raise HTTPException(500, str(e)) from e
+        except (OSError, RuntimeError, ValueError) as e:
+            logger.error("Failed to install embedding model %s: %s", req.model_id, e)
+            raise HTTPException(500, "Failed to install embedding model") from e
 
     @api.put("/api/settings/embedding-models/switch")
     def switch_embedding_model(req: EmbeddingModelRequest):
