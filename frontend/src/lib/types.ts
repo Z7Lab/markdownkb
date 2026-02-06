@@ -23,6 +23,7 @@ export interface SavedSearch {
   query: string
   folder: string | null
   tag: string | null
+  summary: string | null
   created_at: string
 }
 
@@ -61,7 +62,10 @@ export interface AppSettings {
   active_api_base: string
   system_prompt: string
   default_system_prompt: string
+  search_summary_prompt: string
+  default_search_summary_prompt: string
   embedding_model: string
+  intelligent_search_enabled: boolean
 }
 
 export interface EmbeddingModel {

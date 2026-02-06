@@ -100,7 +100,7 @@ export function streamChat(
 export function streamSearchSummary(
   query: string,
   callbacks: SummaryCallbacks,
-  options?: { top_k?: number; folder?: string | null; tag?: string | null },
+  options?: { top_k?: number; folder?: string | null; tag?: string | null; search_id?: string | null },
 ): AbortController {
   const controller = new AbortController()
 
@@ -108,6 +108,7 @@ export function streamSearchSummary(
   if (options?.top_k) body.top_k = options.top_k
   if (options?.folder) body.folder = options.folder
   if (options?.tag) body.tag = options.tag
+  if (options?.search_id) body.search_id = options.search_id
 
   fetch("/api/search/summarize", {
     method: "POST",

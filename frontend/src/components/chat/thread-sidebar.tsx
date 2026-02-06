@@ -6,7 +6,6 @@ import { AppSidebar } from "@/components/ui/app-sidebar";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Pencil, Plus, Trash2 } from "lucide-react";
@@ -68,8 +67,7 @@ export function ThreadSidebar({
         </div>
       }
     >
-      <TooltipProvider delayDuration={400}>
-        <div className="p-3 space-y-1" role="list">
+      <div className="p-3 space-y-1" role="list">
           {threads.map((thread) => (
             <button
               key={thread.id}
@@ -153,8 +151,7 @@ export function ThreadSidebar({
               No conversations yet
             </p>
           )}
-        </div>
-      </TooltipProvider>
+      </div>
       <ConfirmDialog
         open={!!pendingDelete}
         onOpenChange={(open) => { if (!open) setPendingDelete(null); }}

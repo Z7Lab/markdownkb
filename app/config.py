@@ -215,6 +215,33 @@ class Settings:
         """Return the BM25 weight in hybrid search."""
         return self._data.get("retrieval", {}).get("bm25_weight", 0.3)
 
+    @property
+    def intelligent_search_enabled(self) -> bool:
+        """Return whether LLM-powered query enhancement is enabled."""
+        return self._data.get("retrieval", {}).get(
+            "intelligent_search", {}
+        ).get("enabled", False)
+
+    @intelligent_search_enabled.setter
+    def intelligent_search_enabled(self, value: bool):
+        """Enable or disable intelligent search."""
+        retrieval = self._data.setdefault("retrieval", {})
+        retrieval.setdefault("intelligent_search", {})["enabled"] = value
+
+    @property
+    def intelligent_search_extract_keywords(self) -> bool:
+        """Return whether to extract keywords in intelligent search."""
+        return self._data.get("retrieval", {}).get(
+            "intelligent_search", {}
+        ).get("extract_keywords", True)
+
+    @property
+    def intelligent_search_expand_acronyms(self) -> bool:
+        """Return whether to expand acronyms in intelligent search."""
+        return self._data.get("retrieval", {}).get(
+            "intelligent_search", {}
+        ).get("expand_acronyms", True)
+
     # --- Storage ---
     @property
     def data_directory(self) -> str:
@@ -261,8 +288,8 @@ class Settings:
             try:
                 with open(tool_config_file, encoding="utf-8") as f:
                     config = yaml.safe_load(f) or {}
-            except Exception:
-                pass
+            except (OSError, yaml.YAMLError):
+                pass  # Use empty config if file can't be read or parsed
 
         # Overlay user overrides from config/mcp/{tool_name}.yaml
         user_config_file = self._mcp_dir / f"{tool_name}.yaml"
@@ -271,8 +298,8 @@ class Settings:
                 with open(user_config_file, encoding="utf-8") as f:
                     user_config = yaml.safe_load(f) or {}
                 config.update(user_config)
-            except Exception:
-                pass
+            except (OSError, yaml.YAMLError):
+                pass  # Use default config if user override can't be read
 
         config = _resolve_env_recursive(config)
         self._mcp_cache[tool_name] = config
@@ -360,6 +387,15 @@ class Settings:
         "- Use markdown formatting in your responses."
     )
 
+    _DEFAULT_SEARCH_SUMMARY_PROMPT = (
+        "You are a knowledge base search assistant. "
+        "Provide a focused, concise summary that directly answers "
+        "the user's query based on the provided context. "
+        "Cite sources using (Source: filename) notation. "
+        "If the context doesn't contain enough information, say so clearly. "
+        "Keep it brief: 1-2 short paragraphs maximum. Be direct and to the point."
+    )
+
     @property
     def system_prompt(self) -> str:
         """Return the RAG system prompt."""
@@ -376,6 +412,23 @@ class Settings:
     def default_system_prompt(self) -> str:
         """Return the built-in default system prompt."""
         return self._DEFAULT_SYSTEM_PROMPT
+
+    @property
+    def search_summary_prompt(self) -> str:
+        """Return the search summary prompt."""
+        return self._data.get("prompts", {}).get(
+            "search_summary_prompt", self._DEFAULT_SEARCH_SUMMARY_PROMPT
+        )
+
+    @search_summary_prompt.setter
+    def search_summary_prompt(self, value: str):
+        """Set the search summary prompt."""
+        self._data.setdefault("prompts", {})["search_summary_prompt"] = value
+
+    @property
+    def default_search_summary_prompt(self) -> str:
+        """Return the built-in default search summary prompt."""
+        return self._DEFAULT_SEARCH_SUMMARY_PROMPT
 
     # --- Raw access ---
     @property

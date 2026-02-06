@@ -16,6 +16,7 @@ from app.schemas import (
     ProviderSettingsRequest,
     RefreshModelsRequest,
     RemoveSourceRequest,
+    SearchSummaryPromptRequest,
     SystemPromptRequest,
     TestConnectionRequest,
     TestPromptRequest,
@@ -118,7 +119,10 @@ def get_settings_endpoint(request: Request, settings: Settings = Depends(get_set
         "active_api_base": active_cfg.get("api_base", ""),
         "system_prompt": settings.system_prompt,
         "default_system_prompt": settings.default_system_prompt,
+        "search_summary_prompt": settings.search_summary_prompt,
+        "default_search_summary_prompt": settings.default_search_summary_prompt,
         "embedding_model": settings.embedding_model,
+        "intelligent_search_enabled": settings.intelligent_search_enabled,
     }
 
 
@@ -230,6 +234,32 @@ def update_system_prompt(
     settings: Settings = Depends(get_settings),
 ):
     settings.system_prompt = req.prompt
+    settings.save()
+    return {"status": "saved"}
+
+
+@router.put("/settings/intelligent-search")
+@limiter.limit(STANDARD)
+def toggle_intelligent_search(
+    request: Request,
+    req: FeatureToggleRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """Toggle intelligent search (LLM query enhancement)."""
+    settings.intelligent_search_enabled = req.enabled
+    settings.save()
+    return {"status": "saved"}
+
+
+@router.put("/settings/search-summary-prompt")
+@limiter.limit(STANDARD)
+def update_search_summary_prompt(
+    request: Request,
+    req: SearchSummaryPromptRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """Update the search summary prompt."""
+    settings.search_summary_prompt = req.prompt
     settings.save()
     return {"status": "saved"}
 

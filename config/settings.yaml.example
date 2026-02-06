@@ -44,9 +44,13 @@ llm:
 # Semantic search tuning
 retrieval:
   top_k: 5
-  score_threshold: 0.05
-  hybrid_search: true
-  bm25_weight: 0.3
+  score_threshold: 0.3  # Filter weak semantic matches (0.0-1.0, higher = stricter)
+  hybrid_search: true   # Combine vector similarity + BM25 keyword matching
+  bm25_weight: 0.5      # Balance between keywords (0.5) and semantics (0.5)
+  intelligent_search:   # Optional LLM-powered query enhancement
+    enabled: false      # Use LLM to extract keywords, expand acronyms, etc.
+    extract_keywords: true
+    expand_acronyms: true
 
 # Vector store persistence
 storage:

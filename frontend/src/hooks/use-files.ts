@@ -9,7 +9,7 @@ export function useFiles() {
   const [error, setError] = useState<string | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (silent = false) => {
     try {
       setError(null)
       const res = await api.get<PaginatedResponse<TrackedFile>>("/api/files?limit=500")
@@ -18,7 +18,10 @@ export function useFiles() {
     } catch (err) {
       const msg = (err as Error).message
       setError(msg)
-      toast.error(`Failed to load files: ${msg}`)
+      // Only show toast if not silent (i.e., not on initial/retry loads)
+      if (!silent) {
+        toast.error(`Failed to load files: ${msg}`)
+      }
       return []
     }
   }, [])
@@ -45,9 +48,31 @@ export function useFiles() {
     }
   }, [files, refresh])
 
+  // Initial load with retry on failure
   useEffect(() => {
-    refresh()
-  }, [refresh])
+    let retryTimer: ReturnType<typeof setTimeout> | null = null
+    let mounted = true
+    let retryCount = 0
+    const MAX_RETRIES = 10
+
+    const loadWithRetry = async () => {
+      const result = await refresh(true) // silent = true
+
+      // If load failed (empty result) and haven't exceeded max retries, retry in 2 seconds
+      if (mounted && result.length === 0 && retryCount < MAX_RETRIES) {
+        retryCount++
+        retryTimer = setTimeout(loadWithRetry, 2000)
+      }
+    }
+
+    loadWithRetry()
+
+    return () => {
+      mounted = false
+      if (retryTimer) clearTimeout(retryTimer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only run on mount
 
   const toggleRag = useCallback(async (path: string, include: boolean) => {
     setLoading(true)

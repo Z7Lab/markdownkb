@@ -1,12 +1,14 @@
 """Prompt templates for RAG, planning, skill review, and search summary."""
 
+# Note: SEARCH_SUMMARY_SYSTEM is now loaded from config.search_summary_prompt
+# (kept as fallback constant for backward compatibility)
 SEARCH_SUMMARY_SYSTEM = (
     "You are a knowledge base search assistant. "
-    "Provide a concise, well-structured summary that directly answers "
+    "Provide a focused, concise summary that directly answers "
     "the user's query based on the provided context. "
     "Cite sources using (Source: filename) notation. "
     "If the context doesn't contain enough information, say so clearly. "
-    "Keep the summary to 2-4 paragraphs."
+    "Keep it brief: 1-2 short paragraphs maximum. Be direct and to the point."
 )
 
 SEARCH_SUMMARY_USER = """Context from knowledge base:

@@ -48,7 +48,7 @@ export function useSearch() {
     setSummarySources([])
 
     try {
-      const res = await api.post<{ results: SearchResult[]; search_id: string }>("/api/search", {
+      const res = await api.post<{ results: SearchResult[]; search_id: string; llm_offline?: boolean }>("/api/search", {
         query: query.trim(),
         folder: folder || undefined,
         tag: tag || undefined,
@@ -56,6 +56,11 @@ export function useSearch() {
       setResults(res.results)
       setActiveSearchId(res.search_id)
       refreshSearches()
+
+      // Notify user if intelligent search fell back due to offline LLM
+      if (res.llm_offline) {
+        toast.warning("Intelligent search unavailable (LLM offline), using standard search")
+      }
 
       // Start AI summary streaming
       setIsSummarizing(true)
@@ -70,7 +75,7 @@ export function useSearch() {
             console.error("Summary error:", err)
           },
         },
-        { folder, tag },
+        { folder, tag, search_id: res.search_id },
       )
     } catch (err) {
       const msg = (err as Error).message
@@ -89,11 +94,48 @@ export function useSearch() {
     } catch { /* ignore */ }
   }, [activeSearchId])
 
-  const loadSearch = useCallback((saved: SavedSearch) => {
+  const loadSearch = useCallback(async (saved: SavedSearch) => {
     setQuery(saved.query)
     setFolder(saved.folder)
     setTag(saved.tag)
     setActiveSearchId(saved.id)
+
+    // Always fetch results to display them
+    setLoading(true)
+    try {
+      const res = await api.post<{ results: SearchResult[]; search_id: string; llm_offline?: boolean }>("/api/search", {
+        query: saved.query,
+        folder: saved.folder || undefined,
+        tag: saved.tag || undefined,
+      })
+      setResults(res.results)
+
+      // Use cached summary if available, otherwise generate it
+      if (saved.summary) {
+        setSummary(saved.summary)
+      } else {
+        // Generate summary for this search
+        setIsSummarizing(true)
+        summaryControllerRef.current = streamSearchSummary(
+          saved.query,
+          {
+            onToken: (delta) => setSummary((prev) => prev + delta),
+            onSources: (sources) => setSummarySources(sources),
+            onDone: () => setIsSummarizing(false),
+            onError: (err) => {
+              setIsSummarizing(false)
+              console.error("Summary error:", err)
+            },
+          },
+          { folder: saved.folder, tag: saved.tag, search_id: saved.id },
+        )
+      }
+    } catch (err) {
+      console.error("Failed to load search:", err)
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   const stopSummary = useCallback(() => {

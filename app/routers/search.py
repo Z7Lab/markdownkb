@@ -17,6 +17,7 @@ from app.rag.retriever import Retriever
 from app.ratelimit import HEAVY, LLM, STANDARD, limiter
 from app.schemas import SearchRequest, SummarizeRequest
 from app.services.chat_service import _strip_thinking, extract_unique_sources
+from app.services.query_service import build_enhanced_search_query, enhance_query
 from app.storage.searchdb import SearchDB
 from app.utils import sse
 
@@ -32,9 +33,24 @@ def search(
     req: SearchRequest,
     retriever: Retriever = Depends(get_retriever),
     searchdb: SearchDB = Depends(get_searchdb),
+    settings: Settings = Depends(get_settings),
 ):
+    search_query = req.query
+    llm_offline = False
+
+    # Optionally enhance query with LLM
+    if settings.intelligent_search_enabled:
+        enhanced = enhance_query(req.query, settings)
+        if enhanced.error:
+            logger.warning("Intelligent search failed, using original query: %s", enhanced.error)
+            llm_offline = True
+        else:
+            # Build enhanced query from LLM extraction
+            search_query = build_enhanced_search_query(enhanced)
+            logger.info("Enhanced query: %s -> %s", req.query, search_query)
+
     results = retriever.search(
-        req.query,
+        search_query,
         top_k=req.top_k,
         folder_filter=req.folder,
         tag_filter=req.tag,
@@ -53,6 +69,7 @@ def search(
             for r in results
         ],
         "search_id": search_id,
+        "llm_offline": llm_offline,
     }
 
 
@@ -86,6 +103,7 @@ def summarize_search(
     request: Request,
     req: SummarizeRequest,
     retriever: Retriever = Depends(get_retriever),
+    searchdb: SearchDB = Depends(get_searchdb),
     settings: Settings = Depends(get_settings),
 ):
     results = retriever.search(
@@ -107,7 +125,7 @@ def summarize_search(
     sources = extract_unique_sources(metadatas)
 
     messages = [
-        {"role": "system", "content": SEARCH_SUMMARY_SYSTEM},
+        {"role": "system", "content": settings.search_summary_prompt},
         {"role": "user", "content": SEARCH_SUMMARY_USER.format(
             context=context, query=req.query,
         )},
@@ -130,6 +148,11 @@ def summarize_search(
         except RuntimeError as e:
             logger.error("Summary LLM error: %s", e)
             yield sse("token", {"content": f"\n\nError: {e}"})
+
+        # Save summary if search_id provided
+        if req.search_id and last_yielded:
+            searchdb.update_summary(req.search_id, last_yielded)
+            logger.info("Saved summary for search %s", req.search_id)
 
         yield sse("done", {})
 
@@ -162,3 +185,52 @@ def get_tags(
     total = len(all_tags)
     items = all_tags[offset:offset + limit]
     return {"items": items, "total": total, "offset": offset, "limit": limit}
+
+
+@router.post("/search/enhance-query")
+@limiter.limit(LLM)
+def enhance_query_endpoint(
+    request: Request,
+    req: SearchRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """
+    Enhance a search query using LLM to extract keywords and expand acronyms.
+
+    This endpoint can be used independently to enhance any query before searching.
+    Returns enhanced query details or falls back gracefully if LLM is offline.
+    """
+    if not settings.intelligent_search_enabled:
+        return {
+            "enhanced": False,
+            "original_query": req.query,
+            "enhanced_query": req.query,
+            "keywords": [],
+            "expanded_terms": {},
+            "context": "",
+        }
+
+    enhanced = enhance_query(req.query, settings)
+
+    if enhanced.error:
+        # LLM offline - return original query
+        return {
+            "enhanced": False,
+            "original_query": req.query,
+            "enhanced_query": req.query,
+            "keywords": [],
+            "expanded_terms": {},
+            "context": "",
+            "error": enhanced.error,
+        }
+
+    enhanced_query = build_enhanced_search_query(enhanced)
+
+    return {
+        "enhanced": True,
+        "original_query": enhanced.original,
+        "enhanced_query": enhanced_query,
+        "keywords": enhanced.keywords,
+        "expanded_terms": enhanced.expanded_terms,
+        "context": enhanced.context,
+    }

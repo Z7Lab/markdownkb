@@ -8,6 +8,7 @@ import {
   FolderCog,
   Layers,
   MessageSquareText,
+  Search,
   ToggleRight,
 } from "lucide-react"
 import { LlmConfig } from "./llm-config"
@@ -15,9 +16,11 @@ import { SourcesPanel } from "./sources-panel"
 import { FeaturesPanel } from "./features-panel"
 import { SystemPromptPanel } from "./system-prompt-panel"
 import { EmbeddingPanel } from "./embedding-panel"
+import { SearchPanel } from "./search-panel"
 
 const sections = [
   { id: "llm", label: "LLM Provider", icon: Cpu },
+  { id: "search", label: "Search", icon: Search },
   { id: "sources", label: "Sources", icon: FolderCog },
   { id: "embeddings", label: "Embeddings", icon: Layers },
   { id: "features", label: "Features", icon: ToggleRight },
@@ -48,8 +51,10 @@ export function SettingsTab() {
     reindex,
     cancelIndex,
     saveSystemPrompt,
+    saveSearchSummaryPrompt,
     installEmbeddingModel,
     switchEmbeddingModel,
+    toggleIntelligentSearch,
   } = useSettings()
 
   if (!settings) {
@@ -91,6 +96,15 @@ export function SettingsTab() {
                 onPingModel={pingModel}
                 onRefreshModels={refreshModels}
                 onFetchModelInfo={fetchModelInfo}
+              />
+            )}
+            {activeSection === "search" && (
+              <SearchPanel
+                intelligentSearchEnabled={settings.intelligent_search_enabled}
+                searchSummaryPrompt={settings.search_summary_prompt}
+                defaultSearchSummaryPrompt={settings.default_search_summary_prompt}
+                onToggle={toggleIntelligentSearch}
+                onSavePrompt={saveSearchSummaryPrompt}
               />
             )}
             {activeSection === "sources" && (

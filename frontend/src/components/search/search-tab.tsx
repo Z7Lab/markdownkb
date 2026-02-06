@@ -13,12 +13,12 @@ import { useState, type KeyboardEvent } from "react"
 
 // ASCII art banner
 const ASCII_BANNER = `
-███╗   ███╗██████╗ ██╗  ██╗██████╗     ██████╗ ██████╗  ██████╗ ██╗    ██╗███████╗███████╗██████╗
-████╗ ████║██╔══██╗██║ ██╔╝██╔══██╗    ██╔══██╗██╔══██╗██╔═══██╗██║    ██║██╔════╝██╔════╝██╔══██╗
-██╔████╔██║██║  ██║█████╔╝ ██████╔╝    ██████╔╝██████╔╝██║   ██║██║ █╗ ██║███████╗█████╗  ██████╔╝
-██║╚██╔╝██║██║  ██║██╔═██╗ ██╔══██╗    ██╔══██╗██╔══██╗██║   ██║██║███╗██║╚════██║██╔══╝  ██╔══██╗
-██║ ╚═╝ ██║██████╔╝██║  ██╗██████╔╝    ██████╔╝██║  ██║╚██████╔╝╚███╔███╔╝███████║███████╗██║  ██║
-╚═╝     ╚═╝╚═════╝ ╚═╝  ╚═╝╚═════╝     ╚═════╝ ╚═╝  ╚═╝ ╚═════╝  ╚══╝╚══╝ ╚══════╝╚══════╝╚═╝  ╚═╝
+███╗   ███╗██████╗ ██╗  ██╗██████╗     ███████╗███████╗ █████╗ ██████╗  ██████╗██╗  ██╗
+████╗ ████║██╔══██╗██║ ██╔╝██╔══██╗    ██╔════╝██╔════╝██╔══██╗██╔══██╗██╔════╝██║  ██║
+██╔████╔██║██║  ██║█████╔╝ ██████╔╝    ███████╗█████╗  ███████║██████╔╝██║     ███████║
+██║╚██╔╝██║██║  ██║██╔═██╗ ██╔══██╗    ╚════██║██╔══╝  ██╔══██║██╔══██╗██║     ██╔══██║
+██║ ╚═╝ ██║██████╔╝██║  ██╗██████╔╝    ███████║███████╗██║  ██║██║  ██║╚██████╗██║  ██║
+╚═╝     ╚═╝╚═════╝ ╚═╝  ╚═╝╚═════╝     ╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
 `.trim()
 
 export function SearchTab() {
@@ -36,15 +36,6 @@ export function SearchTab() {
 
   const [viewingPath, setViewingPath] = useState<string | null>(null)
 
-  // When a saved search is loaded, auto-run it
-  const [pendingSearch, setPendingSearch] = useState(false)
-  useEffect(() => {
-    if (pendingSearch && query.trim()) {
-      setPendingSearch(false)
-      search()
-    }
-  }, [pendingSearch, query, search])
-
   function handleKeyDown(e: KeyboardEvent) {
     if (e.key === "Enter") search()
   }
@@ -59,10 +50,7 @@ export function SearchTab() {
         selectedFolder={folder}
         selectedTag={tag}
         onNewSearch={newSearch}
-        onLoadSearch={(saved) => {
-          loadSearch(saved)
-          setPendingSearch(true)
-        }}
+        onLoadSearch={loadSearch}
         onDeleteSearch={deleteSearch}
         onFolderChange={setFolder}
         onTagChange={setTag}

@@ -14,9 +14,14 @@ CREATE TABLE IF NOT EXISTS searches (
     query      TEXT NOT NULL,
     folder     TEXT,
     tag        TEXT,
+    summary    TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 """
+
+_MIGRATIONS: list[tuple[int, str, str]] = [
+    (1, "add summary column to searches", "ALTER TABLE searches ADD COLUMN summary TEXT"),
+]
 
 
 class SearchDB:
@@ -30,8 +35,29 @@ class SearchDB:
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.executescript(_CREATE_SQL)
         self._lock = threading.Lock()
+        self._run_migrations()
         self._conn.commit()
         logger.info("SearchDB opened: %s", db_path)
+
+    def _run_migrations(self):
+        """Apply any pending schema migrations using PRAGMA user_version."""
+        current = self._conn.execute("PRAGMA user_version").fetchone()[0]
+        target = len(_MIGRATIONS)
+        if current >= target:
+            return
+        for version, description, sql in _MIGRATIONS:
+            if version <= current:
+                continue
+            try:
+                self._conn.execute(sql)
+                logger.info("Migration %d applied: %s", version, description)
+            except sqlite3.OperationalError:
+                # Column/table already exists (fresh DB created with latest schema)
+                logger.debug("Migration %d skipped (already applied): %s", version, description)
+        # PRAGMA statements don't support parameterized queries in SQLite;
+        # target is derived from len(_MIGRATIONS) (code-controlled int), not user input.
+        self._conn.execute(f"PRAGMA user_version = {int(target)}")
+        self._conn.commit()
 
     def close(self):
         with self._lock:
@@ -68,6 +94,15 @@ class SearchDB:
                 "SELECT * FROM searches WHERE id = ?", (search_id,)
             ).fetchone()
             return dict(row) if row else None
+
+    def update_summary(self, search_id: str, summary: str):
+        """Save AI-generated summary for a search."""
+        with self._lock:
+            self._conn.execute(
+                "UPDATE searches SET summary = ? WHERE id = ?",
+                (summary, search_id),
+            )
+            self._conn.commit()
 
     def delete_search(self, search_id: str):
         with self._lock:

@@ -38,13 +38,34 @@ function useSettingsInternal() {
     }
   }, [])
 
-  const load = useCallback(async () => {
-    const res = await api.get<AppSettings>("/api/settings")
-    setSettings(res)
+  const load = useCallback(async (): Promise<boolean> => {
+    try {
+      const res = await api.get<AppSettings>("/api/settings")
+      setSettings(res)
+      return true
+    } catch (err) {
+      console.warn("Failed to load settings:", err)
+      return false
+    }
   }, [])
 
+  // Initial load with retry on failure
   useEffect(() => {
-    load()
+    let retryTimer: ReturnType<typeof setTimeout> | null = null
+    let retryCount = 0
+    const MAX_RETRIES = 10
+
+    const loadWithRetry = async () => {
+      const success = await load()
+
+      // If load failed and we haven't exceeded max retries, retry in 2 seconds
+      if (!success && retryCount < MAX_RETRIES) {
+        retryCount++
+        retryTimer = setTimeout(loadWithRetry, 2000)
+      }
+    }
+
+    loadWithRetry()
     loadEmbeddingModels()
     // Check if a background reindex is already running (e.g. page refresh)
     api.get<{
@@ -86,7 +107,12 @@ function useSettingsInternal() {
         }, 1500)
       }
     }).catch(() => { /* ignore */ })
-  }, [load, loadEmbeddingModels])
+
+    return () => {
+      if (retryTimer) clearTimeout(retryTimer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only run on mount
 
   const saveProvider = useCallback(
     async (name: string, model: string, apiBase: string) => {
@@ -146,6 +172,14 @@ function useSettingsInternal() {
   const toggleFeature = useCallback(
     async (name: string, enabled: boolean) => {
       await api.put("/api/settings/features", { name, enabled })
+      await load()
+    },
+    [load],
+  )
+
+  const toggleIntelligentSearch = useCallback(
+    async (enabled: boolean) => {
+      await api.put("/api/settings/intelligent-search", { name: "intelligent_search", enabled })
       await load()
     },
     [load],
@@ -261,6 +295,14 @@ function useSettingsInternal() {
     [load],
   )
 
+  const saveSearchSummaryPrompt = useCallback(
+    async (prompt: string) => {
+      await api.put("/api/settings/search-summary-prompt", { prompt })
+      await load()
+    },
+    [load],
+  )
+
   const installEmbeddingModel = useCallback(
     async (modelId: string) => {
       setEmbeddingStatus(`Installing ${modelId}...`)
@@ -346,6 +388,7 @@ function useSettingsInternal() {
     pingModel,
     fetchModelInfo,
     toggleFeature,
+    toggleIntelligentSearch,
     addSource,
     removeSource,
     addIgnorePattern,
@@ -353,6 +396,7 @@ function useSettingsInternal() {
     reindex,
     cancelIndex,
     saveSystemPrompt,
+    saveSearchSummaryPrompt,
     installEmbeddingModel,
     switchEmbeddingModel,
   }

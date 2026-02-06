@@ -19,7 +19,6 @@ import { SortableTableHead } from "@/components/ui/sortable-table-head"
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { Plus, RefreshCw, Search, Trash2, X } from "lucide-react"
@@ -144,7 +143,6 @@ export function BrowseTab() {
 
         <div className="flex-1 border rounded-md overflow-hidden min-h-0">
           <ScrollArea className="h-full">
-            <TooltipProvider delayDuration={300}>
             <Table>
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
@@ -272,7 +270,6 @@ export function BrowseTab() {
                 )}
               </TableBody>
             </Table>
-            </TooltipProvider>
           </ScrollArea>
         </div>
 

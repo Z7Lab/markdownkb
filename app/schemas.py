@@ -21,6 +21,7 @@ class SummarizeRequest(BaseModel):
     top_k: int = Field(15, ge=1, le=50)
     folder: str | None = None
     tag: str | None = None
+    search_id: str | None = None  # Optional: save summary when provided
 
 
 # -- Chat --
@@ -142,6 +143,12 @@ class ModelInfoRequest(BaseModel):
 
 class SystemPromptRequest(BaseModel):
     """Request model for updating system prompt."""
+
+    prompt: str
+
+
+class SearchSummaryPromptRequest(BaseModel):
+    """Request model for updating search summary prompt."""
 
     prompt: str
 
