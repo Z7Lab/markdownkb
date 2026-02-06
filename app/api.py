@@ -289,6 +289,7 @@ def create_api(
                 metadatas = [r.metadata for r in results]
                 sources = extract_unique_sources(metadatas)
                 if sources:
+                    chatdb.set_sources(thread_id, "assistant", sources)
                     yield _sse("sources", {"sources": sources})
 
             yield _sse("done", {})
@@ -571,7 +572,7 @@ def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 
-def _short_title(message: str, limit: int = 50) -> str:
+def _short_title(message: str, limit: int = 80) -> str:
     """Derive a short thread title from the first user message."""
     text = message.strip().split("\n")[0]
     # Take first sentence if there's punctuation
