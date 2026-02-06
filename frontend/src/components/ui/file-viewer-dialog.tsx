@@ -30,18 +30,33 @@ function parseFrontmatter(raw: string): ParsedContent {
   }
 
   const [, frontmatter, content] = match
-  const tagsMatch = frontmatter.match(/tags:\s*\[(.*?)\]/)
 
-  if (!tagsMatch) {
-    return { tags: [], content }
+  // Try inline array format: tags: [tag1, tag2]
+  const inlineMatch = frontmatter.match(/tags:\s*\[(.*?)\]/)
+  if (inlineMatch) {
+    const tags = inlineMatch[1]
+      .split(',')
+      .map(t => t.trim().replace(/['"]/g, ''))
+      .filter(Boolean)
+    return { tags, content }
   }
 
-  const tags = tagsMatch[1]
-    .split(',')
-    .map(t => t.trim().replace(/['"]/g, ''))
-    .filter(Boolean)
+  // Try YAML list format:
+  // tags:
+  // - tag1
+  // - tag2
+  const listMatch = frontmatter.match(/tags:\s*\n((?:\s*-\s*.+\n?)+)/)
+  if (listMatch) {
+    const tags = listMatch[1]
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.startsWith('-'))
+      .map(line => line.substring(1).trim().replace(/['"]/g, ''))
+      .filter(Boolean)
+    return { tags, content }
+  }
 
-  return { tags, content }
+  return { tags: [], content }
 }
 
 export function FileViewerDialog({
@@ -89,10 +104,7 @@ export function FileViewerDialog({
         create_backup: createBackup,
       })
 
-      // Wait longer to ensure file is fully written to disk
-      await new Promise(resolve => setTimeout(resolve, 500))
-
-      // Reload content
+      // Reload content to reflect changes
       const updated = await api.get<{ content: string }>(
         `/api/file?path=${encodeURIComponent(path)}`
       )
