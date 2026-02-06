@@ -5,6 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { Plus, Trash2 } from "lucide-react";
 import type { Thread } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { ModelPicker } from "./model-picker";
 
 function relativeTime(iso: string): string {
   // SQLite datetime('now') gives "YYYY-MM-DD HH:MM:SS" — need "T" separator for valid ISO
@@ -36,7 +37,8 @@ export function ThreadSidebar({
 
   return (
     <div className="w-90 shrink-0 border-r flex flex-col min-h-0 overflow-hidden bg-muted/30">
-      <div className="p-3 shrink-0">
+      <div className="p-3 shrink-0 space-y-2">
+        <ModelPicker />
         <Button
           onClick={onNewChat}
           variant="outline"
