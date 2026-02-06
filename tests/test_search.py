@@ -9,6 +9,7 @@ async def test_search_returns_results(client):
     assert resp.status_code == 200
     data = resp.json()
     assert "results" in data
+    assert "search_id" in data
     assert len(data["results"]) == 1
     assert data["results"][0]["document"] == "Test document content"
     assert data["results"][0]["score"] == 0.9
@@ -61,3 +62,21 @@ async def test_tags_paginated(client):
     data = resp.json()
     assert "items" in data
     assert data["total"] == 2
+
+
+@pytest.mark.asyncio
+async def test_list_searches(client):
+    resp = await client.get("/api/searches")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "items" in data
+    assert "total" in data
+    assert data["total"] == 1
+    assert data["items"][0]["query"] == "test query"
+
+
+@pytest.mark.asyncio
+async def test_delete_search(client):
+    resp = await client.delete("/api/searches/srch001")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "deleted"

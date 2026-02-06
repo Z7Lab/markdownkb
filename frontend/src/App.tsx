@@ -4,7 +4,7 @@ import { ChatTab } from "@/components/chat/chat-tab"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { SettingsProvider } from "@/hooks/use-settings"
 import { NavigationProvider } from "@/lib/navigation"
-import { MessageSquare, Search, FolderOpen } from "lucide-react"
+import { MessageSquare, Globe, FolderOpen } from "lucide-react"
 
 const SearchTab = lazy(() => import("@/components/search/search-tab").then(m => ({ default: m.SearchTab })))
 const BrowseTab = lazy(() => import("@/components/browse/browse-tab").then(m => ({ default: m.BrowseTab })))
@@ -35,12 +35,12 @@ function App() {
                   Chat
                 </TabsTrigger>
                 <TabsTrigger value="search">
-                  <Search className="h-4 w-4" />
-                  Search
+                  <Globe className="h-4 w-4" />
+                  Browser
                 </TabsTrigger>
                 <TabsTrigger value="browse">
                   <FolderOpen className="h-4 w-4" />
-                  Browse MD
+                  Files
                 </TabsTrigger>
               </TabsList>
             </header>

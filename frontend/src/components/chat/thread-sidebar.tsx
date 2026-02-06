@@ -11,22 +11,8 @@ import {
 } from "@/components/ui/tooltip";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import type { Thread } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, relativeTime } from "@/lib/utils";
 import { ModelPicker } from "./model-picker";
-
-function relativeTime(iso: string): string {
-  const normalized = iso.includes("T") ? iso : `${iso.replace(" ", "T")}Z`;
-  const ms = Date.now() - new Date(normalized).getTime();
-  if (Number.isNaN(ms)) return "";
-  const min = Math.floor(ms / 60000);
-  if (min < 1) return "just now";
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  const d = Math.floor(hr / 24);
-  if (d < 30) return `${d}d ago`;
-  return new Date(normalized).toLocaleDateString();
-}
 
 export function ThreadSidebar({
   threads,

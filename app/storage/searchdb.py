@@ -1,0 +1,80 @@
+"""SQLite persistence for search history."""
+
+import logging
+import sqlite3
+import threading
+import uuid
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+_CREATE_SQL = """
+CREATE TABLE IF NOT EXISTS searches (
+    id         TEXT PRIMARY KEY,
+    query      TEXT NOT NULL,
+    folder     TEXT,
+    tag        TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+"""
+
+
+class SearchDB:
+    """Persists search history in SQLite."""
+
+    def __init__(self, data_dir: str):
+        db_path = Path(data_dir) / "searches.db"
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._conn = sqlite3.connect(str(db_path), check_same_thread=False)
+        self._conn.row_factory = sqlite3.Row
+        self._conn.execute("PRAGMA journal_mode=WAL")
+        self._conn.executescript(_CREATE_SQL)
+        self._lock = threading.Lock()
+        self._conn.commit()
+        logger.info("SearchDB opened: %s", db_path)
+
+    def close(self):
+        with self._lock:
+            self._conn.close()
+
+    def save_search(self, query: str, folder: str | None = None, tag: str | None = None) -> str:
+        search_id = uuid.uuid4().hex[:12]
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO searches (id, query, folder, tag) VALUES (?, ?, ?, ?)",
+                (search_id, query, folder, tag),
+            )
+            self._conn.commit()
+        return search_id
+
+    def list_searches(self, *, offset: int = 0, limit: int | None = None) -> list[dict]:
+        with self._lock:
+            sql = "SELECT * FROM searches ORDER BY created_at DESC"
+            params: list = []
+            if limit is not None:
+                sql += " LIMIT ? OFFSET ?"
+                params = [limit, offset]
+            rows = self._conn.execute(sql, params).fetchall()
+            return [dict(r) for r in rows]
+
+    def search_count(self) -> int:
+        with self._lock:
+            row = self._conn.execute("SELECT COUNT(*) as cnt FROM searches").fetchone()
+            return row["cnt"]
+
+    def get_search(self, search_id: str) -> dict | None:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM searches WHERE id = ?", (search_id,)
+            ).fetchone()
+            return dict(row) if row else None
+
+    def delete_search(self, search_id: str):
+        with self._lock:
+            self._conn.execute("DELETE FROM searches WHERE id = ?", (search_id,))
+            self._conn.commit()
+
+    def clear_all(self):
+        with self._lock:
+            self._conn.execute("DELETE FROM searches")
+            self._conn.commit()

@@ -9,7 +9,16 @@ class SearchRequest(BaseModel):
     """Request model for search API endpoint."""
 
     query: str = Field(..., min_length=1, max_length=10000)
-    top_k: int = Field(5, ge=1, le=50)
+    top_k: int = Field(15, ge=1, le=50)
+    folder: str | None = None
+    tag: str | None = None
+
+
+class SummarizeRequest(BaseModel):
+    """Request model for search summary (AI overview)."""
+
+    query: str = Field(..., min_length=1, max_length=10000)
+    top_k: int = Field(15, ge=1, le=50)
     folder: str | None = None
     tag: str | None = None
 

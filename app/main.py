@@ -17,6 +17,7 @@ from app.ingestion.indexer import run_index
 from app.ingestion.watcher import start_watching
 from app.rag.retriever import Retriever
 from app.storage.chatdb import ChatDB
+from app.storage.searchdb import SearchDB
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 
@@ -39,6 +40,7 @@ async def lifespan(app: FastAPI):
     )
     tracking = TrackingDB(settings.data_directory)
     chatdb = ChatDB(settings.data_directory)
+    searchdb = SearchDB(settings.data_directory)
 
     if store.count == 0:
         logger.info("Empty store, running initial index...")
@@ -53,6 +55,7 @@ async def lifespan(app: FastAPI):
     app.state.retriever = retriever
     app.state.tracking = tracking
     app.state.chatdb = chatdb
+    app.state.searchdb = searchdb
     app.state.cancel_event = cancel_event
 
     # Enable rate limiting if configured
@@ -75,6 +78,7 @@ async def lifespan(app: FastAPI):
     # Shutdown: close DB connections
     tracking.close()
     chatdb.close()
+    searchdb.close()
     logger.info("Shutdown complete")
 
 

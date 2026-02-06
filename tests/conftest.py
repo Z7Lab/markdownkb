@@ -137,6 +137,15 @@ def app():
     chatdb.create_thread.return_value = "new123"
     application.state.chatdb = chatdb
 
+    searchdb = MagicMock()
+    searchdb.save_search.return_value = "srch001"
+    searchdb.list_searches.return_value = [
+        {"id": "srch001", "query": "test query", "folder": None, "tag": None, "created_at": "2024-01-01 00:00:00"}
+    ]
+    searchdb.search_count.return_value = 1
+    searchdb.get_search.return_value = {"id": "srch001", "query": "test query", "folder": None, "tag": None, "created_at": "2024-01-01 00:00:00"}
+    application.state.searchdb = searchdb
+
     application.state.cancel_event = threading.Event()
 
     return application

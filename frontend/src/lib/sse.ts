@@ -39,6 +39,13 @@ export interface SSECallbacks {
   onError: (error: Error) => void
 }
 
+export interface SummaryCallbacks {
+  onToken: (delta: string) => void
+  onSources: (sources: string[]) => void
+  onDone: () => void
+  onError: (error: Error) => void
+}
+
 export function streamChat(
   message: string,
   callbacks: SSECallbacks,
@@ -80,6 +87,51 @@ export function streamChat(
       if (!doneReceived) {
         callbacks.onDone()
       }
+    })
+    .catch((err) => {
+      if (err.name !== "AbortError") {
+        callbacks.onError(err)
+      }
+    })
+
+  return controller
+}
+
+export function streamSearchSummary(
+  query: string,
+  callbacks: SummaryCallbacks,
+  options?: { top_k?: number; folder?: string | null; tag?: string | null },
+): AbortController {
+  const controller = new AbortController()
+
+  const body: Record<string, unknown> = { query }
+  if (options?.top_k) body.top_k = options.top_k
+  if (options?.folder) body.folder = options.folder
+  if (options?.tag) body.tag = options.tag
+
+  fetch("/api/search/summarize", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal: controller.signal,
+  })
+    .then(async (res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const reader = res.body?.getReader()
+      if (!reader) throw new Error("No response body")
+
+      let doneReceived = false
+      await parseSSEStream(reader, (event, data) => {
+        if (event === "token") {
+          callbacks.onToken(data.content as string)
+        } else if (event === "sources") {
+          callbacks.onSources(data.sources as string[])
+        } else if (event === "done") {
+          doneReceived = true
+          callbacks.onDone()
+        }
+      })
+      if (!doneReceived) callbacks.onDone()
     })
     .catch((err) => {
       if (err.name !== "AbortError") {

@@ -1,6 +1,5 @@
 import { useState, useMemo, memo } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { Markdown } from "@/components/ui/markdown";
 import {
   Collapsible,
   CollapsibleContent,
@@ -55,8 +54,6 @@ function parseThinkBlocks(text: string): ThinkBlock[] {
   return blocks;
 }
 
-const plugins = [remarkGfm];
-
 function ThinkCollapsible({
   content,
   isLive,
@@ -80,9 +77,9 @@ function ThinkCollapsible({
         )}
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="mt-1 pl-4 border-l-2 border-foreground/20 text-sm text-foreground/60">
-          <ReactMarkdown remarkPlugins={plugins}>{content}</ReactMarkdown>
-        </div>
+        <Markdown className="mt-1 pl-4 border-l-2 border-foreground/20 text-sm text-foreground/60">
+          {content}
+        </Markdown>
       </CollapsibleContent>
     </Collapsible>
   );
@@ -149,14 +146,12 @@ export const MessageBubble = memo(function MessageBubble({
         {isUser ? (
           <p className="whitespace-pre-wrap">{message.content}</p>
         ) : hasThink ? (
-          <div className="mdkb-prose">
+          <div>
             {blocks.map((block, i) =>
               block.type === "text" ? (
-                <div key={`text-${i}`} className="p-1 my-1">
-                  <ReactMarkdown remarkPlugins={plugins}>
-                    {block.content}
-                  </ReactMarkdown>
-                </div>
+                <Markdown key={`text-${i}`} className="p-1 my-1">
+                  {block.content}
+                </Markdown>
               ) : (
                 <div key={`think-${i}`} className="p-1 my-1">
                   <ThinkCollapsible
@@ -168,11 +163,7 @@ export const MessageBubble = memo(function MessageBubble({
             )}
           </div>
         ) : (
-          <div className="mdkb-prose p-1">
-            <ReactMarkdown remarkPlugins={plugins}>
-              {message.content}
-            </ReactMarkdown>
-          </div>
+          <Markdown className="p-1">{message.content}</Markdown>
         )}
         {(!isUser && (message.content || (sources && sources.length > 0))) && (
           <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-foreground/10">

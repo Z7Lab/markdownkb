@@ -18,6 +18,14 @@ export interface SearchResult {
   score: number
 }
 
+export interface SavedSearch {
+  id: string
+  query: string
+  folder: string | null
+  tag: string | null
+  created_at: string
+}
+
 export interface TrackedFile {
   path: string
   source_root: string

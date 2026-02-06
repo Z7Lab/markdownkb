@@ -9,8 +9,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import ReactMarkdown from "react-markdown"
-import remarkGfm from "remark-gfm"
+import { Markdown } from "@/components/ui/markdown"
 
 export function FileViewerDialog({
   path,
@@ -50,11 +49,7 @@ export function FileViewerDialog({
               Loading...
             </p>
           ) : (
-            <div className="mdkb-prose">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {content}
-              </ReactMarkdown>
-            </div>
+            <Markdown>{content}</Markdown>
           )}
         </ScrollArea>
         <AlertDialogFooter>
