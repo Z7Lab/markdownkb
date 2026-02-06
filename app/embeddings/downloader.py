@@ -3,9 +3,9 @@
 import logging
 from pathlib import Path
 
-import requests
+import httpx
 
-from app.embeddings.registry import MODELS, EmbeddingModelInfo
+from app.embeddings.registry import MODELS
 
 logger = logging.getLogger(__name__)
 
@@ -66,13 +66,12 @@ def install_model(model_id: str) -> None:
         url = HF_URL.format(repo=info.huggingface_repo, path=rel_path)
         logger.info("Downloading %s", url)
 
-        resp = requests.get(url, stream=True, timeout=120)
-        resp.raise_for_status()
-
         tmp = file_dest.with_suffix(".tmp")
-        with open(tmp, "wb") as f:
-            for chunk in resp.iter_content(chunk_size=8192):
-                f.write(chunk)
+        with httpx.stream("GET", url, timeout=120) as resp:
+            resp.raise_for_status()
+            with open(tmp, "wb") as f:
+                for chunk in resp.iter_bytes(chunk_size=8192):
+                    f.write(chunk)
         tmp.rename(file_dest)
 
     logger.info("Model %s installed to %s", model_id, dest)

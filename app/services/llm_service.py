@@ -4,7 +4,7 @@ import logging
 import time
 
 import litellm
-import requests
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -14,13 +14,13 @@ logger = logging.getLogger(__name__)
 def fetch_ollama_models(api_base: str) -> list[str]:
     """Fetch available models from an Ollama instance."""
     try:
-        resp = requests.get(
+        resp = httpx.get(
             f"{api_base.rstrip('/')}/api/tags", timeout=10,
         )
         if resp.status_code == 200:
             data = resp.json()
             return [m["name"] for m in data.get("models", [])]
-    except requests.RequestException:
+    except httpx.HTTPError:
         pass
     return []
 
@@ -79,15 +79,15 @@ def build_model_list(
 def test_ollama(api_base: str) -> str:
     """Test connectivity to an Ollama instance."""
     try:
-        resp = requests.get(
+        resp = httpx.get(
             f"{api_base.rstrip('/')}/api/tags", timeout=10,
         )
-    except requests.ConnectionError:
+    except httpx.ConnectError:
         return (
             f"Cannot reach {api_base}\n"
             "Try: OLLAMA_HOST=0.0.0.0 ollama serve"
         )
-    except requests.RequestException as e:
+    except httpx.HTTPError as e:
         return f"Connection error: {e}"
 
     if resp.status_code != 200:
@@ -176,7 +176,7 @@ def get_model_capabilities(model: str, api_base: str = "") -> dict:
     if "ollama" in model.lower() and api_base:
         try:
             ollama_name = model.split("/", 1)[-1] if "/" in model else model
-            resp = requests.post(
+            resp = httpx.post(
                 f"{api_base.rstrip('/')}/api/show",
                 json={"name": ollama_name},
                 timeout=10,
@@ -190,7 +190,7 @@ def get_model_capabilities(model: str, api_base: str = "") -> dict:
                     "quantization_level": details.get("quantization_level"),
                     "format": details.get("format"),
                 }
-        except requests.RequestException:
+        except httpx.HTTPError:
             pass
 
     if not result:

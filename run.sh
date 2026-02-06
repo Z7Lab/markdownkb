@@ -5,6 +5,7 @@
 #   -d, --dev       Dev mode with hot reload (default)
 #   -p, --prod      Production mode: build frontend, serve from FastAPI
 #   -b, --backend   Backend only (no frontend)
+#   -l, --locked    Use pinned dependencies from requirements.lock
 #   -h, --help      Show this help
 
 set -e
@@ -21,6 +22,7 @@ fi
 
 # Default settings (env vars from .env take precedence)
 MODE="dev"
+USE_LOCK=false
 API_PORT="${API_PORT:-9713}"
 FRONTEND_PORT="${FRONTEND_PORT:-9714}"
 
@@ -42,6 +44,7 @@ show_help() {
     echo "  -d, --dev       Dev mode: backend + Vite dev server (default)"
     echo "  -p, --prod      Production: build frontend, serve from FastAPI"
     echo "  -b, --backend   Backend only (no frontend)"
+    echo "  -l, --locked    Use pinned deps from requirements.lock"
     echo "  -h, --help      Show this help"
     echo ""
     echo "Dev mode runs:"
@@ -55,6 +58,7 @@ while [[ $# -gt 0 ]]; do
         -d|--dev)     MODE="dev";     shift ;;
         -p|--prod)    MODE="prod";    shift ;;
         -b|--backend) MODE="backend"; shift ;;
+        -l|--locked)  USE_LOCK=true;  shift ;;
         -h|--help)    show_help;      exit 0 ;;
         *)
             echo "Unknown option: $1"
@@ -92,8 +96,13 @@ check_deps() {
 
     # Python packages
     if ! .venv/bin/python -c "import fastapi" 2>/dev/null; then
-        echo -e "${YELLOW}Installing Python dependencies...${NC}"
-        .venv/bin/pip install -r requirements.txt
+        if [ "$USE_LOCK" = true ] && [ -f "requirements.lock" ]; then
+            echo -e "${YELLOW}Installing pinned dependencies from requirements.lock...${NC}"
+            .venv/bin/pip install -r requirements.lock
+        else
+            echo -e "${YELLOW}Installing Python dependencies...${NC}"
+            .venv/bin/pip install -r requirements.txt
+        fi
     fi
 
     # Frontend node_modules
