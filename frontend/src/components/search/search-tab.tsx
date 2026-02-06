@@ -7,16 +7,19 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Markdown } from "@/components/ui/markdown"
 import { Loader2, Search, Sparkles, Square } from "lucide-react"
 import { useState, type KeyboardEvent } from "react"
+
+// ASCII art banner
+const ASCII_BANNER = `
+███╗   ███╗██████╗ ██╗  ██╗██████╗     ██████╗ ██████╗  ██████╗ ██╗    ██╗███████╗███████╗██████╗
+████╗ ████║██╔══██╗██║ ██╔╝██╔══██╗    ██╔══██╗██╔══██╗██╔═══██╗██║    ██║██╔════╝██╔════╝██╔══██╗
+██╔████╔██║██║  ██║█████╔╝ ██████╔╝    ██████╔╝██████╔╝██║   ██║██║ █╗ ██║███████╗█████╗  ██████╔╝
+██║╚██╔╝██║██║  ██║██╔═██╗ ██╔══██╗    ██╔══██╗██╔══██╗██║   ██║██║███╗██║╚════██║██╔══╝  ██╔══██╗
+██║ ╚═╝ ██║██████╔╝██║  ██╗██████╔╝    ██████╔╝██║  ██║╚██████╔╝╚███╔███╔╝███████║███████╗██║  ██║
+╚═╝     ╚═╝╚═════╝ ╚═╝  ╚═╝╚═════╝     ╚═════╝ ╚═╝  ╚═╝ ╚═════╝  ╚══╝╚══╝ ╚══════╝╚══════╝╚═╝  ╚═╝
+`.trim()
 
 export function SearchTab() {
   const {
@@ -51,50 +54,43 @@ export function SearchTab() {
       <SearchSidebar
         searches={searches}
         activeSearchId={activeSearchId}
+        folders={folders}
+        tags={tags}
+        selectedFolder={folder}
+        selectedTag={tag}
         onNewSearch={newSearch}
         onLoadSearch={(saved) => {
           loadSearch(saved)
           setPendingSearch(true)
         }}
         onDeleteSearch={deleteSearch}
+        onFolderChange={setFolder}
+        onTagChange={setTag}
       />
 
       <div className="flex flex-col flex-1 min-w-0 min-h-0 gap-4 p-4">
-        {/* Search bar + filters */}
-        <div className="flex gap-2">
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Search your knowledge base..."
-            className="flex-1"
-          />
-          <Select value={folder ?? "_all"} onValueChange={(v) => setFolder(v === "_all" ? null : v)}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Folder" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="_all">(all folders)</SelectItem>
-              {folders.map((f) => (
-                <SelectItem key={f} value={f}>{f}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={tag ?? "_all"} onValueChange={(v) => setTag(v === "_all" ? null : v)}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Tag" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="_all">(all tags)</SelectItem>
-              {tags.map((t) => (
-                <SelectItem key={t} value={t}>{t}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button onClick={search} disabled={loading || !query.trim()}>
-            <Search className="h-4 w-4 mr-1.5" />
-            Search
-          </Button>
+        {/* ASCII Art Banner */}
+        <div className="flex justify-center py-2">
+          <pre className="text-[0.45rem] leading-[0.6rem] text-primary/80 font-mono whitespace-pre">
+            {ASCII_BANNER}
+          </pre>
+        </div>
+
+        {/* Search bar */}
+        <div className="flex justify-center">
+          <div className="flex gap-2 w-1/2">
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Search your knowledge base..."
+              className="flex-1"
+            />
+            <Button onClick={search} disabled={loading || !query.trim()}>
+              <Search className="h-4 w-4 mr-1.5" />
+              Search
+            </Button>
+          </div>
         </div>
 
         {/* Results area */}
