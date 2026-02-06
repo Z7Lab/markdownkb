@@ -1,69 +1,46 @@
 import { Moon, Sun } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { useEffect, useRef } from "react"
+import { Switch } from "@/components/ui/switch"
+import { useEffect, useState } from "react"
 
-type Theme = "light" | "dark" | "system"
+function isDark(): boolean {
+  return window.document.documentElement.classList.contains("dark")
+}
+
+function applyTheme(dark: boolean) {
+  const root = window.document.documentElement
+  root.classList.remove("light", "dark")
+  root.classList.add(dark ? "dark" : "light")
+  localStorage.setItem("theme", dark ? "dark" : "light")
+}
 
 export function ThemeToggle() {
-  const themeRef = useRef<Theme>("system")
+  const [dark, setDark] = useState(false)
 
   useEffect(() => {
-    const stored = localStorage.getItem("theme") as Theme | null
-    if (stored) {
-      themeRef.current = stored
-      applyTheme(stored)
+    const stored = localStorage.getItem("theme")
+    if (stored === "dark" || stored === "light") {
+      const d = stored === "dark"
+      setDark(d)
+      applyTheme(d)
     } else {
-      applyTheme("system")
+      const sys = window.matchMedia("(prefers-color-scheme: dark)").matches
+      setDark(sys)
+      applyTheme(sys)
     }
   }, [])
 
-  function applyTheme(newTheme: Theme) {
-    const root = window.document.documentElement
-    root.classList.remove("light", "dark")
-
-    if (newTheme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-        .matches
-        ? "dark"
-        : "light"
-      root.classList.add(systemTheme)
-    } else {
-      root.classList.add(newTheme)
-    }
-  }
-
-  function changeTheme(newTheme: Theme) {
-    themeRef.current = newTheme
-    localStorage.setItem("theme", newTheme)
-    applyTheme(newTheme)
-  }
-
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          <span className="sr-only">Toggle theme</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => changeTheme("light")}>
-          Light
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => changeTheme("dark")}>
-          Dark
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => changeTheme("system")}>
-          System
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="flex items-center gap-1.5">
+      <Sun className="h-3.5 w-3.5 text-muted-foreground" />
+      <Switch
+        checked={dark}
+        onCheckedChange={(checked) => {
+          setDark(checked)
+          applyTheme(checked)
+        }}
+        aria-label="Toggle dark mode"
+      />
+      <Moon className="h-3.5 w-3.5 text-muted-foreground" />
+    </div>
   )
 }

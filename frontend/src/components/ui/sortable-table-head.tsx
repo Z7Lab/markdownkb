@@ -24,7 +24,7 @@ export function SortableTableHead({
       onClick={() => onSort(sortKey)}
       className={cn("cursor-pointer select-none", className)}
     >
-      <div className="flex items-center gap-1">
+      <div className={cn("flex items-center gap-1", className?.includes("text-center") && "justify-center")}>
         {children}
         {active &&
           (sortDir === "asc" ? (
