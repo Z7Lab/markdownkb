@@ -21,6 +21,8 @@ export function SettingsTab() {
     toggleFeature,
     addSource,
     removeSource,
+    addIgnorePattern,
+    removeIgnorePattern,
     reindex,
     cancelIndex,
     saveSystemPrompt,
@@ -49,8 +51,11 @@ export function SettingsTab() {
         />
         <SourcesPanel
           sources={settings.sources}
+          ignorePatterns={settings.global_ignore}
           onAdd={addSource}
           onRemove={removeSource}
+          onAddIgnore={addIgnorePattern}
+          onRemoveIgnore={removeIgnorePattern}
         />
       </div>
 

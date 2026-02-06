@@ -127,6 +127,22 @@ function useSettingsInternal() {
     [load],
   )
 
+  const addIgnorePattern = useCallback(
+    async (pattern: string) => {
+      await api.post("/api/ignore-patterns", { pattern })
+      await load()
+    },
+    [load],
+  )
+
+  const removeIgnorePattern = useCallback(
+    async (pattern: string) => {
+      await api.del("/api/ignore-patterns", { pattern })
+      await load()
+    },
+    [load],
+  )
+
   const fetchModelInfo = useCallback(
     async (model: string, apiBase: string) => {
       const res = await api.post<ModelInfo>("/api/settings/model-info", {
@@ -138,15 +154,53 @@ function useSettingsInternal() {
     [],
   )
 
-  const reindex = useCallback(async () => {
-    setIndexStatus("Indexing...")
-    try {
-      const res = await api.post<{ message: string }>("/api/index")
-      setIndexStatus(res.message)
-    } catch (e) {
-      setIndexStatus(`Error: ${e}`)
+  const reindex = useCallback(async (force = false) => {
+    if (!force) {
+      setIndexStatus("Indexing...")
+      try {
+        const res = await api.post<{ message: string }>("/api/index")
+        setIndexStatus(res.message)
+      } catch (e) {
+        setIndexStatus(`Error: ${e}`)
+      }
+      return
     }
-  }, [])
+
+    setEmbeddingStatus("Force reindexing all files...")
+    setEmbeddingSwitching(true)
+    try {
+      await api.post("/api/index", { force: true })
+
+      switchPollRef.current = setInterval(async () => {
+        try {
+          const st = await api.get<{
+            running: boolean
+            progress: number
+            message: string
+            result: string
+          }>("/api/settings/embedding-models/status")
+          if (st.running) {
+            const pct = Math.round(st.progress * 100)
+            setEmbeddingStatus(`[${pct}%] ${st.message}`)
+          } else {
+            if (switchPollRef.current) clearInterval(switchPollRef.current)
+            switchPollRef.current = null
+            setEmbeddingSwitching(false)
+            setEmbeddingStatus(st.result || "Reindex complete")
+            await load()
+          }
+        } catch {
+          if (switchPollRef.current) clearInterval(switchPollRef.current)
+          switchPollRef.current = null
+          setEmbeddingSwitching(false)
+          setEmbeddingStatus("Lost connection during reindex")
+        }
+      }, 1500)
+    } catch (e) {
+      setEmbeddingSwitching(false)
+      setEmbeddingStatus(`Error: ${e}`)
+    }
+  }, [load])
 
   const cancelIndex = useCallback(async () => {
     await api.post("/api/index/cancel")
@@ -248,6 +302,8 @@ function useSettingsInternal() {
     toggleFeature,
     addSource,
     removeSource,
+    addIgnorePattern,
+    removeIgnorePattern,
     reindex,
     cancelIndex,
     saveSystemPrompt,

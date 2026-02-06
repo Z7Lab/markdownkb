@@ -36,7 +36,7 @@ function App() {
               </TabsTrigger>
               <TabsTrigger value="browse">
                 <FolderOpen className="h-4 w-4" />
-                Browse
+                Browse MD
               </TabsTrigger>
               <TabsTrigger value="settings">
                 <Settings className="h-4 w-4" />

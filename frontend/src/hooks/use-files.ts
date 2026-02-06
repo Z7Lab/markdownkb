@@ -11,7 +11,7 @@ export function useFiles() {
   const refresh = useCallback(async () => {
     try {
       setError(null)
-      const res = await api.get<PaginatedResponse<TrackedFile>>("/api/files")
+      const res = await api.get<PaginatedResponse<TrackedFile>>("/api/files?limit=500")
       setFiles(res.items)
     } catch (err) {
       const msg = (err as Error).message

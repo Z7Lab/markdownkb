@@ -11,6 +11,7 @@ from app.ratelimit import HEAVY, LLM, STANDARD, limiter
 from app.schemas import (
     AddSourceRequest,
     FeatureToggleRequest,
+    IgnorePatternRequest,
     ModelInfoRequest,
     ProviderSettingsRequest,
     RefreshModelsRequest,
@@ -65,6 +66,34 @@ def remove_source(
     return {"sources": settings.sources}
 
 
+# -- Ignore Patterns --
+
+@router.post("/ignore-patterns")
+@limiter.limit(STANDARD)
+def add_ignore_pattern(
+    request: Request,
+    req: IgnorePatternRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """Add a glob pattern to the ignore list."""
+    settings.add_ignore_pattern(req.pattern)
+    settings.save()
+    return {"global_ignore": settings.global_ignore}
+
+
+@router.delete("/ignore-patterns")
+@limiter.limit(STANDARD)
+def remove_ignore_pattern(
+    request: Request,
+    req: IgnorePatternRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """Remove a glob pattern from the ignore list."""
+    settings.remove_ignore_pattern(req.pattern)
+    settings.save()
+    return {"global_ignore": settings.global_ignore}
+
+
 # -- Settings --
 
 @router.get("/settings")
@@ -83,6 +112,7 @@ def get_settings_endpoint(request: Request, settings: Settings = Depends(get_set
         ],
         "features": settings.features,
         "sources": settings.sources,
+        "global_ignore": settings.global_ignore,
         "active_model": active_cfg.get("model", ""),
         "active_api_base": active_cfg.get("api_base", ""),
         "system_prompt": settings.system_prompt,

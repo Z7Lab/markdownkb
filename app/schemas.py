@@ -64,6 +64,12 @@ class RemoveSourceRequest(BaseModel):
     path: str
 
 
+class IgnorePatternRequest(BaseModel):
+    """Request model for adding/removing ignore patterns."""
+
+    pattern: str
+
+
 # -- Settings --
 
 class ProviderSettingsRequest(BaseModel):
@@ -124,6 +130,12 @@ class EmbeddingModelRequest(BaseModel):
     """Request model for embedding model operations."""
 
     model_id: str
+
+
+class IndexRequest(BaseModel):
+    """Request model for triggering indexing."""
+
+    force: bool = False
 
 
 # -- Export --

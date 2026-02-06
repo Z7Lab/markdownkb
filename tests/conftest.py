@@ -15,6 +15,7 @@ class FakeSettings:
     """Minimal settings stub for testing."""
 
     sources: list[str] = field(default_factory=lambda: ["/tmp/test-source"])
+    global_ignore: list[str] = field(default_factory=lambda: ["**/node_modules/**", "**/.git/**"])
     embedding_model: str = "all-MiniLM-L6-v2"
     active_provider: str = "test"
     system_prompt: str = "You are a helpful assistant."
@@ -47,6 +48,13 @@ class FakeSettings:
 
     def remove_source(self, path):
         self.sources = [s for s in self.sources if s != path]
+
+    def add_ignore_pattern(self, pattern):
+        if pattern not in self.global_ignore:
+            self.global_ignore.append(pattern)
+
+    def remove_ignore_pattern(self, pattern):
+        self.global_ignore = [p for p in self.global_ignore if p != pattern]
 
     def save(self):
         pass

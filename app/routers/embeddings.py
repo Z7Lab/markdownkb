@@ -7,9 +7,16 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.config import Settings
 from app.deps import get_cancel_event, get_settings, get_store, get_tracking
+from app.embeddings.downloader import (
+    install_model,
+    is_installed,
+    list_models_with_status,
+)
+from app.embeddings.embedder import unload_model
+from app.embeddings.registry import MODELS
 from app.ingestion.indexer import run_index
 from app.ratelimit import INDEXING, STANDARD, limiter
-from app.schemas import EmbeddingModelRequest
+from app.schemas import EmbeddingModelRequest, IndexRequest
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 
@@ -17,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["embeddings"])
 
-# Background reindex state for model switching
+# Background reindex state (shared by model switch and force reindex)
 _switch_status = {
     "running": False,
     "progress": 0.0,
@@ -60,7 +67,7 @@ def _bg_reindex(
 @router.get("/settings/embedding-models")
 @limiter.limit(STANDARD)
 def list_embedding_models(request: Request, settings: Settings = Depends(get_settings)):
-    from app.embeddings.downloader import list_models_with_status
+    """List available embedding models with installation status."""
     return {
         "models": list_models_with_status(),
         "active_model": settings.embedding_model,
@@ -70,16 +77,15 @@ def list_embedding_models(request: Request, settings: Settings = Depends(get_set
 @router.get("/settings/embedding-models/status")
 @limiter.limit(STANDARD)
 def embedding_switch_status(request: Request):
+    """Return current background reindex progress."""
     with _switch_lock:
         return dict(_switch_status)
 
 
 @router.post("/settings/embedding-models/install")
 @limiter.limit(INDEXING)
-def install_embedding_model(request: Request, req: EmbeddingModelRequest):
-    from app.embeddings.downloader import install_model, is_installed
-    from app.embeddings.registry import MODELS
-
+def install_embedding_model_endpoint(request: Request, req: EmbeddingModelRequest):
+    """Download an embedding model to local cache."""
     if req.model_id not in MODELS:
         raise HTTPException(400, f"Unknown model: {req.model_id}")
     if is_installed(req.model_id):
@@ -102,10 +108,7 @@ def switch_embedding_model(
     tracking: TrackingDB = Depends(get_tracking),
     cancel_event: threading.Event = Depends(get_cancel_event),
 ):
-    from app.embeddings.downloader import is_installed
-    from app.embeddings.embedder import unload_model
-    from app.embeddings.registry import MODELS
-
+    """Switch active embedding model, clearing vectors and reindexing."""
     if req.model_id not in MODELS:
         raise HTTPException(400, f"Unknown model: {req.model_id}")
     if not is_installed(req.model_id):
@@ -115,7 +118,7 @@ def switch_embedding_model(
 
     with _switch_lock:
         if _switch_status["running"]:
-            raise HTTPException(409, "A model switch is already in progress")
+            raise HTTPException(409, "A reindex operation is already in progress")
         _switch_status["running"] = True
         _switch_status["progress"] = 0.0
         _switch_status["message"] = "Preparing to switch..."
@@ -124,12 +127,9 @@ def switch_embedding_model(
     logger.info("Switching embedding model from %s to %s", settings.embedding_model, req.model_id)
     settings.embedding_model = req.model_id
     settings.save()
-    logger.info("Settings saved, embedding_model now: %s", settings.embedding_model)
     unload_model()
-    logger.info("Model unloaded")
     store.clear()
     tracking.clear()
-    logger.info("Store and tracking cleared, starting reindex")
 
     threading.Thread(
         target=_bg_reindex,
@@ -145,23 +145,39 @@ def switch_embedding_model(
 @limiter.limit(INDEXING)
 def index(
     request: Request,
+    req: IndexRequest = IndexRequest(),
     settings: Settings = Depends(get_settings),
     store: VectorStore = Depends(get_store),
     tracking: TrackingDB = Depends(get_tracking),
     cancel_event: threading.Event = Depends(get_cancel_event),
 ):
+    """Run indexing. With force=true, clears hashes and reindexes everything."""
+    if req.force:
+        with _switch_lock:
+            if _switch_status["running"]:
+                raise HTTPException(409, "A reindex operation is already in progress")
+            _switch_status["running"] = True
+            _switch_status["progress"] = 0.0
+            _switch_status["message"] = "Preparing force reindex..."
+            _switch_status["result"] = ""
+
+        tracking.clear_hashes()
+
+        threading.Thread(
+            target=_bg_reindex,
+            args=(settings, store, tracking, cancel_event),
+            daemon=True,
+        ).start()
+        return {"status": "reindexing"}
+
     cancel_event.clear()
-    result = run_index(
-        settings,
-        store,
-        tracking,
-        cancel=cancel_event,
-    )
+    result = run_index(settings, store, tracking, cancel=cancel_event)
     return {"message": result}
 
 
 @router.post("/index/cancel")
 @limiter.limit(STANDARD)
 def cancel_index(request: Request, cancel_event: threading.Event = Depends(get_cancel_event)):
+    """Cancel a running index operation."""
     cancel_event.set()
     return {"status": "cancelling"}

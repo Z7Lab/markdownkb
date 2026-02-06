@@ -279,6 +279,17 @@ class TrackingDB:
                 stats["total_chunks"] += r["chunks"]
             return stats
 
+    def clear_hashes(self):
+        """Reset all content hashes so every file is treated as changed."""
+        with self._lock:
+            self._conn.execute(
+                "UPDATE indexed_files SET content_hash = '', "
+                "updated_at = datetime('now') "
+                "WHERE status != 'excluded'"
+            )
+            self._conn.commit()
+            logger.info("All content hashes cleared (force reindex)")
+
     def clear(self):
         """Delete all file tracking records (used when switching models)."""
         with self._lock:

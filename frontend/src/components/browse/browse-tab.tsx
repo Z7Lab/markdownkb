@@ -48,7 +48,7 @@ const getValue = (f: TrackedFile, key: string): string | number | null => {
     case "folder":
       return dirname(f.path)
     case "rag":
-      return f.status === "excluded" ? 0 : 1
+      return (f.status === "excluded" || f.status === "not_indexed") ? 0 : 1
     case "status":
       return f.status
     case "chunks":
@@ -71,7 +71,7 @@ export function BrowseTab() {
   return (
     <div className="flex flex-col h-full gap-4 p-4">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold shrink-0">Browse Knowledge Base</h2>
+        <h2 className="text-lg font-semibold shrink-0">Browse MD Files</h2>
         <div className="flex flex-col items-end gap-1">
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -120,7 +120,7 @@ export function BrowseTab() {
             </TableHeader>
             <TableBody>
               {filteredFiles.map((f) => {
-                const included = f.status !== "excluded"
+                const indexed = f.status !== "excluded" && f.status !== "not_indexed"
                 return (
                   <TableRow
                     key={f.path}
@@ -135,13 +135,17 @@ export function BrowseTab() {
                     </TableCell>
                     <TableCell>
                       <Checkbox
-                        checked={included}
-                        disabled={loading}
+                        checked={indexed}
+                        disabled={loading || f.status === "not_indexed"}
                         onClick={(e) => e.stopPropagation()}
                         onCheckedChange={(checked) => toggleRag(f, checked === true)}
                       />
                     </TableCell>
-                    <TableCell className="text-sm">{f.status}</TableCell>
+                    <TableCell className="text-sm">
+                      {f.status === "not_indexed" ? (
+                        <span className="text-muted-foreground">not indexed</span>
+                      ) : f.status}
+                    </TableCell>
                     <TableCell className="text-right">{f.chunk_count}</TableCell>
                   </TableRow>
                 )
@@ -149,7 +153,7 @@ export function BrowseTab() {
               {filteredFiles.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                    {files.length === 0 ? "No files indexed yet." : "No files match your filter."}
+                    {files.length === 0 ? "No markdown files found in watch directories." : "No files match your filter."}
                   </TableCell>
                 </TableRow>
               )}

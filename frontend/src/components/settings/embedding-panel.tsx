@@ -22,10 +22,11 @@ export function EmbeddingPanel({
   switching: boolean
   onInstall: (modelId: string) => Promise<void>
   onSwitch: (modelId: string) => Promise<void>
-  onReindex: () => Promise<void>
+  onReindex: (force?: boolean) => Promise<void>
   onCancel: () => Promise<void>
 }) {
   const [confirmModel, setConfirmModel] = useState<string | null>(null)
+  const [confirmReindex, setConfirmReindex] = useState(false)
   const [installing, setInstalling] = useState<string | null>(null)
 
   async function handleInstall(modelId: string) {
@@ -101,7 +102,7 @@ export function EmbeddingPanel({
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={onReindex}
+                      onClick={() => setConfirmReindex(true)}
                       disabled={switching}
                     >
                       <RefreshCw className="h-4 w-4 mr-1" />
@@ -141,6 +142,20 @@ export function EmbeddingPanel({
         confirmLabel="Switch & Reindex"
         variant="destructive"
         onConfirm={handleConfirmedSwitch}
+      />
+
+      <ConfirmDialog
+        open={confirmReindex}
+        onOpenChange={setConfirmReindex}
+        title="Force Re-index All Files?"
+        description={
+          `This will re-embed every document from scratch, even if ` +
+          `the files haven't changed. This may take several minutes ` +
+          `depending on your collection size.`
+        }
+        confirmLabel="Re-index All"
+        variant="destructive"
+        onConfirm={() => { setConfirmReindex(false); onReindex(true) }}
       />
     </>
   )

@@ -24,8 +24,8 @@ export interface TrackedFile {
   status: string
   chunk_count: number
   content_hash: string
-  size: number
-  modified: number
+  file_size: number
+  mtime: number
 }
 
 export interface Provider {
@@ -46,6 +46,7 @@ export interface AppSettings {
   providers: Provider[]
   features: Record<string, boolean>
   sources: string[]
+  global_ignore: string[]
   active_model: string
   active_api_base: string
   system_prompt: string

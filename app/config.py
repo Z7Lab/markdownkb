@@ -118,6 +118,18 @@ class Settings:
         """Return glob patterns for files to ignore."""
         return self._data.get("global_ignore", [])
 
+    def add_ignore_pattern(self, pattern: str):
+        """Add a glob pattern to the ignore list."""
+        patterns = self._data.setdefault("global_ignore", [])
+        if pattern not in patterns:
+            patterns.append(pattern)
+
+    def remove_ignore_pattern(self, pattern: str):
+        """Remove a glob pattern from the ignore list."""
+        patterns = self._data.get("global_ignore", [])
+        if pattern in patterns:
+            patterns.remove(pattern)
+
     # --- Embeddings ---
     @property
     def embedding_model(self) -> str:
