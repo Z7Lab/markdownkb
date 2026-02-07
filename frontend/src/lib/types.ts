@@ -12,10 +12,21 @@ export interface ChatMessage {
   sources?: string[]
 }
 
+export interface SearchSnippet {
+  text: string
+  score: number
+  heading: string
+}
+
 export interface SearchResult {
   document: string
   metadata: Record<string, string>
   score: number
+  snippets?: SearchSnippet[]
+  chunk_count?: number
+  score_min?: number
+  score_max?: number
+  score_avg?: number
 }
 
 export interface ScoreChange {
@@ -46,6 +57,7 @@ export interface SearchResponse {
   summary?: string | null
   created_at?: string
   is_historical: boolean
+  view?: "original" | "current"
   stored_result_count?: number
   current_result_count?: number
   missing_files?: string[]

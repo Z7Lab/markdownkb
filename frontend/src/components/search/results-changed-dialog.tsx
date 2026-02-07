@@ -51,8 +51,11 @@ export function ResultsChangedDialog({
             {missingFiles.length > 0 && (
               <div>
                 <h3 className="text-sm font-semibold mb-2 text-destructive">
-                  Removed from RAG ({missingFiles.length})
+                  No Longer in Results ({missingFiles.length})
                 </h3>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Files that matched originally but don't match current query
+                </p>
                 <div className="space-y-1">
                   {missingFiles.map((path) => (
                     <div
@@ -70,8 +73,11 @@ export function ResultsChangedDialog({
             {newFiles.length > 0 && (
               <div>
                 <h3 className="text-sm font-semibold mb-2 text-green-600 dark:text-green-400">
-                  Added to RAG ({newFiles.length})
+                  New in Results ({newFiles.length})
                 </h3>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Files that now match the query but didn't originally
+                </p>
                 <div className="space-y-1">
                   {newFiles.map((path) => (
                     <div

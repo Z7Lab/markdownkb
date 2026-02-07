@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Markdown } from "@/components/ui/markdown"
-import { Loader2, Search, Sparkles, Square, RotateCcw, Clock, AlertCircle } from "lucide-react"
+import { Loader2, Search, Sparkles, Square, RotateCcw, Clock, AlertCircle, ChevronDown, ChevronRight, History, RefreshCw } from "lucide-react"
 import { useState, type KeyboardEvent } from "react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
@@ -35,6 +35,8 @@ export function SearchTab() {
     summary, summarySources, isSummarizing, stopSummary, generateSummary,
     newSearch,
     isHistorical,
+    currentView,
+    toggleView,
     resultsChanged,
     missingFiles,
     newFiles,
@@ -48,6 +50,7 @@ export function SearchTab() {
   const [viewingPath, setViewingPath] = useState<string | null>(null)
   const [resultsChangedDialogOpen, setResultsChangedDialogOpen] = useState(false)
   const [confirmGenerateSummaryOpen, setConfirmGenerateSummaryOpen] = useState(false)
+  const [expandedResults, setExpandedResults] = useState<Set<number>>(new Set())
 
   function handleKeyDown(e: KeyboardEvent) {
     if (e.key === "Enter") search()
@@ -113,10 +116,17 @@ export function SearchTab() {
                     {query}
                   </h2>
 
-                  {/* Historical vs Live badge */}
-                  <Badge variant={isHistorical ? "secondary" : "default"} className="text-xs">
-                    {isHistorical ? "Historical" : "Live"}
-                  </Badge>
+                  {/* Historical vs Live badge with view indicator */}
+                  {isHistorical ? (
+                    <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                      <History className="h-3 w-3" />
+                      {currentView === "original" ? "Original" : "Current"}
+                    </Badge>
+                  ) : (
+                    <Badge variant="default" className="text-xs">
+                      Live
+                    </Badge>
+                  )}
 
                   {/* Folder/Tag filters */}
                   {(folder || tag) && (
@@ -134,25 +144,47 @@ export function SearchTab() {
                     </div>
                   )}
 
-                  {/* Re-query button (only for historical searches) */}
+                  {/* View toggle and Re-query buttons (only for historical searches) */}
                   {isHistorical && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="ml-auto h-7 px-2"
-                          onClick={requery}
-                          disabled={loading}
-                        >
-                          <RotateCcw className="h-3.5 w-3.5 mr-1" />
-                          Re-query
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        Run this query again with current KB state and generate a new AI summary
-                      </TooltipContent>
-                    </Tooltip>
+                    <div className="flex items-center gap-2 ml-auto">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2"
+                            onClick={toggleView}
+                            disabled={loading}
+                          >
+                            <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                            {currentView === "original" ? "Show Current" : "Show Original"}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          {currentView === "original"
+                            ? "View current KB state with re-queried results"
+                            : "View original results as they were when first searched"}
+                        </TooltipContent>
+                      </Tooltip>
+
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2"
+                            onClick={requery}
+                            disabled={loading}
+                          >
+                            <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                            Re-query
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          Run this query again with current KB state and generate a new AI summary
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                   )}
                 </div>
 
@@ -278,32 +310,93 @@ export function SearchTab() {
                 No results found for "{query}"
               </p>
             )}
-            {results.map((r, i) => (
-              <Card
-                key={`${r.metadata.source_path ?? ""}:${r.score}:${i}`}
-                className="cursor-pointer hover:bg-accent/50 transition-colors"
-                onClick={() => setViewingPath(r.metadata.source_path ?? null)}
-              >
-                <CardContent className="pt-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge variant="secondary">
-                      Relevance: {Math.round(r.score * 100)}%
-                    </Badge>
-                    <span className="text-sm font-mono text-muted-foreground truncate">
-                      {r.metadata.source_path ?? "unknown"}
-                    </span>
-                    {r.metadata.heading && (
-                      <span className="text-sm text-muted-foreground">
-                        | {r.metadata.heading}
+            {results.map((r, i) => {
+              const hasMultipleSnippets = (r.snippets?.length ?? 0) > 1
+              const isExpanded = expandedResults.has(i)
+              const toggleExpanded = (e: React.MouseEvent) => {
+                e.stopPropagation()
+                setExpandedResults((prev) => {
+                  const next = new Set(prev)
+                  if (next.has(i)) {
+                    next.delete(i)
+                  } else {
+                    next.add(i)
+                  }
+                  return next
+                })
+              }
+
+              return (
+                <Card
+                  key={`${r.metadata.source_path ?? ""}:${r.score}:${i}`}
+                  className="cursor-pointer hover:bg-accent/50 transition-colors"
+                  onClick={() => setViewingPath(r.metadata.source_path ?? null)}
+                >
+                  <CardContent className="pt-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge variant="secondary">
+                        {Math.round(r.score * 100)}%
+                      </Badge>
+                      {r.chunk_count && r.chunk_count > 1 && (
+                        <Badge variant="outline" className="text-xs">
+                          {r.chunk_count} sections
+                        </Badge>
+                      )}
+                      <span className="text-sm font-mono text-muted-foreground truncate flex-1">
+                        {r.metadata.source_path ?? "unknown"}
                       </span>
+                      {hasMultipleSnippets && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 shrink-0"
+                          onClick={toggleExpanded}
+                        >
+                          {isExpanded ? (
+                            <>
+                              <ChevronDown className="h-3 w-3 mr-1" />
+                              Hide sections
+                            </>
+                          ) : (
+                            <>
+                              <ChevronRight className="h-3 w-3 mr-1" />
+                              Show all sections
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Show snippets if expanded, otherwise show primary chunk */}
+                    {hasMultipleSnippets && isExpanded ? (
+                      <div className="space-y-3 mt-3">
+                        {r.snippets!.map((snippet, si) => (
+                          <div key={si} className="border-l-2 border-primary/30 pl-3">
+                            {snippet.heading && (
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-xs font-semibold text-primary">
+                                  {snippet.heading}
+                                </span>
+                                <Badge variant="outline" className="text-xs">
+                                  {Math.round(snippet.score * 100)}%
+                                </Badge>
+                              </div>
+                            )}
+                            <Markdown className="text-sm">
+                              {snippet.text.length > 400 ? snippet.text.slice(0, 400) + "..." : snippet.text}
+                            </Markdown>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <Markdown className="text-sm">
+                        {r.document.length > 500 ? r.document.slice(0, 500) + "..." : r.document}
+                      </Markdown>
                     )}
-                  </div>
-                  <Markdown className="text-sm">
-                    {r.document.length > 500 ? r.document.slice(0, 500) + "..." : r.document}
-                  </Markdown>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              )
+            })}
             </div>
           </ScrollArea>
         )}

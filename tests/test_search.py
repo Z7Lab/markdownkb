@@ -84,7 +84,7 @@ async def test_delete_search(client):
 
 @pytest.mark.asyncio
 async def test_search_saves_result_metadata(client, app):
-    """Test that search saves result paths, count, and scores."""
+    """Test that search saves result paths, count, scores, and full result data."""
     resp = await client.post("/api/search", json={"query": "test query"})
     assert resp.status_code == 200
 
@@ -93,19 +93,34 @@ async def test_search_saves_result_metadata(client, app):
     searchdb.save_search.assert_called_once()
     call_args = searchdb.save_search.call_args
 
-    # Check that result_paths, result_count, and result_details were passed
+    # Check that result_paths, result_count, result_details, and result_data were passed
     assert "result_paths" in call_args.kwargs
     assert "result_count" in call_args.kwargs
     assert "result_details" in call_args.kwargs
+    assert "result_data" in call_args.kwargs
     assert call_args.kwargs["result_paths"] == ["/tmp/test-source/doc.md"]
     assert call_args.kwargs["result_count"] == 1
     assert call_args.kwargs["result_details"] == [{"path": "/tmp/test-source/doc.md", "score": 0.9}]
+    # Verify result_data contains full grouped results
+    assert len(call_args.kwargs["result_data"]) == 1
+    assert call_args.kwargs["result_data"][0]["score"] == 0.9
+    assert "snippets" in call_args.kwargs["result_data"][0]
 
 
 @pytest.mark.asyncio
 async def test_load_historical_search(client, app):
-    """Test loading a historical search with metadata."""
-    # Setup mock searchdb to return a search with metadata
+    """Test loading a historical search with metadata and original results."""
+    # Setup mock searchdb to return a search with full result_data
+    original_result = {
+        "document": "Test document content",
+        "snippets": [],
+        "metadata": {"source_path": "/tmp/test-source/doc.md"},
+        "score": 0.9,
+        "chunk_count": 1,
+        "score_min": 0.9,
+        "score_max": 0.9,
+        "score_avg": 0.9,
+    }
     app.state.searchdb.get_search.return_value = {
         "id": "srch001",
         "query": "test query",
@@ -115,6 +130,7 @@ async def test_load_historical_search(client, app):
         "result_paths": ["/tmp/test-source/doc.md"],
         "result_count": 1,
         "result_details": [{"path": "/tmp/test-source/doc.md", "score": 0.9}],
+        "result_data": [original_result],
         "created_at": "2024-01-01 00:00:00",
     }
 
@@ -124,11 +140,16 @@ async def test_load_historical_search(client, app):
 
     # Verify historical metadata
     assert data["is_historical"] is True
+    assert data["view"] == "original"  # Default view
     assert data["summary"] == "Original AI summary"
     assert data["created_at"] == "2024-01-01 00:00:00"
     assert data["stored_result_count"] == 1
     assert data["current_result_count"] == 1
     assert "score_changes" in data
+
+    # Verify original results are returned (from result_data)
+    assert len(data["results"]) == 1
+    assert data["results"][0]["document"] == "Test document content"
 
     # Verify mark_viewed was called
     app.state.searchdb.mark_viewed.assert_called_once_with("srch001")
@@ -137,7 +158,21 @@ async def test_load_historical_search(client, app):
 @pytest.mark.asyncio
 async def test_load_historical_search_detects_changes(client, app):
     """Test that historical search detects KB changes."""
-    # Setup mock searchdb with old result paths
+    # Setup mock searchdb with old result paths and result_data
+    old_result1 = {
+        "document": "Old file content",
+        "snippets": [],
+        "metadata": {"source_path": "/tmp/old-file.md"},
+        "score": 0.85,
+        "chunk_count": 1,
+    }
+    old_result2 = {
+        "document": "Removed file content",
+        "snippets": [],
+        "metadata": {"source_path": "/tmp/removed-file.md"},
+        "score": 0.75,
+        "chunk_count": 1,
+    }
     app.state.searchdb.get_search.return_value = {
         "id": "srch001",
         "query": "test query",
@@ -150,6 +185,7 @@ async def test_load_historical_search_detects_changes(client, app):
             {"path": "/tmp/old-file.md", "score": 0.85},
             {"path": "/tmp/removed-file.md", "score": 0.75},
         ],
+        "result_data": [old_result1, old_result2],
         "created_at": "2024-01-01 00:00:00",
     }
 
@@ -162,6 +198,7 @@ async def test_load_historical_search_detects_changes(client, app):
 
     # Verify change detection
     assert data["results_changed"] is True
+    assert data["view"] == "original"  # Default view shows original results
     assert data["stored_result_count"] == 2
     assert data["current_result_count"] == 1
 
@@ -171,6 +208,10 @@ async def test_load_historical_search_detects_changes(client, app):
     assert "/tmp/removed-file.md" in data["missing_files"]
     assert len(data["new_files"]) == 1
     assert "/tmp/test-source/doc.md" in data["new_files"]
+
+    # Verify original results are shown
+    assert len(data["results"]) == 2
+    assert data["results"][0]["document"] == "Old file content"
 
 
 @pytest.mark.asyncio
@@ -196,6 +237,13 @@ async def test_search_response_is_not_historical(client):
 async def test_load_historical_search_detects_score_changes(client, app):
     """Test that historical search detects relevance score changes."""
     # Setup mock searchdb with same file but different score
+    original_result = {
+        "document": "Test document content",
+        "snippets": [],
+        "metadata": {"source_path": "/tmp/test-source/doc.md"},
+        "score": 0.75,
+        "chunk_count": 1,
+    }
     app.state.searchdb.get_search.return_value = {
         "id": "srch001",
         "query": "test query",
@@ -205,6 +253,7 @@ async def test_load_historical_search_detects_score_changes(client, app):
         "result_paths": ["/tmp/test-source/doc.md"],
         "result_count": 1,
         "result_details": [{"path": "/tmp/test-source/doc.md", "score": 0.75}],
+        "result_data": [original_result],
         "created_at": "2024-01-01 00:00:00",
     }
 
@@ -226,3 +275,7 @@ async def test_load_historical_search_detects_score_changes(client, app):
     # Verify no missing or new files (same file in both)
     assert len(data["missing_files"]) == 0
     assert len(data["new_files"]) == 0
+
+    # Verify original results are shown (score 0.75)
+    assert len(data["results"]) == 1
+    assert data["results"][0]["score"] == 0.75

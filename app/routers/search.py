@@ -22,6 +22,67 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["search"])
 
 
+def _group_results_by_file(results: list) -> list[dict]:
+    """Group search results by source file, merging chunks into file-level results.
+
+    For each file:
+    - Use max score across all chunks as file relevance
+    - Collect all chunk texts as snippets
+    - Track chunk count and score statistics
+
+    Returns list of file-level results sorted by max score (descending).
+    """
+    from collections import defaultdict
+
+    # Group chunks by source_path
+    file_groups = defaultdict(list)
+    for r in results:
+        path = r.metadata.get("source_path", "")
+        if path:
+            file_groups[path].append(r)
+
+    # Build file-level results
+    grouped = []
+    for path, chunks in file_groups.items():
+        # Calculate file-level score (max across chunks)
+        scores = [c.score for c in chunks]
+        max_score = max(scores)
+        avg_score = sum(scores) / len(scores)
+        min_score = min(scores)
+
+        # Collect snippets with their metadata
+        snippets = [
+            {
+                "text": c.document,
+                "score": c.score,
+                "heading": c.metadata.get("heading", ""),
+            }
+            for c in chunks
+        ]
+
+        # Sort snippets by score (best first)
+        snippets.sort(key=lambda s: s["score"], reverse=True)
+
+        # Use primary chunk's metadata (highest scoring chunk)
+        primary_chunk = max(chunks, key=lambda c: c.score)
+
+        grouped.append({
+            "document": primary_chunk.document,  # Best matching chunk
+            "snippets": snippets,
+            "metadata": primary_chunk.metadata,
+            "score": max_score,
+            "chunk_count": len(chunks),
+            "score_min": min_score,
+            "score_max": max_score,
+            "score_avg": avg_score,
+        })
+
+    # Sort by max score (descending)
+    grouped.sort(key=lambda x: x["score"], reverse=True)
+
+    return grouped
+
+
 @router.post("/search")
 @limiter.limit(HEAVY)
 def search(
@@ -46,23 +107,47 @@ def search(
             search_query = build_enhanced_search_query(enhanced)
             logger.info("Enhanced query: %s -> %s", req.query, search_query)
 
-    results = retriever.search(
+    # Fetch more chunks to ensure file diversity (10x multiplier)
+    # This prevents getting all chunks from just 1-2 files
+    chunk_fetch_limit = req.top_k * 10
+    chunk_results = retriever.search(
         search_query,
-        top_k=req.top_k,
+        top_k=chunk_fetch_limit,
         folder_filter=req.folder,
         tag_filter=req.tag,
     )
 
-    # Extract result metadata for history preservation
-    result_paths = [r.metadata.get("source_path", "") for r in results if r.metadata.get("source_path")]
-    result_count = len(results)
+    # Group chunks by file for cleaner results
+    grouped_results = _group_results_by_file(chunk_results)
+
+    # Limit to top_k files (not chunks)
+    grouped_results = grouped_results[:req.top_k]
+
+    # Extract result metadata for history preservation (file-level)
+    result_paths = [r["metadata"].get("source_path", "") for r in grouped_results]
+    result_count = len(grouped_results)
     result_details = [
-        {"path": r.metadata.get("source_path", ""), "score": r.score}
-        for r in results
-        if r.metadata.get("source_path")
+        {"path": r["metadata"].get("source_path", ""), "score": r["score"]}
+        for r in grouped_results
     ]
 
-    # Auto-save search to history with result metadata
+    # Serialize grouped results for original view preservation
+    # Convert metadata to plain dict for JSON serialization
+    result_data = [
+        {
+            "document": r["document"],
+            "snippets": r.get("snippets", []),
+            "metadata": dict(r["metadata"]),
+            "score": r["score"],
+            "chunk_count": r.get("chunk_count"),
+            "score_min": r.get("score_min"),
+            "score_max": r.get("score_max"),
+            "score_avg": r.get("score_avg"),
+        }
+        for r in grouped_results
+    ]
+
+    # Auto-save search to history with full result data
     search_id = searchdb.save_search(
         req.query,
         req.folder,
@@ -70,17 +155,11 @@ def search(
         result_paths=result_paths,
         result_count=result_count,
         result_details=result_details,
+        result_data=result_data,
     )
 
     return {
-        "results": [
-            {
-                "document": r.document,
-                "metadata": r.metadata,
-                "score": r.score,
-            }
-            for r in results
-        ],
+        "results": grouped_results,
         "search_id": search_id,
         "llm_offline": llm_offline,
         "is_historical": False,
@@ -106,17 +185,21 @@ def list_searches(
 def load_historical_search(
     request: Request,
     search_id: str,
+    view: str = Query("original", pattern="^(original|current)$"),
     searchdb: SearchDB = Depends(get_searchdb),
     retriever: Retriever = Depends(get_retriever),
     settings: Settings = Depends(get_settings),
 ):
     """
-    Load a historical search and re-run it with current KB state.
+    Load a historical search with original or current results.
+
+    Args:
+        view: "original" returns preserved results, "current" re-runs query
 
     Returns:
     - Stored summary (preserved from original)
-    - Current search results
-    - Comparison data (missing/new files)
+    - Results (original preserved or current re-queried based on view param)
+    - Comparison data (missing/new files, score changes)
     - Original metadata (timestamp, result count)
     """
     search_record = searchdb.get_search(search_id)
@@ -126,7 +209,7 @@ def load_historical_search(
     # Mark as viewed (updates last_viewed_at timestamp)
     searchdb.mark_viewed(search_id)
 
-    # Re-run search with current KB state
+    # Always re-run search with current KB state for comparison
     search_query = search_record["query"]
 
     # Apply intelligent search if enabled (same as original search)
@@ -140,23 +223,38 @@ def load_historical_search(
             search_query = build_enhanced_search_query(enhanced)
             logger.info("Enhanced query: %s -> %s", search_record["query"], search_query)
 
-    current_results = retriever.search(
+    # Fetch more chunks to ensure file diversity (10x multiplier)
+    chunk_fetch_limit = settings.top_k * 10
+    chunk_results = retriever.search(
         search_query,
-        top_k=settings.top_k,
+        top_k=chunk_fetch_limit,
         folder_filter=search_record.get("folder"),
         tag_filter=search_record.get("tag"),
     )
 
-    # Extract current result paths and details
-    current_paths = set(
-        r.metadata.get("source_path", "")
-        for r in current_results
-        if r.metadata.get("source_path")
-    )
+    # Group chunks by file for cleaner results
+    current_grouped_results = _group_results_by_file(chunk_results)
+
+    # Limit to top_k files (not chunks)
+    current_grouped_results = current_grouped_results[:settings.top_k]
+
+    # Determine which results to return based on view parameter
+    if view == "original":
+        # Return preserved original results if available
+        results_to_return = search_record.get("result_data", [])
+        if not results_to_return:
+            # Fallback to current results if no original data preserved
+            results_to_return = current_grouped_results
+            logger.warning("No original result_data found for search %s, using current results", search_id)
+    else:  # view == "current"
+        # Return re-queried current results
+        results_to_return = current_grouped_results
+
+    # Extract current result paths and details (file-level) for comparison
+    current_paths = set(r["metadata"].get("source_path", "") for r in current_grouped_results)
     current_details = {
-        r.metadata.get("source_path", ""): r.score
-        for r in current_results
-        if r.metadata.get("source_path")
+        r["metadata"].get("source_path", ""): r["score"]
+        for r in current_grouped_results
     }
 
     # Compare with stored results
@@ -186,14 +284,7 @@ def load_historical_search(
     score_changes.sort(key=lambda x: abs(x["change"]), reverse=True)
 
     return {
-        "results": [
-            {
-                "document": r.document,
-                "metadata": r.metadata,
-                "score": r.score,
-            }
-            for r in current_results
-        ],
+        "results": results_to_return,
         "search_id": search_id,
         "query": search_record["query"],
         "folder": search_record.get("folder"),
@@ -201,8 +292,9 @@ def load_historical_search(
         "summary": search_record.get("summary"),  # Preserved from original
         "created_at": search_record["created_at"],
         "is_historical": True,
+        "view": view,  # Indicate which view is being returned
         "stored_result_count": search_record.get("result_count", 0),
-        "current_result_count": len(current_results),
+        "current_result_count": len(current_grouped_results),
         "missing_files": missing_paths,  # Files that were in original but not now
         "new_files": new_paths,  # Files that are new since original
         "score_changes": score_changes,  # Score changes for files in both results

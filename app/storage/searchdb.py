@@ -29,6 +29,7 @@ _MIGRATIONS: list[tuple[int, str, str]] = [
     (3, "add result_count column to searches", "ALTER TABLE searches ADD COLUMN result_count INTEGER"),
     (4, "add last_viewed_at column to searches", "ALTER TABLE searches ADD COLUMN last_viewed_at TEXT"),
     (5, "add result_details column to searches", "ALTER TABLE searches ADD COLUMN result_details TEXT"),
+    (6, "add result_data column to searches", "ALTER TABLE searches ADD COLUMN result_data TEXT"),
 ]
 
 
@@ -79,21 +80,24 @@ class SearchDB:
         result_paths: list[str] | None = None,
         result_count: int | None = None,
         result_details: list[dict] | None = None,
+        result_data: list[dict] | None = None,
     ) -> str:
-        """Save a new search with result metadata.
+        """Save a new search with result metadata and full results.
 
         Args:
             result_details: List of dicts with {path, score} for each result
+            result_data: Full grouped results with snippets (preserves original view)
         """
         search_id = uuid.uuid4().hex[:12]
         result_paths_json = json.dumps(result_paths) if result_paths else None
         result_details_json = json.dumps(result_details) if result_details else None
+        result_data_json = json.dumps(result_data) if result_data else None
         with self._lock:
             self._conn.execute(
                 """INSERT INTO searches
-                   (id, query, folder, tag, result_paths, result_count, result_details)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (search_id, query, folder, tag, result_paths_json, result_count, result_details_json),
+                   (id, query, folder, tag, result_paths, result_count, result_details, result_data)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (search_id, query, folder, tag, result_paths_json, result_count, result_details_json, result_data_json),
             )
             self._conn.commit()
         return search_id
@@ -138,6 +142,14 @@ class SearchDB:
                     result["result_details"] = []
             else:
                 result["result_details"] = []
+            # Parse JSON result_data
+            if result.get("result_data"):
+                try:
+                    result["result_data"] = json.loads(result["result_data"])
+                except json.JSONDecodeError:
+                    result["result_data"] = []
+            else:
+                result["result_data"] = []
             return result
 
     def mark_viewed(self, search_id: str):

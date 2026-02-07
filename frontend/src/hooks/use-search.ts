@@ -20,6 +20,7 @@ export function useSearch() {
 
   // Historical search metadata
   const [isHistorical, setIsHistorical] = useState(false)
+  const [currentView, setCurrentView] = useState<"original" | "current">("original")
   const [resultsChanged, setResultsChanged] = useState(false)
   const [missingFiles, setMissingFiles] = useState<string[]>([])
   const [newFiles, setNewFiles] = useState<string[]>([])
@@ -83,6 +84,7 @@ export function useSearch() {
   // Reset historical metadata
   const resetHistoricalState = useCallback(() => {
     setIsHistorical(false)
+    setCurrentView("original")
     setResultsChanged(false)
     setMissingFiles([])
     setNewFiles([])
@@ -152,11 +154,12 @@ export function useSearch() {
     } catch { /* ignore */ }
   }, [activeSearchId])
 
-  const loadSearch = useCallback(async (saved: SavedSearch) => {
+  const loadSearch = useCallback(async (saved: SavedSearch, view: "original" | "current" = "original") => {
     setQuery(saved.query)
     setFolder(saved.folder)
     setTag(saved.tag)
     setActiveSearchId(saved.id)
+    setCurrentView(view)
 
     // Stop any running summary
     summaryControllerRef.current?.abort()
@@ -166,8 +169,8 @@ export function useSearch() {
     setError(null)
 
     try {
-      // Call the load endpoint to get historical search data
-      const res = await api.get<SearchResponse>(`/api/searches/${saved.id}/load`)
+      // Call the load endpoint to get historical search data with view parameter
+      const res = await api.get<SearchResponse>(`/api/searches/${saved.id}/load?view=${view}`)
 
       // Set results
       setResults(res.results)
@@ -294,14 +297,43 @@ export function useSearch() {
     resetHistoricalState()
   }, [resetHistoricalState])
 
+  const toggleView = useCallback(async () => {
+    if (!isHistorical || !activeSearchId) return
+
+    const newView = currentView === "original" ? "current" : "original"
+    setCurrentView(newView)
+    setLoading(true)
+    setError(null)
+
+    try {
+      // Reload with the new view
+      const res = await api.get<SearchResponse>(`/api/searches/${activeSearchId}/load?view=${newView}`)
+      setResults(res.results)
+
+      // Update metadata (comparison data remains same, but results change)
+      setResultsChanged(res.results_changed || false)
+      setMissingFiles(res.missing_files || [])
+      setNewFiles(res.new_files || [])
+      setScoreChanges(res.score_changes || [])
+      setStoredResultCount(res.stored_result_count || null)
+      setCurrentResultCount(res.current_result_count || null)
+    } catch (err) {
+      const msg = (err as Error).message
+      setError(msg)
+      toast.error(`Failed to toggle view: ${msg}`)
+    } finally {
+      setLoading(false)
+    }
+  }, [isHistorical, activeSearchId, currentView])
+
   return {
     query, setQuery, folder, setFolder, tag, setTag,
     results, folders, tags, loading, error, search,
     searches, activeSearchId, deleteSearch, loadSearch,
     summary, summarySources, isSummarizing, stopSummary, generateSummary,
-    newSearch, refreshSearches, requery,
+    newSearch, refreshSearches, requery, toggleView,
     // Historical search metadata
-    isHistorical, resultsChanged, missingFiles, newFiles, scoreChanges,
+    isHistorical, currentView, resultsChanged, missingFiles, newFiles, scoreChanges,
     storedResultCount, currentResultCount, createdAt,
   }
 }
