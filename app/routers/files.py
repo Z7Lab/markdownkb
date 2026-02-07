@@ -19,6 +19,25 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["files"])
 
 
+@router.get("/file/status")
+@limiter.limit(STANDARD)
+def get_file_status(
+    request: Request,
+    path: str = Query(..., description="File path to check"),
+    tracking: TrackingDB = Depends(get_tracking),
+):
+    """Get status of a single file (lightweight endpoint for file-viewer-dialog)."""
+    file = tracking.get_file(path)
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found in tracking database")
+    return {
+        "path": file["path"],
+        "status": file["status"],
+        "include_rag": file.get("include_rag", 1),
+        "chunk_count": file.get("chunk_count", 0),
+    }
+
+
 @router.get("/files")
 @limiter.limit(STANDARD)
 def list_files(

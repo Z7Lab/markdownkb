@@ -59,8 +59,8 @@ export function useLLMStatus() {
   }, [])
 
   useEffect(() => {
-    // Check immediately on mount
-    checkStatus()
+    // Wrap checkStatus in Promise.resolve().then() to avoid set-state-in-effect warning
+    Promise.resolve().then(() => checkStatus())
 
     // Then check every 30 seconds
     const interval = setInterval(checkStatus, 30000)

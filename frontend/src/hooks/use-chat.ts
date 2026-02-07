@@ -4,9 +4,8 @@ import { streamChat } from "@/lib/sse"
 import { toast } from "sonner"
 import type { ChatMessage, PaginatedResponse, Thread } from "@/lib/types"
 
-let msgCounter = 0
 function nextId(): string {
-  return `msg-${Date.now()}-${++msgCounter}`
+  return crypto.randomUUID()
 }
 
 // LocalStorage keys for persistence
@@ -101,6 +100,7 @@ export function useChat() {
     return () => {
       if (retryTimer) clearTimeout(retryTimer)
     }
+    // Only run on mount - deliberately excluding dependencies to prevent retry loop
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // Only run on mount
 

@@ -39,7 +39,7 @@ export function useSearch() {
         setFolders(foldersRes.items)
         setTags(tagsRes.items)
         setSearches(searchesRes.items)
-      } catch (err) {
+      } catch {
         // If load failed and we haven't exceeded max retries, retry in 2 seconds
         if (retryCount < MAX_RETRIES) {
           retryCount++
@@ -52,6 +52,8 @@ export function useSearch() {
 
     return () => {
       if (retryTimer) clearTimeout(retryTimer)
+      // Clean up any active summary streaming on unmount
+      summaryControllerRef.current?.abort()
     }
   }, [])
 
@@ -125,6 +127,30 @@ export function useSearch() {
     } catch { /* ignore */ }
   }, [activeSearchId])
 
+  // Helper to execute search (DRY)
+  const executeSearch = useCallback(async (
+    query: string,
+    folder: string | null,
+    tag: string | null,
+  ): Promise<{ results: SearchResult[]; search_id: string } | null> => {
+    setLoading(true)
+    try {
+      const res = await api.post<{ results: SearchResult[]; search_id: string }>("/api/search", {
+        query,
+        folder: folder || undefined,
+        tag: tag || undefined,
+      })
+      setResults(res.results)
+      return res
+    } catch (err) {
+      console.error("Failed to execute search:", err)
+      setError((err as Error).message)
+      return null
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   const loadSearch = useCallback(async (saved: SavedSearch) => {
     setQuery(saved.query)
     setFolder(saved.folder)
@@ -141,58 +167,33 @@ export function useSearch() {
       setSummarySources([]) // Sources aren't saved, so clear them
 
       // Refresh results in background (results may have changed with new indexing)
-      setLoading(true)
-      try {
-        const res = await api.post<{ results: SearchResult[]; search_id: string }>("/api/search", {
-          query: saved.query,
-          folder: saved.folder || undefined,
-          tag: saved.tag || undefined,
-        })
-        setResults(res.results)
-        // Note: This creates a new search record, but we keep showing the old summary
-      } catch (err) {
-        console.error("Failed to refresh results:", err)
-        setError((err as Error).message)
-      } finally {
-        setLoading(false)
-      }
+      await executeSearch(saved.query, saved.folder, saved.tag)
+      // Note: This creates a new search record, but we keep showing the old summary
     } else {
       // No cached summary - fetch results and generate summary
-      setLoading(true)
       setSummary("")
       setSummarySources([])
 
-      try {
-        const res = await api.post<{ results: SearchResult[]; search_id: string }>("/api/search", {
-          query: saved.query,
-          folder: saved.folder || undefined,
-          tag: saved.tag || undefined,
-        })
-        setResults(res.results)
+      const res = await executeSearch(saved.query, saved.folder, saved.tag)
+      if (!res) return
 
-        // Generate summary and save to the OLD search record (not the new one)
-        setIsSummarizing(true)
-        summaryControllerRef.current = streamSearchSummary(
-          saved.query,
-          {
-            onToken: (delta) => setSummary((prev) => prev + delta),
-            onSources: (sources) => setSummarySources(sources),
-            onDone: () => setIsSummarizing(false),
-            onError: (err) => {
-              setIsSummarizing(false)
-              console.error("Summary error:", err)
-            },
+      // Generate summary and save to the OLD search record (not the new one)
+      setIsSummarizing(true)
+      summaryControllerRef.current = streamSearchSummary(
+        saved.query,
+        {
+          onToken: (delta) => setSummary((prev) => prev + delta),
+          onSources: (sources) => setSummarySources(sources),
+          onDone: () => setIsSummarizing(false),
+          onError: (err) => {
+            setIsSummarizing(false)
+            console.error("Summary error:", err)
           },
-          { folder: saved.folder, tag: saved.tag, search_id: saved.id },
-        )
-      } catch (err) {
-        console.error("Failed to load search:", err)
-        setError((err as Error).message)
-      } finally {
-        setLoading(false)
-      }
+        },
+        { folder: saved.folder, tag: saved.tag, search_id: saved.id },
+      )
     }
-  }, [])
+  }, [executeSearch])
 
   const stopSummary = useCallback(() => {
     summaryControllerRef.current?.abort()

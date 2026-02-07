@@ -1,12 +1,7 @@
-import { createContext, useContext } from "react"
+import type { ReactNode } from "react"
+import { NavigationContext, type NavigationContextValue } from "@/contexts/navigation"
 
-interface NavigationContextValue {
-  setActiveTab: (tab: string) => void
+// Export provider component
+export function NavigationProvider({ value, children }: { value: NavigationContextValue; children: ReactNode }) {
+  return <NavigationContext.Provider value={value}>{children}</NavigationContext.Provider>
 }
-
-const NavigationContext = createContext<NavigationContextValue>({
-  setActiveTab: () => {},
-})
-
-export const NavigationProvider = NavigationContext.Provider
-export const useNavigation = () => useContext(NavigationContext)

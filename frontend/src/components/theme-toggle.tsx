@@ -1,6 +1,6 @@
 import { Moon, Sun } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 
 function applyTheme(dark: boolean) {
   const root = window.document.documentElement
@@ -10,20 +10,19 @@ function applyTheme(dark: boolean) {
 }
 
 export function ThemeToggle() {
-  const [dark, setDark] = useState(false)
-
-  useEffect(() => {
+  // Initialize dark mode from localStorage or system preference
+  const [dark, setDark] = useState(() => {
     const stored = localStorage.getItem("theme")
     if (stored === "dark" || stored === "light") {
       const d = stored === "dark"
-      setDark(d)
       applyTheme(d)
+      return d
     } else {
       const sys = window.matchMedia("(prefers-color-scheme: dark)").matches
-      setDark(sys)
       applyTheme(sys)
+      return sys
     }
-  }, [])
+  })
 
   return (
     <div className="flex items-center gap-1.5">

@@ -17,6 +17,19 @@ def health(request: Request, store: VectorStore = Depends(get_store)):
     return {"status": "ok", "chunks": store.count}
 
 
+@router.get("/health/llm")
+@limiter.limit(STANDARD)
+def llm_health(request: Request, settings: Settings = Depends(get_settings)):
+    """Lightweight LLM health check (for status polling)."""
+    active_cfg = settings.get_active_llm_config()
+    return {
+        "provider": settings.active_provider,
+        "model": active_cfg.get("model", ""),
+        "api_base": active_cfg.get("api_base", ""),
+        "configured": bool(active_cfg.get("model")),
+    }
+
+
 @router.get("/stats")
 @limiter.limit(STANDARD)
 def stats(

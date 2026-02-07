@@ -13,20 +13,20 @@ export function LLMStatusIndicator() {
   const statusConfig = {
     online: {
       icon: CheckCircle2,
-      color: "text-green-500",
-      bg: "bg-green-500/10",
+      color: "text-success",
+      bg: "bg-success/10",
       label: "Provider Online",
     },
     offline: {
       icon: AlertCircle,
-      color: "text-red-500",
-      bg: "bg-red-500/10",
+      color: "text-error",
+      bg: "bg-error/10",
       label: "Provider Offline",
     },
     checking: {
       icon: Activity,
-      color: "text-yellow-500",
-      bg: "bg-yellow-500/10",
+      color: "text-warning",
+      bg: "bg-warning/10",
       label: "Checking...",
     },
   }

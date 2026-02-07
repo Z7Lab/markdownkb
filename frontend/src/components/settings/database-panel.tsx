@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -29,18 +29,18 @@ export function DatabasePanel() {
     description: string
   } | null>(null)
 
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     try {
       const res = await api.get<DatabaseStats>("/api/settings/database-stats")
       setStats(res)
     } catch (err) {
       console.error("Failed to load database stats:", err)
     }
-  }
+  }, [])
 
   useEffect(() => {
     loadStats()
-  }, [])
+  }, [loadStats])
 
   const handleClearChats = async () => {
     setLoading(true)

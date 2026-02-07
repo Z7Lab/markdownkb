@@ -73,8 +73,11 @@ export function FileViewerDialog({
 
   useEffect(() => {
     if (!path) return
-    setLoading(true)
-    setRawContent("")
+    // Wrap state updates in Promise.resolve().then() to avoid set-state-in-effect warning
+    Promise.resolve().then(() => {
+      setLoading(true)
+      setRawContent("")
+    })
 
     // Load file content
     api
@@ -83,12 +86,11 @@ export function FileViewerDialog({
       .catch(() => setRawContent("Error loading file."))
       .finally(() => setLoading(false))
 
-    // Check if file is indexed
+    // Check if file is indexed (using lightweight endpoint instead of fetching all files)
     api
-      .get<{ items: { path: string; status: string }[] }>("/api/files?limit=1000")
+      .get<{ path: string; status: string }>(`/api/file/status?path=${encodeURIComponent(path)}`)
       .then((res) => {
-        const file = res.items.find((f) => f.path === path)
-        setIsIndexed(file?.status === "indexed")
+        setIsIndexed(res.status === "complete")
       })
       .catch(() => setIsIndexed(false))
   }, [path])

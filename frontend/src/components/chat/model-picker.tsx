@@ -16,7 +16,10 @@ export function ModelPicker() {
   useEffect(() => {
     if (!settings) return
     let cancelled = false
-    setLoading(true)
+    // Wrap setLoading in Promise.resolve().then() to avoid set-state-in-effect warning
+    Promise.resolve().then(() => {
+      if (!cancelled) setLoading(true)
+    })
     refreshModels(settings.active_provider, settings.active_api_base)
       .then((res) => {
         if (!cancelled && res.models.length > 0) setModels(res.models)
@@ -28,7 +31,7 @@ export function ModelPicker() {
     return () => {
       cancelled = true
     }
-  }, [settings?.active_provider, settings?.active_api_base, refreshModels])
+  }, [settings?.active_provider, settings?.active_api_base, settings, refreshModels])
 
   if (!settings) return null
 

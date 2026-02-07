@@ -36,13 +36,14 @@ export function ChatInput({
         placeholder="Ask your knowledge base..."
         className="min-h-[44px] max-h-[120px] resize-none"
         rows={1}
+        aria-label="Chat message input"
       />
       {isStreaming ? (
-        <Button onClick={onStop} variant="destructive" size="icon">
+        <Button onClick={onStop} variant="destructive" size="icon" aria-label="Stop streaming">
           <Square className="h-4 w-4" />
         </Button>
       ) : (
-        <Button onClick={handleSend} size="icon" disabled={!input.trim()}>
+        <Button onClick={handleSend} size="icon" disabled={!input.trim()} aria-label="Send message">
           <Send className="h-4 w-4" />
         </Button>
       )}

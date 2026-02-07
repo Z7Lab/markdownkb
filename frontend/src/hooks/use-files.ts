@@ -71,6 +71,7 @@ export function useFiles() {
       mounted = false
       if (retryTimer) clearTimeout(retryTimer)
     }
+    // Only run on mount - deliberately excluding dependencies to prevent retry loop
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // Only run on mount
 

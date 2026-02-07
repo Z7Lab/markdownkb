@@ -23,14 +23,23 @@ export function SortableTableHead({
     <TableHead
       onClick={() => onSort(sortKey)}
       className={cn("cursor-pointer select-none", className)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          onSort(sortKey)
+        }
+      }}
+      aria-label={`Sort by ${children}${active ? ` (currently ${sortDir === "asc" ? "ascending" : "descending"})` : ""}`}
     >
       <div className={cn("flex items-center gap-1", className?.includes("text-center") && "justify-center")}>
         {children}
         {active &&
           (sortDir === "asc" ? (
-            <ArrowUp className="h-3.5 w-3.5" />
+            <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
           ) : (
-            <ArrowDown className="h-3.5 w-3.5" />
+            <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
           ))}
       </div>
     </TableHead>

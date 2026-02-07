@@ -18,3 +18,19 @@ export function relativeTime(iso: string): string {
   if (d < 30) return `${d}d ago`
   return new Date(normalized).toLocaleDateString()
 }
+
+/**
+ * Extract the filename from a file path
+ */
+export function basename(path: string): string {
+  return path.split("/").pop() ?? path
+}
+
+/**
+ * Extract the directory path from a file path
+ */
+export function dirname(path: string): string {
+  const parts = path.split("/")
+  parts.pop()
+  return parts.join("/") || "/"
+}

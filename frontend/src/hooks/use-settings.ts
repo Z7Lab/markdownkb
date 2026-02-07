@@ -110,6 +110,11 @@ function useSettingsInternal() {
 
     return () => {
       if (retryTimer) clearTimeout(retryTimer)
+      // Clean up any active polling interval on unmount
+      if (switchPollRef.current) {
+        clearInterval(switchPollRef.current)
+        switchPollRef.current = null
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // Only run on mount

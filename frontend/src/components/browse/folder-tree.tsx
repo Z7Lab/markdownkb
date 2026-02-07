@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { cn } from "@/lib/utils"
+import { cn, basename, dirname } from "@/lib/utils"
 import { AppSidebar } from "@/components/ui/app-sidebar"
 import {
   ChevronDown,
@@ -14,16 +14,6 @@ interface FolderNode {
   fullPath: string
   fileCount: number
   children: FolderNode[]
-}
-
-function basename(path: string) {
-  return path.split("/").pop() ?? path
-}
-
-function dirname(path: string) {
-  const parts = path.split("/")
-  parts.pop()
-  return parts.join("/") || "/"
 }
 
 function sortTree(nodes: FolderNode[]) {
@@ -151,7 +141,8 @@ export function FolderTree({
   const roots = useMemo(() => buildFolderTree(files), [files])
 
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => {
-    return new Set(buildFolderTree(files).map((r) => r.fullPath))
+    // Initialize with root paths from the memoized roots (avoid double computation)
+    return new Set(roots.map((r) => r.fullPath))
   })
 
   const toggleExpand = (path: string) => {

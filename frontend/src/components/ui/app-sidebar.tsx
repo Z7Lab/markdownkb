@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { useNavigation } from "@/lib/navigation"
+import { useNavigation } from "@/hooks/use-navigation"
 import { Settings } from "lucide-react"
 
 export function AppSidebar({
