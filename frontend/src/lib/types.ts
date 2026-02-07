@@ -44,8 +44,18 @@ export interface SavedSearch {
   summary: string | null
   result_paths: string[]
   result_count: number | null
+  parent_id: string | null
   last_viewed_at: string | null
   created_at: string
+}
+
+export interface SearchVersion {
+  id: string
+  query: string
+  result_count: number | null
+  summary: string | null
+  created_at: string
+  parent_id: string | null
 }
 
 export interface SearchResponse {
@@ -57,13 +67,13 @@ export interface SearchResponse {
   summary?: string | null
   created_at?: string
   is_historical: boolean
-  view?: "original" | "current"
   stored_result_count?: number
   current_result_count?: number
   missing_files?: string[]
   new_files?: string[]
   score_changes?: ScoreChange[]
   results_changed?: boolean
+  version_count?: number
   llm_offline: boolean
 }
 

@@ -12,6 +12,7 @@ class SearchRequest(BaseModel):
     top_k: int = Field(15, ge=1, le=50)
     folder: str | None = None
     tag: str | None = None
+    parent_id: str | None = None  # Link re-queries into a version chain
 
 
 class SummarizeRequest(BaseModel):

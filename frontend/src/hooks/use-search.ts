@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { api } from "@/lib/api"
 import { streamSearchSummary } from "@/lib/sse"
 import { toast } from "sonner"
-import type { PaginatedResponse, SavedSearch, SearchResult, SearchResponse, ScoreChange } from "@/lib/types"
+import type { PaginatedResponse, SavedSearch, SearchResult, SearchResponse, SearchVersion, ScoreChange } from "@/lib/types"
 
 export function useSearch() {
   const [query, setQuery] = useState("")
@@ -20,7 +20,6 @@ export function useSearch() {
 
   // Historical search metadata
   const [isHistorical, setIsHistorical] = useState(false)
-  const [currentView, setCurrentView] = useState<"original" | "current">("original")
   const [resultsChanged, setResultsChanged] = useState(false)
   const [missingFiles, setMissingFiles] = useState<string[]>([])
   const [newFiles, setNewFiles] = useState<string[]>([])
@@ -28,6 +27,7 @@ export function useSearch() {
   const [storedResultCount, setStoredResultCount] = useState<number | null>(null)
   const [currentResultCount, setCurrentResultCount] = useState<number | null>(null)
   const [createdAt, setCreatedAt] = useState<string | null>(null)
+  const [versionCount, setVersionCount] = useState(0)
 
   // AI summary
   const [summary, setSummary] = useState("")
@@ -84,7 +84,6 @@ export function useSearch() {
   // Reset historical metadata
   const resetHistoricalState = useCallback(() => {
     setIsHistorical(false)
-    setCurrentView("original")
     setResultsChanged(false)
     setMissingFiles([])
     setNewFiles([])
@@ -92,6 +91,7 @@ export function useSearch() {
     setStoredResultCount(null)
     setCurrentResultCount(null)
     setCreatedAt(null)
+    setVersionCount(0)
   }, [])
 
   const search = useCallback(async () => {
@@ -154,12 +154,11 @@ export function useSearch() {
     } catch { /* ignore */ }
   }, [activeSearchId])
 
-  const loadSearch = useCallback(async (saved: SavedSearch, view: "original" | "current" = "original") => {
+  const loadSearch = useCallback(async (saved: SavedSearch) => {
     setQuery(saved.query)
     setFolder(saved.folder)
     setTag(saved.tag)
     setActiveSearchId(saved.id)
-    setCurrentView(view)
 
     // Stop any running summary
     summaryControllerRef.current?.abort()
@@ -169,10 +168,10 @@ export function useSearch() {
     setError(null)
 
     try {
-      // Call the load endpoint to get historical search data with view parameter
-      const res = await api.get<SearchResponse>(`/api/searches/${saved.id}/load?view=${view}`)
+      // Call the load endpoint to get preserved historical search data
+      const res = await api.get<SearchResponse>(`/api/searches/${saved.id}/load`)
 
-      // Set results
+      // Set results (preserved from when search was created)
       setResults(res.results)
 
       // Set historical metadata
@@ -184,6 +183,7 @@ export function useSearch() {
       setStoredResultCount(res.stored_result_count || null)
       setCurrentResultCount(res.current_result_count || null)
       setCreatedAt(res.created_at || null)
+      setVersionCount(res.version_count || 0)
 
       // Use the stored summary (don't regenerate)
       setSummary(res.summary || "")
@@ -194,6 +194,31 @@ export function useSearch() {
       toast.error(`Failed to load search: ${msg}`)
     } finally {
       setLoading(false)
+    }
+  }, [])
+
+  const loadVersion = useCallback(async (version: SearchVersion) => {
+    // Load a specific version by creating a minimal SavedSearch object
+    await loadSearch({
+      id: version.id,
+      query: version.query,
+      folder: folder,
+      tag: tag,
+      summary: version.summary,
+      result_paths: [],
+      result_count: version.result_count,
+      parent_id: version.parent_id,
+      last_viewed_at: null,
+      created_at: version.created_at,
+    })
+  }, [loadSearch, folder, tag])
+
+  const fetchVersions = useCallback(async (searchId: string): Promise<SearchVersion[]> => {
+    try {
+      const res = await api.get<{ versions: SearchVersion[] }>(`/api/searches/${searchId}/versions`)
+      return res.versions
+    } catch {
+      return []
     }
   }, [])
 
@@ -212,11 +237,12 @@ export function useSearch() {
     setSummarySources([])
 
     try {
-      // Execute a new search (creates new search record)
+      // Execute a new search linked to the current search (version chain)
       const res = await api.post<SearchResponse>("/api/search", {
         query: query.trim(),
         folder: folder || undefined,
         tag: tag || undefined,
+        parent_id: activeSearchId || undefined,
       })
 
       setResults(res.results)
@@ -250,7 +276,7 @@ export function useSearch() {
     } finally {
       setLoading(false)
     }
-  }, [query, folder, tag, refreshSearches, resetHistoricalState])
+  }, [query, folder, tag, activeSearchId, refreshSearches, resetHistoricalState])
 
   const stopSummary = useCallback(() => {
     summaryControllerRef.current?.abort()
@@ -297,43 +323,15 @@ export function useSearch() {
     resetHistoricalState()
   }, [resetHistoricalState])
 
-  const toggleView = useCallback(async () => {
-    if (!isHistorical || !activeSearchId) return
-
-    const newView = currentView === "original" ? "current" : "original"
-    setCurrentView(newView)
-    setLoading(true)
-    setError(null)
-
-    try {
-      // Reload with the new view
-      const res = await api.get<SearchResponse>(`/api/searches/${activeSearchId}/load?view=${newView}`)
-      setResults(res.results)
-
-      // Update metadata (comparison data remains same, but results change)
-      setResultsChanged(res.results_changed || false)
-      setMissingFiles(res.missing_files || [])
-      setNewFiles(res.new_files || [])
-      setScoreChanges(res.score_changes || [])
-      setStoredResultCount(res.stored_result_count || null)
-      setCurrentResultCount(res.current_result_count || null)
-    } catch (err) {
-      const msg = (err as Error).message
-      setError(msg)
-      toast.error(`Failed to toggle view: ${msg}`)
-    } finally {
-      setLoading(false)
-    }
-  }, [isHistorical, activeSearchId, currentView])
-
   return {
     query, setQuery, folder, setFolder, tag, setTag,
     results, folders, tags, loading, error, search,
     searches, activeSearchId, deleteSearch, loadSearch,
     summary, summarySources, isSummarizing, stopSummary, generateSummary,
-    newSearch, refreshSearches, requery, toggleView,
+    newSearch, refreshSearches, requery,
+    loadVersion, fetchVersions,
     // Historical search metadata
-    isHistorical, currentView, resultsChanged, missingFiles, newFiles, scoreChanges,
-    storedResultCount, currentResultCount, createdAt,
+    isHistorical, resultsChanged, missingFiles, newFiles, scoreChanges,
+    storedResultCount, currentResultCount, createdAt, versionCount,
   }
 }

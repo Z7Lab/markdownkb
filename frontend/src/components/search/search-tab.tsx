@@ -1,6 +1,7 @@
 import { useSearch } from "@/hooks/use-search"
 import { SearchSidebar } from "./search-sidebar"
 import { ResultsChangedDialog } from "./results-changed-dialog"
+import { SearchHistoryDialog } from "./search-history-dialog"
 import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Button } from "@/components/ui/button"
@@ -9,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Markdown } from "@/components/ui/markdown"
-import { Loader2, Search, Sparkles, Square, RotateCcw, Clock, AlertCircle, ChevronDown, ChevronRight, History, RefreshCw } from "lucide-react"
+import { Loader2, Search, Sparkles, Square, RotateCcw, Clock, AlertCircle, ChevronDown, ChevronRight, History } from "lucide-react"
 import { useState, type KeyboardEvent } from "react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
@@ -35,8 +36,6 @@ export function SearchTab() {
     summary, summarySources, isSummarizing, stopSummary, generateSummary,
     newSearch,
     isHistorical,
-    currentView,
-    toggleView,
     resultsChanged,
     missingFiles,
     newFiles,
@@ -44,11 +43,15 @@ export function SearchTab() {
     storedResultCount,
     currentResultCount,
     createdAt,
+    versionCount,
     requery,
+    loadVersion,
+    fetchVersions,
   } = useSearch()
 
   const [viewingPath, setViewingPath] = useState<string | null>(null)
   const [resultsChangedDialogOpen, setResultsChangedDialogOpen] = useState(false)
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false)
   const [confirmGenerateSummaryOpen, setConfirmGenerateSummaryOpen] = useState(false)
   const [expandedResults, setExpandedResults] = useState<Set<number>>(new Set())
 
@@ -116,17 +119,10 @@ export function SearchTab() {
                     {query}
                   </h2>
 
-                  {/* Historical vs Live badge with view indicator */}
-                  {isHistorical ? (
-                    <Badge variant="secondary" className="text-xs flex items-center gap-1">
-                      <History className="h-3 w-3" />
-                      {currentView === "original" ? "Original" : "Current"}
-                    </Badge>
-                  ) : (
-                    <Badge variant="default" className="text-xs">
-                      Live
-                    </Badge>
-                  )}
+                  {/* Historical vs Live badge */}
+                  <Badge variant={isHistorical ? "secondary" : "default"} className="text-xs">
+                    {isHistorical ? "Historical" : "Live"}
+                  </Badge>
 
                   {/* Folder/Tag filters */}
                   {(folder || tag) && (
@@ -144,28 +140,28 @@ export function SearchTab() {
                     </div>
                   )}
 
-                  {/* View toggle and Re-query buttons (only for historical searches) */}
+                  {/* History and Re-query buttons (only for historical searches) */}
                   {isHistorical && (
                     <div className="flex items-center gap-2 ml-auto">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 px-2"
-                            onClick={toggleView}
-                            disabled={loading}
-                          >
-                            <RefreshCw className="h-3.5 w-3.5 mr-1" />
-                            {currentView === "original" ? "Show Current" : "Show Original"}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">
-                          {currentView === "original"
-                            ? "View current KB state with re-queried results"
-                            : "View original results as they were when first searched"}
-                        </TooltipContent>
-                      </Tooltip>
+                      {versionCount > 1 && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2"
+                              onClick={() => setHistoryDialogOpen(true)}
+                              disabled={loading}
+                            >
+                              <History className="h-3.5 w-3.5 mr-1" />
+                              History ({versionCount})
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            View all versions of this search
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
 
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -181,7 +177,7 @@ export function SearchTab() {
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
-                          Run this query again with current KB state and generate a new AI summary
+                          Run this query again with current KB state (creates a new version)
                         </TooltipContent>
                       </Tooltip>
                     </div>
@@ -415,6 +411,14 @@ export function SearchTab() {
         scoreChanges={scoreChanges}
         storedResultCount={storedResultCount || 0}
         currentResultCount={currentResultCount || 0}
+      />
+
+      <SearchHistoryDialog
+        open={historyDialogOpen}
+        onOpenChange={setHistoryDialogOpen}
+        activeSearchId={activeSearchId}
+        fetchVersions={fetchVersions}
+        onSelectVersion={loadVersion}
       />
 
       <ConfirmDialog

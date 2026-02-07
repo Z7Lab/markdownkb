@@ -166,9 +166,15 @@ def app():
         "summary": None,
         "result_paths": [],
         "result_count": 0,
-        "created_at": "2024-01-01 00:00:00"
+        "result_details": [],
+        "result_data": [],
+        "parent_id": None,
+        "created_at": "2024-01-01 00:00:00",
     }
     searchdb.mark_viewed = MagicMock()
+    searchdb.get_search_versions.return_value = [
+        {"id": "srch001", "query": "test query", "result_count": 0, "summary": None, "created_at": "2024-01-01 00:00:00", "parent_id": None}
+    ]
     application.state.searchdb = searchdb
 
     application.state.cancel_event = threading.Event()

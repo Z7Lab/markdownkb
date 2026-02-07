@@ -30,6 +30,7 @@ _MIGRATIONS: list[tuple[int, str, str]] = [
     (4, "add last_viewed_at column to searches", "ALTER TABLE searches ADD COLUMN last_viewed_at TEXT"),
     (5, "add result_details column to searches", "ALTER TABLE searches ADD COLUMN result_details TEXT"),
     (6, "add result_data column to searches", "ALTER TABLE searches ADD COLUMN result_data TEXT"),
+    (7, "add parent_id column to searches", "ALTER TABLE searches ADD COLUMN parent_id TEXT"),
 ]
 
 
@@ -81,12 +82,14 @@ class SearchDB:
         result_count: int | None = None,
         result_details: list[dict] | None = None,
         result_data: list[dict] | None = None,
+        parent_id: str | None = None,
     ) -> str:
         """Save a new search with result metadata and full results.
 
         Args:
             result_details: List of dicts with {path, score} for each result
             result_data: Full grouped results with snippets (preserves original view)
+            parent_id: Root search ID linking re-queries into a version chain
         """
         search_id = uuid.uuid4().hex[:12]
         result_paths_json = json.dumps(result_paths) if result_paths else None
@@ -95,9 +98,9 @@ class SearchDB:
         with self._lock:
             self._conn.execute(
                 """INSERT INTO searches
-                   (id, query, folder, tag, result_paths, result_count, result_details, result_data)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (search_id, query, folder, tag, result_paths_json, result_count, result_details_json, result_data_json),
+                   (id, query, folder, tag, result_paths, result_count, result_details, result_data, parent_id)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (search_id, query, folder, tag, result_paths_json, result_count, result_details_json, result_data_json, parent_id),
             )
             self._conn.commit()
         return search_id
@@ -151,6 +154,29 @@ class SearchDB:
             else:
                 result["result_data"] = []
             return result
+
+    def get_search_versions(self, search_id: str) -> list[dict]:
+        """Get all versions of a search chain (lightweight metadata only).
+
+        Resolves the root of the chain, then returns all searches with
+        that root (original + all re-queries), ordered by creation time.
+        """
+        with self._lock:
+            # Determine root ID
+            row = self._conn.execute(
+                "SELECT id, parent_id FROM searches WHERE id = ?", (search_id,)
+            ).fetchone()
+            if not row:
+                return []
+            root_id = row["parent_id"] or row["id"]
+
+            # Get all versions in this chain
+            rows = self._conn.execute(
+                "SELECT id, query, result_count, summary, created_at, parent_id "
+                "FROM searches WHERE id = ? OR parent_id = ? ORDER BY created_at",
+                (root_id, root_id),
+            ).fetchall()
+            return [dict(r) for r in rows]
 
     def mark_viewed(self, search_id: str):
         """Update last_viewed_at timestamp when loading a historical search."""
