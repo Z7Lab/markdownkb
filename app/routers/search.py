@@ -8,11 +8,7 @@ from fastapi.responses import StreamingResponse
 from app.config import Settings
 from app.deps import get_retriever, get_searchdb, get_settings
 from app.rag.llm import get_streaming_completion
-from app.rag.prompts import (
-    SEARCH_SUMMARY_SYSTEM,
-    SEARCH_SUMMARY_USER,
-    format_context,
-)
+from app.rag.prompts import SEARCH_SUMMARY_USER, format_context
 from app.rag.retriever import Retriever
 from app.ratelimit import HEAVY, LLM, STANDARD, limiter
 from app.schemas import SearchRequest, SummarizeRequest
@@ -35,6 +31,7 @@ def search(
     searchdb: SearchDB = Depends(get_searchdb),
     settings: Settings = Depends(get_settings),
 ):
+    """Search the vector database with optional intelligent query enhancement."""
     search_query = req.query
     llm_offline = False
 
@@ -81,6 +78,7 @@ def list_searches(
     limit: int = Query(50, ge=1, le=200),
     searchdb: SearchDB = Depends(get_searchdb),
 ):
+    """List search history with pagination."""
     items = searchdb.list_searches(offset=offset, limit=limit)
     total = searchdb.search_count()
     return {"items": items, "total": total, "offset": offset, "limit": limit}
@@ -93,6 +91,7 @@ def delete_search(
     search_id: str,
     searchdb: SearchDB = Depends(get_searchdb),
 ):
+    """Delete a search from history."""
     searchdb.delete_search(search_id)
     return {"status": "deleted"}
 
@@ -106,6 +105,7 @@ def summarize_search(
     searchdb: SearchDB = Depends(get_searchdb),
     settings: Settings = Depends(get_settings),
 ):
+    """Generate AI summary of search results with streaming response."""
     results = retriever.search(
         req.query,
         top_k=req.top_k,
@@ -167,6 +167,7 @@ def get_folders(
     limit: int = Query(200, ge=1, le=1000),
     retriever: Retriever = Depends(get_retriever),
 ):
+    """Get unique folder paths from indexed documents."""
     all_folders = retriever.get_unique_folders()
     total = len(all_folders)
     items = all_folders[offset:offset + limit]
@@ -181,6 +182,7 @@ def get_tags(
     limit: int = Query(200, ge=1, le=1000),
     retriever: Retriever = Depends(get_retriever),
 ):
+    """Get unique tags from indexed documents."""
     all_tags = retriever.get_unique_tags()
     total = len(all_tags)
     items = all_tags[offset:offset + limit]
