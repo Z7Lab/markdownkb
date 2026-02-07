@@ -7,12 +7,9 @@ import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
 import { FolderTree } from "./folder-tree"
 import { FileRow } from "./file-row"
 import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import {
-  Table,
   TableBody,
   TableCell,
-  TableHeader,
   TableRow,
 } from "@/components/ui/table"
 import { SortableTableHead } from "@/components/ui/sortable-table-head"

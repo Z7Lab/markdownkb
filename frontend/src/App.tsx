@@ -1,4 +1,5 @@
-import { lazy, Suspense, useState } from "react"
+import { lazy, Suspense } from "react"
+import { useLocation } from "wouter"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { ChatTab } from "@/components/chat/chat-tab"
@@ -16,15 +17,38 @@ function TabFallback() {
   return <div className="flex-1 flex items-center justify-center text-muted-foreground">Loading...</div>
 }
 
+// Map routes to tab values
+const routeToTab: Record<string, string> = {
+  "/": "chat",
+  "/search": "search",
+  "/files": "files",
+  "/settings": "settings",
+}
+
+const tabToRoute: Record<string, string> = {
+  chat: "/",
+  search: "/search",
+  files: "/files",
+  settings: "/settings",
+}
+
 function App() {
-  const [activeTab, setActiveTab] = useState("chat")
+  const [location, setLocation] = useLocation()
+  const activeTab = routeToTab[location] || "chat"
+
+  const handleTabChange = (tab: string) => {
+    const route = tabToRoute[tab]
+    if (route) {
+      setLocation(route)
+    }
+  }
 
   return (
     <TooltipProvider delayDuration={300}>
       <SettingsProvider>
-        <NavigationProvider value={{ setActiveTab }}>
+        <NavigationProvider value={{ setActiveTab: handleTabChange }}>
           <div className="h-screen flex flex-col overflow-hidden">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
             <header className="shrink-0 z-20 bg-background border-b px-6 py-3 flex items-center justify-between">
               <div>
                 <h1 className="text-lg font-bold tracking-tight">mdkb</h1>
@@ -43,7 +67,7 @@ function App() {
                   <Globe className="h-4 w-4" />
                   Search
                 </TabsTrigger>
-                <TabsTrigger value="browse">
+                <TabsTrigger value="files">
                   <FolderOpen className="h-4 w-4" />
                   Files
                 </TabsTrigger>
@@ -64,7 +88,7 @@ function App() {
                   </Suspense>
                 </ErrorBoundary>
               </TabsContent>
-              <TabsContent value="browse" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
+              <TabsContent value="files" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
                 <ErrorBoundary fallbackMessage="Files encountered an error">
                   <Suspense fallback={<TabFallback />}>
                     <FilesTab />
