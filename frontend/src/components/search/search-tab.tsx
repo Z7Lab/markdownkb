@@ -85,6 +85,16 @@ export function SearchTab() {
         {(results.length > 0 || summary || loading) && (
           <ScrollArea className="flex-1 min-h-0">
             <div className="space-y-3 p-4 pb-4">
+            {/* Loading spinner */}
+            {loading && results.length === 0 && !summary && (
+              <div className="flex flex-col items-center justify-center py-20 gap-3">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">
+                  Searching your knowledge base...
+                </p>
+              </div>
+            )}
+
             {error && (
               <p className="text-destructive text-center py-8">
                 Search error: {error}
