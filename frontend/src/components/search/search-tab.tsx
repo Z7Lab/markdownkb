@@ -55,39 +55,36 @@ export function SearchTab() {
         onTagChange={setTag}
       />
 
-      <div className="flex flex-col flex-1 min-w-0 min-h-0 gap-4 p-4">
-        {/* Show banner and search input when no results or summary */}
-        {results.length === 0 && !summary && (
-          <>
+      <div className="flex flex-col flex-1 min-w-0 min-h-0">
+        {/* Empty state - positioned higher on screen */}
+        {results.length === 0 && !summary && !loading && (
+          <div className="flex flex-col items-center justify-start flex-1 gap-6 p-4 pt-[20vh]">
             {/* ASCII Art Banner */}
-            <div className="flex justify-center py-2">
-              <pre className="text-[0.45rem] leading-[0.6rem] text-primary/80 font-mono whitespace-pre">
-                {ASCII_BANNER}
-              </pre>
-            </div>
+            <pre className="text-[0.45rem] leading-[0.6rem] text-primary/80 font-mono whitespace-pre">
+              {ASCII_BANNER}
+            </pre>
 
             {/* Search bar */}
-            <div className="flex justify-center">
-              <div className="flex gap-2 w-1/2">
-                <Input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Search your knowledge base..."
-                  className="flex-1"
-                />
-                <Button onClick={search} disabled={loading || !query.trim()}>
-                  <Search className="h-4 w-4 mr-1.5" />
-                  Search
-                </Button>
-              </div>
+            <div className="flex gap-2 w-full max-w-2xl">
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Search your knowledge base..."
+                className="flex-1"
+              />
+              <Button onClick={search} disabled={loading || !query.trim()}>
+                <Search className="h-4 w-4 mr-1.5" />
+                Search
+              </Button>
             </div>
-          </>
+          </div>
         )}
 
-        {/* Results area */}
-        <ScrollArea className="flex-1 min-h-0">
-          <div className="space-y-3 pb-4">
+        {/* Results area - show when loading or have results/summary */}
+        {(results.length > 0 || summary || loading) && (
+          <ScrollArea className="flex-1 min-h-0">
+            <div className="space-y-3 p-4 pb-4">
             {error && (
               <p className="text-destructive text-center py-8">
                 Search error: {error}
@@ -167,8 +164,9 @@ export function SearchTab() {
                 </CardContent>
               </Card>
             ))}
-          </div>
-        </ScrollArea>
+            </div>
+          </ScrollArea>
+        )}
       </div>
 
       <FileViewerDialog
