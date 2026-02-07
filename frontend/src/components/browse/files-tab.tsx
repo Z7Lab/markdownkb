@@ -59,7 +59,7 @@ const getValue = (f: TrackedFile, key: string): string | number | null => {
   }
 }
 
-export function BrowseTab() {
+export function FilesTab() {
   const { files, loading, refresh, toggleRag, unindexFile, indexFile, reindexFile } = useFiles()
   const [filterText, setFilterText] = useState("")
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
@@ -127,54 +127,52 @@ export function BrowseTab() {
           </div>
         </div>
 
-        <div className="flex-1 border rounded-md overflow-hidden min-h-0">
-          <ScrollArea className="h-full">
-            <Table>
-              <TableHeader className="sticky top-0 bg-background z-10">
+        <div className="flex-1 border rounded-md min-h-0 overflow-auto">
+          <table className="w-full caption-bottom text-sm relative">
+            <thead className="[&_tr]:border-b">
+              <TableRow className="border-b">
+                <SortableTableHead sortKey="file" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort} className="sticky top-0 bg-background z-10">
+                  File
+                </SortableTableHead>
+                <SortableTableHead sortKey="folder" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort} className="sticky top-0 bg-background z-10">
+                  Folder
+                </SortableTableHead>
+                <SortableTableHead sortKey="rag" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort} className="text-center sticky top-0 bg-background z-10">
+                  Include RAG
+                </SortableTableHead>
+                <SortableTableHead sortKey="status" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort} className="sticky top-0 bg-background z-10">
+                  Status
+                </SortableTableHead>
+                <SortableTableHead sortKey="chunks" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort} className="text-center sticky top-0 bg-background z-10">
+                  Chunks
+                </SortableTableHead>
+                <SortableTableHead sortKey="" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort} className="sticky top-0 bg-background z-10">
+                  Actions
+                </SortableTableHead>
+              </TableRow>
+            </thead>
+            <TableBody>
+              {filteredFiles.map((f) => (
+                <FileRow
+                  key={f.path}
+                  file={f}
+                  loading={loading}
+                  onToggleRag={toggleRag}
+                  onIndexFile={indexFile}
+                  onReindexFile={reindexFile}
+                  onUnindexFile={setPendingUnindex}
+                  onViewFile={setViewingPath}
+                />
+              ))}
+              {filteredFiles.length === 0 && (
                 <TableRow>
-                  <SortableTableHead sortKey="file" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort}>
-                    File
-                  </SortableTableHead>
-                  <SortableTableHead sortKey="folder" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort}>
-                    Folder
-                  </SortableTableHead>
-                  <SortableTableHead sortKey="rag" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort} className="text-center">
-                    Include RAG
-                  </SortableTableHead>
-                  <SortableTableHead sortKey="status" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort}>
-                    Status
-                  </SortableTableHead>
-                  <SortableTableHead sortKey="chunks" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort} className="text-center">
-                    Chunks
-                  </SortableTableHead>
-                  <SortableTableHead sortKey="" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort}>
-                    Actions
-                  </SortableTableHead>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    {files.length === 0 ? "No markdown files found in watch directories." : "No files match your filter."}
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredFiles.map((f) => (
-                  <FileRow
-                    key={f.path}
-                    file={f}
-                    loading={loading}
-                    onToggleRag={toggleRag}
-                    onIndexFile={indexFile}
-                    onReindexFile={reindexFile}
-                    onUnindexFile={setPendingUnindex}
-                    onViewFile={setViewingPath}
-                  />
-                ))}
-                {filteredFiles.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                      {files.length === 0 ? "No markdown files found in watch directories." : "No files match your filter."}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </ScrollArea>
+              )}
+            </TableBody>
+          </table>
         </div>
 
         <FileViewerDialog path={viewingPath} onClose={() => setViewingPath(null)} />

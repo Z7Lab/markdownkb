@@ -9,7 +9,7 @@ import { NavigationProvider } from "@/lib/navigation"
 import { MessageSquare, Globe, FolderOpen } from "lucide-react"
 
 const SearchTab = lazy(() => import("@/components/search/search-tab").then(m => ({ default: m.SearchTab })))
-const BrowseTab = lazy(() => import("@/components/browse/browse-tab").then(m => ({ default: m.BrowseTab })))
+const FilesTab = lazy(() => import("@/components/browse/files-tab").then(m => ({ default: m.FilesTab })))
 const SettingsTab = lazy(() => import("@/components/settings/settings-tab").then(m => ({ default: m.SettingsTab })))
 
 function TabFallback() {
@@ -65,9 +65,9 @@ function App() {
                 </ErrorBoundary>
               </TabsContent>
               <TabsContent value="browse" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
-                <ErrorBoundary fallbackMessage="Browse encountered an error">
+                <ErrorBoundary fallbackMessage="Files encountered an error">
                   <Suspense fallback={<TabFallback />}>
-                    <BrowseTab />
+                    <FilesTab />
                   </Suspense>
                 </ErrorBoundary>
               </TabsContent>
