@@ -1,10 +1,7 @@
 import React from "react"
-import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
 import { TableCell, TableRow } from "@/components/ui/table"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { Plus, RefreshCw, Trash2 } from "lucide-react"
 import { basename, dirname } from "@/lib/utils"
+import { FileActions } from "./file-actions"
 import type { TrackedFile } from "@/lib/types"
 
 interface FileRowProps {
@@ -26,10 +23,6 @@ export const FileRow = React.memo(function FileRow({
   onUnindexFile,
   onViewFile,
 }: FileRowProps) {
-  const isIndexed = file.status === "complete"
-  const isNotIndexed = file.status === "not_indexed" || file.status === "pending"
-  const ragOn = file.include_rag === 1
-
   return (
     <TableRow
       className="cursor-pointer"
@@ -42,14 +35,16 @@ export const FileRow = React.memo(function FileRow({
         {dirname(file.path)}
       </TableCell>
       <TableCell>
-        <div className="flex justify-center">
-          <Switch
-            checked={ragOn}
-            disabled={loading || file.status === "not_indexed"}
-            onClick={(e) => e.stopPropagation()}
-            onCheckedChange={(checked) => onToggleRag(file.path, checked)}
-          />
-        </div>
+        <FileActions
+          status={file.status}
+          includeRag={file.include_rag === 1}
+          loading={loading}
+          onToggleRag={(checked) => onToggleRag(file.path, checked)}
+          onIndexFile={() => onIndexFile(file.path)}
+          onReindexFile={() => onReindexFile(file.path)}
+          onUnindexFile={() => onUnindexFile(file.path)}
+          variant="toggle-only"
+        />
       </TableCell>
       <TableCell className="text-sm">
         {file.status === "not_indexed" ? (
@@ -66,56 +61,16 @@ export const FileRow = React.memo(function FileRow({
         <div className="flex justify-center">{file.chunk_count}</div>
       </TableCell>
       <TableCell>
-        <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-          {isNotIndexed && ragOn && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  disabled={loading}
-                  onClick={() => onIndexFile(file.path)}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Index this file</TooltipContent>
-            </Tooltip>
-          )}
-          {isIndexed && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  disabled={loading}
-                  onClick={() => onReindexFile(file.path)}
-                >
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Re-index this file</TooltipContent>
-            </Tooltip>
-          )}
-          {(isIndexed || file.status === "error") && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-destructive hover:text-destructive"
-                  disabled={loading}
-                  onClick={() => onUnindexFile(file.path)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Remove from index</TooltipContent>
-            </Tooltip>
-          )}
-        </div>
+        <FileActions
+          status={file.status}
+          includeRag={file.include_rag === 1}
+          loading={loading}
+          onToggleRag={(checked) => onToggleRag(file.path, checked)}
+          onIndexFile={() => onIndexFile(file.path)}
+          onReindexFile={() => onReindexFile(file.path)}
+          onUnindexFile={() => onUnindexFile(file.path)}
+          variant="buttons-only"
+        />
       </TableCell>
     </TableRow>
   )

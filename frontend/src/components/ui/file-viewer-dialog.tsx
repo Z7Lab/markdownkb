@@ -12,9 +12,11 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Markdown } from "@/components/ui/markdown"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Pencil } from "lucide-react"
+import { Pencil, Copy } from "lucide-react"
 import { toast } from "sonner"
 import { TagEditDialog } from "./tag-edit-dialog"
+import { FileActions } from "@/components/browse/file-actions"
+import { ConfirmDialog } from "./confirm-dialog"
 
 interface ParsedContent {
   tags: string[]
@@ -68,8 +70,14 @@ export function FileViewerDialog({
 }) {
   const [rawContent, setRawContent] = useState("")
   const [loading, setLoading] = useState(false)
-  const [isIndexed, setIsIndexed] = useState(false)
+  const [actionLoading, setActionLoading] = useState(false)
+  const [fileStatus, setFileStatus] = useState({
+    status: "not_indexed",
+    include_rag: 1,
+    chunk_count: 0,
+  })
   const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [pendingUnindex, setPendingUnindex] = useState(false)
 
   useEffect(() => {
     if (!path) return
@@ -86,13 +94,25 @@ export function FileViewerDialog({
       .catch(() => setRawContent("Error loading file."))
       .finally(() => setLoading(false))
 
-    // Check if file is indexed (using lightweight endpoint instead of fetching all files)
+    // Check file status (using lightweight endpoint)
     api
-      .get<{ path: string; status: string }>(`/api/file/status?path=${encodeURIComponent(path)}`)
+      .get<{ path: string; status: string; include_rag: number; chunk_count: number }>(
+        `/api/file/status?path=${encodeURIComponent(path)}`
+      )
       .then((res) => {
-        setIsIndexed(res.status === "complete")
+        setFileStatus({
+          status: res.status,
+          include_rag: res.include_rag,
+          chunk_count: res.chunk_count,
+        })
       })
-      .catch(() => setIsIndexed(false))
+      .catch(() => {
+        setFileStatus({
+          status: "not_indexed",
+          include_rag: 1,
+          chunk_count: 0,
+        })
+      })
   }, [path])
 
   const handleSaveTags = async (newTags: string[], createBackup: boolean, shouldReindex: boolean) => {
@@ -123,6 +143,15 @@ export function FileViewerDialog({
         try {
           await api.post("/api/files/reindex", { paths: [path] })
           toast.success("File reindexed successfully!")
+          // Refresh file status
+          const statusRes = await api.get<{ status: string; include_rag: number; chunk_count: number }>(
+            `/api/file/status?path=${encodeURIComponent(path)}`
+          )
+          setFileStatus({
+            status: statusRes.status,
+            include_rag: statusRes.include_rag,
+            chunk_count: statusRes.chunk_count,
+          })
         } catch (err) {
           toast.error(`Failed to reindex: ${(err as Error).message}`)
         }
@@ -133,49 +162,165 @@ export function FileViewerDialog({
     }
   }
 
+  const handleToggleRag = async (checked: boolean) => {
+    if (!path) return
+    setActionLoading(true)
+    try {
+      await api.post("/api/files/toggle-rag", { path, include_rag: checked })
+      setFileStatus((prev) => ({ ...prev, include_rag: checked ? 1 : 0 }))
+      toast.success(checked ? "File included in RAG" : "File excluded from RAG")
+    } catch (err) {
+      toast.error(`Failed to toggle RAG: ${(err as Error).message}`)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleIndexFile = async () => {
+    if (!path) return
+    setActionLoading(true)
+    try {
+      await api.post("/api/files/index", { paths: [path] })
+      toast.success("File indexed successfully!")
+      // Refresh file status
+      const statusRes = await api.get<{ status: string; include_rag: number; chunk_count: number }>(
+        `/api/file/status?path=${encodeURIComponent(path)}`
+      )
+      setFileStatus({
+        status: statusRes.status,
+        include_rag: statusRes.include_rag,
+        chunk_count: statusRes.chunk_count,
+      })
+    } catch (err) {
+      toast.error(`Failed to index file: ${(err as Error).message}`)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleReindexFile = async () => {
+    if (!path) return
+    setActionLoading(true)
+    try {
+      await api.post("/api/files/reindex", { paths: [path] })
+      toast.success("File reindexed successfully!")
+      // Refresh file status
+      const statusRes = await api.get<{ status: string; include_rag: number; chunk_count: number }>(
+        `/api/file/status?path=${encodeURIComponent(path)}`
+      )
+      setFileStatus({
+        status: statusRes.status,
+        include_rag: statusRes.include_rag,
+        chunk_count: statusRes.chunk_count,
+      })
+    } catch (err) {
+      toast.error(`Failed to reindex file: ${(err as Error).message}`)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleUnindexFile = async () => {
+    if (!path) return
+    setActionLoading(true)
+    setPendingUnindex(false)
+    try {
+      await api.post("/api/files/unindex", { paths: [path] })
+      toast.success("File removed from index")
+      // Refresh file status
+      const statusRes = await api.get<{ status: string; include_rag: number; chunk_count: number }>(
+        `/api/file/status?path=${encodeURIComponent(path)}`
+      )
+      setFileStatus({
+        status: statusRes.status,
+        include_rag: statusRes.include_rag,
+        chunk_count: statusRes.chunk_count,
+      })
+    } catch (err) {
+      toast.error(`Failed to unindex file: ${(err as Error).message}`)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   const { tags, content} = parseFrontmatter(rawContent)
   const filename = path?.split("/").pop() ?? ""
   const isMarkdown = filename.endsWith(".md")
+
+  const handleCopyPath = () => {
+    if (path) {
+      navigator.clipboard.writeText(path)
+      toast.success("File path copied to clipboard")
+    }
+  }
 
   return (
     <>
       <AlertDialog open={!!path} onOpenChange={(open) => { if (!open) onClose() }}>
         <AlertDialogContent className="!max-w-6xl !h-[85vh] flex flex-col">
-          <AlertDialogHeader>
+          {/* Custom header with proper flex layout */}
+          <div className="flex items-start justify-between gap-4 px-6 pt-6">
             <div className="flex-1 min-w-0">
               <AlertDialogTitle className="font-mono text-sm truncate">
                 {filename}
               </AlertDialogTitle>
-              <p className="text-xs text-muted-foreground truncate">{path}</p>
-            </div>
-            {isMarkdown && (
-              <div className="flex items-center gap-2 pt-2 min-h-[28px]">
-                <div className="flex flex-wrap gap-1.5 flex-1">
-                  {tags.length > 0 ? (
-                    tags.map((tag) => (
-                      <Badge key={tag} variant="secondary" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))
-                  ) : (
-                    <span className="text-xs text-muted-foreground italic">
-                      No tags yet
-                    </span>
-                  )}
-                </div>
+              <div className="flex items-center gap-1 mt-1">
+                <p className="text-xs text-muted-foreground truncate">{path}</p>
                 <Button
-                  size="sm"
                   variant="ghost"
-                  className="h-6 px-2 shrink-0"
-                  onClick={() => setEditDialogOpen(true)}
-                  disabled={loading}
+                  size="icon"
+                  className="h-5 w-5 shrink-0"
+                  onClick={handleCopyPath}
                 >
-                  <Pencil className="h-3 w-3 mr-1" />
-                  Edit
+                  <Copy className="h-3 w-3" />
                 </Button>
               </div>
+            </div>
+            {isMarkdown && (
+              <div className="flex items-center gap-2 shrink-0">
+                <FileActions
+                  status={fileStatus.status}
+                  includeRag={fileStatus.include_rag === 1}
+                  loading={actionLoading}
+                  onToggleRag={handleToggleRag}
+                  onIndexFile={handleIndexFile}
+                  onReindexFile={handleReindexFile}
+                  onUnindexFile={() => setPendingUnindex(true)}
+                  variant="full"
+                  layout="row"
+                />
+              </div>
             )}
-          </AlertDialogHeader>
+          </div>
+
+          {/* Tags section */}
+          {isMarkdown && (
+            <div className="flex items-center gap-2 pt-3 pb-2 min-h-[28px] border-b px-6">
+              <div className="flex flex-wrap gap-1.5">
+                {tags.length > 0 ? (
+                  tags.map((tag) => (
+                    <Badge key={tag} variant="secondary" className="text-xs">
+                      {tag}
+                    </Badge>
+                  ))
+                ) : (
+                  <span className="text-xs text-muted-foreground italic">
+                    No tags yet
+                  </span>
+                )}
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 px-2 shrink-0"
+                onClick={() => setEditDialogOpen(true)}
+                disabled={loading}
+              >
+                <Pencil className="h-3 w-3 mr-1" />
+                Edit
+              </Button>
+            </div>
+          )}
           <ScrollArea className="flex-1 min-h-0 border rounded-md p-4">
             {loading ? (
               <p className="text-sm text-muted-foreground animate-pulse">
@@ -192,14 +337,25 @@ export function FileViewerDialog({
       </AlertDialog>
 
       {path && (
+        <>
           <TagEditDialog
-          open={editDialogOpen}
-          onOpenChange={setEditDialogOpen}
-          currentTags={tags}
-          filePath={path}
-          isIndexed={isIndexed}
-          onSave={handleSaveTags}
-        />
+            open={editDialogOpen}
+            onOpenChange={setEditDialogOpen}
+            currentTags={tags}
+            filePath={path}
+            isIndexed={fileStatus.status === "complete"}
+            onSave={handleSaveTags}
+          />
+          <ConfirmDialog
+            open={pendingUnindex}
+            onOpenChange={setPendingUnindex}
+            title="Remove from index?"
+            description={`This will delete all chunks for "${path.split("/").pop()}" from the vector store and exclude it from RAG.`}
+            confirmLabel="Unindex"
+            variant="destructive"
+            onConfirm={handleUnindexFile}
+          />
+        </>
       )}
     </>
   )

@@ -85,6 +85,30 @@ export function SearchTab() {
         {(results.length > 0 || summary || loading) && (
           <ScrollArea className="flex-1 min-h-0">
             <div className="space-y-3 p-4 pb-4">
+            {/* Query header - show the search query prominently */}
+            {query && (
+              <div className="flex items-center gap-2 pb-2 border-b">
+                <Search className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-base font-semibold text-foreground">
+                  {query}
+                </h2>
+                {(folder || tag) && (
+                  <div className="flex items-center gap-1 ml-auto">
+                    {folder && (
+                      <Badge variant="outline" className="text-xs">
+                        📁 {folder.split("/").pop()}
+                      </Badge>
+                    )}
+                    {tag && (
+                      <Badge variant="outline" className="text-xs">
+                        🏷️ {tag}
+                      </Badge>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Loading spinner */}
             {loading && results.length === 0 && !summary && (
               <div className="flex flex-col items-center justify-center py-20 gap-3">
