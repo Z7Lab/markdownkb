@@ -189,3 +189,13 @@ class ChatDB:
             self._conn.execute("DELETE FROM messages")
             self._conn.execute("DELETE FROM threads")
             self._conn.commit()
+            # Reclaim disk space and truncate WAL
+            self._conn.execute("VACUUM")
+            self._conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+
+    def vacuum(self):
+        """Reclaim disk space by rebuilding the database file."""
+        with self._lock:
+            self._conn.execute("VACUUM")
+            # Checkpoint WAL to truncate .db-wal file
+            self._conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")

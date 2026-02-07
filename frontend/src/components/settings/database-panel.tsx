@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
-import { Database, Trash2, RefreshCw } from "lucide-react"
+import { Database, Trash2, RefreshCw, PackageMinus } from "lucide-react"
 
 interface DatabaseStats {
   chat_history: { path: string; size_bytes: number }
@@ -84,6 +84,32 @@ export function DatabasePanel() {
     }
   }
 
+  const handleCompactChats = async () => {
+    setLoading(true)
+    try {
+      await api.post("/api/settings/database/compact-chats", {})
+      toast.success("Chat database compacted")
+      await loadStats()
+    } catch (err) {
+      toast.error(`Failed to compact: ${(err as Error).message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCompactSearches = async () => {
+    setLoading(true)
+    try {
+      await api.post("/api/settings/database/compact-searches", {})
+      toast.success("Search database compacted")
+      await loadStats()
+    } catch (err) {
+      toast.error(`Failed to compact: ${(err as Error).message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   if (!stats) {
     return <div className="p-4 text-muted-foreground">Loading database stats...</div>
   }
@@ -119,22 +145,34 @@ export function DatabasePanel() {
             <p className="text-sm text-muted-foreground mb-3">
               Contains all conversation threads and messages
             </p>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() =>
-                setPendingAction({
-                  type: "chats",
-                  title: "Clear Chat History?",
-                  description:
-                    "This will permanently delete all conversation threads and messages. This action cannot be undone.",
-                })
-              }
-              disabled={loading}
-            >
-              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-              Clear Chat History
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() =>
+                  setPendingAction({
+                    type: "chats",
+                    title: "Clear Chat History?",
+                    description:
+                      "This will permanently delete all conversation threads and messages. This action cannot be undone.",
+                  })
+                }
+                disabled={loading}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                Clear History
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCompactChats}
+                disabled={loading}
+                title="Reclaim disk space by removing deleted entries (runs SQLite VACUUM)"
+              >
+                <PackageMinus className="h-3.5 w-3.5 mr-1.5" />
+                Compact Database
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -159,22 +197,34 @@ export function DatabasePanel() {
             <p className="text-sm text-muted-foreground mb-3">
               Contains saved searches and AI summaries
             </p>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() =>
-                setPendingAction({
-                  type: "searches",
-                  title: "Clear Search History?",
-                  description:
-                    "This will permanently delete all saved searches and summaries. This action cannot be undone.",
-                })
-              }
-              disabled={loading}
-            >
-              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-              Clear Search History
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() =>
+                  setPendingAction({
+                    type: "searches",
+                    title: "Clear Search History?",
+                    description:
+                      "This will permanently delete all saved searches and summaries. This action cannot be undone.",
+                  })
+                }
+                disabled={loading}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                Clear History
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCompactSearches}
+                disabled={loading}
+                title="Reclaim disk space by removing deleted entries (runs SQLite VACUUM)"
+              >
+                <PackageMinus className="h-3.5 w-3.5 mr-1.5" />
+                Compact Database
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

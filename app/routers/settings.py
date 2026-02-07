@@ -1,14 +1,13 @@
 """Settings and source management endpoints."""
 
 import logging
-import os
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from app.config import Settings
-from app.deps import get_chatdb, get_searchdb, get_settings, get_store, get_tracking
+from app.deps import get_settings
 from app.ratelimit import HEAVY, LLM, STANDARD, limiter
 from app.schemas import (
     AddSourceRequest,
@@ -42,6 +41,7 @@ router = APIRouter(prefix="/api", tags=["settings"])
 @router.get("/sources")
 @limiter.limit(STANDARD)
 def get_sources(request: Request, settings: Settings = Depends(get_settings)):
+    """Get list of source directories being watched."""
     return {"sources": settings.sources}
 
 
@@ -52,6 +52,7 @@ def add_source(
     req: AddSourceRequest,
     settings: Settings = Depends(get_settings),
 ):
+    """Add a new source directory to watch."""
     settings.add_source(req.path)
     settings.save()
     return {"sources": settings.sources}
@@ -64,6 +65,7 @@ def remove_source(
     req: RemoveSourceRequest,
     settings: Settings = Depends(get_settings),
 ):
+    """Remove a source directory from watch list."""
     settings.remove_source(req.path)
     settings.save()
     return {"sources": settings.sources}
@@ -102,6 +104,7 @@ def remove_ignore_pattern(
 @router.get("/settings")
 @limiter.limit(STANDARD)
 def get_settings_endpoint(request: Request, settings: Settings = Depends(get_settings)):
+    """Get all application settings."""
     active_cfg = settings.get_active_llm_config()
     return {
         "active_provider": settings.active_provider,
@@ -135,6 +138,7 @@ def save_provider(
     req: ProviderSettingsRequest,
     settings: Settings = Depends(get_settings),
 ):
+    """Save LLM provider configuration."""
     settings.active_provider = req.name
     for p in settings.llm_providers:
         if p.get("name") == req.name:
@@ -148,6 +152,7 @@ def save_provider(
 @router.post("/settings/test-connection")
 @limiter.limit(LLM)
 def test_connection(request: Request, req: TestConnectionRequest):
+    """Test LLM provider connection."""
     result = test_llm_connection(
         req.name,
         req.model,
@@ -159,6 +164,7 @@ def test_connection(request: Request, req: TestConnectionRequest):
 @router.post("/settings/ping-model")
 @limiter.limit(LLM)
 def ping_model_endpoint(request: Request, req: TestConnectionRequest):
+    """Ping a specific model to check availability."""
     result = ping_model(req.model, req.api_base)
     return {"result": result}
 
@@ -166,6 +172,7 @@ def ping_model_endpoint(request: Request, req: TestConnectionRequest):
 @router.post("/settings/refresh-models")
 @limiter.limit(HEAVY)
 def refresh_models(request: Request, req: RefreshModelsRequest):
+    """Refresh available models from provider."""
     models, status = build_model_list(
         req.name,
         req.api_base,
@@ -180,6 +187,7 @@ def test_prompt(
     req: TestPromptRequest,
     settings: Settings = Depends(get_settings),
 ):
+    """Test a prompt with the LLM using streaming."""
     if req.provider and req.model:
         model = req.model
         api_base = req.api_base or ""
@@ -213,6 +221,7 @@ def test_prompt(
 @router.post("/settings/model-info")
 @limiter.limit(HEAVY)
 def model_info(request: Request, req: ModelInfoRequest):
+    """Get detailed information about a model."""
     return get_model_capabilities(req.model, req.api_base)
 
 
@@ -223,6 +232,7 @@ def toggle_feature(
     req: FeatureToggleRequest,
     settings: Settings = Depends(get_settings),
 ):
+    """Toggle a feature flag on or off."""
     settings.features[req.name] = req.enabled
     settings.save()
     return {"status": "saved"}
@@ -235,6 +245,7 @@ def update_system_prompt(
     req: SystemPromptRequest,
     settings: Settings = Depends(get_settings),
 ):
+    """Update the system prompt for chat."""
     settings.system_prompt = req.prompt
     settings.save()
     return {"status": "saved"}
@@ -311,10 +322,22 @@ def update_mcp_settings(
 # -- Database Maintenance --
 
 def get_path_size(path: Path) -> int:
-    """Get total size of a file or directory in bytes."""
+    """Get total size of a file or directory in bytes.
+
+    For SQLite database files, includes WAL and SHM files in the total.
+    """
     if path.is_file():
-        return path.stat().st_size
-    elif path.is_dir():
+        total = path.stat().st_size
+        # Include SQLite WAL and SHM files if this is a .db file
+        if path.suffix == '.db':
+            wal_file = path.parent / f"{path.name}-wal"
+            shm_file = path.parent / f"{path.name}-shm"
+            if wal_file.exists():
+                total += wal_file.stat().st_size
+            if shm_file.exists():
+                total += shm_file.stat().st_size
+        return total
+    if path.is_dir():
         return sum(f.stat().st_size for f in path.rglob('*') if f.is_file())
     return 0
 
@@ -340,7 +363,10 @@ def get_database_stats(
         "vector_database": {
             "tracking_path": str(data_dir / "mdkb.db"),
             "chroma_path": str(data_dir / "chromadb"),
-            "size_bytes": get_path_size(data_dir / "mdkb.db") + get_path_size(data_dir / "chromadb"),
+            "size_bytes": (
+                get_path_size(data_dir / "mdkb.db")
+                + get_path_size(data_dir / "chromadb")
+            ),
         },
     }
     return stats
@@ -350,7 +376,6 @@ def get_database_stats(
 @limiter.limit(STANDARD)
 def clear_chat_history(request: Request):
     """Clear all chat history (threads and messages)."""
-    from app.deps import get_chatdb
     chatdb = request.app.state.chatdb
     chatdb.clear_all()
     logger.info("Cleared all chat history")
@@ -361,7 +386,6 @@ def clear_chat_history(request: Request):
 @limiter.limit(STANDARD)
 def clear_search_history(request: Request):
     """Clear all search history."""
-    from app.deps import get_searchdb
     searchdb = request.app.state.searchdb
     searchdb.clear_all()
     logger.info("Cleared all search history")
@@ -388,3 +412,23 @@ def clear_vector_database(request: Request):
         "database": "vectors",
         "message": "Vector database cleared. Use the reindex endpoint to rebuild.",
     }
+
+
+@router.post("/settings/database/compact-chats")
+@limiter.limit(STANDARD)
+def compact_chat_database(request: Request):
+    """Compact chat database by running VACUUM to reclaim disk space."""
+    chatdb = request.app.state.chatdb
+    chatdb.vacuum()
+    logger.info("Compacted chat database")
+    return {"status": "compacted", "database": "chats"}
+
+
+@router.post("/settings/database/compact-searches")
+@limiter.limit(STANDARD)
+def compact_search_database(request: Request):
+    """Compact search database by running VACUUM to reclaim disk space."""
+    searchdb = request.app.state.searchdb
+    searchdb.vacuum()
+    logger.info("Compacted search database")
+    return {"status": "compacted", "database": "searches"}
