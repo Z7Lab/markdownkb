@@ -66,6 +66,14 @@ export interface AppSettings {
   default_search_summary_prompt: string
   embedding_model: string
   intelligent_search_enabled: boolean
+  top_k: number
+  default_top_k: number
+  score_threshold: number
+  default_score_threshold: number
+  hybrid_search: boolean
+  default_hybrid_search: boolean
+  bm25_weight: number
+  default_bm25_weight: number
 }
 
 export interface EmbeddingModel {

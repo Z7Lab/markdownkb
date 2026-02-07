@@ -216,6 +216,46 @@ class Settings:
         return self._data.get("retrieval", {}).get("bm25_weight", 0.3)
 
     @property
+    def default_top_k(self) -> int:
+        """Return the built-in default top_k value."""
+        return 5
+
+    @property
+    def default_score_threshold(self) -> float:
+        """Return the built-in default score_threshold value."""
+        return 0.3
+
+    @property
+    def default_hybrid_search(self) -> bool:
+        """Return the built-in default hybrid_search value."""
+        return True
+
+    @property
+    def default_bm25_weight(self) -> float:
+        """Return the built-in default bm25_weight value."""
+        return 0.5
+
+    @top_k.setter
+    def top_k(self, value: int):
+        """Set the number of results per search."""
+        self._data.setdefault("retrieval", {})["top_k"] = value
+
+    @score_threshold.setter
+    def score_threshold(self, value: float):
+        """Set the minimum similarity score threshold."""
+        self._data.setdefault("retrieval", {})["score_threshold"] = value
+
+    @hybrid_search.setter
+    def hybrid_search(self, value: bool):
+        """Set whether hybrid BM25+vector search is enabled."""
+        self._data.setdefault("retrieval", {})["hybrid_search"] = value
+
+    @bm25_weight.setter
+    def bm25_weight(self, value: float):
+        """Set the BM25 weight in hybrid search."""
+        self._data.setdefault("retrieval", {})["bm25_weight"] = value
+
+    @property
     def intelligent_search_enabled(self) -> bool:
         """Return whether LLM-powered query enhancement is enabled."""
         return self._data.get("retrieval", {}).get(

@@ -3,6 +3,7 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { Slider } from "@/components/ui/slider"
 import { Info, Save, RotateCcw } from "lucide-react"
 import {
   Tooltip,
@@ -14,20 +15,51 @@ interface SearchPanelProps {
   intelligentSearchEnabled: boolean
   searchSummaryPrompt: string
   defaultSearchSummaryPrompt: string
+  topK: number
+  defaultTopK: number
+  scoreThreshold: number
+  defaultScoreThreshold: number
+  hybridSearch: boolean
+  defaultHybridSearch: boolean
+  bm25Weight: number
+  defaultBm25Weight: number
   onToggle: (enabled: boolean) => void
   onSavePrompt: (prompt: string) => Promise<void>
+  onSaveRetrievalSettings: (settings: {
+    top_k: number
+    score_threshold: number
+    hybrid_search: boolean
+    bm25_weight: number
+  }) => Promise<void>
 }
 
 export function SearchPanel({
   intelligentSearchEnabled,
   searchSummaryPrompt,
   defaultSearchSummaryPrompt,
+  topK,
+  defaultTopK,
+  scoreThreshold,
+  defaultScoreThreshold,
+  hybridSearch,
+  defaultHybridSearch,
+  bm25Weight,
+  defaultBm25Weight,
   onToggle,
   onSavePrompt,
+  onSaveRetrievalSettings,
 }: SearchPanelProps) {
   const [promptValue, setPromptValue] = useState(searchSummaryPrompt || defaultSearchSummaryPrompt)
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState("")
+
+  // Retrieval settings state
+  const [topKValue, setTopKValue] = useState(topK)
+  const [scoreThresholdValue, setScoreThresholdValue] = useState(scoreThreshold)
+  const [hybridSearchValue, setHybridSearchValue] = useState(hybridSearch)
+  const [bm25WeightValue, setBm25WeightValue] = useState(bm25Weight)
+  const [retrievalSaving, setRetrievalSaving] = useState(false)
+  const [retrievalStatus, setRetrievalStatus] = useState("")
 
   useEffect(() => {
     if (searchSummaryPrompt) {
@@ -35,7 +67,19 @@ export function SearchPanel({
     }
   }, [searchSummaryPrompt])
 
+  useEffect(() => {
+    setTopKValue(topK)
+    setScoreThresholdValue(scoreThreshold)
+    setHybridSearchValue(hybridSearch)
+    setBm25WeightValue(bm25Weight)
+  }, [topK, scoreThreshold, hybridSearch, bm25Weight])
+
   const hasChanges = promptValue !== (searchSummaryPrompt || defaultSearchSummaryPrompt)
+  const hasRetrievalChanges =
+    topKValue !== topK ||
+    scoreThresholdValue !== scoreThreshold ||
+    hybridSearchValue !== hybridSearch ||
+    bm25WeightValue !== bm25Weight
 
   async function handleSavePrompt() {
     setSaving(true)
@@ -53,6 +97,32 @@ export function SearchPanel({
 
   function handleRestorePrompt() {
     setPromptValue(defaultSearchSummaryPrompt)
+  }
+
+  async function handleSaveRetrievalSettings() {
+    setRetrievalSaving(true)
+    setRetrievalStatus("")
+    try {
+      await onSaveRetrievalSettings({
+        top_k: topKValue,
+        score_threshold: scoreThresholdValue,
+        hybrid_search: hybridSearchValue,
+        bm25_weight: bm25WeightValue,
+      })
+      setRetrievalStatus("Saved")
+      setTimeout(() => setRetrievalStatus(""), 2000)
+    } catch {
+      setRetrievalStatus("Error saving")
+    } finally {
+      setRetrievalSaving(false)
+    }
+  }
+
+  function handleRestoreRetrievalSettings() {
+    setTopKValue(defaultTopK)
+    setScoreThresholdValue(defaultScoreThreshold)
+    setHybridSearchValue(defaultHybridSearch)
+    setBm25WeightValue(defaultBm25Weight)
   }
 
   return (
@@ -106,6 +176,160 @@ export function SearchPanel({
             <li>Identifies semantic context for better matching</li>
             <li>Falls back to regular search if LLM is offline</li>
           </ul>
+        </div>
+      </div>
+
+      <div className="border-t pt-6">
+        <h3 className="text-base font-semibold mb-3">Retrieval Settings</h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          Configure hybrid search, relevance thresholds, and result limits
+        </p>
+
+        <div className="space-y-6">
+          {/* Hybrid Search Toggle */}
+          <div className="flex items-center justify-between p-4 border rounded-lg">
+            <div className="flex items-start gap-3 flex-1">
+              <div className="flex-1 space-y-1">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="hybrid-search" className="text-sm font-medium">
+                    Hybrid Search (BM25 + Vector)
+                  </Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>
+                        Combine keyword matching (BM25) with semantic similarity (vector embeddings).
+                        Helps prevent false positives like "ENS" matching "intensional".
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Require actual keyword presence in results
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="hybrid-search"
+              checked={hybridSearchValue}
+              onCheckedChange={setHybridSearchValue}
+            />
+          </div>
+
+          {/* BM25 Weight Slider */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-medium">
+                  BM25 Weight: {bm25WeightValue.toFixed(2)}
+                </Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p>
+                      Balance between keyword matching ({bm25WeightValue.toFixed(2)}) and
+                      semantic similarity ({(1 - bm25WeightValue).toFixed(2)}).
+                      Higher values favor exact keyword matches.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                Vector: {(1 - bm25WeightValue).toFixed(2)}
+              </span>
+            </div>
+            <Slider
+              value={[bm25WeightValue]}
+              onValueChange={([val]) => setBm25WeightValue(val)}
+              min={0}
+              max={1}
+              step={0.05}
+              disabled={!hybridSearchValue}
+              className="w-full"
+            />
+          </div>
+
+          {/* Score Threshold Slider */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Label className="text-sm font-medium">
+                Minimum Relevance: {(scoreThresholdValue * 100).toFixed(0)}%
+              </Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p>
+                    Filter out results below this relevance score.
+                    Higher values show only highly relevant results.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <Slider
+              value={[scoreThresholdValue]}
+              onValueChange={([val]) => setScoreThresholdValue(val)}
+              min={0}
+              max={1}
+              step={0.05}
+              className="w-full"
+            />
+          </div>
+
+          {/* Top K Slider */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Label className="text-sm font-medium">
+                Results per Search: {topKValue}
+              </Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p>
+                    Maximum number of results to return per search query.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <Slider
+              value={[topKValue]}
+              onValueChange={([val]) => setTopKValue(val)}
+              min={1}
+              max={50}
+              step={1}
+              className="w-full"
+            />
+          </div>
+
+          {/* Save/Restore Buttons */}
+          <div className="flex items-center gap-2 pt-2">
+            <Button
+              onClick={handleSaveRetrievalSettings}
+              disabled={retrievalSaving || !hasRetrievalChanges}
+              size="sm"
+            >
+              <Save className="h-3.5 w-3.5 mr-1.5" />
+              {retrievalSaving ? "Saving..." : "Save"}
+            </Button>
+            <Button
+              onClick={handleRestoreRetrievalSettings}
+              variant="outline"
+              size="sm"
+            >
+              <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+              Restore to Default
+            </Button>
+            {retrievalStatus && (
+              <span className="text-sm text-muted-foreground">{retrievalStatus}</span>
+            )}
+          </div>
         </div>
       </div>
 

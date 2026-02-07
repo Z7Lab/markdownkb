@@ -17,6 +17,7 @@ from app.schemas import (
     ProviderSettingsRequest,
     RefreshModelsRequest,
     RemoveSourceRequest,
+    RetrievalSettingsRequest,
     SearchSummaryPromptRequest,
     SystemPromptRequest,
     TestConnectionRequest,
@@ -128,6 +129,14 @@ def get_settings_endpoint(request: Request, settings: Settings = Depends(get_set
         "default_search_summary_prompt": settings.default_search_summary_prompt,
         "embedding_model": settings.embedding_model,
         "intelligent_search_enabled": settings.intelligent_search_enabled,
+        "top_k": settings.top_k,
+        "default_top_k": settings.default_top_k,
+        "score_threshold": settings.score_threshold,
+        "default_score_threshold": settings.default_score_threshold,
+        "hybrid_search": settings.hybrid_search,
+        "default_hybrid_search": settings.default_hybrid_search,
+        "bm25_weight": settings.bm25_weight,
+        "default_bm25_weight": settings.default_bm25_weight,
     }
 
 
@@ -273,6 +282,22 @@ def update_search_summary_prompt(
 ):
     """Update the search summary prompt."""
     settings.search_summary_prompt = req.prompt
+    settings.save()
+    return {"status": "saved"}
+
+
+@router.put("/settings/retrieval")
+@limiter.limit(STANDARD)
+def update_retrieval_settings(
+    request: Request,
+    req: RetrievalSettingsRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """Update retrieval/search settings (hybrid search, weights, thresholds)."""
+    settings.top_k = req.top_k
+    settings.score_threshold = req.score_threshold
+    settings.hybrid_search = req.hybrid_search
+    settings.bm25_weight = req.bm25_weight
     settings.save()
     return {"status": "saved"}
 

@@ -153,6 +153,15 @@ class SearchSummaryPromptRequest(BaseModel):
     prompt: str
 
 
+class RetrievalSettingsRequest(BaseModel):
+    """Request model for updating retrieval/search settings."""
+
+    top_k: int = Field(..., ge=1, le=50)
+    score_threshold: float = Field(..., ge=0.0, le=1.0)
+    hybrid_search: bool
+    bm25_weight: float = Field(..., ge=0.0, le=1.0)
+
+
 # -- Embeddings --
 
 class EmbeddingModelRequest(BaseModel):

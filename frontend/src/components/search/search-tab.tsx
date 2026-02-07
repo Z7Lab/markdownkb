@@ -56,29 +56,34 @@ export function SearchTab() {
       />
 
       <div className="flex flex-col flex-1 min-w-0 min-h-0 gap-4 p-4">
-        {/* ASCII Art Banner */}
-        <div className="flex justify-center py-2">
-          <pre className="text-[0.45rem] leading-[0.6rem] text-primary/80 font-mono whitespace-pre">
-            {ASCII_BANNER}
-          </pre>
-        </div>
+        {/* Show banner and search input when no results or summary */}
+        {results.length === 0 && !summary && (
+          <>
+            {/* ASCII Art Banner */}
+            <div className="flex justify-center py-2">
+              <pre className="text-[0.45rem] leading-[0.6rem] text-primary/80 font-mono whitespace-pre">
+                {ASCII_BANNER}
+              </pre>
+            </div>
 
-        {/* Search bar */}
-        <div className="flex justify-center">
-          <div className="flex gap-2 w-1/2">
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Search your knowledge base..."
-              className="flex-1"
-            />
-            <Button onClick={search} disabled={loading || !query.trim()}>
-              <Search className="h-4 w-4 mr-1.5" />
-              Search
-            </Button>
-          </div>
-        </div>
+            {/* Search bar */}
+            <div className="flex justify-center">
+              <div className="flex gap-2 w-1/2">
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Search your knowledge base..."
+                  className="flex-1"
+                />
+                <Button onClick={search} disabled={loading || !query.trim()}>
+                  <Search className="h-4 w-4 mr-1.5" />
+                  Search
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Results area */}
         <ScrollArea className="flex-1 min-h-0">
@@ -130,10 +135,10 @@ export function SearchTab() {
               </Card>
             )}
 
-            {/* Result cards */}
-            {results.length === 0 && !loading && !error && !summary && (
+            {/* Empty state - only show after search with no results */}
+            {results.length === 0 && !loading && !error && !summary && query && (
               <p className="text-muted-foreground text-center py-8">
-                {query ? "No results found." : "Enter a query to search."}
+                No results found for "{query}"
               </p>
             )}
             {results.map((r, i) => (

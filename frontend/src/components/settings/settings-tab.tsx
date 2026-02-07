@@ -55,6 +55,7 @@ export function SettingsTab() {
     cancelIndex,
     saveSystemPrompt,
     saveSearchSummaryPrompt,
+    saveRetrievalSettings,
     installEmbeddingModel,
     switchEmbeddingModel,
     toggleIntelligentSearch,
@@ -106,8 +107,17 @@ export function SettingsTab() {
                 intelligentSearchEnabled={settings.intelligent_search_enabled}
                 searchSummaryPrompt={settings.search_summary_prompt}
                 defaultSearchSummaryPrompt={settings.default_search_summary_prompt}
+                topK={settings.top_k}
+                defaultTopK={settings.default_top_k}
+                scoreThreshold={settings.score_threshold}
+                defaultScoreThreshold={settings.default_score_threshold}
+                hybridSearch={settings.hybrid_search}
+                defaultHybridSearch={settings.default_hybrid_search}
+                bm25Weight={settings.bm25_weight}
+                defaultBm25Weight={settings.default_bm25_weight}
                 onToggle={toggleIntelligentSearch}
                 onSavePrompt={saveSearchSummaryPrompt}
+                onSaveRetrievalSettings={saveRetrievalSettings}
               />
             )}
             {activeSection === "sources" && (

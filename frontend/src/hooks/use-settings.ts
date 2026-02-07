@@ -303,6 +303,19 @@ function useSettingsInternal() {
     [load],
   )
 
+  const saveRetrievalSettings = useCallback(
+    async (settings: {
+      top_k: number
+      score_threshold: number
+      hybrid_search: boolean
+      bm25_weight: number
+    }) => {
+      await api.put("/api/settings/retrieval", settings)
+      await load()
+    },
+    [load],
+  )
+
   const installEmbeddingModel = useCallback(
     async (modelId: string) => {
       setEmbeddingStatus(`Installing ${modelId}...`)
@@ -397,6 +410,7 @@ function useSettingsInternal() {
     cancelIndex,
     saveSystemPrompt,
     saveSearchSummaryPrompt,
+    saveRetrievalSettings,
     installEmbeddingModel,
     switchEmbeddingModel,
   }
