@@ -56,6 +56,11 @@ def search(
     # Extract result metadata for history preservation
     result_paths = [r.metadata.get("source_path", "") for r in results if r.metadata.get("source_path")]
     result_count = len(results)
+    result_details = [
+        {"path": r.metadata.get("source_path", ""), "score": r.score}
+        for r in results
+        if r.metadata.get("source_path")
+    ]
 
     # Auto-save search to history with result metadata
     search_id = searchdb.save_search(
@@ -64,6 +69,7 @@ def search(
         req.tag,
         result_paths=result_paths,
         result_count=result_count,
+        result_details=result_details,
     )
 
     return {
@@ -141,17 +147,43 @@ def load_historical_search(
         tag_filter=search_record.get("tag"),
     )
 
-    # Extract current result paths
+    # Extract current result paths and details
     current_paths = set(
         r.metadata.get("source_path", "")
         for r in current_results
         if r.metadata.get("source_path")
     )
+    current_details = {
+        r.metadata.get("source_path", ""): r.score
+        for r in current_results
+        if r.metadata.get("source_path")
+    }
 
     # Compare with stored results
     stored_paths = set(search_record.get("result_paths", []))
+    stored_details = {
+        item["path"]: item["score"]
+        for item in search_record.get("result_details", [])
+    }
+
     missing_paths = list(stored_paths - current_paths)
     new_paths = list(current_paths - stored_paths)
+
+    # Calculate score changes for files in both results
+    score_changes = []
+    for path in stored_paths & current_paths:
+        old_score = stored_details.get(path, 0)
+        new_score = current_details.get(path, 0)
+        change = new_score - old_score
+        score_changes.append({
+            "path": path,
+            "old_score": old_score,
+            "new_score": new_score,
+            "change": change,
+        })
+
+    # Sort by absolute change (largest changes first)
+    score_changes.sort(key=lambda x: abs(x["change"]), reverse=True)
 
     return {
         "results": [
@@ -173,7 +205,8 @@ def load_historical_search(
         "current_result_count": len(current_results),
         "missing_files": missing_paths,  # Files that were in original but not now
         "new_files": new_paths,  # Files that are new since original
-        "results_changed": len(missing_paths) > 0 or len(new_paths) > 0,
+        "score_changes": score_changes,  # Score changes for files in both results
+        "results_changed": len(missing_paths) > 0 or len(new_paths) > 0 or len(score_changes) > 0,
         "llm_offline": llm_offline,
     }
 

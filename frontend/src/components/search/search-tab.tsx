@@ -1,6 +1,8 @@
 import { useSearch } from "@/hooks/use-search"
 import { SearchSidebar } from "./search-sidebar"
+import { ResultsChangedDialog } from "./results-changed-dialog"
 import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
@@ -30,12 +32,13 @@ export function SearchTab() {
     loading, error, search,
     searches, activeSearchId,
     deleteSearch, loadSearch,
-    summary, summarySources, isSummarizing, stopSummary,
+    summary, summarySources, isSummarizing, stopSummary, generateSummary,
     newSearch,
     isHistorical,
     resultsChanged,
     missingFiles,
     newFiles,
+    scoreChanges,
     storedResultCount,
     currentResultCount,
     createdAt,
@@ -43,9 +46,16 @@ export function SearchTab() {
   } = useSearch()
 
   const [viewingPath, setViewingPath] = useState<string | null>(null)
+  const [resultsChangedDialogOpen, setResultsChangedDialogOpen] = useState(false)
+  const [confirmGenerateSummaryOpen, setConfirmGenerateSummaryOpen] = useState(false)
 
   function handleKeyDown(e: KeyboardEvent) {
     if (e.key === "Enter") search()
+  }
+
+  function handleConfirmGenerateSummary() {
+    setConfirmGenerateSummaryOpen(false)
+    generateSummary()
   }
 
   return (
@@ -160,7 +170,10 @@ export function SearchTab() {
                     {resultsChanged && (
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setResultsChangedDialogOpen(true)}
+                            className="flex items-center gap-2 hover:underline cursor-pointer"
+                          >
                             <AlertCircle className="h-3 w-3 text-amber-500" />
                             <span className="text-amber-600 dark:text-amber-400">
                               Results changed
@@ -170,22 +183,10 @@ export function SearchTab() {
                                 {storedResultCount} → {currentResultCount}
                               </Badge>
                             )}
-                          </div>
+                          </button>
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
-                          <div className="space-y-1">
-                            <p>The knowledge base has changed since this search was created.</p>
-                            {missingFiles.length > 0 && (
-                              <p className="text-destructive">
-                                {missingFiles.length} file{missingFiles.length > 1 ? "s" : ""} removed from RAG
-                              </p>
-                            )}
-                            {newFiles.length > 0 && (
-                              <p className="text-green-500">
-                                {newFiles.length} new file{newFiles.length > 1 ? "s" : ""} added to RAG
-                              </p>
-                            )}
-                          </div>
+                          <p>Click to view detailed changes</p>
                         </TooltipContent>
                       </Tooltip>
                     )}
@@ -211,7 +212,7 @@ export function SearchTab() {
             )}
 
             {/* AI Summary Card */}
-            {(summary || isSummarizing) && (
+            {(summary || isSummarizing || (isHistorical && !summary)) && (
               <Card className="border-primary/30 bg-primary/5">
                 <CardContent className="pt-4">
                   <div className="flex items-center gap-2 mb-3">
@@ -231,21 +232,41 @@ export function SearchTab() {
                         </Button>
                       </>
                     )}
+                    {/* Show Generate/Regenerate button for historical searches */}
+                    {isHistorical && !isSummarizing && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 px-2 ml-auto"
+                        onClick={() => setConfirmGenerateSummaryOpen(true)}
+                      >
+                        <Sparkles className="h-3 w-3 mr-1" />
+                        {summary ? "Regenerate" : "Generate Summary"}
+                      </Button>
+                    )}
                   </div>
-                  <Markdown className="text-sm">{summary || "Generating summary..."}</Markdown>
-                  {summarySources.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t">
-                      {summarySources.map((src) => (
-                        <Badge
-                          key={src}
-                          variant="outline"
-                          className="cursor-pointer hover:bg-accent text-xs"
-                          onClick={() => setViewingPath(src)}
-                        >
-                          {src.split("/").pop()}
-                        </Badge>
-                      ))}
-                    </div>
+                  {!summary && !isSummarizing ? (
+                    <p className="text-sm text-muted-foreground italic">
+                      No AI summary available for this historical search.
+                    </p>
+                  ) : (
+                    <>
+                      <Markdown className="text-sm">{summary || "Generating summary..."}</Markdown>
+                      {summarySources.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t">
+                          {summarySources.map((src) => (
+                            <Badge
+                              key={src}
+                              variant="outline"
+                              className="cursor-pointer hover:bg-accent text-xs"
+                              onClick={() => setViewingPath(src)}
+                            >
+                              {src.split("/").pop()}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </>
                   )}
                 </CardContent>
               </Card>
@@ -291,6 +312,29 @@ export function SearchTab() {
       <FileViewerDialog
         path={viewingPath}
         onClose={() => setViewingPath(null)}
+      />
+
+      <ResultsChangedDialog
+        open={resultsChangedDialogOpen}
+        onOpenChange={setResultsChangedDialogOpen}
+        missingFiles={missingFiles}
+        newFiles={newFiles}
+        scoreChanges={scoreChanges}
+        storedResultCount={storedResultCount || 0}
+        currentResultCount={currentResultCount || 0}
+      />
+
+      <ConfirmDialog
+        open={confirmGenerateSummaryOpen}
+        onOpenChange={setConfirmGenerateSummaryOpen}
+        title={summary ? "Regenerate AI Summary?" : "Generate AI Summary?"}
+        description={
+          summary
+            ? "This will create a new AI summary based on current results. This may take a moment."
+            : "This will generate an AI summary of the search results. This may take a moment."
+        }
+        confirmLabel={summary ? "Regenerate" : "Generate"}
+        onConfirm={handleConfirmGenerateSummary}
       />
     </div>
   )

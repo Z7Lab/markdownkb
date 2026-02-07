@@ -18,6 +18,13 @@ export interface SearchResult {
   score: number
 }
 
+export interface ScoreChange {
+  path: string
+  old_score: number
+  new_score: number
+  change: number
+}
+
 export interface SavedSearch {
   id: string
   query: string
@@ -43,6 +50,7 @@ export interface SearchResponse {
   current_result_count?: number
   missing_files?: string[]
   new_files?: string[]
+  score_changes?: ScoreChange[]
   results_changed?: boolean
   llm_offline: boolean
 }

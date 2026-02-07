@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { api } from "@/lib/api"
 import { streamSearchSummary } from "@/lib/sse"
 import { toast } from "sonner"
-import type { PaginatedResponse, SavedSearch, SearchResult, SearchResponse } from "@/lib/types"
+import type { PaginatedResponse, SavedSearch, SearchResult, SearchResponse, ScoreChange } from "@/lib/types"
 
 export function useSearch() {
   const [query, setQuery] = useState("")
@@ -23,6 +23,7 @@ export function useSearch() {
   const [resultsChanged, setResultsChanged] = useState(false)
   const [missingFiles, setMissingFiles] = useState<string[]>([])
   const [newFiles, setNewFiles] = useState<string[]>([])
+  const [scoreChanges, setScoreChanges] = useState<ScoreChange[]>([])
   const [storedResultCount, setStoredResultCount] = useState<number | null>(null)
   const [currentResultCount, setCurrentResultCount] = useState<number | null>(null)
   const [createdAt, setCreatedAt] = useState<string | null>(null)
@@ -85,6 +86,7 @@ export function useSearch() {
     setResultsChanged(false)
     setMissingFiles([])
     setNewFiles([])
+    setScoreChanges([])
     setStoredResultCount(null)
     setCurrentResultCount(null)
     setCreatedAt(null)
@@ -175,6 +177,7 @@ export function useSearch() {
       setResultsChanged(res.results_changed || false)
       setMissingFiles(res.missing_files || [])
       setNewFiles(res.new_files || [])
+      setScoreChanges(res.score_changes || [])
       setStoredResultCount(res.stored_result_count || null)
       setCurrentResultCount(res.current_result_count || null)
       setCreatedAt(res.created_at || null)
@@ -251,6 +254,32 @@ export function useSearch() {
     setIsSummarizing(false)
   }, [])
 
+  const generateSummary = useCallback(async () => {
+    if (!query.trim()) return
+
+    // Stop any running summary
+    summaryControllerRef.current?.abort()
+    setSummary("")
+    setSummarySources([])
+
+    // Start AI summary streaming
+    setIsSummarizing(true)
+    summaryControllerRef.current = streamSearchSummary(
+      query.trim(),
+      {
+        onToken: (delta) => setSummary((prev) => prev + delta),
+        onSources: (sources) => setSummarySources(sources),
+        onDone: () => setIsSummarizing(false),
+        onError: (err) => {
+          setIsSummarizing(false)
+          console.error("Summary error:", err)
+          toast.error(`Failed to generate summary: ${err.message}`)
+        },
+      },
+      { folder, tag, search_id: activeSearchId || undefined },
+    )
+  }, [query, folder, tag, activeSearchId])
+
   const newSearch = useCallback(() => {
     summaryControllerRef.current?.abort()
     setQuery("")
@@ -269,10 +298,10 @@ export function useSearch() {
     query, setQuery, folder, setFolder, tag, setTag,
     results, folders, tags, loading, error, search,
     searches, activeSearchId, deleteSearch, loadSearch,
-    summary, summarySources, isSummarizing, stopSummary,
+    summary, summarySources, isSummarizing, stopSummary, generateSummary,
     newSearch, refreshSearches, requery,
     // Historical search metadata
-    isHistorical, resultsChanged, missingFiles, newFiles,
+    isHistorical, resultsChanged, missingFiles, newFiles, scoreChanges,
     storedResultCount, currentResultCount, createdAt,
   }
 }

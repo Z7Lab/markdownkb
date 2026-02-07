@@ -84,7 +84,7 @@ async def test_delete_search(client):
 
 @pytest.mark.asyncio
 async def test_search_saves_result_metadata(client, app):
-    """Test that search saves result paths and count."""
+    """Test that search saves result paths, count, and scores."""
     resp = await client.post("/api/search", json={"query": "test query"})
     assert resp.status_code == 200
 
@@ -93,11 +93,13 @@ async def test_search_saves_result_metadata(client, app):
     searchdb.save_search.assert_called_once()
     call_args = searchdb.save_search.call_args
 
-    # Check that result_paths and result_count were passed
+    # Check that result_paths, result_count, and result_details were passed
     assert "result_paths" in call_args.kwargs
     assert "result_count" in call_args.kwargs
+    assert "result_details" in call_args.kwargs
     assert call_args.kwargs["result_paths"] == ["/tmp/test-source/doc.md"]
     assert call_args.kwargs["result_count"] == 1
+    assert call_args.kwargs["result_details"] == [{"path": "/tmp/test-source/doc.md", "score": 0.9}]
 
 
 @pytest.mark.asyncio
@@ -112,6 +114,7 @@ async def test_load_historical_search(client, app):
         "summary": "Original AI summary",
         "result_paths": ["/tmp/test-source/doc.md"],
         "result_count": 1,
+        "result_details": [{"path": "/tmp/test-source/doc.md", "score": 0.9}],
         "created_at": "2024-01-01 00:00:00",
     }
 
@@ -125,6 +128,7 @@ async def test_load_historical_search(client, app):
     assert data["created_at"] == "2024-01-01 00:00:00"
     assert data["stored_result_count"] == 1
     assert data["current_result_count"] == 1
+    assert "score_changes" in data
 
     # Verify mark_viewed was called
     app.state.searchdb.mark_viewed.assert_called_once_with("srch001")
@@ -142,6 +146,10 @@ async def test_load_historical_search_detects_changes(client, app):
         "summary": "Original summary",
         "result_paths": ["/tmp/old-file.md", "/tmp/removed-file.md"],
         "result_count": 2,
+        "result_details": [
+            {"path": "/tmp/old-file.md", "score": 0.85},
+            {"path": "/tmp/removed-file.md", "score": 0.75},
+        ],
         "created_at": "2024-01-01 00:00:00",
     }
 
@@ -182,3 +190,39 @@ async def test_search_response_is_not_historical(client):
     assert resp.status_code == 200
     data = resp.json()
     assert data["is_historical"] is False
+
+
+@pytest.mark.asyncio
+async def test_load_historical_search_detects_score_changes(client, app):
+    """Test that historical search detects relevance score changes."""
+    # Setup mock searchdb with same file but different score
+    app.state.searchdb.get_search.return_value = {
+        "id": "srch001",
+        "query": "test query",
+        "folder": None,
+        "tag": None,
+        "summary": "Original summary",
+        "result_paths": ["/tmp/test-source/doc.md"],
+        "result_count": 1,
+        "result_details": [{"path": "/tmp/test-source/doc.md", "score": 0.75}],
+        "created_at": "2024-01-01 00:00:00",
+    }
+
+    # Current search returns same file with different score (0.9)
+    # (retriever mock in conftest returns score: 0.9)
+
+    resp = await client.get("/api/searches/srch001/load")
+    assert resp.status_code == 200
+    data = resp.json()
+
+    # Verify score change detection
+    assert data["results_changed"] is True  # Score changed
+    assert len(data["score_changes"]) == 1
+    assert data["score_changes"][0]["path"] == "/tmp/test-source/doc.md"
+    assert data["score_changes"][0]["old_score"] == 0.75
+    assert data["score_changes"][0]["new_score"] == 0.9
+    assert abs(data["score_changes"][0]["change"] - 0.15) < 0.001  # 0.9 - 0.75 (allow for float precision)
+
+    # Verify no missing or new files (same file in both)
+    assert len(data["missing_files"]) == 0
+    assert len(data["new_files"]) == 0
