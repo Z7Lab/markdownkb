@@ -1,5 +1,6 @@
 """SQLite persistence for search history."""
 
+import json
 import logging
 import sqlite3
 import threading
@@ -10,17 +11,23 @@ logger = logging.getLogger(__name__)
 
 _CREATE_SQL = """
 CREATE TABLE IF NOT EXISTS searches (
-    id         TEXT PRIMARY KEY,
-    query      TEXT NOT NULL,
-    folder     TEXT,
-    tag        TEXT,
-    summary    TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    id             TEXT PRIMARY KEY,
+    query          TEXT NOT NULL,
+    folder         TEXT,
+    tag            TEXT,
+    summary        TEXT,
+    result_paths   TEXT,
+    result_count   INTEGER,
+    last_viewed_at TEXT,
+    created_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 """
 
 _MIGRATIONS: list[tuple[int, str, str]] = [
     (1, "add summary column to searches", "ALTER TABLE searches ADD COLUMN summary TEXT"),
+    (2, "add result_paths column to searches", "ALTER TABLE searches ADD COLUMN result_paths TEXT"),
+    (3, "add result_count column to searches", "ALTER TABLE searches ADD COLUMN result_count INTEGER"),
+    (4, "add last_viewed_at column to searches", "ALTER TABLE searches ADD COLUMN last_viewed_at TEXT"),
 ]
 
 
@@ -63,12 +70,23 @@ class SearchDB:
         with self._lock:
             self._conn.close()
 
-    def save_search(self, query: str, folder: str | None = None, tag: str | None = None) -> str:
+    def save_search(
+        self,
+        query: str,
+        folder: str | None = None,
+        tag: str | None = None,
+        result_paths: list[str] | None = None,
+        result_count: int | None = None,
+    ) -> str:
+        """Save a new search with result metadata."""
         search_id = uuid.uuid4().hex[:12]
+        result_paths_json = json.dumps(result_paths) if result_paths else None
         with self._lock:
             self._conn.execute(
-                "INSERT INTO searches (id, query, folder, tag) VALUES (?, ?, ?, ?)",
-                (search_id, query, folder, tag),
+                """INSERT INTO searches
+                   (id, query, folder, tag, result_paths, result_count)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (search_id, query, folder, tag, result_paths_json, result_count),
             )
             self._conn.commit()
         return search_id
@@ -89,11 +107,32 @@ class SearchDB:
             return row["cnt"]
 
     def get_search(self, search_id: str) -> dict | None:
+        """Get a search by ID, parse JSON fields."""
         with self._lock:
             row = self._conn.execute(
                 "SELECT * FROM searches WHERE id = ?", (search_id,)
             ).fetchone()
-            return dict(row) if row else None
+            if not row:
+                return None
+            result = dict(row)
+            # Parse JSON result_paths
+            if result.get("result_paths"):
+                try:
+                    result["result_paths"] = json.loads(result["result_paths"])
+                except json.JSONDecodeError:
+                    result["result_paths"] = []
+            else:
+                result["result_paths"] = []
+            return result
+
+    def mark_viewed(self, search_id: str):
+        """Update last_viewed_at timestamp when loading a historical search."""
+        with self._lock:
+            self._conn.execute(
+                "UPDATE searches SET last_viewed_at = datetime('now') WHERE id = ?",
+                (search_id,),
+            )
+            self._conn.commit()
 
     def update_summary(self, search_id: str, summary: str):
         """Save AI-generated summary for a search."""

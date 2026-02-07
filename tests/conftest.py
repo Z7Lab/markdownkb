@@ -20,6 +20,8 @@ class FakeSettings:
     active_provider: str = "test"
     system_prompt: str = "You are a helpful assistant."
     default_system_prompt: str = "You are a helpful assistant."
+    search_summary_prompt: str = "Provide a summary."
+    default_search_summary_prompt: str = "Provide a summary."
     llm_providers: list[dict] = field(default_factory=lambda: [
         {"name": "test", "model": "test/model", "api_base": ""},
     ])
@@ -33,6 +35,15 @@ class FakeSettings:
     persist_directory: str = "./data/chromadb"
     collection_name: str = "mdkb"
     data_directory: str = "./data"
+    top_k: int = 5
+    score_threshold: float = 0.3
+    hybrid_search: bool = True
+    bm25_weight: float = 0.5
+    intelligent_search_enabled: bool = False
+    default_top_k: int = 5
+    default_score_threshold: float = 0.3
+    default_hybrid_search: bool = True
+    default_bm25_weight: float = 0.5
 
     def get_active_llm_config(self):
         for p in self.llm_providers:
@@ -58,6 +69,10 @@ class FakeSettings:
 
     def save(self):
         pass
+
+    @property
+    def mcp_config(self):
+        return {}
 
 
 @dataclass
@@ -143,7 +158,17 @@ def app():
         {"id": "srch001", "query": "test query", "folder": None, "tag": None, "created_at": "2024-01-01 00:00:00"}
     ]
     searchdb.search_count.return_value = 1
-    searchdb.get_search.return_value = {"id": "srch001", "query": "test query", "folder": None, "tag": None, "created_at": "2024-01-01 00:00:00"}
+    searchdb.get_search.return_value = {
+        "id": "srch001",
+        "query": "test query",
+        "folder": None,
+        "tag": None,
+        "summary": None,
+        "result_paths": [],
+        "result_count": 0,
+        "created_at": "2024-01-01 00:00:00"
+    }
+    searchdb.mark_viewed = MagicMock()
     application.state.searchdb = searchdb
 
     application.state.cancel_event = threading.Event()

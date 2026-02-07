@@ -24,7 +24,27 @@ export interface SavedSearch {
   folder: string | null
   tag: string | null
   summary: string | null
+  result_paths: string[]
+  result_count: number | null
+  last_viewed_at: string | null
   created_at: string
+}
+
+export interface SearchResponse {
+  results: SearchResult[]
+  search_id: string
+  query?: string
+  folder?: string | null
+  tag?: string | null
+  summary?: string | null
+  created_at?: string
+  is_historical: boolean
+  stored_result_count?: number
+  current_result_count?: number
+  missing_files?: string[]
+  new_files?: string[]
+  results_changed?: boolean
+  llm_offline: boolean
 }
 
 export interface TrackedFile {

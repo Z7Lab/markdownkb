@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { api } from "@/lib/api"
 import { streamSearchSummary } from "@/lib/sse"
 import { toast } from "sonner"
-import type { PaginatedResponse, SavedSearch, SearchResult } from "@/lib/types"
+import type { PaginatedResponse, SavedSearch, SearchResult, SearchResponse } from "@/lib/types"
 
 export function useSearch() {
   const [query, setQuery] = useState("")
@@ -17,6 +17,15 @@ export function useSearch() {
   // Search history
   const [searches, setSearches] = useState<SavedSearch[]>([])
   const [activeSearchId, setActiveSearchId] = useState<string | null>(null)
+
+  // Historical search metadata
+  const [isHistorical, setIsHistorical] = useState(false)
+  const [resultsChanged, setResultsChanged] = useState(false)
+  const [missingFiles, setMissingFiles] = useState<string[]>([])
+  const [newFiles, setNewFiles] = useState<string[]>([])
+  const [storedResultCount, setStoredResultCount] = useState<number | null>(null)
+  const [currentResultCount, setCurrentResultCount] = useState<number | null>(null)
+  const [createdAt, setCreatedAt] = useState<string | null>(null)
 
   // AI summary
   const [summary, setSummary] = useState("")
@@ -70,10 +79,24 @@ export function useSearch() {
     }
   }, [])
 
+  // Reset historical metadata
+  const resetHistoricalState = useCallback(() => {
+    setIsHistorical(false)
+    setResultsChanged(false)
+    setMissingFiles([])
+    setNewFiles([])
+    setStoredResultCount(null)
+    setCurrentResultCount(null)
+    setCreatedAt(null)
+  }, [])
+
   const search = useCallback(async () => {
     if (!query.trim()) return
     setLoading(true)
     setError(null)
+
+    // Reset historical flags - this is a new search
+    resetHistoricalState()
 
     // Stop any running summary
     summaryControllerRef.current?.abort()
@@ -81,7 +104,7 @@ export function useSearch() {
     setSummarySources([])
 
     try {
-      const res = await api.post<{ results: SearchResult[]; search_id: string; llm_offline?: boolean }>("/api/search", {
+      const res = await api.post<SearchResponse>("/api/search", {
         query: query.trim(),
         folder: folder || undefined,
         tag: tag || undefined,
@@ -117,7 +140,7 @@ export function useSearch() {
     } finally {
       setLoading(false)
     }
-  }, [query, folder, tag, refreshSearches])
+  }, [query, folder, tag, refreshSearches, resetHistoricalState])
 
   const deleteSearch = useCallback(async (id: string) => {
     try {
@@ -126,30 +149,6 @@ export function useSearch() {
       if (activeSearchId === id) setActiveSearchId(null)
     } catch { /* ignore */ }
   }, [activeSearchId])
-
-  // Helper to execute search (DRY)
-  const executeSearch = useCallback(async (
-    query: string,
-    folder: string | null,
-    tag: string | null,
-  ): Promise<{ results: SearchResult[]; search_id: string } | null> => {
-    setLoading(true)
-    try {
-      const res = await api.post<{ results: SearchResult[]; search_id: string }>("/api/search", {
-        query,
-        folder: folder || undefined,
-        tag: tag || undefined,
-      })
-      setResults(res.results)
-      return res
-    } catch (err) {
-      console.error("Failed to execute search:", err)
-      setError((err as Error).message)
-      return null
-    } finally {
-      setLoading(false)
-    }
-  }, [])
 
   const loadSearch = useCallback(async (saved: SavedSearch) => {
     setQuery(saved.query)
@@ -161,26 +160,72 @@ export function useSearch() {
     summaryControllerRef.current?.abort()
     setIsSummarizing(false)
 
-    // If we have a cached summary, use it and just refresh results
-    if (saved.summary) {
-      setSummary(saved.summary)
-      setSummarySources([]) // Sources aren't saved, so clear them
+    setLoading(true)
+    setError(null)
 
-      // Refresh results in background (results may have changed with new indexing)
-      await executeSearch(saved.query, saved.folder, saved.tag)
-      // Note: This creates a new search record, but we keep showing the old summary
-    } else {
-      // No cached summary - fetch results and generate summary
-      setSummary("")
-      setSummarySources([])
+    try {
+      // Call the load endpoint to get historical search data
+      const res = await api.get<SearchResponse>(`/api/searches/${saved.id}/load`)
 
-      const res = await executeSearch(saved.query, saved.folder, saved.tag)
-      if (!res) return
+      // Set results
+      setResults(res.results)
 
-      // Generate summary and save to the OLD search record (not the new one)
+      // Set historical metadata
+      setIsHistorical(res.is_historical)
+      setResultsChanged(res.results_changed || false)
+      setMissingFiles(res.missing_files || [])
+      setNewFiles(res.new_files || [])
+      setStoredResultCount(res.stored_result_count || null)
+      setCurrentResultCount(res.current_result_count || null)
+      setCreatedAt(res.created_at || null)
+
+      // Use the stored summary (don't regenerate)
+      setSummary(res.summary || "")
+      setSummarySources([]) // Sources aren't stored in historical searches
+    } catch (err) {
+      const msg = (err as Error).message
+      setError(msg)
+      toast.error(`Failed to load search: ${msg}`)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const requery = useCallback(async () => {
+    if (!query.trim()) return
+
+    setLoading(true)
+    setError(null)
+
+    // Reset historical flags - this is a fresh search
+    resetHistoricalState()
+
+    // Stop any running summary
+    summaryControllerRef.current?.abort()
+    setSummary("")
+    setSummarySources([])
+
+    try {
+      // Execute a new search (creates new search record)
+      const res = await api.post<SearchResponse>("/api/search", {
+        query: query.trim(),
+        folder: folder || undefined,
+        tag: tag || undefined,
+      })
+
+      setResults(res.results)
+      setActiveSearchId(res.search_id)
+      refreshSearches()
+
+      // Notify user if intelligent search fell back due to offline LLM
+      if (res.llm_offline) {
+        toast.warning("Intelligent search unavailable (LLM offline), using standard search")
+      }
+
+      // Generate fresh summary
       setIsSummarizing(true)
       summaryControllerRef.current = streamSearchSummary(
-        saved.query,
+        query.trim(),
         {
           onToken: (delta) => setSummary((prev) => prev + delta),
           onSources: (sources) => setSummarySources(sources),
@@ -190,10 +235,16 @@ export function useSearch() {
             console.error("Summary error:", err)
           },
         },
-        { folder: saved.folder, tag: saved.tag, search_id: saved.id },
+        { folder, tag, search_id: res.search_id },
       )
+    } catch (err) {
+      const msg = (err as Error).message
+      setError(msg)
+      toast.error(`Re-query failed: ${msg}`)
+    } finally {
+      setLoading(false)
     }
-  }, [executeSearch])
+  }, [query, folder, tag, refreshSearches, resetHistoricalState])
 
   const stopSummary = useCallback(() => {
     summaryControllerRef.current?.abort()
@@ -211,13 +262,17 @@ export function useSearch() {
     setIsSummarizing(false)
     setActiveSearchId(null)
     setError(null)
-  }, [])
+    resetHistoricalState()
+  }, [resetHistoricalState])
 
   return {
     query, setQuery, folder, setFolder, tag, setTag,
     results, folders, tags, loading, error, search,
     searches, activeSearchId, deleteSearch, loadSearch,
     summary, summarySources, isSummarizing, stopSummary,
-    newSearch, refreshSearches,
+    newSearch, refreshSearches, requery,
+    // Historical search metadata
+    isHistorical, resultsChanged, missingFiles, newFiles,
+    storedResultCount, currentResultCount, createdAt,
   }
 }

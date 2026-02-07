@@ -2,7 +2,7 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
 from app.config import Settings
@@ -53,8 +53,18 @@ def search(
         tag_filter=req.tag,
     )
 
-    # Auto-save search to history
-    search_id = searchdb.save_search(req.query, req.folder, req.tag)
+    # Extract result metadata for history preservation
+    result_paths = [r.metadata.get("source_path", "") for r in results if r.metadata.get("source_path")]
+    result_count = len(results)
+
+    # Auto-save search to history with result metadata
+    search_id = searchdb.save_search(
+        req.query,
+        req.folder,
+        req.tag,
+        result_paths=result_paths,
+        result_count=result_count,
+    )
 
     return {
         "results": [
@@ -67,6 +77,7 @@ def search(
         ],
         "search_id": search_id,
         "llm_offline": llm_offline,
+        "is_historical": False,
     }
 
 
@@ -82,6 +93,89 @@ def list_searches(
     items = searchdb.list_searches(offset=offset, limit=limit)
     total = searchdb.search_count()
     return {"items": items, "total": total, "offset": offset, "limit": limit}
+
+
+@router.get("/searches/{search_id}/load")
+@limiter.limit(HEAVY)
+def load_historical_search(
+    request: Request,
+    search_id: str,
+    searchdb: SearchDB = Depends(get_searchdb),
+    retriever: Retriever = Depends(get_retriever),
+    settings: Settings = Depends(get_settings),
+):
+    """
+    Load a historical search and re-run it with current KB state.
+
+    Returns:
+    - Stored summary (preserved from original)
+    - Current search results
+    - Comparison data (missing/new files)
+    - Original metadata (timestamp, result count)
+    """
+    search_record = searchdb.get_search(search_id)
+    if not search_record:
+        raise HTTPException(status_code=404, detail="Search not found")
+
+    # Mark as viewed (updates last_viewed_at timestamp)
+    searchdb.mark_viewed(search_id)
+
+    # Re-run search with current KB state
+    search_query = search_record["query"]
+
+    # Apply intelligent search if enabled (same as original search)
+    llm_offline = False
+    if settings.intelligent_search_enabled:
+        enhanced = enhance_query(search_record["query"], settings)
+        if enhanced.error:
+            logger.warning("Intelligent search failed, using original query: %s", enhanced.error)
+            llm_offline = True
+        else:
+            search_query = build_enhanced_search_query(enhanced)
+            logger.info("Enhanced query: %s -> %s", search_record["query"], search_query)
+
+    current_results = retriever.search(
+        search_query,
+        top_k=settings.top_k,
+        folder_filter=search_record.get("folder"),
+        tag_filter=search_record.get("tag"),
+    )
+
+    # Extract current result paths
+    current_paths = set(
+        r.metadata.get("source_path", "")
+        for r in current_results
+        if r.metadata.get("source_path")
+    )
+
+    # Compare with stored results
+    stored_paths = set(search_record.get("result_paths", []))
+    missing_paths = list(stored_paths - current_paths)
+    new_paths = list(current_paths - stored_paths)
+
+    return {
+        "results": [
+            {
+                "document": r.document,
+                "metadata": r.metadata,
+                "score": r.score,
+            }
+            for r in current_results
+        ],
+        "search_id": search_id,
+        "query": search_record["query"],
+        "folder": search_record.get("folder"),
+        "tag": search_record.get("tag"),
+        "summary": search_record.get("summary"),  # Preserved from original
+        "created_at": search_record["created_at"],
+        "is_historical": True,
+        "stored_result_count": search_record.get("result_count", 0),
+        "current_result_count": len(current_results),
+        "missing_files": missing_paths,  # Files that were in original but not now
+        "new_files": new_paths,  # Files that are new since original
+        "results_changed": len(missing_paths) > 0 or len(new_paths) > 0,
+        "llm_offline": llm_offline,
+    }
 
 
 @router.delete("/searches/{search_id}")
