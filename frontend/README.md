@@ -1,73 +1,55 @@
-# React + TypeScript + Vite
+# mdkb Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React SPA for mdkb built with Vite, TypeScript, Shadcn/ui, and Tailwind v4.
 
-Currently, two official plugins are available:
+## Development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```bash
+# From the project root (starts both backend and frontend):
+./run.sh
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Or frontend only:
+cd frontend && npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Dev server runs on `http://localhost:5173` and proxies `/api` requests to the backend at `:9713` (configured in `vite.config.ts`).
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Build
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+cd frontend && npm run build
 ```
+
+Output goes to `frontend/dist/`, which FastAPI serves as static files in production mode (`./run.sh -p`).
+
+## Structure
+
+```
+src/
+├── App.tsx              # Tab layout (Chat, Search, Browse, Settings)
+├── lib/
+│   ├── api.ts           # Fetch wrapper with retry + error handling
+│   ├── sse.ts           # POST-based SSE streaming client
+│   ├── types.ts         # Shared TypeScript types
+│   └── query-enhancement.ts  # LLM query enhancement helper
+├── hooks/
+│   ├── use-chat.ts      # Chat state + streaming
+│   ├── use-search.ts    # Search state + history
+│   ├── use-files.ts     # File listing + actions
+│   ├── use-settings.ts  # Settings state
+│   └── use-llm-status.ts  # LLM online/offline polling
+└── components/
+    ├── chat/            # Chat tab components
+    ├── search/          # Search tab components
+    ├── browse/          # Browse tab components
+    ├── settings/        # Settings tab components
+    └── ui/              # Shadcn/ui primitives
+```
+
+## Stack
+
+- **Vite** — build tool with HMR
+- **React 19** — UI framework
+- **TypeScript** — type safety
+- **Shadcn/ui** — component library (Radix + Tailwind)
+- **Tailwind CSS v4** — utility-first styling

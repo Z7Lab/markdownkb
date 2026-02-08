@@ -47,12 +47,12 @@ retrieval:
   score_threshold: 0.3  # Filter weak semantic matches (0.0-1.0, higher = stricter)
   hybrid_search: true   # Combine vector similarity + BM25 keyword matching
   bm25_weight: 0.5      # Balance between keywords (0.5) and semantics (0.5)
-  intelligent_search:   # Optional LLM-powered query enhancement
+  intelligent_search:   # LLM-powered query enhancement (requires active LLM)
     enabled: false      # Use LLM to extract keywords, expand acronyms, etc.
     extract_keywords: true
     expand_acronyms: true
 
-# Vector store persistence
+# Vector store persistence directory and collection name
 storage:
   persist_directory: ./data/chromadb
   collection_name: mdkb
@@ -73,11 +73,11 @@ features:
 # Each MCP tool has its own config file in config/mcp/
 # Examples: config/mcp/filesystem.yaml, config/mcp/terminal.yaml, config/mcp/tag_generator.yaml
 
-# Server binding
+# Server binding — change host to 0.0.0.0 to allow external access
 server:
   host: 127.0.0.1
   port: 9713
 
-# Plan saving directory
+# Directory where saved plans (from chat) are written as markdown files
 plans:
   save_directory: ./data/plans

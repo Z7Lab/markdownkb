@@ -192,7 +192,7 @@ curl http://localhost:11434/api/tags
 
 From your mdkb machine (replace with the Ollama machine's IP):
 ```bash
-curl http://<your-server-ip>:11434/api/tags
+curl http://<OLLAMA_IP>:11434/api/tags
 ```
 
 You should see a JSON list of your models.
@@ -209,11 +209,11 @@ llm:
     - name: ollama
       model: ollama/deepseek-coder-v2
       api_key: ""
-      api_base: "http://<your-server-ip>:11434"
+      api_base: "http://<OLLAMA_IP>:11434"
   active_provider: ollama
 ```
 
-Replace the IP with your Ollama machine's IP or hostname.
+Replace `<OLLAMA_IP>` with your Ollama machine's IP or hostname.
 
 ### Option B: Use the mdkb Settings UI
 
@@ -224,7 +224,7 @@ Replace the IP with your Ollama machine's IP or hostname.
 ### Option C: Environment Variable
 
 ```bash
-OLLAMA_API_BASE=http://<your-server-ip>:11434 python -m app
+OLLAMA_API_BASE=http://<OLLAMA_IP>:11434 python -m app
 ```
 
 ---
@@ -262,7 +262,7 @@ llm:
     - name: ollama
       model: ollama/deepseek-coder-v2
       api_key: ""
-      api_base: "http://<your-server-ip>:11434"
+      api_base: "http://<OLLAMA_IP>:11434"
   active_provider: anthropic
 ```
 
