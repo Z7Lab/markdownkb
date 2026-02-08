@@ -30,7 +30,7 @@ export function SearchTab() {
     folder, setFolder,
     tag, setTag,
     results, folders, tags,
-    loading, error, search,
+    loading, loadingHistorical, error, search,
     searches, activeSearchId,
     deleteSearch, loadSearch,
     summary, summarySources, isSummarizing, stopSummary, generateSummary,
@@ -228,7 +228,7 @@ export function SearchTab() {
               <div className="flex flex-col items-center justify-center py-20 gap-3">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <p className="text-sm text-muted-foreground">
-                  Searching your knowledge base...
+                  {loadingHistorical ? "Loading previous search..." : "Searching your knowledge base..."}
                 </p>
               </div>
             )}

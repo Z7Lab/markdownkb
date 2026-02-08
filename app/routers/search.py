@@ -190,8 +190,43 @@ def list_searches(
 
 
 @router.get("/searches/{search_id}/load")
-@limiter.limit(HEAVY)
+@limiter.limit(STANDARD)
 def load_historical_search(
+    request: Request,
+    search_id: str,
+    searchdb: SearchDB = Depends(get_searchdb),
+):
+    """
+    Load a historical search with its preserved results (fast).
+
+    Returns stored result_data, summary, and version count without
+    re-running the search. Use /compare for change detection.
+    """
+    search_record = searchdb.get_search(search_id)
+    if not search_record:
+        raise HTTPException(status_code=404, detail="Search not found")
+
+    searchdb.mark_viewed(search_id)
+
+    results_to_return = search_record.get("result_data", [])
+    versions = searchdb.get_search_versions(search_id)
+
+    return {
+        "results": results_to_return,
+        "search_id": search_id,
+        "query": search_record["query"],
+        "folder": search_record.get("folder"),
+        "tag": search_record.get("tag"),
+        "summary": search_record.get("summary"),
+        "created_at": search_record["created_at"],
+        "is_historical": True,
+        "version_count": len(versions),
+    }
+
+
+@router.get("/searches/{search_id}/compare")
+@limiter.limit(HEAVY)
+def compare_historical_search(
     request: Request,
     search_id: str,
     searchdb: SearchDB = Depends(get_searchdb),
@@ -199,30 +234,20 @@ def load_historical_search(
     settings: Settings = Depends(get_settings),
 ):
     """
-    Load a historical search version with its preserved results.
+    Compare a historical search against current KB state (slow).
 
-    Returns the version's saved result_data (frozen in time), plus comparison
-    data against the current KB state to show what has changed.
+    Re-runs the search to detect what has changed since the original query.
+    Called lazily after the fast load completes.
     """
     search_record = searchdb.get_search(search_id)
     if not search_record:
         raise HTTPException(status_code=404, detail="Search not found")
 
-    # Mark as viewed (updates last_viewed_at timestamp)
-    searchdb.mark_viewed(search_id)
-
-    # Return preserved results from this version
-    results_to_return = search_record.get("result_data", [])
-
-    # Re-run search with current KB state for comparison only
+    # Re-run search with current KB state for comparison
     search_query = search_record["query"]
-    llm_offline = False
     if settings.intelligent_search_enabled:
         enhanced = enhance_query(search_record["query"], settings)
-        if enhanced.error:
-            logger.warning("Intelligent search failed, using original query: %s", enhanced.error)
-            llm_offline = True
-        else:
+        if not enhanced.error:
             search_query = build_enhanced_search_query(enhanced)
 
     chunk_fetch_limit = settings.top_k * 10
@@ -234,11 +259,6 @@ def load_historical_search(
     )
     current_grouped_results = _group_results_by_file(chunk_results)
     current_grouped_results = current_grouped_results[:settings.top_k]
-
-    # If no preserved results (pre-migration search), fall back to current
-    if not results_to_return:
-        results_to_return = current_grouped_results
-        logger.warning("No preserved result_data for search %s, using current results", search_id)
 
     # Compare stored vs current for change detection
     current_paths = set(r["metadata"].get("source_path", "") for r in current_grouped_results)
@@ -268,26 +288,13 @@ def load_historical_search(
         })
     score_changes.sort(key=lambda x: abs(x["change"]), reverse=True)
 
-    # Check if other versions exist
-    versions = searchdb.get_search_versions(search_id)
-
     return {
-        "results": results_to_return,
-        "search_id": search_id,
-        "query": search_record["query"],
-        "folder": search_record.get("folder"),
-        "tag": search_record.get("tag"),
-        "summary": search_record.get("summary"),
-        "created_at": search_record["created_at"],
-        "is_historical": True,
         "stored_result_count": search_record.get("result_count", 0),
         "current_result_count": len(current_grouped_results),
         "missing_files": missing_paths,
         "new_files": new_paths,
         "score_changes": score_changes,
         "results_changed": len(missing_paths) > 0 or len(new_paths) > 0 or len(score_changes) > 0,
-        "version_count": len(versions),
-        "llm_offline": llm_offline,
     }
 
 

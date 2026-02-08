@@ -67,14 +67,17 @@ export interface SearchResponse {
   summary?: string | null
   created_at?: string
   is_historical: boolean
-  stored_result_count?: number
-  current_result_count?: number
-  missing_files?: string[]
-  new_files?: string[]
-  score_changes?: ScoreChange[]
-  results_changed?: boolean
   version_count?: number
-  llm_offline: boolean
+  llm_offline?: boolean
+}
+
+export interface CompareResponse {
+  stored_result_count: number
+  current_result_count: number
+  missing_files: string[]
+  new_files: string[]
+  score_changes: ScoreChange[]
+  results_changed: boolean
 }
 
 export interface TrackedFile {

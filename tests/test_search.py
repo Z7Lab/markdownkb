@@ -109,8 +109,7 @@ async def test_search_saves_result_metadata(client, app):
 
 @pytest.mark.asyncio
 async def test_load_historical_search(client, app):
-    """Test loading a historical search with metadata and original results."""
-    # Setup mock searchdb to return a search with full result_data
+    """Test loading a historical search returns stored data fast (no re-search)."""
     original_result = {
         "document": "Test document content",
         "snippets": [],
@@ -138,14 +137,15 @@ async def test_load_historical_search(client, app):
     assert resp.status_code == 200
     data = resp.json()
 
-    # Verify historical metadata
+    # Fast load returns stored data without comparison fields
     assert data["is_historical"] is True
     assert data["summary"] == "Original AI summary"
     assert data["created_at"] == "2024-01-01 00:00:00"
-    assert data["stored_result_count"] == 1
-    assert data["current_result_count"] == 1
-    assert "score_changes" in data
     assert "version_count" in data
+
+    # Comparison fields are NOT in the fast load response
+    assert "stored_result_count" not in data
+    assert "score_changes" not in data
 
     # Verify preserved results are returned (from result_data)
     assert len(data["results"]) == 1
@@ -156,23 +156,8 @@ async def test_load_historical_search(client, app):
 
 
 @pytest.mark.asyncio
-async def test_load_historical_search_detects_changes(client, app):
-    """Test that historical search detects KB changes."""
-    # Setup mock searchdb with old result paths and result_data
-    old_result1 = {
-        "document": "Old file content",
-        "snippets": [],
-        "metadata": {"source_path": "/tmp/old-file.md"},
-        "score": 0.85,
-        "chunk_count": 1,
-    }
-    old_result2 = {
-        "document": "Removed file content",
-        "snippets": [],
-        "metadata": {"source_path": "/tmp/removed-file.md"},
-        "score": 0.75,
-        "chunk_count": 1,
-    }
+async def test_compare_historical_search_detects_changes(client, app):
+    """Test that compare endpoint detects KB changes."""
     app.state.searchdb.get_search.return_value = {
         "id": "srch001",
         "query": "test query",
@@ -185,14 +170,14 @@ async def test_load_historical_search_detects_changes(client, app):
             {"path": "/tmp/old-file.md", "score": 0.85},
             {"path": "/tmp/removed-file.md", "score": 0.75},
         ],
-        "result_data": [old_result1, old_result2],
+        "result_data": [],
         "created_at": "2024-01-01 00:00:00",
     }
 
     # Current search returns different results
     # (retriever mock in conftest returns ["/tmp/test-source/doc.md"])
 
-    resp = await client.get("/api/searches/srch001/load")
+    resp = await client.get("/api/searches/srch001/compare")
     assert resp.status_code == 200
     data = resp.json()
 
@@ -207,10 +192,6 @@ async def test_load_historical_search_detects_changes(client, app):
     assert "/tmp/removed-file.md" in data["missing_files"]
     assert len(data["new_files"]) == 1
     assert "/tmp/test-source/doc.md" in data["new_files"]
-
-    # Verify original results are shown
-    assert len(data["results"]) == 2
-    assert data["results"][0]["document"] == "Old file content"
 
 
 @pytest.mark.asyncio
@@ -233,16 +214,8 @@ async def test_search_response_is_not_historical(client):
 
 
 @pytest.mark.asyncio
-async def test_load_historical_search_detects_score_changes(client, app):
-    """Test that historical search detects relevance score changes."""
-    # Setup mock searchdb with same file but different score
-    original_result = {
-        "document": "Test document content",
-        "snippets": [],
-        "metadata": {"source_path": "/tmp/test-source/doc.md"},
-        "score": 0.75,
-        "chunk_count": 1,
-    }
+async def test_compare_historical_search_detects_score_changes(client, app):
+    """Test that compare endpoint detects relevance score changes."""
     app.state.searchdb.get_search.return_value = {
         "id": "srch001",
         "query": "test query",
@@ -252,32 +225,28 @@ async def test_load_historical_search_detects_score_changes(client, app):
         "result_paths": ["/tmp/test-source/doc.md"],
         "result_count": 1,
         "result_details": [{"path": "/tmp/test-source/doc.md", "score": 0.75}],
-        "result_data": [original_result],
+        "result_data": [],
         "created_at": "2024-01-01 00:00:00",
     }
 
     # Current search returns same file with different score (0.9)
     # (retriever mock in conftest returns score: 0.9)
 
-    resp = await client.get("/api/searches/srch001/load")
+    resp = await client.get("/api/searches/srch001/compare")
     assert resp.status_code == 200
     data = resp.json()
 
     # Verify score change detection
-    assert data["results_changed"] is True  # Score changed
+    assert data["results_changed"] is True
     assert len(data["score_changes"]) == 1
     assert data["score_changes"][0]["path"] == "/tmp/test-source/doc.md"
     assert data["score_changes"][0]["old_score"] == 0.75
     assert data["score_changes"][0]["new_score"] == 0.9
-    assert abs(data["score_changes"][0]["change"] - 0.15) < 0.001  # 0.9 - 0.75 (allow for float precision)
+    assert abs(data["score_changes"][0]["change"] - 0.15) < 0.001
 
     # Verify no missing or new files (same file in both)
     assert len(data["missing_files"]) == 0
     assert len(data["new_files"]) == 0
-
-    # Verify original results are shown (score 0.75)
-    assert len(data["results"]) == 1
-    assert data["results"][0]["score"] == 0.75
 
 
 @pytest.mark.asyncio

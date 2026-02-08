@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { api } from "@/lib/api"
 import { streamSearchSummary } from "@/lib/sse"
 import { toast } from "sonner"
-import type { PaginatedResponse, SavedSearch, SearchResult, SearchResponse, SearchVersion, ScoreChange } from "@/lib/types"
+import type { PaginatedResponse, SavedSearch, SearchResult, SearchResponse, CompareResponse, SearchVersion, ScoreChange } from "@/lib/types"
 
 export function useSearch() {
   const [query, setQuery] = useState("")
@@ -12,6 +12,7 @@ export function useSearch() {
   const [folders, setFolders] = useState<string[]>([])
   const [tags, setTags] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
+  const [loadingHistorical, setLoadingHistorical] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Search history
@@ -97,6 +98,7 @@ export function useSearch() {
   const search = useCallback(async () => {
     if (!query.trim()) return
     setLoading(true)
+    setLoadingHistorical(false)
     setError(null)
 
     // Reset historical flags - this is a new search
@@ -165,29 +167,20 @@ export function useSearch() {
     setIsSummarizing(false)
 
     setLoading(true)
+    setLoadingHistorical(true)
     setError(null)
+    resetHistoricalState()
 
     try {
-      // Call the load endpoint to get preserved historical search data
+      // Fast load: get stored results + metadata (no re-search)
       const res = await api.get<SearchResponse>(`/api/searches/${saved.id}/load`)
 
-      // Set results (preserved from when search was created)
       setResults(res.results)
-
-      // Set historical metadata
       setIsHistorical(res.is_historical)
-      setResultsChanged(res.results_changed || false)
-      setMissingFiles(res.missing_files || [])
-      setNewFiles(res.new_files || [])
-      setScoreChanges(res.score_changes || [])
-      setStoredResultCount(res.stored_result_count || null)
-      setCurrentResultCount(res.current_result_count || null)
       setCreatedAt(res.created_at || null)
       setVersionCount(res.version_count || 0)
-
-      // Use the stored summary (don't regenerate)
       setSummary(res.summary || "")
-      setSummarySources([]) // Sources aren't stored in historical searches
+      setSummarySources([])
     } catch (err) {
       const msg = (err as Error).message
       setError(msg)
@@ -195,7 +188,19 @@ export function useSearch() {
     } finally {
       setLoading(false)
     }
-  }, [])
+
+    // Lazy compare: fetch change detection in background (slow, non-blocking)
+    api.get<CompareResponse>(`/api/searches/${saved.id}/compare`).then((cmp) => {
+      setResultsChanged(cmp.results_changed)
+      setMissingFiles(cmp.missing_files)
+      setNewFiles(cmp.new_files)
+      setScoreChanges(cmp.score_changes)
+      setStoredResultCount(cmp.stored_result_count)
+      setCurrentResultCount(cmp.current_result_count)
+    }).catch(() => {
+      // Comparison is optional — silently ignore failures
+    })
+  }, [resetHistoricalState])
 
   const loadVersion = useCallback(async (version: SearchVersion) => {
     // Load a specific version by creating a minimal SavedSearch object
@@ -226,6 +231,7 @@ export function useSearch() {
     if (!query.trim()) return
 
     setLoading(true)
+    setLoadingHistorical(false)
     setError(null)
 
     // Reset historical flags - this is a fresh search
@@ -325,7 +331,7 @@ export function useSearch() {
 
   return {
     query, setQuery, folder, setFolder, tag, setTag,
-    results, folders, tags, loading, error, search,
+    results, folders, tags, loading, loadingHistorical, error, search,
     searches, activeSearchId, deleteSearch, loadSearch,
     summary, summarySources, isSummarizing, stopSummary, generateSummary,
     newSearch, refreshSearches, requery,
