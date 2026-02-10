@@ -6,7 +6,7 @@ import type { TrackedFile } from "@/lib/types"
 
 interface FileRowProps {
   file: TrackedFile
-  loading: boolean
+  busy: boolean
   onToggleRag: (path: string, checked: boolean) => void
   onIndexFile: (path: string) => void
   onReindexFile: (path: string) => void
@@ -16,7 +16,7 @@ interface FileRowProps {
 
 export const FileRow = React.memo(function FileRow({
   file,
-  loading,
+  busy,
   onToggleRag,
   onIndexFile,
   onReindexFile,
@@ -38,7 +38,7 @@ export const FileRow = React.memo(function FileRow({
         <FileActions
           status={file.status}
           includeRag={file.include_rag === 1}
-          loading={loading}
+          busy={busy}
           onToggleRag={(checked) => onToggleRag(file.path, checked)}
           onIndexFile={() => onIndexFile(file.path)}
           onReindexFile={() => onReindexFile(file.path)}
@@ -64,7 +64,7 @@ export const FileRow = React.memo(function FileRow({
         <FileActions
           status={file.status}
           includeRag={file.include_rag === 1}
-          loading={loading}
+          busy={busy}
           onToggleRag={(checked) => onToggleRag(file.path, checked)}
           onIndexFile={() => onIndexFile(file.path)}
           onReindexFile={() => onReindexFile(file.path)}

@@ -280,7 +280,7 @@ export function FileViewerDialog({
                 <FileActions
                   status={fileStatus.status}
                   includeRag={fileStatus.include_rag === 1}
-                  loading={actionLoading}
+                  busy={actionLoading}
                   onToggleRag={handleToggleRag}
                   onIndexFile={handleIndexFile}
                   onReindexFile={handleReindexFile}

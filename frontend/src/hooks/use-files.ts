@@ -5,9 +5,18 @@ import type { PaginatedResponse, TrackedFile } from "@/lib/types"
 
 export function useFiles() {
   const [files, setFiles] = useState<TrackedFile[]>([])
-  const [loading, setLoading] = useState(false)
+  const [busyPaths, setBusyPaths] = useState<Set<string>>(new Set())
   const [error, setError] = useState<string | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const addBusy = (path: string) =>
+    setBusyPaths((prev) => new Set([...prev, path]))
+  const removeBusy = (path: string) =>
+    setBusyPaths((prev) => {
+      const next = new Set(prev)
+      next.delete(path)
+      return next
+    })
 
   const refresh = useCallback(async (silent = false) => {
     try {
@@ -76,52 +85,56 @@ export function useFiles() {
   }, []) // Only run on mount
 
   const toggleRag = useCallback(async (path: string, include: boolean) => {
-    setLoading(true)
+    addBusy(path)
     try {
       await api.put("/api/files/toggle-rag", { path, include })
       await refresh()
     } catch (err) {
       toast.error(`Failed to toggle RAG: ${(err as Error).message}`)
     } finally {
-      setLoading(false)
+      removeBusy(path)
     }
   }, [refresh])
 
   const unindexFile = useCallback(async (path: string) => {
-    setLoading(true)
+    addBusy(path)
     try {
       await api.post("/api/files/unindex", { path })
       await refresh()
     } catch (err) {
       toast.error(`Failed to unindex: ${(err as Error).message}`)
     } finally {
-      setLoading(false)
+      removeBusy(path)
     }
   }, [refresh])
 
   const indexFile = useCallback(async (path: string) => {
-    setLoading(true)
+    addBusy(path)
+    setFiles((prev) => prev.map((f) => f.path === path ? { ...f, status: "indexing" } : f))
     try {
       await api.post("/api/files/index", { path })
       await refresh()
     } catch (err) {
       toast.error(`Failed to index: ${(err as Error).message}`)
+      await refresh()
     } finally {
-      setLoading(false)
+      removeBusy(path)
     }
   }, [refresh])
 
   const reindexFile = useCallback(async (path: string) => {
-    setLoading(true)
+    addBusy(path)
+    setFiles((prev) => prev.map((f) => f.path === path ? { ...f, status: "indexing" } : f))
     try {
       await api.post("/api/files/reindex", { path })
       await refresh()
     } catch (err) {
       toast.error(`Failed to reindex: ${(err as Error).message}`)
+      await refresh()
     } finally {
-      setLoading(false)
+      removeBusy(path)
     }
   }, [refresh])
 
-  return { files, loading, error, refresh, toggleRag, unindexFile, indexFile, reindexFile }
+  return { files, busyPaths, error, refresh, toggleRag, unindexFile, indexFile, reindexFile }
 }

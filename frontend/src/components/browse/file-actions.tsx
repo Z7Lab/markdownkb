@@ -6,7 +6,7 @@ import { Plus, RefreshCw, Trash2 } from "lucide-react"
 interface FileActionsProps {
   status: string
   includeRag: boolean
-  loading?: boolean
+  busy?: boolean
   onToggleRag: (checked: boolean) => void
   onIndexFile: () => void
   onReindexFile: () => void
@@ -18,7 +18,7 @@ interface FileActionsProps {
 export function FileActions({
   status,
   includeRag,
-  loading = false,
+  busy = false,
   onToggleRag,
   onIndexFile,
   onReindexFile,
@@ -48,7 +48,7 @@ export function FileActions({
               </span>
               <Switch
                 checked={includeRag}
-                disabled={loading || status === "not_indexed"}
+                disabled={busy || status === "not_indexed"}
                 onCheckedChange={onToggleRag}
               />
             </div>
@@ -73,7 +73,7 @@ export function FileActions({
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7"
-                  disabled={loading}
+                  disabled={busy}
                   onClick={onIndexFile}
                 >
                   <Plus className="h-4 w-4" />
@@ -89,7 +89,7 @@ export function FileActions({
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7"
-                  disabled={loading}
+                  disabled={busy}
                   onClick={onReindexFile}
                 >
                   <RefreshCw className="h-4 w-4" />
@@ -105,7 +105,7 @@ export function FileActions({
                   variant="ghost"
                   size="icon"
                   className="h-7 w-7 text-destructive hover:text-destructive"
-                  disabled={loading}
+                  disabled={busy}
                   onClick={onUnindexFile}
                 >
                   <Trash2 className="h-4 w-4" />

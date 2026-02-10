@@ -57,7 +57,7 @@ const getValue = (f: TrackedFile, key: string): string | number | null => {
 }
 
 export function FilesTab() {
-  const { files, loading, refresh, toggleRag, unindexFile, indexFile, reindexFile } = useFiles()
+  const { files, busyPaths, refresh, toggleRag, unindexFile, indexFile, reindexFile } = useFiles()
   const [filterText, setFilterText] = useState("")
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
   const [viewingPath, setViewingPath] = useState<string | null>(null)
@@ -153,7 +153,7 @@ export function FilesTab() {
                 <FileRow
                   key={f.path}
                   file={f}
-                  loading={loading}
+                  busy={busyPaths.has(f.path)}
                   onToggleRag={toggleRag}
                   onIndexFile={indexFile}
                   onReindexFile={reindexFile}
