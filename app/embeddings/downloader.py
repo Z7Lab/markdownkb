@@ -9,7 +9,14 @@ from app.embeddings.registry import MODELS
 
 logger = logging.getLogger(__name__)
 
-CACHE_DIR = Path.home() / ".cache" / "mdkb" / "models"
+# Primary: data/models/ relative to project root (works in Docker and locally)
+_APP_ROOT = Path(__file__).resolve().parent.parent.parent
+CACHE_DIR = _APP_ROOT / "data" / "models"
+
+# Legacy: ~/.cache/mdkb/models (pre-Docker installs)
+_LEGACY_CACHE = Path.home() / ".cache" / "mdkb" / "models"
+
+# ChromaDB's built-in L6 cache (last resort fallback)
 _CHROMA_BASE = (
     Path.home() / ".cache" / "chroma" / "onnx_models" / "all-MiniLM-L6-v2"
 )
@@ -17,8 +24,13 @@ HF_URL = "https://huggingface.co/{repo}/resolve/main/{path}"
 
 
 def model_dir(model_id: str) -> Path:
-    """Return the local cache directory for a model."""
+    """Return the primary cache directory for a model."""
     return CACHE_DIR / model_id
+
+
+def _dir_has_model(d: Path, info) -> bool:
+    """Check if a directory contains all required model files."""
+    return all((d / f).exists() for f in info.files)
 
 
 def _chroma_cache_ok() -> bool:
@@ -33,23 +45,27 @@ def is_installed(model_id: str) -> bool:
     info = MODELS.get(model_id)
     if not info:
         return False
+    if _dir_has_model(model_dir(model_id), info):
+        return True
+    if _dir_has_model(_LEGACY_CACHE / model_id, info):
+        return True
     if model_id == "all-MiniLM-L6-v2" and _chroma_cache_ok():
         return True
-    d = model_dir(model_id)
-    return all((d / f).exists() for f in info.files)
+    return False
 
 
 def get_model_path(model_id: str) -> Path:
     """Return the directory containing model files."""
-    if model_id == "all-MiniLM-L6-v2":
-        our = model_dir(model_id)
-        if (our / "onnx" / "model.onnx").exists():
-            return our
-        if _chroma_cache_ok():
-            # ChromaDB puts all files inside onnx/ subdir. Return the
-            # parent so onnx/model.onnx resolves correctly.
-            return _CHROMA_BASE
-    return model_dir(model_id)
+    info = MODELS.get(model_id)
+    primary = model_dir(model_id)
+    if info and _dir_has_model(primary, info):
+        return primary
+    legacy = _LEGACY_CACHE / model_id
+    if info and _dir_has_model(legacy, info):
+        return legacy
+    if model_id == "all-MiniLM-L6-v2" and _chroma_cache_ok():
+        return _CHROMA_BASE
+    return primary
 
 
 def install_model(model_id: str) -> None:

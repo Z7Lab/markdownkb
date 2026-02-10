@@ -68,8 +68,13 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Kill existing processes on our ports
+# Kill existing local processes on our ports (skip Docker containers)
 cleanup_ports() {
+    # Check if Docker is using the API port
+    if docker ps --filter "publish=$API_PORT" --format "{{.Names}}" 2>/dev/null | grep -q .; then
+        echo -e "${RED}Port $API_PORT is in use by Docker container. Stop it first (make down) or use a different port.${NC}"
+        exit 1
+    fi
     fuser -k $API_PORT/tcp >/dev/null 2>&1 || true
     if [ "$MODE" = "dev" ]; then
         fuser -k $FRONTEND_PORT/tcp >/dev/null 2>&1 || true

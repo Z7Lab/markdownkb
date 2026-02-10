@@ -38,7 +38,8 @@ For large collections (1000+ files), expect reindexing to take a few minutes.
 
 Models are cached locally:
 
-- **mdkb models:** `~/.cache/mdkb/models/{model-id}/`
+- **Primary:** `data/models/{model-id}/` (inside project root — works with Docker and local dev)
+- **Legacy fallback:** `~/.cache/mdkb/models/{model-id}/` (pre-Docker installs, checked automatically)
 - **ChromaDB built-in L6:** `~/.cache/chroma/onnx_models/all-MiniLM-L6-v2/` (detected automatically if present)
 
 The active model is stored in `config/settings.yaml` under `embeddings.model`.
