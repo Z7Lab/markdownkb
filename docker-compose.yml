@@ -9,9 +9,10 @@ services:
       - ./data:/app/data
       - ./config:/app/config
       - ./skills:/app/skills
-      # Mount your markdown source directories (read-only):
-      # - /home/user/notes:/app/docs/notes:ro
-      # - /home/user/projects:/app/docs/projects:ro
+      # Mount home directory read-only so source paths in settings.yaml
+      # work identically whether running with Docker or natively.
+      # Add/remove source directories from the Settings UI — no restart needed.
+      - ${HOME}:${HOME}:ro
     environment:
       - SERVER_HOST=0.0.0.0
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}

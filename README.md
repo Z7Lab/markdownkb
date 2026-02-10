@@ -37,18 +37,37 @@ Creates `.venv`, installs Python and Node dependencies if needed, starts both se
 ## Docker
 
 ```bash
-cp config/settings.yaml.example config/settings.yaml
-docker compose up --build
+cp config/settings.yaml.example config/settings.yaml  # add your source dirs and LLM config
+cp .env.example .env                                   # edit if needed (ports, Ollama IP, API keys)
+make build && make up
 ```
 
-Mount your markdown directories as read-only volumes in `docker-compose.yml`:
+Your home directory is mounted read-only into the container, so paths in `settings.yaml` work identically whether running with Docker or natively. Add or remove source directories from the **Settings** tab — no Docker restart needed.
 
-```yaml
-volumes:
-  - /home/user/notes:/app/docs/notes:ro
+The container binds to **localhost only** by default and runs as a non-root user. Set `MDKB_HOST=0.0.0.0` in `.env` to expose it to your network.
+
+### Makefile
+
+```bash
+make help       # show all targets
+make build      # build Docker image
+make up         # start container (detached)
+make down       # stop container
+make logs       # tail container logs
+make shell      # open a shell in the container
+make restart    # restart container
+make clean      # stop container and remove image
 ```
 
-Environment variables (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OLLAMA_API_BASE`) can be set in `.env` or passed directly. The container exposes port 9713.
+### Running without Docker
+
+Docker is optional. You can run mdkb directly with:
+
+```bash
+./run.sh        # or: make dev
+```
+
+This creates a `.venv`, installs dependencies, and starts both services locally. See [run.sh](#runsh) above for all options.
 
 ## Configuration
 
@@ -301,6 +320,7 @@ config/
 
 tests/                   # pytest + httpx AsyncClient
 
-Dockerfile               # Python 3.11-slim, exposes 9713
-docker-compose.yml       # Service config with volume mounts
+Makefile                 # Build, run, test, Docker targets (make help)
+Dockerfile               # Multi-stage build (Node + Python), non-root, health check
+docker-compose.yml       # Localhost-only binding, configurable source mounts
 ```
