@@ -9,6 +9,7 @@ import {
   FolderCog,
   Layers,
   MessageSquareText,
+  ScrollText,
   Search,
   ToggleRight,
 } from "lucide-react"
@@ -19,6 +20,7 @@ import { SystemPromptPanel } from "./system-prompt-panel"
 import { EmbeddingPanel } from "./embedding-panel"
 import { SearchPanel } from "./search-panel"
 import { DatabasePanel } from "./database-panel"
+import { LoggingPanel } from "./logging-panel"
 
 const sections = [
   { id: "llm", label: "LLM Provider", icon: Cpu },
@@ -28,6 +30,7 @@ const sections = [
   { id: "features", label: "Features", icon: ToggleRight },
   { id: "prompt", label: "System Prompt", icon: MessageSquareText },
   { id: "database", label: "Database", icon: Database },
+  { id: "logging", label: "Logging", icon: ScrollText },
 ] as const
 
 type SectionId = (typeof sections)[number]["id"]
@@ -59,6 +62,7 @@ export function SettingsTab() {
     installEmbeddingModel,
     switchEmbeddingModel,
     toggleIntelligentSearch,
+    setLogLevel,
   } = useSettings()
 
   if (!settings) {
@@ -158,6 +162,12 @@ export function SettingsTab() {
             )}
             {activeSection === "database" && (
               <DatabasePanel />
+            )}
+            {activeSection === "logging" && (
+              <LoggingPanel
+                logLevel={settings.log_level}
+                onSetLogLevel={setLogLevel}
+              />
             )}
           </div>
         </ScrollArea>

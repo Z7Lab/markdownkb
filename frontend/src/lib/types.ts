@@ -127,6 +127,14 @@ export interface AppSettings {
   default_hybrid_search: boolean
   bm25_weight: number
   default_bm25_weight: number
+  log_level: string
+}
+
+export interface LogEntry {
+  timestamp: number
+  level: string
+  logger: string
+  message: string
 }
 
 export interface EmbeddingModel {

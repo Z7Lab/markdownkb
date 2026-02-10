@@ -120,6 +120,12 @@ Providers without an `api_key` are skipped (except Ollama). If the active provid
 | `storage.persist_directory` | `./data/chromadb` | ChromaDB vector store location |
 | `storage.collection_name` | `mdkb` | ChromaDB collection name |
 
+### Logging
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `logging.level` | `INFO` | Log level for UI log viewer (`INFO` or `DEBUG`) |
+
 ### Server
 
 | Key | Default | Description |
@@ -227,6 +233,10 @@ All endpoints under `http://localhost:9713/api/`. Interactive docs at `http://lo
 | PUT | `/api/settings/intelligent-search` | Toggle intelligent search |
 | PUT | `/api/settings/search-summary-prompt` | Update search summary prompt |
 | PUT | `/api/settings/retrieval` | Update retrieval settings |
+| GET | `/api/settings/log-level` | Get current log level |
+| PUT | `/api/settings/log-level` | Set log level (INFO/DEBUG) |
+| GET | `/api/settings/logs` | Get log entries (incremental via `?since=`) |
+| DELETE | `/api/settings/logs` | Clear log buffer |
 
 ### MCP Settings
 
@@ -282,6 +292,7 @@ app/
 ├── schemas.py           # Pydantic request/response models
 ├── deps.py              # FastAPI Depends() functions for dependency injection
 ├── utils.py             # Shared helpers (SSE formatting, title generation)
+├── logbuffer.py         # In-memory ring buffer log handler for UI log viewer
 ├── ratelimit.py         # slowapi limiter + rate limit tiers
 ├── routers/             # API endpoint modules
 │   ├── health.py        # Health checks, stats

@@ -186,6 +186,14 @@ class McpToolConfigRequest(BaseModel):
     config: dict
 
 
+# -- Logging --
+
+class LogLevelRequest(BaseModel):
+    """Request model for setting log level."""
+
+    level: str = Field(..., pattern=r"^(INFO|DEBUG)$")
+
+
 # -- Export --
 
 class ExportRequest(BaseModel):

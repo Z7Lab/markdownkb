@@ -73,6 +73,10 @@ features:
 # Each MCP tool has its own config file in config/mcp/
 # Examples: config/mcp/filesystem.yaml, config/mcp/terminal.yaml, config/mcp/tag_generator.yaml
 
+# Logging level for UI log viewer (INFO or DEBUG)
+logging:
+  level: INFO
+
 # Server binding — change host to 0.0.0.0 to allow external access
 server:
   host: 127.0.0.1

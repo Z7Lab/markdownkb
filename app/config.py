@@ -482,6 +482,17 @@ class Settings:
         """Return the built-in default search summary prompt."""
         return self._DEFAULT_SEARCH_SUMMARY_PROMPT
 
+    # --- Logging ---
+    @property
+    def log_level(self) -> str:
+        """Return the configured log level (INFO or DEBUG)."""
+        return self._data.get("logging", {}).get("level", "INFO")
+
+    @log_level.setter
+    def log_level(self, value: str):
+        """Set the log level."""
+        self._data.setdefault("logging", {})["level"] = value
+
     # --- Raw access ---
     @property
     def raw(self) -> dict:

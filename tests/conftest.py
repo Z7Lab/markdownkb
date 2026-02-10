@@ -44,6 +44,7 @@ class FakeSettings:
     default_score_threshold: float = 0.3
     default_hybrid_search: bool = True
     default_bm25_weight: float = 0.5
+    log_level: str = "INFO"
 
     def get_active_llm_config(self):
         for p in self.llm_providers:

@@ -392,6 +392,14 @@ function useSettingsInternal() {
     [load, loadEmbeddingModels],
   )
 
+  const setLogLevel = useCallback(
+    async (level: string) => {
+      await api.put("/api/settings/log-level", { level })
+      await load()
+    },
+    [load],
+  )
+
   return {
     settings,
     providerStatus,
@@ -418,5 +426,6 @@ function useSettingsInternal() {
     saveRetrievalSettings,
     installEmbeddingModel,
     switchEmbeddingModel,
+    setLogLevel,
   }
 }

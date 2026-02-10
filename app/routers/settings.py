@@ -9,10 +9,12 @@ from fastapi.responses import StreamingResponse
 from app.config import Settings
 from app.deps import get_settings
 from app.ratelimit import HEAVY, LLM, STANDARD, limiter
+from app.logbuffer import log_buffer
 from app.schemas import (
     AddSourceRequest,
     FeatureToggleRequest,
     IgnorePatternRequest,
+    LogLevelRequest,
     McpToolConfigRequest,
     ModelInfoRequest,
     ProviderSettingsRequest,
@@ -138,6 +140,7 @@ def get_settings_endpoint(request: Request, settings: Settings = Depends(get_set
         "default_hybrid_search": settings.default_hybrid_search,
         "bm25_weight": settings.bm25_weight,
         "default_bm25_weight": settings.default_bm25_weight,
+        "log_level": settings.log_level,
     }
 
 
@@ -334,6 +337,51 @@ def update_mcp_settings(
     settings.set_mcp_config(req.tool_name, req.config)
     settings.save()
     return {"status": "saved", "tool_name": req.tool_name}
+
+
+# -- Logging --
+
+@router.get("/settings/log-level")
+@limiter.limit(STANDARD)
+def get_log_level(request: Request, settings: Settings = Depends(get_settings)):
+    """Get the current logging level."""
+    return {"level": settings.log_level}
+
+
+@router.put("/settings/log-level")
+@limiter.limit(STANDARD)
+def set_log_level(
+    request: Request,
+    req: LogLevelRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """Set the logging level (INFO or DEBUG) and persist to config."""
+    level = getattr(logging, req.level, logging.INFO)
+    logging.getLogger().setLevel(level)
+    settings.log_level = req.level
+    settings.save()
+    logger.info("Log level changed to %s", req.level)
+    return {"status": "saved", "level": req.level}
+
+
+@router.get("/settings/logs")
+@limiter.limit(STANDARD)
+def get_logs(request: Request, since: int = 0):
+    """Get log entries from the ring buffer.
+
+    Query param `since` is the sequence number from the last poll.
+    Returns only new entries since that sequence.
+    """
+    entries, seq = log_buffer.get_entries(since)
+    return {"entries": entries, "seq": seq}
+
+
+@router.delete("/settings/logs")
+@limiter.limit(STANDARD)
+def clear_logs(request: Request):
+    """Clear all log entries from the ring buffer."""
+    log_buffer.clear()
+    return {"status": "cleared"}
 
 
 # -- Database Maintenance --

@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api import create_app
 from app.config import Settings
+from app.logbuffer import log_buffer
 from app.ratelimit import limiter
 from app.ingestion.indexer import run_index
 from app.ingestion.watcher import start_watching
@@ -25,6 +26,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
+logging.getLogger().addHandler(log_buffer)
 logger = logging.getLogger(__name__)
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend" / "dist"
@@ -57,6 +59,10 @@ async def lifespan(app: FastAPI):
     app.state.chatdb = chatdb
     app.state.searchdb = searchdb
     app.state.cancel_event = cancel_event
+
+    # Restore persisted log level
+    log_level = getattr(logging, settings.log_level, logging.INFO)
+    logging.getLogger().setLevel(log_level)
 
     # Enable rate limiting if configured
     if settings.feature_enabled("rate_limiting"):
