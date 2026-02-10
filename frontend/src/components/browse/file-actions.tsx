@@ -42,10 +42,10 @@ export function FileActions({
       {showToggle && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <div className={layout === "column" ? "flex items-center justify-between p-3 border rounded-lg" : "flex items-center gap-2"}>
-              <span className={layout === "column" ? "text-sm font-medium" : "text-xs font-medium"}>
-                Include in RAG
-              </span>
+            <div className={layout === "column" ? "flex items-center justify-between p-3 border rounded-lg" : "flex items-center"}>
+              {layout === "column" && (
+                <span className="text-sm font-medium">Include in RAG</span>
+              )}
               <Switch
                 checked={includeRag}
                 disabled={busy || status === "not_indexed"}

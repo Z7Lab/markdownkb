@@ -35,16 +35,18 @@ export const FileRow = React.memo(function FileRow({
         {dirname(file.path)}
       </TableCell>
       <TableCell>
-        <FileActions
-          status={file.status}
-          includeRag={file.include_rag === 1}
-          busy={busy}
-          onToggleRag={(checked) => onToggleRag(file.path, checked)}
-          onIndexFile={() => onIndexFile(file.path)}
-          onReindexFile={() => onReindexFile(file.path)}
-          onUnindexFile={() => onUnindexFile(file.path)}
-          variant="toggle-only"
-        />
+        <div className="flex justify-center">
+          <FileActions
+            status={file.status}
+            includeRag={file.include_rag === 1}
+            busy={busy}
+            onToggleRag={(checked) => onToggleRag(file.path, checked)}
+            onIndexFile={() => onIndexFile(file.path)}
+            onReindexFile={() => onReindexFile(file.path)}
+            onUnindexFile={() => onUnindexFile(file.path)}
+            variant="toggle-only"
+          />
+        </div>
       </TableCell>
       <TableCell className="text-sm">
         {file.status === "not_indexed" ? (
