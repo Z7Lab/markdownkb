@@ -6,6 +6,74 @@ mdkb doesn't run LLMs locally — it calls them over the network. This guide set
 
 ---
 
+## Security Considerations
+
+Ollama has **no built-in authentication**. Anyone who can reach port 11434 can query your models, list them, pull new ones, or delete them. Before exposing Ollama to the network, choose a security approach.
+
+### Recommended: SSH Tunnel (most secure)
+
+Keep Ollama on localhost (the default) and create an encrypted tunnel from the mdkb machine:
+
+```bash
+# On the mdkb machine — forward local port 11434 to the Ollama machine
+ssh -N -L 11434:localhost:11434 user@ollama-machine
+```
+
+Then configure mdkb to use `http://localhost:11434` — traffic is encrypted and authenticated via SSH. No ports need to be opened on the Ollama machine.
+
+To make the tunnel persistent, create a systemd service:
+
+```bash
+sudo tee /etc/systemd/system/ollama-tunnel.service > /dev/null << 'EOF'
+[Unit]
+Description=SSH tunnel to Ollama server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=YOUR_USER
+ExecStart=/usr/bin/ssh -N -o ServerAliveInterval=60 -o ExitOnForwardFailure=yes -L 11434:localhost:11434 user@ollama-machine
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now ollama-tunnel
+```
+
+Replace `YOUR_USER` and `user@ollama-machine` with your actual values. Use SSH key authentication (no password prompts).
+
+### Alternative: Firewall Allowlist
+
+If an SSH tunnel is impractical, bind Ollama to `0.0.0.0` (Step 3 below) but restrict access to only the mdkb machine's IP:
+
+```bash
+# Allow only your mdkb machine (replace with its actual IP)
+sudo ufw allow from 192.168.x.x to any port 11434 proto tcp
+
+# Block everyone else
+sudo ufw deny 11434
+
+sudo ufw reload
+```
+
+Or with iptables:
+```bash
+iptables -A INPUT -p tcp --dport 11434 -s 192.168.x.x -j ACCEPT
+iptables -A INPUT -p tcp --dport 11434 -j DROP
+```
+
+### What to Avoid
+
+- **Don't** run `sudo ufw allow 11434` without an IP restriction — this opens Ollama to your entire network (and the internet, if the machine has a public IP).
+- **Don't** expose Ollama on a public-facing server without a reverse proxy that adds authentication.
+- **Don't** use Ollama over untrusted networks without encryption (SSH tunnel or TLS reverse proxy).
+
+---
+
 ## On the Ollama Machine
 
 ### 1. Install Ollama
@@ -441,7 +509,7 @@ rm /home/user/llms/<filename>.gguf
 | `No route to host` | Wrong IP, or machines aren't on the same network |
 | `Model not found` | Run `ollama pull <model>` or register your GGUF with `ollama create` |
 | Slow responses | Expected for large models on CPU. Use smaller models or lower quantization |
-| Firewall blocking | Open port `11434` — `sudo ufw allow 11434` (Linux) |
+| Firewall blocking | Allow only your mdkb machine's IP — `sudo ufw allow from <MDKB_IP> to any port 11434` (see [Security Considerations](#security-considerations)) |
 | `ollama pull` times out | Download GGUF manually from Hugging Face and use `ollama create` (see Step 2, Option B) |
 | Qwen3 repeating/looping output | Thinking mode repetition loop. Use a Modelfile with `/no_think` system prompt and `repeat_penalty 1.5` (see [Qwen3 thinking mode fix](#qwen3-thinking-mode-issues-and-fix)) |
 | `stream: false` request hangs for minutes | Likely Qwen3 generating an infinite think chain. Cancel with Ctrl+C, restart Ollama, and use `/no_think` |

@@ -392,7 +392,9 @@ class Settings:
     # --- Server ---
     @property
     def server_host(self) -> str:
-        """Return the server bind host address."""
+        """Return the server bind host (SERVER_HOST env var > settings.yaml > 127.0.0.1)."""
+        if os.environ.get("SERVER_HOST"):
+            return os.environ["SERVER_HOST"]
         return self._data.get("server", {}).get("host", "127.0.0.1")
 
     @property

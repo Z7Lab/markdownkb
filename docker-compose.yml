@@ -1,17 +1,26 @@
 services:
   mdkb:
     build: .
+    container_name: ${MDKB_CONTAINER:-mdkb}
     ports:
-      - "9713:9713"
+      # Binds to localhost only by default — set MDKB_HOST=0.0.0.0 to expose
+      - "${MDKB_HOST:-127.0.0.1}:${MDKB_PORT:-9713}:9713"
     volumes:
       - ./data:/app/data
       - ./config:/app/config
       - ./skills:/app/skills
-      # Mount your markdown directories below (read-only)
+      # Mount your markdown source directories (read-only):
       # - /home/user/notes:/app/docs/notes:ro
-      # - /home/user/documents:/app/docs/downloads:ro
+      # - /home/user/projects:/app/docs/projects:ro
     environment:
+      - SERVER_HOST=0.0.0.0
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - OLLAMA_API_BASE=${OLLAMA_API_BASE:-}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:9713/api/health').raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped

@@ -1,6 +1,8 @@
 # mdkb — Markdown Knowledge Base
 
-A personal knowledge management system. Index your markdown files, search them semantically, and chat with your knowledge base using any LLM.
+**Search-first documentation exploration for your markdown knowledge base.**
+
+Combines semantic vector search with keyword matching (hybrid BM25+vector), tracks search history with versioning, and lets you explore findings through conversational AI. Purpose-built for documentation, not general chat.
 
 Python (FastAPI) backend + React (Vite + TypeScript + Shadcn/ui) frontend.
 
