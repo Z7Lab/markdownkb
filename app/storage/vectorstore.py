@@ -79,11 +79,21 @@ class VectorStore:
         return result["metadatas"] or []
 
     def delete_by_source(self, source_path: str):
-        """Delete all chunks from a given source file."""
+        """Delete all chunks from a given source file.
+
+        Raises ValueError if the delete fails for a reason other than
+        'no matching documents' (which is benign for first-time indexing).
+        """
         try:
             self._collection.delete(where={"source_path": source_path})
         except ValueError as e:
-            logger.warning("Failed to delete chunks for %s: %s", source_path, e)
+            # ChromaDB raises ValueError when no documents match the filter
+            # (e.g., first-time indexing). This is safe to ignore.
+            # Any other ValueError is unexpected and should propagate.
+            if "no" not in str(e).lower() and "empty" not in str(e).lower():
+                logger.error("Unexpected error deleting chunks for %s: %s", source_path, e)
+                raise
+            logger.debug("No existing chunks to delete for %s", source_path)
 
     def clear(self):
         """Delete all chunks and recreate the collection."""

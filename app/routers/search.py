@@ -95,6 +95,7 @@ def search(
     """Search the vector database with optional intelligent query enhancement."""
     search_query = req.query
     llm_offline = False
+    top_k = req.top_k if req.top_k is not None else settings.top_k
 
     # Optionally enhance query with LLM
     if settings.intelligent_search_enabled:
@@ -109,7 +110,7 @@ def search(
 
     # Fetch more chunks to ensure file diversity (10x multiplier)
     # This prevents getting all chunks from just 1-2 files
-    chunk_fetch_limit = req.top_k * 10
+    chunk_fetch_limit = top_k * 10
     chunk_results = retriever.search(
         search_query,
         top_k=chunk_fetch_limit,
@@ -121,7 +122,7 @@ def search(
     grouped_results = _group_results_by_file(chunk_results)
 
     # Limit to top_k files (not chunks)
-    grouped_results = grouped_results[:req.top_k]
+    grouped_results = grouped_results[:top_k]
 
     # Extract result metadata for history preservation (file-level)
     result_paths = [r["metadata"].get("source_path", "") for r in grouped_results]
@@ -334,9 +335,10 @@ def summarize_search(
     settings: Settings = Depends(get_settings),
 ):
     """Generate AI summary of search results with streaming response."""
+    top_k = req.top_k if req.top_k is not None else settings.top_k
     results = retriever.search(
         req.query,
-        top_k=req.top_k,
+        top_k=top_k,
         folder_filter=req.folder,
         tag_filter=req.tag,
     )
@@ -375,7 +377,7 @@ def summarize_search(
                         last_yielded = cleaned
         except RuntimeError as e:
             logger.error("Summary LLM error: %s", e)
-            yield sse("token", {"content": f"\n\nError: {e}"})
+            yield sse("error", {"message": str(e)})
 
         # Save summary if search_id provided
         if req.search_id and last_yielded:

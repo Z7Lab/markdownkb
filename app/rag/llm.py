@@ -60,6 +60,8 @@ def get_completion(
     last_error = None
     for provider in providers:
         model = provider.get("model", "")
+        # Convert empty strings to None so LiteLLM doesn't send
+        # blank api_key/api_base headers (causes auth failures).
         api_key = provider.get("api_key", "") or None
         api_base = provider.get("api_base", "") or None
 
@@ -81,7 +83,11 @@ def get_completion(
             if stream:
                 return _stream_response(response)
 
-            return response.choices[0].message.content or ""
+            content = response.choices[0].message.content
+            if content is None:
+                logger.warning("LLM returned None content for model %s", model)
+                return ""
+            return content
 
         except (
             litellm.APIError,

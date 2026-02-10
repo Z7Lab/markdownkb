@@ -58,6 +58,10 @@ def reindex_file(
             source_root = resolved
             break
 
+    if not source_root:
+        logger.warning("File %s does not match any configured source, skipping re-index", filepath)
+        return
+
     try:
         chunks = parse_and_chunk(
             filepath, source_root,

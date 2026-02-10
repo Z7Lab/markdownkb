@@ -13,6 +13,7 @@ from app.schemas import (
     AddSourceRequest,
     FeatureToggleRequest,
     IgnorePatternRequest,
+    McpToolConfigRequest,
     ModelInfoRequest,
     ProviderSettingsRequest,
     RefreshModelsRequest,
@@ -326,22 +327,13 @@ def get_mcp_tool_settings(
 @limiter.limit(STANDARD)
 def update_mcp_settings(
     request: Request,
-    req: dict,
+    req: McpToolConfigRequest,
     settings: Settings = Depends(get_settings),
 ):
     """Update configuration for a specific MCP tool."""
-    tool_name = req.get("tool_name")
-    config = req.get("config")
-
-    if not tool_name or config is None:
-        raise HTTPException(
-            status_code=400,
-            detail="tool_name and config are required"
-        )
-
-    settings.set_mcp_config(tool_name, config)
+    settings.set_mcp_config(req.tool_name, req.config)
     settings.save()
-    return {"status": "saved", "tool_name": tool_name}
+    return {"status": "saved", "tool_name": req.tool_name}
 
 
 # -- Database Maintenance --

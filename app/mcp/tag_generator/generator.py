@@ -212,8 +212,8 @@ def apply_tags_to_file(
             "message": f"Successfully updated tags in {filepath}"
         }
 
-    except Exception as e:
-        logger.error(f"Failed to apply tags: {e}")
+    except (FileNotFoundError, OSError, yaml.YAMLError) as e:
+        logger.error("Failed to apply tags to %s: %s", filepath, e)
         return {
             "status": "error",
             "backup_path": "",

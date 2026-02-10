@@ -134,6 +134,7 @@ class SearchDB:
                 try:
                     result["result_paths"] = json.loads(result["result_paths"])
                 except json.JSONDecodeError:
+                    logger.error("Corrupt result_paths JSON for search %s, returning empty list", search_id)
                     result["result_paths"] = []
             else:
                 result["result_paths"] = []
@@ -142,6 +143,7 @@ class SearchDB:
                 try:
                     result["result_details"] = json.loads(result["result_details"])
                 except json.JSONDecodeError:
+                    logger.error("Corrupt result_details JSON for search %s, returning empty list", search_id)
                     result["result_details"] = []
             else:
                 result["result_details"] = []
@@ -150,6 +152,7 @@ class SearchDB:
                 try:
                     result["result_data"] = json.loads(result["result_data"])
                 except json.JSONDecodeError:
+                    logger.error("Corrupt result_data JSON for search %s, returning empty list", search_id)
                     result["result_data"] = []
             else:
                 result["result_data"] = []

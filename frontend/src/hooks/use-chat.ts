@@ -338,8 +338,8 @@ export function useChat() {
     }
     try {
       await api.del("/api/chat/history")
-    } catch {
-      // non-critical
+    } catch (err) {
+      console.warn("Failed to clear chat history on server:", err)
     }
   }, [stop])
 

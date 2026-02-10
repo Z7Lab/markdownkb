@@ -7,6 +7,9 @@ try:
     from rank_bm25 import BM25Okapi
 except ImportError:
     BM25Okapi = None
+    logging.getLogger(__name__).warning(
+        "rank_bm25 not installed — hybrid search will use vector-only mode"
+    )
 
 from app.config import Settings
 from app.embeddings.embedder import embed_query

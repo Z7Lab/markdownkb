@@ -20,8 +20,8 @@ def fetch_ollama_models(api_base: str) -> list[str]:
         if resp.status_code == 200:
             data = resp.json()
             return [m["name"] for m in data.get("models", [])]
-    except httpx.HTTPError:
-        pass
+    except httpx.HTTPError as e:
+        logger.debug("Failed to fetch Ollama models from %s: %s", api_base, e)
     return []
 
 
@@ -119,7 +119,10 @@ def test_api_provider(model: str, api_base: str) -> str:
 
     try:
         response = litellm.completion(**kwargs)
-        reply = response.choices[0].message.content or ""
+        reply = response.choices[0].message.content
+        if reply is None:
+            logger.debug("LLM returned None content for model %s", model)
+            reply = ""
         return f"Connected. Response: {reply.strip()}"
     except (
         litellm.APIError, litellm.APIConnectionError,
@@ -200,8 +203,8 @@ def get_model_capabilities(model: str, api_base: str = "") -> dict:
                         if key.endswith(".context_length") and isinstance(val, int):
                             result["max_input_tokens"] = val
                             break
-        except (httpx.HTTPError, httpx.ConnectError):
-            pass
+        except (httpx.HTTPError, httpx.ConnectError) as e:
+            logger.debug("Failed to fetch Ollama model details for %s: %s", model, e)
 
     if not result:
         result["error"] = "No model info available"

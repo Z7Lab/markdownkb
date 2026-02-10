@@ -153,7 +153,9 @@ export function useSearch() {
       await api.del(`/api/searches/${id}`)
       setSearches((prev) => prev.filter((s) => s.id !== id))
       if (activeSearchId === id) setActiveSearchId(null)
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.warn("Failed to delete search:", err)
+    }
   }, [activeSearchId])
 
   const loadSearch = useCallback(async (saved: SavedSearch) => {
@@ -197,8 +199,8 @@ export function useSearch() {
       setScoreChanges(cmp.score_changes)
       setStoredResultCount(cmp.stored_result_count)
       setCurrentResultCount(cmp.current_result_count)
-    }).catch(() => {
-      // Comparison is optional — silently ignore failures
+    }).catch((err) => {
+      console.warn("Results comparison failed:", err)
     })
   }, [resetHistoricalState])
 
@@ -222,7 +224,8 @@ export function useSearch() {
     try {
       const res = await api.get<{ versions: SearchVersion[] }>(`/api/searches/${searchId}/versions`)
       return res.versions
-    } catch {
+    } catch (err) {
+      console.warn("Failed to fetch search versions:", err)
       return []
     }
   }, [])

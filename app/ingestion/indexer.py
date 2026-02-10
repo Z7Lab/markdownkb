@@ -153,14 +153,22 @@ def run_index(
     return msg
 
 
+class ReindexError(Exception):
+    """Raised when reindex_file encounters a recoverable error."""
+
+
 def reindex_file(
     path: str, settings: Settings,
     store: VectorStore, tracking: TrackingDB,
 ) -> str:
-    """Re-index a single file and return a status message."""
+    """Re-index a single file and return a status message.
+
+    Raises:
+        ReindexError: If the file is not found or not in a watch directory.
+    """
     p = Path(path).resolve()
     if not p.exists():
-        return f"File not found: {p.name}"
+        raise ReindexError(f"File not found: {p.name}")
 
     record = tracking.get_file(str(p))
     if record:
@@ -174,7 +182,7 @@ def reindex_file(
                 source_root = src_resolved
                 break
         if not source_root:
-            return f"File not in any watch directory: {p.name}"
+            raise ReindexError(f"File not in any watch directory: {p.name}")
 
     stat = p.stat()
     fi = FileInfo(
@@ -190,4 +198,4 @@ def reindex_file(
         return f"Indexed: {p.name} ({chunks} chunks)"
     except (OSError, ValueError, RuntimeError) as exc:
         tracking.mark_error(str(p), str(exc))
-        return f"Error indexing {p.name}: {exc}"
+        raise ReindexError(f"Error indexing {p.name}: {exc}") from exc

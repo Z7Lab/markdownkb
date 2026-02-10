@@ -196,7 +196,8 @@ def chat_respond(message: str, retriever: Retriever,
         logger.error("LLM error: %s", e)
         error_msg = f"Error communicating with LLM: {e}"
         yield error_msg
-        _persist(chatdb, thread_id, message, error_msg)
+        # Don't persist error messages — they're transient and would
+        # appear as permanent assistant responses in thread history.
         return
 
     # Final clean for storage

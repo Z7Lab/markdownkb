@@ -33,8 +33,8 @@ function useSettingsInternal() {
         "/api/settings/embedding-models",
       )
       setEmbeddingModels(res.models)
-    } catch {
-      /* ignore on initial load */
+    } catch (err) {
+      console.debug("Failed to load embedding models:", err)
     }
   }, [])
 
@@ -106,7 +106,7 @@ function useSettingsInternal() {
           }
         }, 1500)
       }
-    }).catch(() => { /* ignore */ })
+    }).catch((err) => { console.debug("Failed to check embedding status:", err) })
 
     return () => {
       if (retryTimer) clearTimeout(retryTimer)

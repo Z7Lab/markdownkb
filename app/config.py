@@ -1,11 +1,14 @@
 """Application configuration loaded from settings.yaml."""
 
+import logging
 import os
 import threading
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+logger = logging.getLogger(__name__)
 
 _DEFAULT_CONFIG_PATH = (
     Path(__file__).resolve().parent.parent / "config" / "settings.yaml"
@@ -16,7 +19,11 @@ def _resolve_env(value: str) -> str:
     """Replace ${VAR} placeholders with environment variable values."""
     if isinstance(value, str) and value.startswith("${") and value.endswith("}"):
         env_var = value[2:-1]
-        return os.environ.get(env_var, "")
+        resolved = os.environ.get(env_var)
+        if resolved is None:
+            logger.warning("Environment variable %s is not set, using empty string", env_var)
+            return ""
+        return resolved
     return value
 
 
@@ -178,7 +185,10 @@ class Settings:
         for p in self.llm_providers:
             if p.get("name") == self.active_provider:
                 return p
-        return self.llm_providers[0] if self.llm_providers else {}
+        if self.llm_providers:
+            return self.llm_providers[0]
+        logger.warning("No LLM providers configured — LLM features will be unavailable")
+        return {}
 
     @property
     def llm_temperature(self) -> float:
@@ -213,7 +223,7 @@ class Settings:
     @property
     def bm25_weight(self) -> float:
         """Return the BM25 weight in hybrid search."""
-        return self._data.get("retrieval", {}).get("bm25_weight", 0.3)
+        return self._data.get("retrieval", {}).get("bm25_weight", 0.5)
 
     @property
     def default_top_k(self) -> int:
@@ -328,8 +338,8 @@ class Settings:
             try:
                 with open(tool_config_file, encoding="utf-8") as f:
                     config = yaml.safe_load(f) or {}
-            except (OSError, yaml.YAMLError):
-                pass  # Use empty config if file can't be read or parsed
+            except (OSError, yaml.YAMLError) as e:
+                logger.warning("Failed to load MCP config %s: %s", tool_config_file, e)
 
         # Overlay user overrides from config/mcp/{tool_name}.yaml
         user_config_file = self._mcp_dir / f"{tool_name}.yaml"
@@ -338,8 +348,8 @@ class Settings:
                 with open(user_config_file, encoding="utf-8") as f:
                     user_config = yaml.safe_load(f) or {}
                 config.update(user_config)
-            except (OSError, yaml.YAMLError):
-                pass  # Use default config if user override can't be read
+            except (OSError, yaml.YAMLError) as e:
+                logger.warning("Failed to load MCP user config %s: %s", user_config_file, e)
 
         config = _resolve_env_recursive(config)
         self._mcp_cache[tool_name] = config

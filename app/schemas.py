@@ -9,7 +9,7 @@ class SearchRequest(BaseModel):
     """Request model for search API endpoint."""
 
     query: str = Field(..., min_length=1, max_length=10000)
-    top_k: int = Field(15, ge=1, le=50)
+    top_k: int | None = Field(None, ge=1, le=50)
     folder: str | None = None
     tag: str | None = None
     parent_id: str | None = None  # Link re-queries into a version chain
@@ -19,7 +19,7 @@ class SummarizeRequest(BaseModel):
     """Request model for search summary (AI overview)."""
 
     query: str = Field(..., min_length=1, max_length=10000)
-    top_k: int = Field(15, ge=1, le=50)
+    top_k: int | None = Field(None, ge=1, le=50)
     folder: str | None = None
     tag: str | None = None
     search_id: str | None = None  # Optional: save summary when provided
@@ -175,6 +175,15 @@ class IndexRequest(BaseModel):
     """Request model for triggering indexing."""
 
     force: bool = False
+
+
+# -- MCP --
+
+class McpToolConfigRequest(BaseModel):
+    """Request model for updating MCP tool configuration."""
+
+    tool_name: str = Field(..., pattern=r"^[a-zA-Z0-9_-]+$")
+    config: dict
 
 
 # -- Export --

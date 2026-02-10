@@ -122,8 +122,8 @@ def generate_tags_with_llm(
             "message": f"Generated {len(suggested_tags)} tags for {filepath}"
         }
 
-    except Exception as e:
-        logger.error(f"Tag generation failed: {e}", exc_info=True)
+    except (FileNotFoundError, OSError, RuntimeError, ValueError) as e:
+        logger.error("Tag generation failed for %s: %s", filepath, e)
         return {
             "status": "error",
             "suggested_tags": [],

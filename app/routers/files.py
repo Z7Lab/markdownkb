@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.config import Settings
 from app.deps import get_settings, get_store, get_tracking
-from app.ingestion.indexer import reindex_file
+from app.ingestion.indexer import ReindexError, reindex_file
 from app.ingestion.scanner import discover_sources
 from app.ratelimit import STANDARD, limiter
 from app.schemas import FileActionRequest, ToggleRagRequest
@@ -180,7 +180,10 @@ def index_file(
 ):
     """Index a single file that hasn't been indexed yet."""
     tracking.set_include_rag(req.path, True)
-    result = reindex_file(req.path, settings, store, tracking)
+    try:
+        result = reindex_file(req.path, settings, store, tracking)
+    except ReindexError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
     return {"status": "ok", "message": result}
 
 
@@ -197,5 +200,8 @@ def reindex_single_file(
     record = tracking.get_file(req.path)
     if not record:
         raise HTTPException(status_code=404, detail="File not tracked")
-    result = reindex_file(req.path, settings, store, tracking)
+    try:
+        result = reindex_file(req.path, settings, store, tracking)
+    except ReindexError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
     return {"status": "ok", "message": result}
