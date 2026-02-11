@@ -95,6 +95,46 @@ class VectorStore:
                 raise
             logger.debug("No existing chunks to delete for %s", source_path)
 
+    def rename_source(self, old_path: str, new_path: str,
+                      new_source_root: str) -> int:
+        """Update source_path for all chunks of a file, preserving embeddings.
+
+        Returns the number of chunks moved, or 0 if no chunks found.
+        """
+        try:
+            result = self._collection.get(
+                where={"source_path": old_path},
+                include=["embeddings", "documents", "metadatas"],
+            )
+        except ValueError:
+            return 0
+
+        if not result["ids"]:
+            return 0
+
+        # Delete old chunks
+        self._collection.delete(where={"source_path": old_path})
+
+        # Build new IDs and metadata with updated paths
+        new_ids = [
+            old_id.replace(old_path, new_path, 1)
+            for old_id in result["ids"]
+        ]
+        new_metadatas = []
+        for meta in result["metadatas"]:
+            updated = dict(meta)
+            updated["source_path"] = new_path
+            updated["source_root"] = new_source_root
+            new_metadatas.append(updated)
+
+        # Re-insert with preserved embeddings and documents
+        self.add(new_ids, result["documents"], result["embeddings"],
+                 new_metadatas)
+
+        logger.info("Renamed source %s → %s (%d chunks)",
+                     old_path, new_path, len(new_ids))
+        return len(new_ids)
+
     def clear(self):
         """Delete all chunks and recreate the collection."""
         self._client.delete_collection(self._collection.name)

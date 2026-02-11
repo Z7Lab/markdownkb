@@ -259,6 +259,36 @@ class TrackingDB:
             )
             self._conn.commit()
 
+    def rename_file(self, old_path: str, new_path: str,
+                    new_source_root: str) -> bool:
+        """Move a tracking record to a new path, preserving all state.
+
+        Returns True if the old record was found and moved.
+        """
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM indexed_files WHERE path = ?", (old_path,),
+            ).fetchone()
+            if not row:
+                return False
+            rec = dict(row)
+            self._conn.execute(
+                "DELETE FROM indexed_files WHERE path = ?", (old_path,),
+            )
+            self._conn.execute(
+                """INSERT INTO indexed_files
+                    (path, source_root, content_hash, file_size, mtime,
+                     chunk_count, status, error_msg, indexed_at,
+                     updated_at, include_rag)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)""",
+                (new_path, new_source_root, rec["content_hash"],
+                 rec["file_size"], rec["mtime"], rec["chunk_count"],
+                 rec["status"], rec["error_msg"], rec["indexed_at"],
+                 rec["include_rag"]),
+            )
+            self._conn.commit()
+            return True
+
     def remove_file(self, path: str):
         """Remove a file from tracking."""
         with self._lock:

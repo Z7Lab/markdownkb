@@ -138,6 +138,58 @@ class MarkdownHandler(FileSystemEventHandler):
                 self._store, self._tracking,
             )
 
+    def on_moved(self, event: FileSystemEvent):
+        """Handle file move/rename events, preserving embeddings when possible."""
+        if event.is_directory:
+            return
+        src = str(Path(event.src_path).resolve())
+        dest = str(Path(event.dest_path).resolve())
+
+        # Renamed away from .md → treat as delete
+        if src.endswith(".md") and not dest.endswith(".md"):
+            logger.info("File renamed away from .md: %s → %s", src, dest)
+            self._store.delete_by_source(src)
+            self._tracking.remove_file(src)
+            return
+
+        # Renamed to .md → treat as new file
+        if not src.endswith(".md") and dest.endswith(".md"):
+            logger.info("File renamed to .md: %s → %s", src, dest)
+            reindex_file(dest, self._settings, self._store, self._tracking)
+            return
+
+        # Both non-.md → ignore
+        if not src.endswith(".md"):
+            return
+
+        # Find dest's source root
+        dest_source_root = ""
+        for s in self._settings.sources:
+            resolved = str(Path(s).resolve())
+            if dest.startswith(resolved):
+                dest_source_root = resolved
+                break
+
+        # Dest is outside watched dirs → treat as delete
+        if not dest_source_root:
+            logger.info("File moved outside watched dirs: %s → %s", src, dest)
+            self._store.delete_by_source(src)
+            self._tracking.remove_file(src)
+            return
+
+        # Move within/between watched dirs: try to preserve embeddings
+        old_record = self._tracking.get_file(src)
+        if old_record and old_record["status"] == "complete":
+            count = self._store.rename_source(src, dest, dest_source_root)
+            self._tracking.rename_file(src, dest, dest_source_root)
+            logger.info("File moved (preserved %d chunks): %s → %s",
+                        count, src, dest)
+        else:
+            # Not indexed or incomplete: clean up old, index new
+            self._store.delete_by_source(src)
+            self._tracking.remove_file(src)
+            reindex_file(dest, self._settings, self._store, self._tracking)
+
     def on_deleted(self, event: FileSystemEvent):
         """Handle file deletion events."""
         if event.is_directory:
