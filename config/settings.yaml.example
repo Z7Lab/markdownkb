@@ -70,8 +70,9 @@ features:
   rate_limiting: false
 
 # MCP Tool Configuration
-# Each MCP tool has its own config file in config/mcp/
-# Examples: config/mcp/filesystem.yaml, config/mcp/terminal.yaml, config/mcp/tag_generator.yaml
+# Each MCP tool has a default config in app/mcp/<tool>/config.yaml.
+# When you change MCP settings via the Settings UI, overrides are saved to
+# config/mcp/<tool>.yaml (created automatically on first save).
 
 # Logging level for UI log viewer (INFO or DEBUG)
 logging:

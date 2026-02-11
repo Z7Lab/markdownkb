@@ -32,12 +32,17 @@ src/
 │   ├── sse.ts           # POST-based SSE streaming client
 │   ├── types.ts         # Shared TypeScript types
 │   └── query-enhancement.ts  # LLM query enhancement helper
+├── contexts/
+│   └── navigation.ts    # Navigation context (tab switching from child components)
 ├── hooks/
 │   ├── use-chat.ts      # Chat state + streaming
 │   ├── use-search.ts    # Search state + history
 │   ├── use-files.ts     # File listing + actions
 │   ├── use-settings.ts  # Settings state
-│   └── use-llm-status.ts  # LLM online/offline polling
+│   ├── use-llm-status.ts       # LLM online/offline polling
+│   ├── use-table-sort.ts       # Generic table sorting
+│   ├── use-navigation.ts       # Tab navigation hook (wraps NavigationContext)
+│   └── use-persisted-state.ts  # localStorage-backed state persistence
 └── components/
     ├── chat/            # Chat tab components
     ├── search/          # Search tab components
