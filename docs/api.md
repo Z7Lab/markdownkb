@@ -117,6 +117,16 @@ All endpoints under `http://localhost:9713/api/`. Interactive docs (Swagger UI) 
 |--------|------|-------------|
 | POST | `/api/export` | Export conversations as markdown or JSON |
 
+## Planner
+
+Requires the `mcts_planner` feature flag.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/planner/plan` | Generate an implementation plan using MCTS |
+| POST | `/api/planner/plan/stream` | Stream plan generation progress as SSE |
+| GET | `/api/planner/skills` | List available agent skills |
+
 ## Tags
 
 Requires the `mcp_tag_generator` feature flag.

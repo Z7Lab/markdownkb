@@ -29,6 +29,7 @@ class FakeSettings:
         "rag_chat": True,
         "file_watcher": False,
         "rate_limiting": False,
+        "mcts_planner": True,
     })
     llm_temperature: float = 0.3
     llm_max_tokens: int = 2048

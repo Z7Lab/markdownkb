@@ -1,0 +1,135 @@
+# MCTS Planner
+
+The planner uses Monte Carlo Tree Search (MCTS) to generate implementation plans grounded in your knowledge base. Instead of trial-and-error execution, it researches your docs, code, and past decisions first, evaluates multiple approaches against your patterns, and outputs one precise plan.
+
+Think of it as the difference between a junior dev who tries things until they work, and a senior dev who studies the codebase first and gives you the exact right approach.
+
+Requires the `mcts_planner` feature flag. Disabled by default.
+
+## How It Works
+
+The planner runs a 5-phase pipeline:
+
+```
+User Request
+    │
+    ▼
+Phase 1: Research ─────────── Search KB (top_k=10)
+    │
+    ▼
+Phase 2: Explore ──────────── Browse filesystem via MCP (optional)
+    │
+    ▼
+Phase 3: Generate Approaches ─ LLM produces N distinct approaches
+    │                           Each scored on 4 dimensions
+    ▼
+Phase 4: Iterate ──────────── UCB1 selects best approach, LLM expands
+    │                           Repeat M times, score & backpropagate
+    ▼
+Phase 5: Extract Best Plan ── Follow highest-scoring path through tree
+    │
+    ▼
+(Optional) Skill Reviews ──── Specialist agents review & refine plan
+```
+
+### Phase 1: Research
+
+The retriever searches your knowledge base for documents relevant to the request. This grounds everything that follows in your actual docs and code — the planner never generates in a vacuum.
+
+### Phase 2: Filesystem Exploration
+
+If the `mcp_filesystem` feature flag is enabled, the planner browses directories referenced in the research results (up to 5 directories, 2 levels deep). This gives the LLM structural context — what files exist, how the project is organized.
+
+### Phase 3: Generate Approaches
+
+The LLM generates N distinct implementation approaches (default 3). Each approach is scored on four dimensions:
+
+| Dimension | Weight | What it measures |
+|-----------|--------|------------------|
+| Relevance | 30% | Semantic similarity to KB content |
+| Specificity | 20% | Concrete references (file paths, imports, versions) |
+| Pattern matching | 30% | Alignment with your tech stack and preferences |
+| Actionability | 20% | Concrete steps, action verbs, named targets |
+
+User patterns (React, FastAPI, TypeScript, etc.) are extracted automatically from your indexed documents.
+
+### Phase 4: Iterate
+
+The planner uses UCB1 (Upper Confidence Bound) to balance exploration vs exploitation — it picks the most promising approach but also considers under-explored ones. Each iteration expands the selected approach into more detailed implementation steps, scores the result, and backpropagates the score up the tree.
+
+Default: 3 iterations. Configurable via the `iterations` parameter.
+
+### Phase 5: Extract Best Plan
+
+The tree is traversed following the highest-scoring path from root to leaf. All node content along this path is concatenated into the final implementation plan.
+
+## Skill Reviews
+
+When the `agent_skills` feature flag is enabled, specialist agents can review the generated plan before it's finalized. Each skill is defined by a `SKILL.md` file that gives the LLM a specific persona and review criteria.
+
+### Built-in Skills
+
+| Skill | Description |
+|-------|-------------|
+| `security-auditor` | Reviews for OWASP Top 10, smart contract security, auth, secrets management |
+| `solidity-best-practices` | Reviews Solidity patterns, gas optimization, ERC compliance, OpenZeppelin usage |
+
+### How Reviews Work
+
+1. Each requested skill searches the KB for relevant context
+2. The LLM assumes the skill's persona and reviews the plan
+3. Issues and approvals are extracted from the review
+4. After all reviews, the LLM refines the original plan incorporating all feedback
+
+### Custom Skills
+
+Add a directory under `app/skills/builtin/` (or a custom directory) containing a `SKILL.md` file. The first non-header line becomes the skill's description. The full content is used as the LLM's system prompt during review.
+
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/planner/plan` | Generate a plan (blocking) |
+| POST | `/api/planner/plan/stream` | Stream plan generation as SSE |
+| GET | `/api/planner/skills` | List available skills |
+
+### Request Parameters
+
+```json
+{
+  "request": "Build a login page using the patterns from my auth docs",
+  "iterations": 3,
+  "n_approaches": 3,
+  "skill_names": ["security-auditor"]
+}
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `request` | (required) | What you want to build or plan |
+| `iterations` | 3 | MCTS refinement iterations (1–10) |
+| `n_approaches` | 3 | Initial approaches to generate (1–10) |
+| `skill_names` | none | Skills to run reviews with |
+
+### SSE Events (streaming endpoint)
+
+| Event | Data | Phase |
+|-------|------|-------|
+| `status` | `{phase, message}` | All phases |
+| `approach` | `{content, score}` | After approach generation |
+| `plan` | `{plan}` | Final plan extracted |
+| `sources` | `{sources}` | KB files that influenced the plan |
+| `tree` | `{tree}` | Full MCTS tree (for debugging) |
+| `reviews` | `{reviews, refined_plan}` | After skill reviews |
+| `done` | `{}` | Planning complete |
+
+## Configuration
+
+```yaml
+features:
+  mcts_planner: false     # Enable the planner tab and endpoints
+  agent_skills: false     # Enable skill review system
+  mcp_filesystem: false   # Enable filesystem exploration during planning
+```
+
+The planner also depends on having an active LLM provider and indexed documents in the knowledge base. Planning quality scales with how much relevant content is indexed.

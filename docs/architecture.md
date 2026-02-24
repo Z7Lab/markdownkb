@@ -7,15 +7,15 @@ mdkb is a search-first documentation tool with a Python backend and React fronte
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  React SPA (Vite + TypeScript + Shadcn/ui)              │
-│  Tabs: Chat │ Search │ Browse │ Settings                │
+│  Tabs: Chat │ Search │ Planner │ Browse │ Settings       │
 └────────────────────────┬────────────────────────────────┘
                          │ HTTP/SSE (/api/*)
 ┌────────────────────────▼────────────────────────────────┐
 │  FastAPI Backend                                        │
 │  ┌──────────────────────────────────────────────────┐   │
-│  │  Routers (9 modules)                             │   │
+│  │  Routers (10 modules)                            │   │
 │  │  health │ search │ chat │ threads │ files        │   │
-│  │  settings │ embeddings │ export │ tags           │   │
+│  │  settings │ embeddings │ export │ tags │ planner │   │
 │  └──────────┬───────────────────────────┬───────────┘   │
 │             │                           │               │
 │  ┌──────────▼──────────┐  ┌─────────────▼───────────┐   │
@@ -23,6 +23,7 @@ mdkb is a search-first documentation tool with a Python backend and React fronte
 │  │  chat_service       │  │  retriever (hybrid)     │   │
 │  │  llm_service        │  │  llm (LiteLLM)          │   │
 │  │  query_service      │  │  prompts                │   │
+│  │  planner_service    │  │                         │   │
 │  └──────────┬──────────┘  └─────────────┬───────────┘   │
 │             │                           │               │
 │  ┌──────────▼───────────────────────────▼───────────┐   │

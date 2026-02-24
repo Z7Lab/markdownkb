@@ -186,6 +186,17 @@ class McpToolConfigRequest(BaseModel):
     config: dict
 
 
+# -- Planner --
+
+class PlanRequest(BaseModel):
+    """Request model for MCTS plan generation."""
+
+    request: str = Field(..., min_length=1, max_length=50000)
+    iterations: int = Field(3, ge=1, le=10)
+    n_approaches: int = Field(3, ge=1, le=10)
+    skill_names: list[str] | None = None
+
+
 # -- Logging --
 
 class LogLevelRequest(BaseModel):

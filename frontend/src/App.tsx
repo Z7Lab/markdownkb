@@ -7,10 +7,11 @@ import { ErrorBoundary } from "@/components/error-boundary"
 import { LLMStatusIndicator } from "@/components/llm-status-indicator"
 import { SettingsProvider } from "@/hooks/use-settings"
 import { NavigationProvider } from "@/lib/navigation"
-import { MessageSquare, Globe, FolderOpen } from "lucide-react"
+import { MessageSquare, Globe, FolderOpen, Lightbulb } from "lucide-react"
 
 const SearchTab = lazy(() => import("@/components/search/search-tab").then(m => ({ default: m.SearchTab })))
 const FilesTab = lazy(() => import("@/components/browse/files-tab").then(m => ({ default: m.FilesTab })))
+const PlannerTab = lazy(() => import("@/components/planner/planner-tab").then(m => ({ default: m.PlannerTab })))
 const SettingsTab = lazy(() => import("@/components/settings/settings-tab").then(m => ({ default: m.SettingsTab })))
 
 function TabFallback() {
@@ -21,6 +22,7 @@ function TabFallback() {
 const routeToTab: Record<string, string> = {
   "/": "chat",
   "/search": "search",
+  "/planner": "planner",
   "/files": "files",
   "/settings": "settings",
 }
@@ -28,6 +30,7 @@ const routeToTab: Record<string, string> = {
 const tabToRoute: Record<string, string> = {
   chat: "/",
   search: "/search",
+  planner: "/planner",
   files: "/files",
   settings: "/settings",
 }
@@ -67,6 +70,10 @@ function App() {
                   <Globe className="h-4 w-4" />
                   Search
                 </TabsTrigger>
+                <TabsTrigger value="planner">
+                  <Lightbulb className="h-4 w-4" />
+                  Planner
+                </TabsTrigger>
                 <TabsTrigger value="files">
                   <FolderOpen className="h-4 w-4" />
                   Files
@@ -85,6 +92,13 @@ function App() {
                 <ErrorBoundary fallbackMessage="Search encountered an error">
                   <Suspense fallback={<TabFallback />}>
                     <SearchTab />
+                  </Suspense>
+                </ErrorBoundary>
+              </TabsContent>
+              <TabsContent value="planner" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
+                <ErrorBoundary fallbackMessage="Planner encountered an error">
+                  <Suspense fallback={<TabFallback />}>
+                    <PlannerTab />
                   </Suspense>
                 </ErrorBoundary>
               </TabsContent>

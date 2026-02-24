@@ -93,6 +93,7 @@ mdkb includes a command-line interface for indexing and search without starting 
 | [Embedding Models](docs/embedding-models.md) | Available models, switching, storage |
 | [Ollama Remote Setup](docs/ollama-remote-setup.md) | Running Ollama on a separate machine |
 | [MCP Tools](docs/mcp-tools.md) | File browsing, terminal, AI tag generation |
+| [MCTS Planner](docs/planner.md) | Planning engine, scoring, skill reviews |
 | [Security](SECURITY.md) | Threat model, feature flags, vulnerability reporting |
 
 ## Project Structure
@@ -117,11 +118,13 @@ app/
 │   ├── settings.py      # Provider config, features, database maintenance
 │   ├── embeddings.py    # Embedding model management, indexing
 │   ├── export.py        # Conversation export
-│   └── tags.py          # AI tag generation (conditional)
+│   ├── tags.py          # AI tag generation (conditional)
+│   └── planner.py       # MCTS plan generation (conditional)
 ├── services/
 │   ├── chat_service.py  # Conversation memory, streaming RAG, think-block stripping
 │   ├── llm_service.py   # Ollama model discovery, connection testing
-│   └── query_service.py # LLM-powered query enhancement
+│   ├── query_service.py # LLM-powered query enhancement
+│   └── planner_service.py # MCTS planner orchestration + skill reviews
 ├── ingestion/           # File scanning, parsing, watching, indexing
 ├── embeddings/          # ONNX embedding (3 models, no PyTorch)
 ├── storage/             # ChromaDB vector store + SQLite (file tracking, chat, search)
@@ -132,11 +135,11 @@ app/
 
 frontend/
 ├── src/
-│   ├── App.tsx          # Tab layout (Chat, Search, Browse, Settings)
+│   ├── App.tsx          # Tab layout (Chat, Search, Planner, Browse, Settings)
 │   ├── lib/             # api.ts, sse.ts, types.ts, query-enhancement.ts
 │   ├── contexts/        # React contexts (navigation)
-│   ├── hooks/           # use-chat, use-search, use-files, use-settings, + more
-│   └── components/      # chat/, search/, browse/, settings/, ui/ (shadcn)
+│   ├── hooks/           # use-chat, use-search, use-planner, use-files, use-settings, + more
+│   └── components/      # chat/, search/, planner/, browse/, settings/, ui/ (shadcn)
 ├── index.css            # Centralized styles
 └── vite.config.ts       # Proxy /api -> backend in dev
 

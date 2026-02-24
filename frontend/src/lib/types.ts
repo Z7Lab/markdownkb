@@ -157,6 +157,41 @@ export interface TestPromptResult {
   }
 }
 
+// -- Planner --
+
+export interface PlanNode {
+  content: string
+  type: string
+  score: number
+  visits: number
+  sources: string[]
+  children: PlanNode[]
+}
+
+export interface SkillReview {
+  skill_name: string
+  review: string
+  issues: string[]
+  approvals: string[]
+}
+
+export interface PlanResult {
+  plan: string
+  tree: PlanNode
+  sources: string[]
+  exploration_log: string[]
+  user_patterns: string[]
+  iterations: number
+  reviews?: SkillReview[]
+  refined_plan?: string
+}
+
+export interface SkillInfo {
+  name: string
+  description: string
+  source: string
+}
+
 export interface ModelInfo {
   max_input_tokens?: number | null
   max_output_tokens?: number | null

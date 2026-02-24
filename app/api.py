@@ -14,6 +14,7 @@ from app.routers import (
     export,
     files,
     health,
+    planner,
     search,
     settings,
     tags,
@@ -50,5 +51,8 @@ def create_app(lifespan=None) -> FastAPI:
     settings_instance = Settings.get()
     if settings_instance.feature_enabled("mcp_tag_generator"):
         app.include_router(tags.router)
+
+    if settings_instance.feature_enabled("mcts_planner"):
+        app.include_router(planner.router)
 
     return app

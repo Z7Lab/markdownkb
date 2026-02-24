@@ -97,6 +97,73 @@ export function streamChat(
   return controller
 }
 
+export interface PlanCallbacks {
+  onStatus: (phase: string, message: string) => void
+  onApproach: (content: string, score: number) => void
+  onPlan: (plan: string) => void
+  onSources: (sources: string[]) => void
+  onTree: (tree: Record<string, unknown>) => void
+  onReviews: (reviews: Record<string, unknown>[], refinedPlan: string) => void
+  onDone: () => void
+  onError: (error: Error) => void
+}
+
+export function streamPlan(
+  request: string,
+  callbacks: PlanCallbacks,
+  options?: { iterations?: number; n_approaches?: number; skill_names?: string[] },
+): AbortController {
+  const controller = new AbortController()
+
+  const body: Record<string, unknown> = { request }
+  if (options?.iterations) body.iterations = options.iterations
+  if (options?.n_approaches) body.n_approaches = options.n_approaches
+  if (options?.skill_names) body.skill_names = options.skill_names
+
+  fetch("/api/planner/plan/stream", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal: controller.signal,
+  })
+    .then(async (res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const reader = res.body?.getReader()
+      if (!reader) throw new Error("No response body")
+
+      let doneReceived = false
+      await parseSSEStream(reader, (event, data) => {
+        if (event === "status") {
+          callbacks.onStatus(data.phase as string, data.message as string)
+        } else if (event === "approach") {
+          callbacks.onApproach(data.content as string, data.score as number)
+        } else if (event === "plan") {
+          callbacks.onPlan(data.plan as string)
+        } else if (event === "sources") {
+          callbacks.onSources(data.sources as string[])
+        } else if (event === "tree") {
+          callbacks.onTree(data.tree as Record<string, unknown>)
+        } else if (event === "reviews") {
+          callbacks.onReviews(
+            data.reviews as Record<string, unknown>[],
+            data.refined_plan as string,
+          )
+        } else if (event === "done") {
+          doneReceived = true
+          callbacks.onDone()
+        }
+      })
+      if (!doneReceived) callbacks.onDone()
+    })
+    .catch((err) => {
+      if (err.name !== "AbortError") {
+        callbacks.onError(err)
+      }
+    })
+
+  return controller
+}
+
 export function streamSearchSummary(
   query: string,
   callbacks: SummaryCallbacks,
