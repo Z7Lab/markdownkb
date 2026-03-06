@@ -389,6 +389,18 @@ class Settings:
         with self._lock:
             self._save_mcp_config(tool_name, config)
 
+    # --- Auth ---
+    @property
+    def api_key(self) -> str:
+        """Return the API key for header-based authentication.
+
+        Checked in order: MDKB_API_KEY env var > auth.api_key in
+        settings.yaml.  Empty string means authentication is disabled.
+        """
+        if os.environ.get("MDKB_API_KEY"):
+            return os.environ["MDKB_API_KEY"]
+        return self._data.get("auth", {}).get("api_key", "")
+
     # --- Server ---
     @property
     def server_host(self) -> str:

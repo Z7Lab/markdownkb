@@ -16,6 +16,7 @@ class FakeSettings:
 
     sources: list[str] = field(default_factory=lambda: ["/tmp/test-source"])
     global_ignore: list[str] = field(default_factory=lambda: ["**/node_modules/**", "**/.git/**"])
+    api_key: str = ""
     embedding_model: str = "all-MiniLM-L6-v2"
     active_provider: str = "test"
     system_prompt: str = "You are a helpful assistant."
@@ -89,9 +90,10 @@ class FakeResult:
 @pytest.fixture
 def app():
     """Create a test app with mocked services."""
-    application = create_app()
+    fake_settings = FakeSettings()
+    application = create_app(settings_override=fake_settings)
 
-    application.state.settings = FakeSettings()
+    application.state.settings = fake_settings
 
     store = MagicMock()
     store.count = 10

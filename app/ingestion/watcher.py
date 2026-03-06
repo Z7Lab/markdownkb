@@ -201,28 +201,67 @@ class MarkdownHandler(FileSystemEventHandler):
             self._tracking.remove_file(resolved)
 
 
+class FileWatcher:
+    """Manages the watchdog observer and allows runtime directory additions."""
+
+    def __init__(
+        self, settings: Settings, store: VectorStore,
+        tracking: TrackingDB,
+    ):
+        self._handler = MarkdownHandler(settings, store, tracking)
+        self._observer = Observer()
+        self._watched: set[str] = set()
+        self._settings = settings
+        self._store = store
+        self._tracking = tracking
+
+    def add_directory(self, path: str) -> bool:
+        """Schedule a directory for watching.  Returns True if newly added."""
+        source_path = Path(path).resolve()
+        key = str(source_path)
+        if key in self._watched:
+            return False
+        if not source_path.exists() or not source_path.is_dir():
+            logger.warning("Cannot watch (not a directory): %s", source_path)
+            return False
+        self._observer.schedule(
+            self._handler, key, recursive=True,
+        )
+        self._watched.add(key)
+        logger.info("Watching: %s", source_path)
+        return True
+
+    def start(self):
+        """Schedule all configured sources and start the observer."""
+        for source in self._settings.sources:
+            self.add_directory(source)
+        self._observer.start()
+
+    def run_forever(self):
+        """Block the current thread until interrupted."""
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            self._observer.stop()
+        self._observer.join()
+
+    def index_directory(self, path: str):
+        """Trigger an initial index for files in a newly added directory."""
+        from app.ingestion.indexer import run_index
+        run_index(self._settings, self._store, self._tracking)
+
+
 def start_watching(
     settings: Settings, store: VectorStore,
     tracking: TrackingDB,
-):
-    """Start the file system observer for all configured sources."""
-    handler = MarkdownHandler(settings, store, tracking)
-    observer = Observer()
+) -> FileWatcher:
+    """Start the file system observer for all configured sources.
 
-    for source in settings.sources:
-        source_path = Path(source).resolve()
-        if source_path.exists() and source_path.is_dir():
-            observer.schedule(
-                handler, str(source_path), recursive=True,
-            )
-            logger.info("Watching: %s", source_path)
-
-    observer.start()
-
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        observer.stop()
-
-    observer.join()
+    Returns the :class:`FileWatcher` instance so callers can add
+    directories at runtime via :meth:`FileWatcher.add_directory`.
+    """
+    watcher = FileWatcher(settings, store, tracking)
+    watcher.start()
+    watcher.run_forever()
+    return watcher

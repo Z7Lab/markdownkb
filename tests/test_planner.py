@@ -17,7 +17,7 @@ MOCK_PLAN_RESULT = {
 
 @pytest.mark.asyncio
 async def test_plan_returns_result(client):
-    with patch("app.routers.planner.run_planner", return_value=MOCK_PLAN_RESULT):
+    with patch("app.plugins.planner.router.run_planner", return_value=MOCK_PLAN_RESULT):
         resp = await client.post("/api/planner/plan", json={"request": "Build a login page"})
     assert resp.status_code == 200
     data = resp.json()
@@ -34,7 +34,7 @@ async def test_plan_empty_request_rejected(client):
 
 @pytest.mark.asyncio
 async def test_plan_llm_failure_returns_502(client):
-    with patch("app.routers.planner.run_planner", side_effect=RuntimeError("LLM offline")):
+    with patch("app.plugins.planner.router.run_planner", side_effect=RuntimeError("LLM offline")):
         resp = await client.post("/api/planner/plan", json={"request": "test"})
     assert resp.status_code == 502
 
@@ -46,7 +46,7 @@ async def test_plan_stream_returns_sse(client):
         yield 'event: plan\ndata: {"plan": "the plan"}\n\n'
         yield 'event: done\ndata: {}\n\n'
 
-    with patch("app.routers.planner.stream_planner", side_effect=fake_stream):
+    with patch("app.plugins.planner.router.stream_planner", side_effect=fake_stream):
         resp = await client.post("/api/planner/plan/stream", json={"request": "test"})
     assert resp.status_code == 200
     assert "text/event-stream" in resp.headers["content-type"]
@@ -61,7 +61,7 @@ async def test_list_skills(client):
     mock_skills = [
         {"name": "security-auditor", "description": "Reviews for vulnerabilities", "source": "builtin"},
     ]
-    with patch("app.routers.planner.list_skills", return_value=mock_skills):
+    with patch("app.plugins.planner.router.list_skills", return_value=mock_skills):
         resp = await client.get("/api/planner/skills")
     assert resp.status_code == 200
     data = resp.json()
@@ -79,7 +79,7 @@ async def test_plan_with_skills(client):
         ],
         "refined_plan": "Refined step 1\nRefined step 2",
     }
-    with patch("app.routers.planner.run_planner", return_value=result_with_reviews):
+    with patch("app.plugins.planner.router.run_planner", return_value=result_with_reviews):
         resp = await client.post(
             "/api/planner/plan",
             json={"request": "Build a login page", "skill_names": ["security-auditor"]},

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from app.config import Settings
-from app.deps import get_settings
+from app.deps import get_settings, get_store, get_tracking, get_watcher
 from app.ratelimit import HEAVY, LLM, STANDARD, limiter
 from app.logbuffer import log_buffer
 from app.schemas import (
@@ -55,10 +55,27 @@ def add_source(
     request: Request,
     req: AddSourceRequest,
     settings: Settings = Depends(get_settings),
+    watcher=Depends(get_watcher),
 ):
-    """Add a new source directory to watch."""
+    """Add a new source directory to watch.
+
+    When the file watcher is running, the new directory is immediately
+    watched and its files are indexed — no restart required.
+    """
     settings.add_source(req.path)
     settings.save()
+
+    # Start watching and index immediately if watcher is active
+    if watcher is not None:
+        resolved = str(Path(req.path).resolve())
+        if watcher.add_directory(resolved):
+            import threading
+            threading.Thread(
+                target=watcher.index_directory,
+                args=(resolved,),
+                daemon=True,
+            ).start()
+
     return {"sources": settings.sources}
 
 

@@ -14,16 +14,21 @@ from app.routers import (
     export,
     files,
     health,
-    planner,
     search,
     settings,
-    tags,
     threads,
 )
 
 
-def create_app(lifespan=None) -> FastAPI:
-    """Create and configure the FastAPI application."""
+def create_app(lifespan=None, settings_override=None) -> FastAPI:
+    """Create and configure the FastAPI application.
+
+    Args:
+        lifespan: ASGI lifespan context manager.
+        settings_override: Optional settings object for testing.  When
+            provided, plugin registration uses this instead of the global
+            singleton.
+    """
     app = FastAPI(title="mdkb API", version="1.0.0", lifespan=lifespan)
 
     # Rate limiting
@@ -36,23 +41,26 @@ def create_app(lifespan=None) -> FastAPI:
             f"http://localhost:{os.environ.get('FRONTEND_PORT', '9714')}",
         ],
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "Accept"],
+        allow_headers=["Content-Type", "Accept", "X-MDKB-Key"],
     )
 
-    # Core routers
+    # Core routers (always registered)
     for router_module in (
         health, search, chat, threads, files,
         settings, embeddings, export,
     ):
         app.include_router(router_module.router)
 
-    # Conditionally register tags router if feature is enabled
+    # Auto-discover and register plugins (feature-gated)
     from app.config import Settings
-    settings_instance = Settings.get()
-    if settings_instance.feature_enabled("mcp_tag_generator"):
-        app.include_router(tags.router)
+    from app.plugins import register_plugins
+    cfg = settings_override if settings_override is not None else Settings.get()
+    register_plugins(app, cfg)
 
-    if settings_instance.feature_enabled("mcts_planner"):
-        app.include_router(planner.router)
+    # API key authentication (only when a key is configured)
+    api_key = getattr(cfg, "api_key", "")
+    if api_key:
+        from app.auth import ApiKeyMiddleware
+        app.add_middleware(ApiKeyMiddleware, api_key=api_key)
 
     return app

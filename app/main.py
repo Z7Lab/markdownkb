@@ -15,7 +15,7 @@ from app.config import Settings
 from app.logbuffer import log_buffer
 from app.ratelimit import limiter
 from app.ingestion.indexer import run_index
-from app.ingestion.watcher import start_watching
+from app.ingestion.watcher import FileWatcher
 from app.rag.retriever import Retriever
 from app.storage.chatdb import ChatDB
 from app.storage.searchdb import SearchDB
@@ -70,10 +70,13 @@ async def lifespan(app: FastAPI):
         logger.info("Rate limiting enabled")
 
     # Start file watcher if enabled
+    app.state.watcher = None
     if settings.feature_enabled("file_watcher"):
+        watcher = FileWatcher(settings, store, tracking)
+        watcher.start()
+        app.state.watcher = watcher
         thread = threading.Thread(
-            target=start_watching,
-            args=(settings, store, tracking),
+            target=watcher.run_forever,
             daemon=True,
         )
         thread.start()

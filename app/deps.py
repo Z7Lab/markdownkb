@@ -38,3 +38,8 @@ def get_searchdb(request: Request) -> SearchDB:
 
 def get_cancel_event(request: Request) -> threading.Event:
     return request.app.state.cancel_event
+
+
+def get_watcher(request: Request):
+    """Return the FileWatcher instance (or None if file watching is off)."""
+    return getattr(request.app.state, "watcher", None)
