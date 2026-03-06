@@ -15,7 +15,8 @@ Environment variables override `settings.yaml` for the settings they overlap on:
 |---------|--------------|-------------------|
 | Server port | `server.port` | `API_PORT` |
 | Ollama URL | `llm.providers[].api_base` | `OLLAMA_API_BASE` |
-| API keys | `llm.providers[].api_key` | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` |
+| LLM API keys | `llm.providers[].api_key` | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` |
+| MDKB API key | `auth.api_key` | `MDKB_API_KEY` |
 | Bind address | `server.host` | `MDKB_HOST` (Docker) |
 
 **When to use which:**
@@ -79,6 +80,14 @@ Providers without an `api_key` are skipped (except Ollama). If the active provid
 |-----|---------|-------------|
 | `logging.level` | `INFO` | Log level for UI log viewer (`INFO` or `DEBUG`) |
 
+## Authentication
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `auth.api_key` | (empty) | API key for header-based authentication. When set, all `/api/*` requests must include `X-MDKB-Key: <key>`. Empty means auth is disabled. |
+
+Can also be set via `MDKB_API_KEY` environment variable (takes precedence over `settings.yaml`).
+
 ## Server
 
 | Key | Default | Description |
@@ -98,8 +107,9 @@ Feature flags toggle optional modules. All security-sensitive features default t
 | `features.mcp_filesystem` | `false` | MCP file browsing tool |
 | `features.mcp_terminal` | `false` | MCP terminal tool |
 | `features.mcp_tag_generator` | `false` | AI tag generation for markdown files |
-| `features.mcts_planner` | `false` | MCTS plan generation |
+| `features.mcts_planner` | `true` | MCTS plan generation |
 | `features.agent_skills` | `false` | Agent skill system |
+| `features.write_api` | `false` | HTTP endpoint for creating/updating markdown files |
 | `features.diagnostics` | `false` | Diagnostic endpoints |
 | `features.rate_limiting` | `false` | API rate limiting (slowapi) |
 

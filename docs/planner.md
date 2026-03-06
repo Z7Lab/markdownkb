@@ -4,7 +4,7 @@ The planner uses Monte Carlo Tree Search (MCTS) to generate implementation plans
 
 Think of it as the difference between a junior dev who tries things until they work, and a senior dev who studies the codebase first and gives you the exact right approach.
 
-Requires the `mcts_planner` feature flag. Disabled by default.
+Requires the `mcts_planner` feature flag. Enabled by default.
 
 ## How It Works
 
@@ -127,7 +127,7 @@ Add a directory under `app/skills/builtin/` (or a custom directory) containing a
 
 ```yaml
 features:
-  mcts_planner: false     # Enable the planner tab and endpoints
+  mcts_planner: true      # Enable the planner tab and endpoints
   agent_skills: false     # Enable skill review system
   mcp_filesystem: false   # Enable filesystem exploration during planning
 ```

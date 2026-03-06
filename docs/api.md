@@ -2,6 +2,16 @@
 
 All endpoints under `http://localhost:9713/api/`. Interactive docs (Swagger UI) at `http://localhost:9713/docs`.
 
+## Authentication
+
+When an API key is configured (`auth.api_key` in `settings.yaml` or `MDKB_API_KEY` env var), all `/api/*` endpoints require the header:
+
+```
+X-MDKB-Key: <your-key>
+```
+
+Missing or invalid keys return **401 Unauthorized**. `/api/health` is always public (no key required). When no key is configured, authentication is disabled.
+
 ## Health & Stats
 
 | Method | Path | Description |
@@ -61,7 +71,7 @@ All endpoints under `http://localhost:9713/api/`. Interactive docs (Swagger UI) 
 |--------|------|-------------|
 | GET | `/api/settings` | Get full settings |
 | GET | `/api/sources` | List source directories |
-| POST | `/api/sources` | Add source directory |
+| POST | `/api/sources` | Add source directory (immediately starts watching + indexing) |
 | DELETE | `/api/sources` | Remove source directory |
 | POST | `/api/ignore-patterns` | Add ignore pattern |
 | DELETE | `/api/ignore-patterns` | Remove ignore pattern |
@@ -117,9 +127,40 @@ All endpoints under `http://localhost:9713/api/`. Interactive docs (Swagger UI) 
 |--------|------|-------------|
 | POST | `/api/export` | Export conversations as markdown or JSON |
 
+## Documents (Write API)
+
+Requires the `write_api` feature flag. Plugin: `app/plugins/write_api/`.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/documents` | Create or update a markdown file in a watched source directory |
+| DELETE | `/api/documents` | Delete a markdown file from a watched source directory |
+
+### POST /api/documents
+
+```json
+{
+  "path": "notes/idea.md",
+  "content": "# My Idea\n\nContent here...",
+  "source": "",
+  "overwrite": false
+}
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `path` | (required) | Relative path within the source directory (must end in `.md`) |
+| `content` | (required) | Markdown content to write |
+| `source` | first configured source | Target source directory (must be a configured source) |
+| `overwrite` | `false` | Allow overwriting existing files (409 if file exists and `false`) |
+
+### DELETE /api/documents
+
+Query parameters: `path` (required), `source` (optional, defaults to first source).
+
 ## Planner
 
-Requires the `mcts_planner` feature flag.
+Requires the `mcts_planner` feature flag. Plugin: `app/plugins/planner/`.
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -129,7 +170,7 @@ Requires the `mcts_planner` feature flag.
 
 ## Tags
 
-Requires the `mcp_tag_generator` feature flag.
+Requires the `mcp_tag_generator` feature flag. Plugin: `app/plugins/tags/`.
 
 | Method | Path | Description |
 |--------|------|-------------|

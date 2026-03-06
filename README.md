@@ -93,6 +93,7 @@ mdkb includes a command-line interface for indexing and search without starting 
 | [Embedding Models](docs/embedding-models.md) | Available models, switching, storage |
 | [Ollama Remote Setup](docs/ollama-remote-setup.md) | Running Ollama on a separate machine |
 | [MCP Tools](docs/mcp-tools.md) | File browsing, terminal, AI tag generation |
+| [MCP Server](docs/mcp-server.md) | Standalone MCP server for external clients |
 | [MCTS Planner](docs/planner.md) | Planning engine, scoring, skill reviews |
 | [Security](SECURITY.md) | Threat model, feature flags, vulnerability reporting |
 
@@ -101,7 +102,8 @@ mdkb includes a command-line interface for indexing and search without starting 
 ```
 app/
 ├── main.py              # Entry point, async lifespan, static serving, SPA catch-all
-├── api.py               # App factory (create_app), CORS, router registration
+├── api.py               # App factory (create_app), CORS, router + plugin registration
+├── auth.py              # API key middleware (X-MDKB-Key header)
 ├── config.py            # Settings singleton from YAML
 ├── schemas.py           # Pydantic request/response models
 ├── deps.py              # FastAPI Depends() functions for dependency injection
@@ -109,7 +111,7 @@ app/
 ├── logbuffer.py         # In-memory ring buffer log handler for UI log viewer
 ├── ratelimit.py         # slowapi limiter + rate limit tiers
 ├── cli.py               # CLI commands (index, search, add-source, stats)
-├── routers/             # API endpoint modules
+├── routers/             # Core API endpoint modules (always registered)
 │   ├── health.py        # Health checks, stats
 │   ├── search.py        # Search, history, query enhancement
 │   ├── chat.py          # RAG chat (sync + streaming)
@@ -117,9 +119,11 @@ app/
 │   ├── files.py         # File listing, indexing, RAG toggle
 │   ├── settings.py      # Provider config, features, database maintenance
 │   ├── embeddings.py    # Embedding model management, indexing
-│   ├── export.py        # Conversation export
-│   ├── tags.py          # AI tag generation (conditional)
-│   └── planner.py       # MCTS plan generation (conditional)
+│   └── export.py        # Conversation export
+├── plugins/             # Auto-discovered, feature-gated plugins
+│   ├── planner/         # MCTS plan generation (mcts_planner flag)
+│   ├── tags/            # AI tag generation (mcp_tag_generator flag)
+│   └── write_api/       # Document creation via HTTP (write_api flag)
 ├── services/
 │   ├── chat_service.py  # Conversation memory, streaming RAG, think-block stripping
 │   ├── llm_service.py   # Ollama model discovery, connection testing
@@ -132,6 +136,8 @@ app/
 ├── mcp/                 # Filesystem + terminal + tag generator tools (optional)
 ├── planner/             # MCTS planning engine (optional)
 └── skills/              # Agent skills for plan review (optional)
+
+mcp_server.py            # Standalone MCP server (stdio/SSE, separate process)
 
 frontend/
 ├── src/

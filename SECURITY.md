@@ -5,7 +5,15 @@ mdkb handles API keys, accesses the file system, and optionally executes termina
 ## Sensitive Data
 
 - **API keys** are stored in `config/settings.yaml` (gitignored) and optionally in `.env` (gitignored). They are never logged or exposed via API responses.
-- **No authentication** — mdkb is designed for local/trusted-network use. Do not expose it to the public internet without adding an auth layer.
+
+## Authentication
+
+mdkb supports optional API key authentication via the `X-MDKB-Key` header:
+
+- Set `auth.api_key` in `config/settings.yaml` or the `MDKB_API_KEY` environment variable.
+- When configured, all `/api/*` endpoints (except `/api/health`) require the header. Missing or invalid keys return **401 Unauthorized**.
+- When empty (default), authentication is disabled — suitable for local/single-user use.
+- **If exposing mdkb to a network, always set an API key.** Without it, destructive endpoints (clear databases, change LLM provider, rewrite system prompt) are fully open.
 
 ## File System Access
 
@@ -27,6 +35,9 @@ Security-sensitive features are disabled by default and must be explicitly enabl
 | `mcp_filesystem` | `false` | File system read access |
 | `mcp_terminal` | `false` | Shell command execution |
 | `mcp_tag_generator` | `false` | File modification (creates backups) |
+| `write_api` | `false` | Create/update/delete markdown files via HTTP |
+
+The `write_api` plugin validates paths to prevent directory traversal and restricts writes to configured source directories only. It requires an explicit `overwrite: true` flag to replace existing files.
 
 ## Rate Limiting
 

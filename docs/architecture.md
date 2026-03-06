@@ -13,9 +13,12 @@ mdkb is a search-first documentation tool with a Python backend and React fronte
 ┌────────────────────────▼────────────────────────────────┐
 │  FastAPI Backend                                        │
 │  ┌──────────────────────────────────────────────────┐   │
-│  │  Routers (10 modules)                            │   │
+│  │  Core Routers (8 modules)                        │   │
 │  │  health │ search │ chat │ threads │ files        │   │
-│  │  settings │ embeddings │ export │ tags │ planner │   │
+│  │  settings │ embeddings │ export                  │   │
+│  ├──────────────────────────────────────────────────┤   │
+│  │  Plugins (auto-discovered, feature-gated)        │   │
+│  │  planner │ tags │ write_api │ ...                │   │
 │  └──────────┬───────────────────────────┬───────────┘   │
 │             │                           │               │
 │  ┌──────────▼──────────┐  ┌─────────────▼───────────┐   │
@@ -39,20 +42,32 @@ mdkb is a search-first documentation tool with a Python backend and React fronte
 │  │  watcher          │  │  MCTS planner              │   │
 │  │  indexer           │  │  Agent skills              │   │
 │  └──────────────────┘  └────────────────────────────┘   │
+│                                                         │
+│  ┌──────────────────┐  ┌────────────────────────────┐   │
+│  │  Auth Middleware   │  │  API Key (X-MDKB-Key)     │   │
+│  └──────────────────┘  └────────────────────────────┘   │
 └─────────────────────────────────────────────────────────┘
          │                        │
          ▼                        ▼
    ONNX Embeddings          LLM Providers
    (local CPU)              (Ollama / Anthropic / OpenAI)
+
+┌─────────────────────────────────────────────────────────┐
+│  MCP Server (mcp_server.py — separate process)          │
+│  Tools: search │ chat │ get_document │ list_documents   │
+│         index_file │ list_sources │ stats               │
+│  Transports: stdio │ SSE                                │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ## Request Lifecycle
 
 1. **Frontend** makes HTTP requests to `/api/*`. Streaming responses (chat, summaries) use POST-based SSE via `fetch` + `ReadableStream`.
-2. **Routers** handle request validation and call into services. Each router module covers one domain (search, chat, files, etc.).
-3. **Dependency injection** (`app/deps.py`) provides services via FastAPI's `Depends()`. All shared state lives on `app.state`, initialized in the async lifespan context manager (`app/main.py`).
-4. **Services** contain business logic — conversation management, LLM health checks, query enhancement.
-5. **Storage layer** persists data across three stores (see below).
+2. **Routers** handle request validation and call into services. Core routers (health, search, chat, etc.) are always registered. **Plugins** (`app/plugins/`) are auto-discovered at startup — each plugin exposes a feature flag and a router; only enabled plugins are registered.
+3. **Auth middleware** (`app/auth.py`) checks the `X-MDKB-Key` header on all `/api/*` paths (except `/api/health`) when an API key is configured. Disabled when no key is set.
+4. **Dependency injection** (`app/deps.py`) provides services via FastAPI's `Depends()`. All shared state lives on `app.state`, initialized in the async lifespan context manager (`app/main.py`).
+5. **Services** contain business logic — conversation management, LLM health checks, query enhancement.
+6. **Storage layer** persists data across three stores (see below).
 
 ## Storage
 
@@ -73,7 +88,7 @@ SQLite databases use `PRAGMA user_version` for schema migrations. Each database 
 2. **Parser** (`app/ingestion/parser.py`) splits files into chunks by heading structure, with configurable size and overlap.
 3. **Embedder** (`app/embeddings/embedder.py`) generates vector embeddings using ONNX models (runs on CPU, no PyTorch). Three models are available — see [embedding-models.md](embedding-models.md).
 4. **Indexer** (`app/ingestion/indexer.py`) orchestrates the pipeline: scan → parse → embed → store in ChromaDB + track in TrackingDB.
-5. **Watcher** (`app/ingestion/watcher.py`) uses `watchdog` to detect file changes and re-index incrementally. Runs in a background thread.
+5. **Watcher** (`app/ingestion/watcher.py`) uses `watchdog` to detect file changes and re-index incrementally. Runs in a background thread. The `FileWatcher` class supports adding directories at runtime — when a new source is added via the API, it starts watching immediately without a restart.
 
 ## Retrieval & RAG
 
@@ -101,9 +116,24 @@ LLM calls go through **LiteLLM** (`app/rag/llm.py`), which provides a unified in
 
 Connection testing and model discovery for Ollama use `httpx` directly (`app/services/llm_service.py`).
 
+## Plugin System
+
+Optional routers live under `app/plugins/`. Each plugin is a directory with an `__init__.py` that exposes:
+
+- `FEATURE_FLAG: str` — the feature flag name in `settings.yaml`
+- `router: APIRouter` — the FastAPI router to register
+
+At startup, `app/plugins/__init__.py` scans the directory, imports each plugin, checks its feature flag, and registers the router if enabled. Adding a new plugin requires no changes to core files — just create a new folder in `app/plugins/`.
+
+Current plugins: `planner` (MCTS plan generation), `tags` (AI tag generation), `write_api` (document creation via HTTP).
+
 ## Feature Flags
 
-Optional modules are controlled by feature flags in `config/settings.yaml` under `features.*`. The flags are checked at startup (for router registration) and at runtime (for conditional behavior). Security-sensitive features (MCP tools) default to off — see [SECURITY.md](../SECURITY.md).
+Optional modules are controlled by feature flags in `config/settings.yaml` under `features.*`. The flags are checked at startup (for plugin registration) and at runtime (for conditional behavior). Security-sensitive features (MCP tools) default to off — see [SECURITY.md](../SECURITY.md).
+
+## MCP Server
+
+`mcp_server.py` runs as a **separate process** alongside the FastAPI app. It exposes MDKB's core capabilities as MCP tools (search, chat, document access, indexing, stats) using the `mcp` SDK. Supports stdio (default) and SSE transports. See [mcp-server.md](mcp-server.md).
 
 ## Frontend
 
