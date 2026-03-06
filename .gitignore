@@ -1,4 +1,7 @@
-docs/internal
+# Local-only files
+/untracked
+scripts/internal/
+
 .venv/
 __pycache__/
 *.pyc
