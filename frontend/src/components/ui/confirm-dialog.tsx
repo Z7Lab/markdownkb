@@ -18,6 +18,7 @@ export function ConfirmDialog({
   cancelLabel = "Cancel",
   variant = "destructive",
   onConfirm,
+  onCancel,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -27,6 +28,7 @@ export function ConfirmDialog({
   cancelLabel?: string
   variant?: "default" | "destructive"
   onConfirm: () => void
+  onCancel?: () => void
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -36,7 +38,7 @@ export function ConfirmDialog({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
+          <AlertDialogCancel onClick={onCancel}>{cancelLabel}</AlertDialogCancel>
           <AlertDialogAction variant={variant} onClick={onConfirm}>
             {confirmLabel}
           </AlertDialogAction>

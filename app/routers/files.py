@@ -10,7 +10,7 @@ from app.deps import get_settings, get_store, get_tracking
 from app.ingestion.indexer import ReindexError, reindex_file
 from app.ingestion.scanner import discover_sources
 from app.ratelimit import STANDARD, limiter
-from app.schemas import FileActionRequest, ToggleRagRequest
+from app.schemas import FileActionRequest, SourceActionRequest, ToggleRagRequest
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 
@@ -205,3 +205,23 @@ def reindex_single_file(
     except ReindexError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
     return {"status": "ok", "message": result}
+
+
+@router.post("/files/unindex-source")
+@limiter.limit(STANDARD)
+def unindex_source(
+    request: Request,
+    req: SourceActionRequest,
+    tracking: TrackingDB = Depends(get_tracking),
+    store: VectorStore = Depends(get_store),
+):
+    """Unindex all files under a given source directory."""
+    source = str(Path(req.source).resolve())
+    all_files = tracking.get_all_files()
+    count = 0
+    for f in all_files:
+        if f["path"].startswith(source + "/") and f["status"] != "not_indexed":
+            store.delete_by_source(f["path"])
+            tracking.unindex_file(f["path"])
+            count += 1
+    return {"status": "ok", "unindexed": count}

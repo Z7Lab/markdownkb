@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from app.config import Settings
-from app.deps import get_settings, get_store, get_tracking, get_watcher
+from app.deps import get_cancel_event, get_settings, get_store, get_tracking, get_watcher
 from app.ratelimit import HEAVY, LLM, STANDARD, limiter
 from app.logbuffer import log_buffer
 from app.schemas import (
@@ -85,11 +85,28 @@ def remove_source(
     request: Request,
     req: RemoveSourceRequest,
     settings: Settings = Depends(get_settings),
+    tracking=Depends(get_tracking),
+    store=Depends(get_store),
 ):
-    """Remove a source directory from watch list."""
+    """Remove a source directory from watch list.
+
+    When cleanup=true, also unindexes all files that were under this source.
+    """
+    resolved = str(Path(req.path).resolve())
+    removed_count = 0
+
+    if req.cleanup:
+        all_files = tracking.get_all_files()
+        for f in all_files:
+            fpath = f["path"]
+            if fpath.startswith(resolved + "/") or fpath.startswith(req.path + "/"):
+                store.delete_by_source(fpath)
+                tracking.unindex_file(fpath)
+                removed_count += 1
+
     settings.remove_source(req.path)
     settings.save()
-    return {"sources": settings.sources}
+    return {"sources": settings.sources, "unindexed_count": removed_count}
 
 
 # -- Ignore Patterns --

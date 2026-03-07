@@ -199,8 +199,8 @@ function useSettingsInternal() {
   )
 
   const removeSource = useCallback(
-    async (path: string) => {
-      await api.del("/api/sources", { path })
+    async (path: string, cleanup = false) => {
+      await api.del("/api/sources", { path, cleanup })
       await load()
     },
     [load],

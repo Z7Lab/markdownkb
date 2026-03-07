@@ -86,6 +86,13 @@ class RemoveSourceRequest(BaseModel):
     """Request model for removing a source."""
 
     path: str
+    cleanup: bool = False  # Also unindex all files from this source
+
+
+class SourceActionRequest(BaseModel):
+    """Request model for bulk source operations (index/unindex all)."""
+
+    source: str
 
 
 class IgnorePatternRequest(BaseModel):

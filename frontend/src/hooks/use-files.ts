@@ -136,5 +136,25 @@ export function useFiles() {
     }
   }, [refresh])
 
-  return { files, busyPaths, error, refresh, toggleRag, unindexFile, indexFile, reindexFile }
+  const indexAll = useCallback(async () => {
+    try {
+      const res = await api.post<{ message: string }>("/api/index")
+      toast.success(res.message)
+      await refresh()
+    } catch (err) {
+      toast.error(`Failed to index: ${(err as Error).message}`)
+    }
+  }, [refresh])
+
+  const unindexSource = useCallback(async (source: string) => {
+    try {
+      const res = await api.post<{ unindexed: number }>("/api/files/unindex-source", { source })
+      toast.success(`Unindexed ${res.unindexed} files`)
+      await refresh()
+    } catch (err) {
+      toast.error(`Failed to unindex: ${(err as Error).message}`)
+    }
+  }, [refresh])
+
+  return { files, busyPaths, error, refresh, toggleRag, unindexFile, indexFile, reindexFile, indexAll, unindexSource }
 }

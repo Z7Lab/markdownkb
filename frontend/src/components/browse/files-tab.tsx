@@ -13,7 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { SortableTableHead } from "@/components/ui/sortable-table-head"
-import { RefreshCw, Search, X } from "lucide-react"
+import { FileDown, FileX, RefreshCw, Search, X } from "lucide-react"
 import type { TrackedFile } from "@/lib/types"
 import { basename, dirname } from "@/lib/utils"
 
@@ -57,11 +57,12 @@ const getValue = (f: TrackedFile, key: string): string | number | null => {
 }
 
 export function FilesTab() {
-  const { files, busyPaths, refresh, toggleRag, unindexFile, indexFile, reindexFile } = useFiles()
+  const { files, busyPaths, refresh, toggleRag, unindexFile, indexFile, reindexFile, indexAll, unindexSource } = useFiles()
   const [filterText, setFilterText] = useState("")
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
   const [viewingPath, setViewingPath] = useState<string | null>(null)
   const [pendingUnindex, setPendingUnindex] = useState<string | null>(null)
+  const [confirmUnindexAll, setConfirmUnindexAll] = useState(false)
   const { sorted, sortKey, sortDir, onSort } = useTableSort(files, getValue)
 
   const folderFiltered = selectedFolder
@@ -109,6 +110,16 @@ export function FilesTab() {
                   </button>
                 )}
               </div>
+              <Button variant="outline" size="sm" onClick={() => indexAll()}>
+                <FileDown className="h-3.5 w-3.5 mr-1.5" />
+                Index All
+              </Button>
+              {selectedFolder && (
+                <Button variant="outline" size="sm" onClick={() => setConfirmUnindexAll(true)}>
+                  <FileX className="h-3.5 w-3.5 mr-1.5" />
+                  Unindex Folder
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={() => refresh()}>
                 <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
                 Refresh
@@ -185,6 +196,19 @@ export function FilesTab() {
               setPendingUnindex(null)
               await unindexFile(pendingUnindex)
             }
+          }}
+        />
+
+        <ConfirmDialog
+          open={confirmUnindexAll}
+          onOpenChange={setConfirmUnindexAll}
+          title="Unindex all files in folder?"
+          description={`This will remove all indexed chunks for files under "${selectedFolder}" from the vector store.`}
+          confirmLabel="Unindex All"
+          variant="destructive"
+          onConfirm={async () => {
+            setConfirmUnindexAll(false)
+            if (selectedFolder) await unindexSource(selectedFolder)
           }}
         />
       </div>

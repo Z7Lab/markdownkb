@@ -2,7 +2,9 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Trash2 } from "lucide-react"
+import { toast } from "sonner"
 
 export function SourcesPanel({
   sources,
@@ -15,17 +17,20 @@ export function SourcesPanel({
   sources: string[]
   ignorePatterns: string[]
   onAdd: (path: string) => Promise<void>
-  onRemove: (path: string) => Promise<void>
+  onRemove: (path: string, cleanup: boolean) => Promise<void>
   onAddIgnore: (pattern: string) => Promise<void>
   onRemoveIgnore: (pattern: string) => Promise<void>
 }) {
   const [newSource, setNewSource] = useState("")
   const [newPattern, setNewPattern] = useState("")
+  const [pendingRemove, setPendingRemove] = useState<string | null>(null)
 
   async function handleAdd() {
     if (!newSource.trim()) return
-    await onAdd(newSource.trim())
+    const path = newSource.trim()
     setNewSource("")
+    await onAdd(path)
+    toast.success(`Added "${path}" — indexing started in background`)
   }
 
   async function handleAddPattern() {
@@ -53,7 +58,7 @@ export function SourcesPanel({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => onRemove(s)}
+                onClick={() => setPendingRemove(s)}
                 aria-label={`Remove ${s}`}
               >
                 <Trash2 className="h-4 w-4 text-destructive" />
@@ -118,6 +123,32 @@ export function SourcesPanel({
           </div>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={!!pendingRemove}
+        onOpenChange={(open) => { if (!open) setPendingRemove(null) }}
+        title="Remove Watch Directory?"
+        description={`Remove "${pendingRemove}" from watch list. You can also unindex all files that were indexed from this directory.`}
+        confirmLabel="Remove & Unindex"
+        cancelLabel="Remove Only"
+        variant="destructive"
+        onConfirm={async () => {
+          if (pendingRemove) {
+            const path = pendingRemove
+            setPendingRemove(null)
+            await onRemove(path, true)
+            toast.success(`Removed "${path}" and unindexed its files`)
+          }
+        }}
+        onCancel={async () => {
+          if (pendingRemove) {
+            const path = pendingRemove
+            setPendingRemove(null)
+            await onRemove(path, false)
+            toast.success(`Removed "${path}" from watch list`)
+          }
+        }}
+      />
     </div>
   )
 }
