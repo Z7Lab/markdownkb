@@ -55,9 +55,18 @@ build: ## Build Docker image
 	@docker compose build
 
 up: ## Start container (detached)
+	@mkdir -p data/chromadb data/plans
 	@docker compose up -d
 	@echo ""
 	@echo "  mdkb running at http://localhost:$(MDKB_PORT)"
+	@LAN_IP=$$(hostname -I 2>/dev/null | awk '{print $$1}'); \
+	LAN_HOST=$$(hostname 2>/dev/null); \
+	if [ -n "$$LAN_IP" ]; then \
+		echo "  Network:        http://$$LAN_IP:$(MDKB_PORT)"; \
+	fi; \
+	if [ -n "$$LAN_HOST" ]; then \
+		echo "                  http://$$LAN_HOST.local:$(MDKB_PORT)"; \
+	fi
 	@echo "  Logs: make logs"
 	@echo ""
 

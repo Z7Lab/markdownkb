@@ -181,14 +181,28 @@ class Settings:
         self._data.setdefault("llm", {})["active_provider"] = value
 
     def get_active_llm_config(self) -> dict:
-        """Return the config dict for the active provider."""
+        """Return the config dict for the active provider.
+
+        For ollama, the OLLAMA_API_BASE env var overrides api_base from YAML
+        so Docker/remote setups work without editing settings.yaml.
+        """
+        config: dict = {}
         for p in self.llm_providers:
             if p.get("name") == self.active_provider:
-                return p
-        if self.llm_providers:
-            return self.llm_providers[0]
-        logger.warning("No LLM providers configured — LLM features will be unavailable")
-        return {}
+                config = p
+                break
+        if not config:
+            if self.llm_providers:
+                config = self.llm_providers[0]
+            else:
+                logger.warning("No LLM providers configured — LLM features will be unavailable")
+                return {}
+
+        # Allow OLLAMA_API_BASE env var to override yaml for ollama provider
+        if config.get("name") == "ollama" and os.environ.get("OLLAMA_API_BASE"):
+            config = {**config, "api_base": os.environ["OLLAMA_API_BASE"]}
+
+        return config
 
     @property
     def llm_temperature(self) -> float:

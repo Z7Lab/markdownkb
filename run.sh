@@ -33,6 +33,10 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
+# Network info for status display
+LAN_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+LAN_HOST=$(hostname 2>/dev/null)
+
 # PIDs
 API_PID=""
 FRONTEND_PID=""
@@ -152,6 +156,11 @@ if [ "$MODE" = "backend" ]; then
         echo -e "║  ${GREEN}mdkb running${NC}                               ║"
         echo -e "╠════════════════════════════════════════════╣"
         echo -e "║  API:  ${BLUE}http://localhost:$API_PORT/api${NC}        ║"
+        if [ -n "$LAN_HOST" ]; then
+        echo -e "║  LAN:  ${BLUE}http://$LAN_HOST.local:$API_PORT${NC}"
+        elif [ -n "$LAN_IP" ]; then
+        echo -e "║  LAN:  ${BLUE}http://$LAN_IP:$API_PORT${NC}"
+        fi
         echo -e "╚════════════════════════════════════════════╝"
     else
         echo -e "  ${RED}Backend failed to start${NC}"
@@ -195,6 +204,11 @@ elif [ "$MODE" = "prod" ]; then
         echo -e "╠════════════════════════════════════════════╣"
         echo -e "║  App: ${BLUE}http://localhost:$API_PORT${NC}             ║"
         echo -e "║  API: ${BLUE}http://localhost:$API_PORT/api${NC}         ║"
+        if [ -n "$LAN_HOST" ]; then
+        echo -e "║  LAN: ${BLUE}http://$LAN_HOST.local:$API_PORT${NC}"
+        elif [ -n "$LAN_IP" ]; then
+        echo -e "║  LAN: ${BLUE}http://$LAN_IP:$API_PORT${NC}"
+        fi
         echo -e "╚════════════════════════════════════════════╝"
     else
         echo -e "  ${RED}Backend failed to start${NC}"
@@ -262,6 +276,11 @@ else
     echo -e "╠════════════════════════════════════════════╣"
     echo -e "║  App: ${BLUE}http://localhost:$FRONTEND_PORT${NC}          ║"
     echo -e "║  API: ${BLUE}http://localhost:$API_PORT/api${NC}        ║"
+    if [ -n "$LAN_HOST" ]; then
+    echo -e "║  LAN: ${BLUE}http://$LAN_HOST.local:$API_PORT${NC}"
+    elif [ -n "$LAN_IP" ]; then
+    echo -e "║  LAN: ${BLUE}http://$LAN_IP:$API_PORT${NC}"
+    fi
     echo -e "╚════════════════════════════════════════════╝"
     echo ""
     echo -e "  ${YELLOW}Press Ctrl+C to stop all services${NC}"

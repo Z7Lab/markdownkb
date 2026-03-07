@@ -19,15 +19,26 @@ Creates `.venv`, installs Python and Node dependencies if needed, starts both se
 
 ### Option B: Docker
 
-```bash
-cp config/settings.yaml.example config/settings.yaml  # add your source dirs and LLM config
-cp .env.example .env                                   # edit if needed (ports, Ollama IP, API keys)
-make build && make up
-```
+1. **Copy config files** (first time only):
+   ```bash
+   cp config/settings.yaml.example config/settings.yaml
+   cp .env.example .env
+   ```
 
-Your home directory is mounted read-only into the container, so paths in `settings.yaml` work identically. The container binds to **localhost only** by default and runs as a non-root user.
+2. **Edit `config/settings.yaml`** — add your source directories under `sources:` and configure your LLM provider. Everything else has sensible defaults.
 
-Edit `config/settings.yaml` to add your source directories and LLM API keys. The example file has sensible defaults for everything else.
+3. **Edit `.env`** (optional) — defaults work out of the box. Uncomment and set values only if you need to:
+   - `OLLAMA_API_BASE` — if Ollama runs on a different machine
+   - `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` — if using cloud LLM providers
+   - `MDKB_HOST=0.0.0.0` — to access from other machines via `http://<hostname>.local:9713` (localhost only by default)
+   - `MDKB_API_KEY` — set a key to protect the API (recommended if exposing to the network)
+
+4. **Build and start**:
+   ```bash
+   make build && make up
+   ```
+
+Your home directory is mounted read-only into the container, so paths in `settings.yaml` work identically. The container binds to **localhost only** by default and runs as a non-root user. The Makefile reads `.env` automatically — no extra steps needed.
 
 ## run.sh
 
@@ -59,6 +70,14 @@ make shell      # open a shell in the container
 make restart    # restart container
 make clean      # stop container and remove image
 ```
+
+**After changing config (Docker):**
+
+| What changed | What to run |
+|---|---|
+| `.env` (ports, API keys, bind address) | `make down && make up` |
+| `config/settings.yaml` (sources, LLM, features) | `make restart` |
+| Code or dependencies | `make build && make up` |
 
 ## Configuration
 
@@ -156,5 +175,5 @@ tests/                   # pytest + httpx AsyncClient
 
 Makefile                 # Build, run, test, Docker targets (make help)
 Dockerfile               # Multi-stage build (Node + Python), non-root, health check
-docker-compose.yml       # Localhost-only binding, configurable source mounts
+compose.yml              # Localhost-only binding, configurable source mounts
 ```
