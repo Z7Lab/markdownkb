@@ -14,11 +14,52 @@ global_ignore:
 - '**/build/**'
 - '**/dist/**'
 
-# Embedding model settings (ONNX, no PyTorch required)
+# Embedding model settings (ONNX, runs locally on CPU)
 embeddings:
   model: all-MiniLM-L6-v2
   chunk_size: 512
   chunk_overlap: 50
+
+  # Available models — the active model is auto-downloaded on first startup.
+  # Add your own ONNX sentence-transformer models here.
+  # Required fields: model_id, display_name, huggingface_repo, dimensions, max_seq_length
+  # Optional: description, query_prefix, local_path, onnx_path, tokenizer_path, files
+  models:
+  - model_id: all-MiniLM-L6-v2
+    display_name: MiniLM L6 v2
+    huggingface_repo: sentence-transformers/all-MiniLM-L6-v2
+    dimensions: 384
+    max_seq_length: 256
+    description: 'Fast, lightweight (23MB). Good general purpose.'
+  - model_id: all-MiniLM-L12-v2
+    display_name: MiniLM L12 v2
+    huggingface_repo: sentence-transformers/all-MiniLM-L12-v2
+    dimensions: 384
+    max_seq_length: 256
+    description: 'Higher quality than L6, slightly slower (33MB).'
+  - model_id: bge-small-en-v1.5
+    display_name: BGE Small EN v1.5
+    huggingface_repo: BAAI/bge-small-en-v1.5
+    dimensions: 384
+    max_seq_length: 512
+    description: 'Best retrieval quality (33MB). Longer context.'
+    query_prefix: 'Represent this sentence for searching relevant passages: '
+
+  # Example: custom model from HuggingFace
+  # - model_id: my-custom-model
+  #   display_name: My Custom Model
+  #   huggingface_repo: username/my-onnx-model
+  #   dimensions: 768
+  #   max_seq_length: 512
+  #   description: 'My fine-tuned model'
+
+  # Example: model from a local directory (no network download)
+  # - model_id: my-local-model
+  #   display_name: My Local Model
+  #   huggingface_repo: username/model-name  # still needed for metadata
+  #   dimensions: 384
+  #   max_seq_length: 256
+  #   local_path: /path/to/model/directory  # must contain onnx/model.onnx, tokenizer.json, etc.
 
 # LLM provider configuration
 # Model names use LiteLLM format: provider/model

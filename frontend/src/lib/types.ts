@@ -144,6 +144,7 @@ export interface EmbeddingModel {
   max_seq_length: number
   description: string
   installed: boolean
+  local_path: string
 }
 
 export interface TestPromptResult {

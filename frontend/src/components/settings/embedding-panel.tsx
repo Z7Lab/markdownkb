@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Download, Loader2, RefreshCw, Square } from "lucide-react"
+import { Download, FolderOpen, Loader2, RefreshCw, Square } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -69,6 +69,11 @@ export function EmbeddingPanel({
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     {m.description} {m.dimensions}d, max {m.max_seq_length} tokens.
+                    {m.local_path && (
+                      <span className="inline-flex items-center gap-1 ml-1 text-muted-foreground" title={m.local_path}>
+                        <FolderOpen className="h-3 w-3" /> Local
+                      </span>
+                    )}
                   </p>
                 </div>
                 <div className="flex gap-2 shrink-0">
@@ -81,11 +86,17 @@ export function EmbeddingPanel({
                     >
                       {installing === m.model_id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : m.local_path ? (
+                        <FolderOpen className="h-4 w-4" />
                       ) : (
                         <Download className="h-4 w-4" />
                       )}
                       <span className="ml-1">
-                        {installing === m.model_id ? "Installing" : "Install"}
+                        {installing === m.model_id
+                          ? "Installing"
+                          : m.local_path
+                            ? "Copy"
+                            : "Download"}
                       </span>
                     </Button>
                   )}

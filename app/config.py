@@ -152,6 +152,40 @@ class Settings:
         """Set the embedding model name."""
         self._data.setdefault("embeddings", {})["model"] = value
 
+    # Fallback model definitions used when settings.yaml has no models list
+    _DEFAULT_MODELS = [
+        {
+            "model_id": "all-MiniLM-L6-v2",
+            "display_name": "MiniLM L6 v2",
+            "huggingface_repo": "sentence-transformers/all-MiniLM-L6-v2",
+            "dimensions": 384,
+            "max_seq_length": 256,
+            "description": "Fast, lightweight (23MB). Good general purpose.",
+        },
+        {
+            "model_id": "all-MiniLM-L12-v2",
+            "display_name": "MiniLM L12 v2",
+            "huggingface_repo": "sentence-transformers/all-MiniLM-L12-v2",
+            "dimensions": 384,
+            "max_seq_length": 256,
+            "description": "Higher quality than L6, slightly slower (33MB).",
+        },
+        {
+            "model_id": "bge-small-en-v1.5",
+            "display_name": "BGE Small EN v1.5",
+            "huggingface_repo": "BAAI/bge-small-en-v1.5",
+            "dimensions": 384,
+            "max_seq_length": 512,
+            "description": "Best retrieval quality (33MB). Longer context.",
+            "query_prefix": "Represent this sentence for searching relevant passages: ",
+        },
+    ]
+
+    @property
+    def model_configs(self) -> list[dict]:
+        """Return embedding model definitions from config, with built-in fallback."""
+        return self._data.get("embeddings", {}).get("models", self._DEFAULT_MODELS)
+
     @property
     def chunk_size(self) -> int:
         """Return the maximum chunk size in characters."""

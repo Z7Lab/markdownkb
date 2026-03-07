@@ -324,11 +324,43 @@ function useSettingsInternal() {
   const installEmbeddingModel = useCallback(
     async (modelId: string) => {
       setEmbeddingStatus(`Installing ${modelId}...`)
+      setEmbeddingSwitching(true)
       try {
-        await api.post("/api/settings/embedding-models/install", { model_id: modelId })
-        setEmbeddingStatus(`Installed ${modelId}`)
-        await loadEmbeddingModels()
+        const res = await api.post<{ status: string }>(
+          "/api/settings/embedding-models/install",
+          { model_id: modelId },
+        )
+        if (res.status === "already_installed") {
+          setEmbeddingStatus(`${modelId} already installed`)
+          setEmbeddingSwitching(false)
+          await loadEmbeddingModels()
+          return
+        }
+        // Poll for background install progress
+        switchPollRef.current = setInterval(async () => {
+          try {
+            const st = await api.get<{
+              running: boolean; progress: number; message: string; result: string
+            }>("/api/settings/embedding-models/status")
+            if (st.running) {
+              const pct = Math.round(st.progress * 100)
+              setEmbeddingStatus(`[${pct}%] ${st.message}`)
+            } else {
+              if (switchPollRef.current) clearInterval(switchPollRef.current)
+              switchPollRef.current = null
+              setEmbeddingSwitching(false)
+              setEmbeddingStatus(st.result || `Installed ${modelId}`)
+              await loadEmbeddingModels()
+            }
+          } catch {
+            if (switchPollRef.current) clearInterval(switchPollRef.current)
+            switchPollRef.current = null
+            setEmbeddingSwitching(false)
+            setEmbeddingStatus("Lost connection during install")
+          }
+        }, 1000)
       } catch (e) {
+        setEmbeddingSwitching(false)
         setEmbeddingStatus(`Error: ${e}`)
       }
     },

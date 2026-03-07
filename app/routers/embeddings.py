@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from app.config import Settings
 from app.deps import get_cancel_event, get_settings, get_store, get_tracking
 from app.embeddings.downloader import (
+    install_from_local,
     install_model,
     is_installed,
     list_models_with_status,
@@ -82,20 +83,49 @@ def embedding_switch_status(request: Request):
         return dict(_switch_status)
 
 
+def _bg_install(model_id: str):
+    """Install embedding model in background thread, updating _switch_status."""
+    def on_progress(frac: float, msg: str):
+        with _switch_lock:
+            _switch_status["progress"] = frac
+            _switch_status["message"] = msg
+
+    try:
+        info = MODELS[model_id]
+        if info.local_path:
+            install_from_local(model_id, info.local_path, progress=on_progress)
+        else:
+            install_model(model_id, progress=on_progress)
+        with _switch_lock:
+            _switch_status["result"] = f"Installed {model_id}"
+    except (OSError, RuntimeError, ValueError) as e:
+        logger.error("Failed to install embedding model %s: %s", model_id, e)
+        with _switch_lock:
+            _switch_status["result"] = f"Error: {e}"
+    finally:
+        with _switch_lock:
+            _switch_status["running"] = False
+
+
 @router.post("/settings/embedding-models/install")
 @limiter.limit(INDEXING)
 def install_embedding_model_endpoint(request: Request, req: EmbeddingModelRequest):
-    """Download an embedding model to local cache."""
+    """Download an embedding model in the background."""
     if req.model_id not in MODELS:
         raise HTTPException(400, f"Unknown model: {req.model_id}")
     if is_installed(req.model_id):
         return {"status": "already_installed"}
-    try:
-        install_model(req.model_id)
-        return {"status": "installed"}
-    except (OSError, RuntimeError, ValueError) as e:
-        logger.error("Failed to install embedding model %s: %s", req.model_id, e)
-        raise HTTPException(500, "Failed to install embedding model") from e
+
+    with _switch_lock:
+        if _switch_status["running"]:
+            raise HTTPException(409, "An install or reindex operation is already in progress")
+        _switch_status["running"] = True
+        _switch_status["progress"] = 0.0
+        _switch_status["message"] = f"Starting install of {req.model_id}..."
+        _switch_status["result"] = ""
+
+    threading.Thread(target=_bg_install, args=(req.model_id,), daemon=True).start()
+    return {"status": "installing"}
 
 
 @router.put("/settings/embedding-models/switch")
