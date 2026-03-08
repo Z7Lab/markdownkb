@@ -7,6 +7,7 @@ from fastapi import Request
 from app.config import Settings
 from app.rag.retriever import Retriever
 from app.storage.chatdb import ChatDB
+from app.storage.plandb import PlanDB
 from app.storage.searchdb import SearchDB
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
@@ -34,6 +35,10 @@ def get_chatdb(request: Request) -> ChatDB:
 
 def get_searchdb(request: Request) -> SearchDB:
     return request.app.state.searchdb
+
+
+def get_plandb(request: Request) -> PlanDB:
+    return request.app.state.plandb
 
 
 def get_cancel_event(request: Request) -> threading.Event:

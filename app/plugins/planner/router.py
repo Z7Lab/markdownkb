@@ -1,4 +1,4 @@
-"""Planner endpoints for MCTS plan generation and skill reviews."""
+"""Planner endpoints for MCTS plan generation, skill reviews, and saved plans."""
 
 import logging
 
@@ -6,11 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from app.config import Settings
-from app.deps import get_retriever, get_settings
+from app.deps import get_plandb, get_retriever, get_settings
 from app.rag.retriever import Retriever
 from app.ratelimit import LLM, STANDARD, limiter
 from app.schemas import PlanRequest
 from app.services.planner_service import list_skills, run_planner, stream_planner
+from app.storage.plandb import PlanDB
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,60 @@ def plan_stream(
             yield sse("error", {"message": str(e)})
 
     return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+@router.get("/plans")
+@limiter.limit(STANDARD)
+def list_plans(
+    request: Request,
+    plandb: PlanDB = Depends(get_plandb),
+):
+    """List saved plans, newest first."""
+    return {"plans": plandb.list_plans()}
+
+
+@router.post("/plans")
+@limiter.limit(STANDARD)
+def save_plan(
+    request: Request,
+    req: dict,
+    plandb: PlanDB = Depends(get_plandb),
+):
+    """Save a plan to the database."""
+    title = req.get("title", "Untitled Plan")
+    content = req.get("content", "")
+    query = req.get("query", "")
+    if not content:
+        raise HTTPException(status_code=400, detail="Content is required")
+    plan_id = plandb.save(title, content, query)
+    return {"id": plan_id, "status": "saved"}
+
+
+@router.get("/plans/{plan_id}")
+@limiter.limit(STANDARD)
+def get_plan(
+    request: Request,
+    plan_id: str,
+    plandb: PlanDB = Depends(get_plandb),
+):
+    """Read a saved plan."""
+    result = plandb.get(plan_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    return result
+
+
+@router.delete("/plans/{plan_id}")
+@limiter.limit(STANDARD)
+def delete_plan(
+    request: Request,
+    plan_id: str,
+    plandb: PlanDB = Depends(get_plandb),
+):
+    """Delete a saved plan."""
+    if not plandb.delete(plan_id):
+        raise HTTPException(status_code=404, detail="Plan not found")
+    return {"status": "deleted"}
 
 
 @router.get("/skills")

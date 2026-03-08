@@ -94,7 +94,7 @@ def stream_planner(
         planner._iterate(root, request)
 
     # Phase 5: Extract best plan
-    yield sse("status", {"phase": "plan", "message": "Extracting best plan..."})
+    yield sse("status", {"phase": "plan", "message": "Synthesizing implementation plan..."})
     best_plan = root.flatten_plan()
     best_path = root.get_best_path()
 

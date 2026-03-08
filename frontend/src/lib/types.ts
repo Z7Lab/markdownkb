@@ -200,6 +200,13 @@ export interface SkillInfo {
   source: string
 }
 
+export interface SavedPlan {
+  id: string
+  title: string
+  query: string
+  created_at: string
+}
+
 export interface ModelEntry {
   id: string
   label: string

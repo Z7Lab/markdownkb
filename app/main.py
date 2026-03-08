@@ -20,6 +20,7 @@ from app.ingestion.indexer import run_index
 from app.ingestion.watcher import FileWatcher
 from app.rag.retriever import Retriever
 from app.storage.chatdb import ChatDB
+from app.storage.plandb import PlanDB
 from app.storage.searchdb import SearchDB
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
@@ -45,6 +46,7 @@ async def lifespan(app: FastAPI):
     tracking = TrackingDB(settings.data_directory)
     chatdb = ChatDB(settings.data_directory)
     searchdb = SearchDB(settings.data_directory)
+    plandb = PlanDB(settings.data_directory)
 
     # Load embedding model registry from config
     load_models(settings.model_configs)
@@ -79,6 +81,7 @@ async def lifespan(app: FastAPI):
     app.state.tracking = tracking
     app.state.chatdb = chatdb
     app.state.searchdb = searchdb
+    app.state.plandb = plandb
     app.state.cancel_event = cancel_event
 
     # Restore persisted log level
@@ -109,6 +112,7 @@ async def lifespan(app: FastAPI):
     tracking.close()
     chatdb.close()
     searchdb.close()
+    plandb.close()
     logger.info("Shutdown complete")
 
 
