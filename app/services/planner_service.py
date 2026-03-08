@@ -73,10 +73,12 @@ def stream_planner(
         )
 
     # Phase 3: Generate approaches
-    yield sse("status", {"phase": "expand", "message": "Generating approaches..."})
+    yield sse("status", {"phase": "expand", "message": f"Generating {n_approaches} approaches (waiting for LLM)..."})
     from app.planner.nodes import PlanNode
     root = PlanNode(content=request, node_type="root")
     planner._expand(root, request, n_approaches)
+
+    yield sse("status", {"phase": "expand", "message": f"Scoring {len(root.children)} approaches..."})
 
     # Emit each approach
     for child in root.children:
@@ -89,7 +91,7 @@ def stream_planner(
     for i in range(iterations):
         yield sse("status", {
             "phase": "iterate",
-            "message": f"Refining approaches ({i + 1}/{iterations})...",
+            "message": f"Deepening analysis ({i + 1}/{iterations}) — expanding best approach...",
         })
         planner._iterate(root, request)
 

@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Markdown } from "@/components/ui/markdown"
 import { Loader2, Lightbulb, Square, Save, Download, ChevronDown, ChevronRight, ShieldCheck } from "lucide-react"
-import { useState, type KeyboardEvent } from "react"
+import { useEffect, useRef, useState, type KeyboardEvent } from "react"
 
 const ASCII_BANNER = `
 ███╗   ███╗██████╗ ██╗  ██╗██████╗     ██████╗ ██╗      █████╗ ███╗   ██╗
@@ -30,6 +30,21 @@ export function PlannerTab() {
   const [inputQuery, setInputQuery] = useState("")
   const [viewingPath, setViewingPath] = useState<string | null>(null)
   const [expandedReviews, setExpandedReviews] = useState<Set<number>>(new Set())
+  const [elapsed, setElapsed] = useState(0)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    if (isPlanning) {
+      setElapsed(0)
+      timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000)
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current)
+      timerRef.current = null
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [isPlanning])
 
   function handleKeyDown(e: KeyboardEvent) {
     if (e.key === "Enter") handleGenerate()
@@ -142,6 +157,9 @@ export function PlannerTab() {
                 <div className="flex items-center gap-3 py-4 justify-center">
                   <Loader2 className="h-5 w-5 animate-spin text-primary" />
                   <p className="text-sm text-muted-foreground">{statusMessage}</p>
+                  <span className="text-xs text-muted-foreground/60 tabular-nums">
+                    {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")}
+                  </span>
                 </div>
               )}
 
