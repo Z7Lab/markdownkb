@@ -11,20 +11,6 @@ logger = logging.getLogger(__name__)
 
 # ── Model Discovery ───────────────────────────────────────
 
-def fetch_ollama_models(api_base: str) -> list[str]:
-    """Fetch available models from an Ollama instance."""
-    try:
-        resp = httpx.get(
-            f"{api_base.rstrip('/')}/api/tags", timeout=10,
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            return [m["name"] for m in data.get("models", [])]
-    except httpx.HTTPError as e:
-        logger.debug("Failed to fetch Ollama models from %s: %s", api_base, e)
-    return []
-
-
 _PROVIDER_PREFIX_MAP = {
     "anthropic": "anthropic",
     "openai": "openai",
@@ -57,12 +43,16 @@ def get_provider_models(provider_name: str) -> list[str]:
     return []
 
 
-def _get_plugin_catalog(provider_name: str) -> list[dict] | None:
+def _get_plugin_catalog(provider_name: str, api_base: str = "") -> list[dict] | None:
     """Check if a plugin catalog provides model entries for this provider."""
     try:
         from app.plugins.catalogs import get_catalog
         mod = get_catalog(provider_name)
         if mod and hasattr(mod, "get_model_entries"):
+            import inspect
+            sig = inspect.signature(mod.get_model_entries)
+            if "api_base" in sig.parameters:
+                return mod.get_model_entries(api_base=api_base)
             return mod.get_model_entries()
     except ImportError:
         pass
@@ -78,18 +68,12 @@ def build_model_list(
     provider_name: str, api_base: str,
 ) -> tuple[list[dict], str]:
     """Fetch and return model list as {id, label} entries with status message."""
-    if "ollama" in provider_name.lower() and api_base:
-        raw = fetch_ollama_models(api_base)
-        if raw:
-            entries = [{"id": f"ollama/{m}", "label": m} for m in raw]
-            return entries, f"Found {len(raw)} model(s)"
-        return [], f"No models found at {api_base}"
-
     # Check plugin catalogs first (returns rich {id, label} entries)
-    catalog = _get_plugin_catalog(provider_name)
+    catalog = _get_plugin_catalog(provider_name, api_base)
     if catalog:
         return catalog, f"Found {len(catalog)} model(s)"
 
+    # Fall back to LiteLLM's built-in registry for other providers
     known = get_provider_models(provider_name)
     if known:
         return _ids_to_entries(known), f"Found {len(known)} known model(s)"
@@ -178,10 +162,40 @@ def ping_model(model: str, api_base: str, api_key: str = "") -> str:
 
 # ── Model Capabilities ────────────────────────────────────
 
-def get_model_capabilities(model: str, api_base: str = "") -> dict:
-    """Fetch model capabilities from LiteLLM and optionally Ollama."""
-    result: dict = {}
+def _get_catalog_model_info(model: str, api_base: str = "") -> dict | None:
+    """Query all plugin catalogs for model info."""
+    try:
+        from app.plugins.catalogs import get_catalog
+        import inspect
+        from pathlib import Path
 
+        catalogs_dir = Path(__file__).resolve().parent.parent / "plugins" / "catalogs"
+        for child in catalogs_dir.iterdir():
+            if not child.is_dir() or child.name.startswith("_"):
+                continue
+            mod = get_catalog(child.name)
+            if mod and hasattr(mod, "get_model_info"):
+                sig = inspect.signature(mod.get_model_info)
+                if "api_base" in sig.parameters:
+                    info = mod.get_model_info(model, api_base=api_base)
+                else:
+                    info = mod.get_model_info(model)
+                if info:
+                    return info
+    except ImportError:
+        pass
+    return None
+
+
+def get_model_capabilities(model: str, api_base: str = "") -> dict:
+    """Fetch model capabilities from plugin catalogs, then LiteLLM as fallback."""
+    # Try plugin catalogs first — they have the richest data
+    catalog_info = _get_catalog_model_info(model, api_base)
+    if catalog_info:
+        return catalog_info
+
+    # Fall back to LiteLLM's built-in model registry
+    result: dict = {}
     try:
         info = litellm.get_model_info(model)
         result = {
@@ -197,53 +211,7 @@ def get_model_capabilities(model: str, api_base: str = "") -> dict:
             "mode": info.get("mode", ""),
         }
     except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
-        # LiteLLM raises bare Exception (not a subclass) for Ollama connection errors.
         logger.debug("Could not fetch model info for %s: %s", model, e)
-
-    # Query the Ollama API directly for model details when api_base is set.
-    # This works for any model served by Ollama, regardless of name prefix.
-    if api_base:
-        try:
-            ollama_name = model.split("/", 1)[-1] if "/" in model else model
-            resp = httpx.post(
-                f"{api_base.rstrip('/')}/api/show",
-                json={"name": ollama_name},
-                timeout=10,
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                details = data.get("details", {})
-                result["ollama_details"] = {
-                    "family": details.get("family"),
-                    "parameter_size": details.get("parameter_size"),
-                    "quantization_level": details.get("quantization_level"),
-                    "format": details.get("format"),
-                }
-                # Pull context length from Ollama's model_info if LiteLLM
-                # didn't provide it (e.g. remote Ollama, no local connection).
-                model_info = data.get("model_info", {})
-                if not result.get("max_input_tokens"):
-                    for key, val in model_info.items():
-                        if key.endswith(".context_length") and isinstance(val, int):
-                            result["max_input_tokens"] = val
-                            break
-        except (httpx.HTTPError, httpx.ConnectError) as e:
-            logger.debug("Failed to fetch Ollama model details for %s: %s", model, e)
-
-    # Fall back to plugin catalogs for model info (e.g. Venice)
-    if not result:
-        try:
-            from app.plugins.catalogs import get_catalog
-            # Try all catalogs — the model ID itself hints at the provider
-            for name in ("venice",):  # extend as catalogs are added
-                mod = get_catalog(name)
-                if mod and hasattr(mod, "get_model_info"):
-                    info = mod.get_model_info(model)
-                    if info:
-                        result = info
-                        break
-        except ImportError:
-            pass
 
     if not result:
         result["error"] = "No model info available"

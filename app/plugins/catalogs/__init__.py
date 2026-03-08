@@ -1,10 +1,14 @@
 """Model catalog plugins.
 
-Each subdirectory provides a static model catalog for a specific LLM
+Each subdirectory provides a dynamic model catalog for a specific LLM
 provider. A valid catalog package exposes:
 
-    get_model_ids() -> list[str]    — model IDs with LiteLLM prefix
-    get_model_info(id) -> dict|None — pricing/context/capability info
+    get_model_entries(api_base?) -> list[dict]  — {id, label} for dropdown
+    get_model_info(id, api_base?) -> dict|None  — pricing/context/capability info
+    get_model_ids(api_base?) -> list[str]       — model IDs with LiteLLM prefix
+
+``api_base`` is optional — catalogs that need it (e.g. Ollama) accept it,
+catalogs with a fixed endpoint (e.g. Venice) ignore it.
 
 Catalogs are queried by ``llm_service.build_model_list`` when the
 provider name matches the catalog directory name.
