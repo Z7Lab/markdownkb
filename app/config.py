@@ -590,6 +590,12 @@ class Settings:
         """Return the built-in default search summary prompt."""
         return self._DEFAULT_SEARCH_SUMMARY_PROMPT
 
+    # --- UI ---
+    @property
+    def file_list_limit(self) -> int:
+        """Return the maximum number of files to return in file listings."""
+        return self._data.get("ui", {}).get("file_list_limit", 5000)
+
     # --- Logging ---
     @property
     def log_level(self) -> str:

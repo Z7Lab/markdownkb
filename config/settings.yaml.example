@@ -127,7 +127,12 @@ features:
   agent_skills: false
   write_api: false
   diagnostics: false
+  knowledge_graph: false
   rate_limiting: false
+
+# UI defaults
+ui:
+  file_list_limit: 5000  # Max files returned in file listings (increase for large knowledge bases)
 
 # MCP Tool Configuration
 # Each MCP tool has a default config in app/mcp/<tool>/config.yaml.

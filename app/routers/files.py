@@ -43,7 +43,7 @@ def get_file_status(
 def list_files(
     request: Request,
     offset: int = Query(0, ge=0),
-    limit: int = Query(500, ge=1, le=1000),
+    limit: int | None = Query(None, ge=1, le=100000),
     settings: Settings = Depends(get_settings),
     tracking: TrackingDB = Depends(get_tracking),
     store: VectorStore = Depends(get_store),
@@ -90,8 +90,9 @@ def list_files(
 
     merged.sort(key=lambda f: f["path"])
     total = len(merged)
-    items = merged[offset:offset + limit]
-    return {"items": items, "total": total, "offset": offset, "limit": limit}
+    effective_limit = limit if limit is not None else settings.file_list_limit
+    items = merged[offset:offset + effective_limit]
+    return {"items": items, "total": total, "offset": offset, "limit": effective_limit}
 
 
 @router.get("/file")

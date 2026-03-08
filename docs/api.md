@@ -189,6 +189,17 @@ Requires the `mcts_planner` feature flag. Plugin: `app/plugins/planner/`.
 | DELETE | `/api/planner/plans/{id}` | Delete a saved plan |
 | GET | `/api/planner/skills` | List available agent skills |
 
+## Knowledge Graph
+
+Requires the `knowledge_graph` feature flag. Plugin: `app/plugins/graph/`.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/graph/data` | Compute similarity graph (nodes, edges, clusters, word clouds) |
+| GET | `/api/graph/stats` | Graph statistics (doc count, chunk count, edge count) |
+
+Accepts optional `scope_id` query parameter to restrict to a scope's folders.
+
 ## Tags
 
 Requires the `mcp_tag_generator` feature flag. Plugin: `app/plugins/tags/`.

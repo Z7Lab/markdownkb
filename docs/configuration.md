@@ -118,7 +118,14 @@ Feature flags toggle optional modules. All security-sensitive features default t
 | `features.agent_skills` | `false` | Agent skill system |
 | `features.write_api` | `false` | HTTP endpoint for creating/updating markdown files |
 | `features.diagnostics` | `false` | Diagnostic endpoints |
+| `features.knowledge_graph` | `false` | 3D document similarity graph visualization |
 | `features.rate_limiting` | `false` | API rate limiting (slowapi) |
+
+## UI
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `ui.file_list_limit` | `5000` | Maximum files returned in file listings |
 
 ## MCP Tool Configuration
 

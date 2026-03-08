@@ -26,7 +26,7 @@ Output goes to `frontend/dist/`, which FastAPI serves as static files in product
 
 ```
 src/
-├── App.tsx              # Tab layout (Chat, Search, Browse, Settings)
+├── App.tsx              # Tab layout (Chat, Search, Planner, Graph, Browse, Settings)
 ├── lib/
 │   ├── api.ts           # Fetch wrapper with retry + error handling
 │   ├── sse.ts           # POST-based SSE streaming client
@@ -39,6 +39,9 @@ src/
 │   ├── use-search.ts    # Search state + history
 │   ├── use-files.ts     # File listing + actions
 │   ├── use-settings.ts  # Settings state
+│   ├── use-graph.ts     # Knowledge graph data + state
+│   ├── use-scopes.ts    # Scope filtering
+│   ├── use-index-events.ts     # SSE index event listener
 │   ├── use-llm-status.ts       # LLM online/offline polling
 │   ├── use-table-sort.ts       # Generic table sorting
 │   ├── use-navigation.ts       # Tab navigation hook (wraps NavigationContext)
@@ -46,6 +49,7 @@ src/
 └── components/
     ├── chat/            # Chat tab components
     ├── search/          # Search tab components
+    ├── graph/           # 3D knowledge graph (react-force-graph-3d)
     ├── browse/          # Browse tab components
     ├── settings/        # Settings tab components
     └── ui/              # Shadcn/ui primitives
@@ -58,3 +62,4 @@ src/
 - **TypeScript** — type safety
 - **Shadcn/ui** — component library (Radix + Tailwind)
 - **Tailwind CSS v4** — utility-first styling
+- **react-force-graph-3d** — 3D force-directed graph (WebGL/Three.js)

@@ -7,7 +7,7 @@ mdkb is a search-first documentation tool with a Python backend and React fronte
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  React SPA (Vite + TypeScript + Shadcn/ui)              │
-│  Tabs: Chat │ Search │ Planner │ Browse │ Settings       │
+│  Tabs: Chat │ Search │ Planner │ Graph │ Browse │ Settings │
 └────────────────────────┬────────────────────────────────┘
                          │ HTTP/SSE (/api/*)
 ┌────────────────────────▼────────────────────────────────┐
@@ -40,7 +40,8 @@ mdkb is a search-first documentation tool with a Python backend and React fronte
 │  │  scanner          │  │  MCP tools (filesystem,    │   │
 │  │  parser           │  │    terminal, tag generator) │   │
 │  │  watcher          │  │  MCTS planner              │   │
-│  │  indexer           │  │  Agent skills              │   │
+│  │  indexer           │  │  Knowledge graph            │   │
+│  │                    │  │  Agent skills              │   │
 │  └──────────────────┘  └────────────────────────────┘   │
 │                                                         │
 │  ┌──────────────────┐  ┌────────────────────────────┐   │
@@ -128,7 +129,7 @@ Optional routers live under `app/plugins/`. Each plugin is a directory with an `
 
 At startup, `app/plugins/__init__.py` scans the directory, imports each plugin, checks its feature flag, and registers the router if enabled. Adding a new plugin requires no changes to core files — just create a new folder in `app/plugins/`.
 
-Current plugins: `planner` (MCTS plan generation), `tags` (AI tag generation), `write_api` (document creation via HTTP).
+Current plugins: `planner` (MCTS plan generation), `tags` (AI tag generation), `write_api` (document creation via HTTP), `graph` (knowledge graph visualization).
 
 ### Model Catalogs
 
@@ -148,7 +149,7 @@ Optional modules are controlled by feature flags in `config/settings.yaml` under
 
 The React SPA (`frontend/`) communicates with the backend exclusively through the `/api/*` endpoints. Key patterns:
 
-- **Hooks** (`frontend/src/hooks/`) encapsulate all API interaction and state management — one hook per domain (chat, search, files, settings, scopes, planner).
+- **Hooks** (`frontend/src/hooks/`) encapsulate all API interaction and state management — one hook per domain (chat, search, files, settings, scopes, planner, graph).
 - **SSE streaming** uses POST-based fetch with `ReadableStream`, not `EventSource` (which only supports GET).
 - **Retry logic** in `api.ts` handles server restarts with exponential backoff. Hooks retry on initial load failure.
 - **State persistence** — some UI state (tab selection, panel sizes) is persisted to `localStorage` via `use-persisted-state`.
