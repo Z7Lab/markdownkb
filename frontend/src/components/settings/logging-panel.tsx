@@ -60,10 +60,23 @@ export function LoggingPanel({ logLevel, onSetLogLevel }: LoggingPanelProps) {
     }
   }
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     const text = entries.map((e) => e.message).join("\n")
-    navigator.clipboard.writeText(text)
-    toast.success("Logs copied to clipboard")
+    try {
+      await navigator.clipboard.writeText(text)
+      toast.success("Logs copied to clipboard")
+    } catch {
+      // Fallback for non-secure contexts (e.g. accessing via LAN IP)
+      const textarea = document.createElement("textarea")
+      textarea.value = text
+      textarea.style.position = "fixed"
+      textarea.style.opacity = "0"
+      document.body.appendChild(textarea)
+      textarea.select()
+      document.execCommand("copy")
+      document.body.removeChild(textarea)
+      toast.success("Logs copied to clipboard")
+    }
   }
 
   const isVerbose = logLevel === "DEBUG"

@@ -80,12 +80,24 @@ def get_completion(
             kwargs["num_ctx"] = settings.llm_num_ctx
 
         try:
+            logger.info(
+                "LLM request: provider=%s model=%s tokens=%d temp=%.2f",
+                provider.get("name"), model, settings.llm_max_tokens, settings.llm_temperature,
+            )
             response = litellm.completion(**kwargs)
 
             if stream:
                 return _stream_response(response)
 
             content = response.choices[0].message.content
+            usage = getattr(response, "usage", None)
+            if usage:
+                logger.info(
+                    "LLM response: model=%s prompt_tokens=%s completion_tokens=%s",
+                    model, usage.prompt_tokens, usage.completion_tokens,
+                )
+            else:
+                logger.info("LLM response: model=%s (no usage data)", model)
             if content is None:
                 logger.warning("LLM returned None content for model %s", model)
                 return ""
