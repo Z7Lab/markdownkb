@@ -1,9 +1,11 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { Trash2 } from "lucide-react"
+import { useIndexEvents } from "@/hooks/use-index-events"
+import { api } from "@/lib/api"
+import { CheckCircle2, AlertCircle, Loader2, Trash2, FileText } from "lucide-react"
 import { toast } from "sonner"
 
 export function SourcesPanel({
@@ -24,6 +26,22 @@ export function SourcesPanel({
   const [newSource, setNewSource] = useState("")
   const [newPattern, setNewPattern] = useState("")
   const [pendingRemove, setPendingRemove] = useState<string | null>(null)
+  const [stats, setStats] = useState<{
+    files_tracked: number
+    files_complete: number
+    files_error: number
+    chunks_indexed: number
+  } | null>(null)
+  const { isIndexing, lastIndexedAt } = useIndexEvents()
+
+  useEffect(() => {
+    api.get<{
+      files_tracked: number
+      files_complete: number
+      files_error: number
+      chunks_indexed: number
+    }>("/api/stats").then(setStats).catch(() => {})
+  }, [lastIndexedAt])
 
   async function handleAdd() {
     if (!newSource.trim()) return
@@ -41,6 +59,42 @@ export function SourcesPanel({
 
   return (
     <div className="space-y-4">
+      {stats && (
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-6 text-sm">
+              <div className="flex items-center gap-1.5">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">{stats.files_tracked}</span>
+                <span className="text-muted-foreground">files</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="h-4 w-4 text-success" />
+                <span className="font-medium">{stats.files_complete}</span>
+                <span className="text-muted-foreground">indexed</span>
+              </div>
+              {stats.files_error > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <AlertCircle className="h-4 w-4 text-error" />
+                  <span className="font-medium text-error">{stats.files_error}</span>
+                  <span className="text-muted-foreground">errors</span>
+                </div>
+              )}
+              <div className="flex items-center gap-1.5">
+                <span className="font-medium">{stats.chunks_indexed}</span>
+                <span className="text-muted-foreground">chunks</span>
+              </div>
+              {isIndexing && (
+                <div className="flex items-center gap-1.5 text-primary">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span className="text-xs">Indexing...</span>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Watch Directories</CardTitle>

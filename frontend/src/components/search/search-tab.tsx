@@ -1,4 +1,5 @@
 import { useSearch } from "@/hooks/use-search"
+import { useIndexEvents } from "@/hooks/use-index-events"
 import { SearchSidebar } from "./search-sidebar"
 import { ResultsChangedDialog } from "./results-changed-dialog"
 import { SearchHistoryDialog } from "./search-history-dialog"
@@ -49,6 +50,7 @@ export function SearchTab() {
     fetchVersions,
   } = useSearch()
 
+  const { lastIndexedAt } = useIndexEvents()
   const [viewingPath, setViewingPath] = useState<string | null>(null)
   const [resultsChangedDialogOpen, setResultsChangedDialogOpen] = useState(false)
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false)
@@ -123,6 +125,21 @@ export function SearchTab() {
                   <Badge variant={isHistorical ? "secondary" : "default"} className="text-xs">
                     {isHistorical ? "Historical" : "Live"}
                   </Badge>
+
+                  {/* Staleness indicator */}
+                  {createdAt && lastIndexedAt && lastIndexedAt > new Date(createdAt).getTime() / 1000 && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="outline" className="text-xs text-warning border-warning/50 cursor-help">
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          Sources updated
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Documents were re-indexed after this search. Re-query for fresh results.
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
 
                   {/* Folder/Tag filters */}
                   {(folder || tag) && (

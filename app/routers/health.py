@@ -1,12 +1,17 @@
 """Health and stats endpoints."""
 
+import queue
+
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import StreamingResponse
 
 from app.config import Settings
 from app.deps import get_settings, get_store, get_tracking
+from app.events import event_bus
 from app.ratelimit import STANDARD, limiter
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
+from app.utils import sse
 
 router = APIRouter(prefix="/api", tags=["health"])
 
@@ -48,3 +53,27 @@ def stats(
         "embedding_model": settings.embedding_model,
         "active_provider": settings.active_provider,
     }
+
+
+@router.get("/index/events")
+def index_events(request: Request):
+    """SSE stream of real-time index events (file indexed/deleted/error)."""
+    sub = event_bus.subscribe()
+
+    def generate():
+        try:
+            # Send initial heartbeat so the client knows it's connected
+            yield sse("connected", {"status": "ok"})
+            while True:
+                try:
+                    event = sub.get(timeout=30)
+                    if event is None:
+                        break
+                    yield sse("index", event.to_dict())
+                except queue.Empty:
+                    # Send keepalive comment to prevent timeout
+                    yield ": keepalive\n\n"
+        finally:
+            event_bus.unsubscribe(sub)
+
+    return StreamingResponse(generate(), media_type="text/event-stream")

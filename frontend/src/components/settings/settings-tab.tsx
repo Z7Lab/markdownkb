@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useSettings } from "@/hooks/use-settings"
+import { useIndexEvents } from "@/hooks/use-index-events"
 import { AppSidebar } from "@/components/ui/app-sidebar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
@@ -66,6 +67,8 @@ export function SettingsTab() {
     setLogLevel,
   } = useSettings()
 
+  const { errorCount, clearErrors } = useIndexEvents()
+
   if (!settings) {
     return <div className="p-4 text-muted-foreground">Loading settings...</div>
   }
@@ -84,10 +87,18 @@ export function SettingsTab() {
                 "w-full text-left rounded-md px-3 py-2 text-sm flex items-center gap-2 hover:bg-accent",
                 activeSection === s.id && "bg-accent font-medium",
               )}
-              onClick={() => setActiveSection(s.id)}
+              onClick={() => {
+                setActiveSection(s.id)
+                if (s.id === "sources" && errorCount > 0) clearErrors()
+              }}
             >
               <s.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <span className="truncate">{s.label}</span>
+              <span className="truncate flex-1">{s.label}</span>
+              {s.id === "sources" && errorCount > 0 && (
+                <span className="inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-error text-error-foreground text-xs font-medium tabular-nums">
+                  {errorCount}
+                </span>
+              )}
             </button>
           ))}
         </div>

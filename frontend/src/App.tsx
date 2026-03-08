@@ -4,7 +4,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { ChatTab } from "@/components/chat/chat-tab"
 import { ErrorBoundary } from "@/components/error-boundary"
+import { IndexActivityIndicator } from "@/components/index-activity-indicator"
 import { LLMStatusIndicator } from "@/components/llm-status-indicator"
+import { IndexEventProvider } from "@/hooks/use-index-events"
 import { SettingsProvider } from "@/hooks/use-settings"
 import { NavigationProvider } from "@/lib/navigation"
 import { MessageSquare, Globe, FolderOpen, Lightbulb } from "lucide-react"
@@ -49,6 +51,7 @@ function App() {
   return (
     <TooltipProvider delayDuration={300}>
       <SettingsProvider>
+        <IndexEventProvider>
         <NavigationProvider value={{ setActiveTab: handleTabChange }}>
           <div className="h-screen flex flex-col overflow-hidden">
             <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
@@ -60,6 +63,7 @@ function App() {
                 </p>
               </div>
               <div className="flex items-center gap-4">
+                <IndexActivityIndicator />
                 <LLMStatusIndicator />
                 <TabsList>
                 <TabsTrigger value="chat">
@@ -120,6 +124,7 @@ function App() {
             </Tabs>
           </div>
         </NavigationProvider>
+        </IndexEventProvider>
       </SettingsProvider>
     </TooltipProvider>
   )

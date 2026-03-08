@@ -10,12 +10,17 @@ from watchdog.observers import Observer
 
 from app.config import Settings
 from app.embeddings.embedder import embed_texts
+from app.events import IndexEvent, event_bus
 from app.ingestion.parser import parse_and_chunk
 from app.ingestion.scanner import compute_file_hash
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 
 logger = logging.getLogger(__name__)
+
+
+def _filename(path: str) -> str:
+    return Path(path).name
 
 
 def reindex_file(
@@ -32,6 +37,9 @@ def reindex_file(
         logger.info("File deleted, removing from index: %s", filepath)
         store.delete_by_source(filepath)
         tracking.remove_file(filepath)
+        event_bus.publish(IndexEvent(
+            type="deleted", path=filepath, filename=_filename(filepath),
+        ))
         return
 
     if filepath in tracking.get_rag_excluded_paths():
@@ -46,6 +54,9 @@ def reindex_file(
 
     logger.info("Re-indexing: %s", filepath)
     tracking.mark_indexing(filepath)
+    event_bus.publish(IndexEvent(
+        type="indexing", path=filepath, filename=_filename(filepath),
+    ))
 
     # Remove old chunks
     store.delete_by_source(filepath)
@@ -86,10 +97,18 @@ def reindex_file(
             status="complete", chunk_count=len(chunks),
         )
         logger.info("Re-indexed %s: %d chunks", filepath, len(chunks))
+        event_bus.publish(IndexEvent(
+            type="indexed", path=filepath,
+            filename=_filename(filepath), chunks=len(chunks),
+        ))
 
     except (OSError, ValueError, RuntimeError) as exc:
         tracking.mark_error(filepath, str(exc))
         logger.error("Failed to re-index %s: %s", filepath, exc)
+        event_bus.publish(IndexEvent(
+            type="error", path=filepath,
+            filename=_filename(filepath), error=str(exc),
+        ))
 
 
 class MarkdownHandler(FileSystemEventHandler):
@@ -199,6 +218,10 @@ class MarkdownHandler(FileSystemEventHandler):
             logger.info("File deleted: %s", resolved)
             self._store.delete_by_source(resolved)
             self._tracking.remove_file(resolved)
+            event_bus.publish(IndexEvent(
+                type="deleted", path=resolved,
+                filename=_filename(resolved),
+            ))
 
 
 class FileWatcher:
