@@ -117,7 +117,7 @@ def test_api_provider(model: str, api_base: str, api_key: str = "") -> str:
     kwargs = {
         "model": model,
         "messages": [{"role": "user", "content": "Say OK"}],
-        "max_tokens": 5,
+        "max_tokens": 16,
         "temperature": 0,
     }
     if api_base:
@@ -127,11 +127,10 @@ def test_api_provider(model: str, api_base: str, api_key: str = "") -> str:
 
     try:
         response = litellm.completion(**kwargs)
-        reply = response.choices[0].message.content
-        if reply is None:
-            logger.debug("LLM returned None content for model %s", model)
-            reply = ""
-        return f"Connected. Response: {reply.strip()}"
+        reply = (response.choices[0].message.content or "").strip()
+        if reply:
+            return f"Connected. Response: {reply}"
+        return "Connected (model returned empty response)"
     except (
         litellm.APIError, litellm.APIConnectionError,
         litellm.Timeout, litellm.AuthenticationError,
