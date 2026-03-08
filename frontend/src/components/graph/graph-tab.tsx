@@ -40,6 +40,7 @@ export function GraphTab() {
   const { lastIndexedAt } = useIndexEvents()
   const [viewingPath, setViewingPath] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const fgRef = useRef<any>(null)
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 })
   const [webglSupported] = useState(() => detectWebGL())
 
@@ -108,6 +109,23 @@ export function GraphTab() {
         })),
     }
   }, [graphData, threshold])
+
+  // Configure d3 forces for spread
+  useEffect(() => {
+    const fg = fgRef.current
+    if (!fg) return
+    fg.d3Force("charge")?.strength(-1500).distanceMax(2000)
+    fg.d3Force("link")
+      ?.distance((link: any) => {
+        const w = typeof link.weight === "number" ? link.weight : 0.5
+        return 200 + (1 - w) * 800
+      })
+      .strength((link: any) => {
+        const w = typeof link.weight === "number" ? link.weight : 0.5
+        return w * 0.15
+      })
+    fg.d3Force("center")?.strength(0.02)
+  }, [forceGraphData])
 
   // Active word cloud based on selection state
   const { activeWordCloud, wordCloudLabel } = useMemo(() => {
@@ -215,6 +233,8 @@ export function GraphTab() {
         onScopeChange={handleScopeChange}
         threshold={threshold}
         onThresholdChange={setThreshold}
+        spread={100}
+        onSpreadChange={() => {}}
         searchTerm={searchTerm}
         onSearchChange={(term) => { setSearchTerm(term); selectNode(null) }}
         onRefresh={() => fetchGraph(selectedScopeId)}
@@ -289,6 +309,7 @@ export function GraphTab() {
         {/* 3D Force Graph */}
         {webglSupported && graphData && graphData.nodes.length > 0 && (
           <ForceGraph3D
+            ref={fgRef}
             graphData={forceGraphData}
             width={dimensions.width}
             height={dimensions.height}
@@ -302,12 +323,15 @@ export function GraphTab() {
             linkColor={linkColor as any}
             linkWidth={linkWidth as any}
             linkOpacity={0.6}
+            linkDirectionalParticles={0}
             onNodeClick={handleNodeClick as any}
             onBackgroundClick={handleBackgroundClick}
             showNavInfo={false}
             enableNodeDrag={true}
-            cooldownTicks={100}
-            warmupTicks={50}
+            d3AlphaDecay={0.02}
+            d3VelocityDecay={0.3}
+            cooldownTicks={200}
+            warmupTicks={100}
           />
         )}
       </div>

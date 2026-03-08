@@ -7,7 +7,7 @@ export function useGraph() {
   const [graphData, setGraphData] = useState<GraphData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [fetchedAt, setFetchedAt] = useState<number | null>(null)
-  const [threshold, setThreshold] = useState(0.3)
+  const [threshold, setThreshold] = useState(0.65)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
 

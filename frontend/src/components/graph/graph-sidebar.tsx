@@ -13,6 +13,8 @@ export function GraphSidebar({
   onScopeChange,
   threshold,
   onThresholdChange,
+  spread,
+  onSpreadChange,
   searchTerm,
   onSearchChange,
   onRefresh,
@@ -26,6 +28,8 @@ export function GraphSidebar({
   onScopeChange: (id: string | null) => void
   threshold: number
   onThresholdChange: (v: number) => void
+  spread: number
+  onSpreadChange: (v: number) => void
   searchTerm: string
   onSearchChange: (term: string) => void
   onRefresh: () => void
@@ -56,6 +60,22 @@ export function GraphSidebar({
               min={0}
               max={1}
               step={0.05}
+              className="w-full"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-muted-foreground">
+                Spread: {spread.toFixed(0)}%
+              </label>
+            </div>
+            <Slider
+              value={[spread]}
+              onValueChange={([v]) => onSpreadChange(v)}
+              min={10}
+              max={200}
+              step={5}
               className="w-full"
             />
           </div>
