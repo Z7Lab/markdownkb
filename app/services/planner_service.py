@@ -25,9 +25,11 @@ def run_planner(
     iterations: int = 3,
     n_approaches: int = 3,
     skill_names: list[str] | None = None,
+    folders_filter: list[str] | None = None,
 ) -> dict[str, Any]:
     """Run the MCTS planner and optionally refine with skill reviews."""
     planner = MCTSPlanner(retriever, settings)
+    planner._folders_filter = folders_filter
     result = planner.plan(request, iterations, n_approaches)
 
     if skill_names and settings.feature_enabled("agent_skills"):
@@ -50,6 +52,7 @@ def stream_planner(
     iterations: int = 3,
     n_approaches: int = 3,
     skill_names: list[str] | None = None,
+    folders_filter: list[str] | None = None,
 ) -> Generator[str, None, None]:
     """Stream planner progress as SSE events.
 
@@ -57,6 +60,7 @@ def stream_planner(
     phase-level progress. This is intentional coupling documented here.
     """
     planner = MCTSPlanner(retriever, settings)
+    planner._folders_filter = folders_filter
     planner._exploration_log = []
     planner._user_patterns = extract_user_patterns(retriever)
 

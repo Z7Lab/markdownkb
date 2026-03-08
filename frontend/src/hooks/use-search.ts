@@ -4,7 +4,7 @@ import { streamSearchSummary } from "@/lib/sse"
 import { toast } from "sonner"
 import type { PaginatedResponse, SavedSearch, SearchResult, SearchResponse, CompareResponse, SearchVersion, ScoreChange } from "@/lib/types"
 
-export function useSearch() {
+export function useSearch(scopeId?: string | null) {
   const [query, setQuery] = useState("")
   const [folder, setFolder] = useState<string | null>(null)
   const [tag, setTag] = useState<string | null>(null)
@@ -114,6 +114,7 @@ export function useSearch() {
         query: query.trim(),
         folder: folder || undefined,
         tag: tag || undefined,
+        scope_id: scopeId || undefined,
       })
       setResults(res.results)
       setActiveSearchId(res.search_id)
@@ -146,7 +147,7 @@ export function useSearch() {
     } finally {
       setLoading(false)
     }
-  }, [query, folder, tag, refreshSearches, resetHistoricalState])
+  }, [query, folder, tag, scopeId, refreshSearches, resetHistoricalState])
 
   const deleteSearch = useCallback(async (id: string) => {
     try {
@@ -251,6 +252,7 @@ export function useSearch() {
         query: query.trim(),
         folder: folder || undefined,
         tag: tag || undefined,
+        scope_id: scopeId || undefined,
         parent_id: activeSearchId || undefined,
       })
 
@@ -285,7 +287,7 @@ export function useSearch() {
     } finally {
       setLoading(false)
     }
-  }, [query, folder, tag, activeSearchId, refreshSearches, resetHistoricalState])
+  }, [query, folder, tag, scopeId, activeSearchId, refreshSearches, resetHistoricalState])
 
   const stopSummary = useCallback(() => {
     summaryControllerRef.current?.abort()

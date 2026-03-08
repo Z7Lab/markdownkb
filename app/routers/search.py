@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
 from app.config import Settings
-from app.deps import get_retriever, get_searchdb, get_settings
+from app.deps import get_retriever, get_scopedb, get_searchdb, get_settings
 from app.rag.llm import get_streaming_completion
 from app.rag.prompts import SEARCH_SUMMARY_USER, format_context
 from app.rag.retriever import Retriever
@@ -14,8 +14,19 @@ from app.ratelimit import HEAVY, LLM, STANDARD, limiter
 from app.schemas import SearchRequest, SummarizeRequest
 from app.services.chat_service import _strip_thinking, extract_unique_sources
 from app.services.query_service import build_enhanced_search_query, enhance_query
+from app.storage.scopedb import ScopeDB
 from app.storage.searchdb import SearchDB
 from app.utils import sse
+
+
+def _resolve_scope(scope_id: str | None, scopedb: ScopeDB) -> list[str] | None:
+    """Resolve a scope_id to its folder list, or None if no scope."""
+    if not scope_id:
+        return None
+    scope = scopedb.get(scope_id)
+    if not scope:
+        raise HTTPException(status_code=404, detail="Scope not found")
+    return scope["folders"]
 
 logger = logging.getLogger(__name__)
 
@@ -90,9 +101,11 @@ def search(
     req: SearchRequest,
     retriever: Retriever = Depends(get_retriever),
     searchdb: SearchDB = Depends(get_searchdb),
+    scopedb: ScopeDB = Depends(get_scopedb),
     settings: Settings = Depends(get_settings),
 ):
     """Search the vector database with optional intelligent query enhancement."""
+    scope_folders = _resolve_scope(req.scope_id, scopedb)
     search_query = req.query
     llm_offline = False
     top_k = req.top_k if req.top_k is not None else settings.top_k
@@ -115,6 +128,7 @@ def search(
         search_query,
         top_k=chunk_fetch_limit,
         folder_filter=req.folder,
+        folders_filter=scope_folders,
         tag_filter=req.tag,
     )
 
@@ -332,14 +346,17 @@ def summarize_search(
     req: SummarizeRequest,
     retriever: Retriever = Depends(get_retriever),
     searchdb: SearchDB = Depends(get_searchdb),
+    scopedb: ScopeDB = Depends(get_scopedb),
     settings: Settings = Depends(get_settings),
 ):
     """Generate AI summary of search results with streaming response."""
+    scope_folders = _resolve_scope(req.scope_id, scopedb)
     top_k = req.top_k if req.top_k is not None else settings.top_k
     results = retriever.search(
         req.query,
         top_k=top_k,
         folder_filter=req.folder,
+        folders_filter=scope_folders,
         tag_filter=req.tag,
     )
 

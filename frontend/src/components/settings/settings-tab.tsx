@@ -22,11 +22,14 @@ import { EmbeddingPanel } from "./embedding-panel"
 import { SearchPanel } from "./search-panel"
 import { DatabasePanel } from "./database-panel"
 import { LoggingPanel } from "./logging-panel"
+import { ScopesPanel } from "./scopes-panel"
+import { Library } from "lucide-react"
 
 const sections = [
   { id: "llm", label: "LLM Provider", icon: Cpu },
   { id: "search", label: "Search", icon: Search },
   { id: "sources", label: "Sources", icon: FolderCog },
+  { id: "scopes", label: "Scopes", icon: Library },
   { id: "embeddings", label: "Embeddings", icon: Layers },
   { id: "features", label: "Features", icon: ToggleRight },
   { id: "prompt", label: "System Prompt", icon: MessageSquareText },
@@ -146,6 +149,9 @@ export function SettingsTab() {
                 onAddIgnore={addIgnorePattern}
                 onRemoveIgnore={removeIgnorePattern}
               />
+            )}
+            {activeSection === "scopes" && (
+              <ScopesPanel folders={settings.sources} />
             )}
             {activeSection === "embeddings" && (
               <EmbeddingPanel

@@ -12,6 +12,7 @@ class SearchRequest(BaseModel):
     top_k: int | None = Field(None, ge=1, le=50)
     folder: str | None = None
     tag: str | None = None
+    scope_id: str | None = None
     parent_id: str | None = None  # Link re-queries into a version chain
 
 
@@ -22,6 +23,7 @@ class SummarizeRequest(BaseModel):
     top_k: int | None = Field(None, ge=1, le=50)
     folder: str | None = None
     tag: str | None = None
+    scope_id: str | None = None
     search_id: str | None = None  # Optional: save summary when provided
 
 
@@ -39,6 +41,7 @@ class StreamChatRequest(BaseModel):
 
     message: str = Field(..., min_length=1, max_length=50000)
     thread_id: str | None = None
+    scope_id: str | None = None
 
 
 class SavePlanRequest(BaseModel):
@@ -213,6 +216,7 @@ class PlanRequest(BaseModel):
     iterations: int = Field(3, ge=1, le=10)
     n_approaches: int = Field(3, ge=1, le=10)
     skill_names: list[str] | None = None
+    scope_id: str | None = None
 
 
 # -- Logging --

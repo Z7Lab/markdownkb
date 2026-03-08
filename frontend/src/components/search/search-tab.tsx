@@ -1,4 +1,5 @@
 import { useSearch } from "@/hooks/use-search"
+import { useScopes } from "@/hooks/use-scopes"
 import { useIndexEvents } from "@/hooks/use-index-events"
 import { SearchSidebar } from "./search-sidebar"
 import { ResultsChangedDialog } from "./results-changed-dialog"
@@ -26,6 +27,8 @@ const ASCII_BANNER = `
 `.trim()
 
 export function SearchTab() {
+  const { scopes, selectedScopeId, setSelectedScopeId } = useScopes()
+
   const {
     query, setQuery,
     folder, setFolder,
@@ -48,8 +51,7 @@ export function SearchTab() {
     requery,
     loadVersion,
     fetchVersions,
-  } = useSearch()
-
+  } = useSearch(selectedScopeId)
   const { lastIndexedAt } = useIndexEvents()
   const [viewingPath, setViewingPath] = useState<string | null>(null)
   const [resultsChangedDialogOpen, setResultsChangedDialogOpen] = useState(false)
@@ -73,13 +75,16 @@ export function SearchTab() {
         activeSearchId={activeSearchId}
         folders={folders}
         tags={tags}
+        scopes={scopes}
         selectedFolder={folder}
         selectedTag={tag}
+        selectedScopeId={selectedScopeId}
         onNewSearch={newSearch}
         onLoadSearch={loadSearch}
         onDeleteSearch={deleteSearch}
         onFolderChange={setFolder}
         onTagChange={setTag}
+        onScopeChange={setSelectedScopeId}
       />
 
       <div className="flex flex-col flex-1 min-w-0 min-h-0">

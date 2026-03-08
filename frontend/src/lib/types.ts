@@ -207,6 +207,13 @@ export interface SavedPlan {
   created_at: string
 }
 
+export interface Scope {
+  id: string
+  name: string
+  folders: string[]
+  created_at: string
+}
+
 export interface ModelEntry {
   id: string
   label: string

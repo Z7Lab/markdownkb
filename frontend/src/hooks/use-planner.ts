@@ -57,7 +57,7 @@ export function usePlanner() {
 
   const generatePlan = useCallback((
     request: string,
-    options?: { iterations?: number; n_approaches?: number; skill_names?: string[] },
+    options?: { iterations?: number; n_approaches?: number; skill_names?: string[]; scope_id?: string | null },
   ) => {
     if (!request.trim()) return
 

@@ -45,8 +45,15 @@ class Retriever:
 
     def search(self, query: str, top_k: int | None = None,
                folder_filter: str | None = None,
+               folders_filter: list[str] | None = None,
                tag_filter: str | None = None) -> list[SearchResult]:
-        """Search using vector similarity and optional BM25."""
+        """Search using vector similarity and optional BM25.
+
+        Args:
+            folder_filter: Single folder path (legacy, used by Search tab).
+            folders_filter: Multiple folder paths (used by scope filtering).
+                            Uses ChromaDB ``$in`` operator.
+        """
         k = top_k or self._settings.top_k
 
         if self._store.count == 0:
@@ -56,7 +63,11 @@ class Retriever:
         query_embedding = embed_query(query, self._settings.embedding_model)
 
         where = None
-        if folder_filter:
+        if folders_filter and len(folders_filter) == 1:
+            where = {"source_root": folders_filter[0]}
+        elif folders_filter and len(folders_filter) > 1:
+            where = {"source_root": {"$in": folders_filter}}
+        elif folder_filter:
             where = {"source_root": folder_filter}
 
         vector_results = self._store.query(

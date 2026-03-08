@@ -9,13 +9,17 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Pencil, Plus, Trash2 } from "lucide-react";
-import type { Thread } from "@/lib/types";
+import type { Scope, Thread } from "@/lib/types";
 import { cn, relativeTime } from "@/lib/utils";
 import { ModelPicker } from "./model-picker";
+import { ScopePicker } from "@/components/scope-picker";
 
 export function ThreadSidebar({
   threads,
   activeThreadId,
+  scopes,
+  selectedScopeId,
+  onScopeChange,
   onNewChat,
   onLoadThread,
   onRenameThread,
@@ -23,6 +27,9 @@ export function ThreadSidebar({
 }: {
   threads: Thread[];
   activeThreadId: string | null;
+  scopes: Scope[];
+  selectedScopeId: string | null;
+  onScopeChange: (id: string | null) => void;
   onNewChat: () => void;
   onLoadThread: (id: string) => void;
   onRenameThread: (id: string, title: string) => void;
@@ -56,6 +63,11 @@ export function ThreadSidebar({
       header={
         <div className="space-y-2">
           <ModelPicker />
+          <ScopePicker
+            scopes={scopes}
+            value={selectedScopeId}
+            onChange={onScopeChange}
+          />
           <Button
             onClick={onNewChat}
             variant="outline"

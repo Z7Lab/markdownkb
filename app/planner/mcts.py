@@ -54,6 +54,7 @@ class MCTSPlanner:
         self._exploration_log: list[str] = []
         self._exploration_context = ""
         self._research_results: list[dict] = []
+        self._folders_filter: list[str] | None = None
 
     def plan(self, request: str, iterations: int = 3,
              n_approaches: int = 3) -> dict[str, Any]:
@@ -107,7 +108,9 @@ class MCTSPlanner:
 
     def _research(self, request: str) -> list[dict]:
         """Search the knowledge base for relevant context."""
-        results = self._retriever.search(request, top_k=10)
+        results = self._retriever.search(
+            request, top_k=10, folders_filter=self._folders_filter,
+        )
         self._exploration_log.append(
             f"Searched knowledge base for: '{request}' -- "
             f"found {len(results)} results"

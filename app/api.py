@@ -14,6 +14,7 @@ from app.routers import (
     export,
     files,
     health,
+    scopes,
     search,
     settings,
     threads,
@@ -47,7 +48,7 @@ def create_app(lifespan=None, settings_override=None) -> FastAPI:
     # Core routers (always registered)
     for router_module in (
         health, search, chat, threads, files,
-        settings, embeddings, export,
+        settings, embeddings, export, scopes,
     ):
         app.include_router(router_module.router)
 

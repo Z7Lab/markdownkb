@@ -1,4 +1,5 @@
 import { usePlanner } from "@/hooks/use-planner"
+import { useScopes } from "@/hooks/use-scopes"
 import { PlannerSidebar } from "./planner-sidebar"
 import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
 import { Button } from "@/components/ui/button"
@@ -27,6 +28,8 @@ export function PlannerTab() {
     generatePlan, stop, clear, savePlan, loadPlan, deletePlan,
   } = usePlanner()
 
+  const { scopes, selectedScopeId, setSelectedScopeId } = useScopes()
+
   const [inputQuery, setInputQuery] = useState("")
   const [viewingPath, setViewingPath] = useState<string | null>(null)
   const [expandedReviews, setExpandedReviews] = useState<Set<number>>(new Set())
@@ -52,7 +55,7 @@ export function PlannerTab() {
 
   function handleGenerate() {
     if (!inputQuery.trim() || isPlanning) return
-    generatePlan(inputQuery)
+    generatePlan(inputQuery, { scope_id: selectedScopeId })
   }
 
   function handleNewPlan() {
@@ -91,6 +94,9 @@ export function PlannerTab() {
       <PlannerSidebar
         plans={savedPlans}
         activePlanId={activePlanId}
+        scopes={scopes}
+        selectedScopeId={selectedScopeId}
+        onScopeChange={setSelectedScopeId}
         onNewPlan={handleNewPlan}
         onLoadPlan={loadPlan}
         onDeletePlan={deletePlan}

@@ -1,18 +1,25 @@
 import { Button } from "@/components/ui/button"
 import { AppSidebar } from "@/components/ui/app-sidebar"
 import { Plus, Trash2 } from "lucide-react"
-import type { SavedPlan } from "@/lib/types"
+import type { SavedPlan, Scope } from "@/lib/types"
 import { cn, relativeTime } from "@/lib/utils"
+import { ScopePicker } from "@/components/scope-picker"
 
 export function PlannerSidebar({
   plans,
   activePlanId,
+  scopes,
+  selectedScopeId,
+  onScopeChange,
   onNewPlan,
   onLoadPlan,
   onDeletePlan,
 }: {
   plans: SavedPlan[]
   activePlanId: string | null
+  scopes: Scope[]
+  selectedScopeId: string | null
+  onScopeChange: (id: string | null) => void
   onNewPlan: () => void
   onLoadPlan: (planId: string) => void
   onDeletePlan: (planId: string) => void
@@ -20,14 +27,21 @@ export function PlannerSidebar({
   return (
     <AppSidebar
       header={
-        <Button
-          onClick={onNewPlan}
-          variant="outline"
-          className="w-full justify-start gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          New Plan
-        </Button>
+        <div className="space-y-2">
+          <ScopePicker
+            scopes={scopes}
+            value={selectedScopeId}
+            onChange={onScopeChange}
+          />
+          <Button
+            onClick={onNewPlan}
+            variant="outline"
+            className="w-full justify-start gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            New Plan
+          </Button>
+        </div>
       }
     >
       <div className="p-1">

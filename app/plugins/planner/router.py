@@ -6,12 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from app.config import Settings
-from app.deps import get_plandb, get_retriever, get_settings
+from app.deps import get_plandb, get_retriever, get_scopedb, get_settings
 from app.rag.retriever import Retriever
 from app.ratelimit import LLM, STANDARD, limiter
 from app.schemas import PlanRequest
 from app.services.planner_service import list_skills, run_planner, stream_planner
 from app.storage.plandb import PlanDB
+from app.storage.scopedb import ScopeDB
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +26,16 @@ def plan(
     req: PlanRequest,
     retriever: Retriever = Depends(get_retriever),
     settings: Settings = Depends(get_settings),
+    scopedb: ScopeDB = Depends(get_scopedb),
 ):
     """Generate an implementation plan using MCTS."""
+    scope_folders = None
+    if req.scope_id:
+        scope = scopedb.get(req.scope_id)
+        if not scope:
+            raise HTTPException(status_code=404, detail="Scope not found")
+        scope_folders = scope["folders"]
+
     try:
         result = run_planner(
             req.request,
@@ -35,6 +44,7 @@ def plan(
             iterations=req.iterations,
             n_approaches=req.n_approaches,
             skill_names=req.skill_names,
+            folders_filter=scope_folders,
         )
     except RuntimeError as e:
         logger.error("Planner error: %s", e)
@@ -49,8 +59,16 @@ def plan_stream(
     req: PlanRequest,
     retriever: Retriever = Depends(get_retriever),
     settings: Settings = Depends(get_settings),
+    scopedb: ScopeDB = Depends(get_scopedb),
 ):
     """Stream plan generation progress as SSE events."""
+    scope_folders = None
+    if req.scope_id:
+        scope = scopedb.get(req.scope_id)
+        if not scope:
+            raise HTTPException(status_code=404, detail="Scope not found")
+        scope_folders = scope["folders"]
+
     def generate():
         try:
             yield from stream_planner(
@@ -60,6 +78,7 @@ def plan_stream(
                 iterations=req.iterations,
                 n_approaches=req.n_approaches,
                 skill_names=req.skill_names,
+                folders_filter=scope_folders,
             )
         except RuntimeError as e:
             logger.error("Planner stream error: %s", e)

@@ -50,12 +50,16 @@ export function streamChat(
   message: string,
   callbacks: SSECallbacks,
   threadId?: string | null,
+  scopeId?: string | null,
 ): AbortController {
   const controller = new AbortController()
 
   const body: Record<string, string> = { message }
   if (threadId) {
     body.thread_id = threadId
+  }
+  if (scopeId) {
+    body.scope_id = scopeId
   }
 
   fetch("/api/chat/stream", {
@@ -111,7 +115,7 @@ export interface PlanCallbacks {
 export function streamPlan(
   request: string,
   callbacks: PlanCallbacks,
-  options?: { iterations?: number; n_approaches?: number; skill_names?: string[] },
+  options?: { iterations?: number; n_approaches?: number; skill_names?: string[]; scope_id?: string | null },
 ): AbortController {
   const controller = new AbortController()
 
@@ -119,6 +123,7 @@ export function streamPlan(
   if (options?.iterations) body.iterations = options.iterations
   if (options?.n_approaches) body.n_approaches = options.n_approaches
   if (options?.skill_names) body.skill_names = options.skill_names
+  if (options?.scope_id) body.scope_id = options.scope_id
 
   fetch("/api/planner/plan/stream", {
     method: "POST",

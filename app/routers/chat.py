@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from app.config import Settings
-from app.deps import get_chatdb, get_retriever, get_settings
+from app.deps import get_chatdb, get_retriever, get_scopedb, get_settings
 from app.rag.llm import get_completion
 from app.rag.prompts import build_rag_messages
 from app.rag.retriever import Retriever
@@ -20,7 +20,18 @@ from app.services.chat_service import (
     save_last_response_as_plan,
 )
 from app.storage.chatdb import ChatDB
+from app.storage.scopedb import ScopeDB
 from app.utils import short_title, sse
+
+
+def _resolve_scope(scope_id: str | None, scopedb: ScopeDB) -> list[str] | None:
+    """Resolve a scope_id to its folder list, or None if no scope."""
+    if not scope_id:
+        return None
+    scope = scopedb.get(scope_id)
+    if not scope:
+        raise HTTPException(status_code=404, detail="Scope not found")
+    return scope["folders"]
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +89,10 @@ def chat_stream(
     settings: Settings = Depends(get_settings),
     retriever: Retriever = Depends(get_retriever),
     chatdb: ChatDB = Depends(get_chatdb),
+    scopedb: ScopeDB = Depends(get_scopedb),
 ):
+    scope_folders = _resolve_scope(req.scope_id, scopedb)
+
     if req.thread_id:
         thread_id = req.thread_id
         title = ""
@@ -96,6 +110,7 @@ def chat_stream(
             settings,
             chatdb=chatdb,
             thread_id=thread_id,
+            folders_filter=scope_folders,
         ):
             new_text = partial[len(last_yielded):]
             if new_text:
@@ -103,7 +118,7 @@ def chat_stream(
                 last_yielded = partial
 
         # Extract sources from the final response
-        results = retriever.search(req.message)
+        results = retriever.search(req.message, folders_filter=scope_folders)
         if results:
             metadatas = [r.metadata for r in results]
             sources = extract_unique_sources(metadatas)

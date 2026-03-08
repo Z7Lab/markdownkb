@@ -8,33 +8,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { SavedSearch } from "@/lib/types"
+import type { SavedSearch, Scope } from "@/lib/types"
 import { cn, relativeTime } from "@/lib/utils"
+import { ScopePicker } from "@/components/scope-picker"
 
 export function SearchSidebar({
   searches,
   activeSearchId,
   folders,
   tags,
+  scopes,
   selectedFolder,
   selectedTag,
+  selectedScopeId,
   onNewSearch,
   onLoadSearch,
   onDeleteSearch,
   onFolderChange,
   onTagChange,
+  onScopeChange,
 }: {
   searches: SavedSearch[]
   activeSearchId: string | null
   folders: string[]
   tags: string[]
+  scopes: Scope[]
   selectedFolder: string | null
   selectedTag: string | null
+  selectedScopeId: string | null
   onNewSearch: () => void
   onLoadSearch: (search: SavedSearch) => void
   onDeleteSearch: (id: string) => void
   onFolderChange: (folder: string | null) => void
   onTagChange: (tag: string | null) => void
+  onScopeChange: (id: string | null) => void
 }) {
   return (
     <AppSidebar
@@ -90,6 +97,12 @@ export function SearchSidebar({
                 </SelectContent>
               </Select>
             </div>
+
+            <ScopePicker
+              scopes={scopes}
+              value={selectedScopeId}
+              onChange={onScopeChange}
+            />
           </div>
         </div>
       }

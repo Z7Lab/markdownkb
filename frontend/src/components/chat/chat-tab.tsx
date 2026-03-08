@@ -1,4 +1,5 @@
 import { useChat } from "@/hooks/use-chat";
+import { useScopes } from "@/hooks/use-scopes";
 import { useSettings } from "@/hooks/use-settings";
 import { ChatControls } from "./chat-controls";
 import { ChatInput } from "./chat-input";
@@ -6,6 +7,8 @@ import { MessageList } from "./message-list";
 import { ThreadSidebar } from "./thread-sidebar";
 
 export function ChatTab() {
+  const { scopes, selectedScopeId, setSelectedScopeId } = useScopes();
+
   const {
     messages,
     isStreaming,
@@ -20,7 +23,7 @@ export function ChatTab() {
     loadThread,
     renameThread,
     deleteThread,
-  } = useChat();
+  } = useChat(selectedScopeId);
 
   const { settings } = useSettings();
   const showDiagnostics = settings?.features?.diagnostics ?? false;
@@ -30,6 +33,9 @@ export function ChatTab() {
       <ThreadSidebar
         threads={threads}
         activeThreadId={activeThreadId}
+        scopes={scopes}
+        selectedScopeId={selectedScopeId}
+        onScopeChange={setSelectedScopeId}
         onNewChat={newChat}
         onLoadThread={loadThread}
         onRenameThread={renameThread}
