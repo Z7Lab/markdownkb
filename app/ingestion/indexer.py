@@ -8,6 +8,7 @@ from typing import Callable
 
 from app.config import Settings
 from app.embeddings.embedder import embed_texts
+from app.events import IndexEvent, event_bus
 from app.ingestion.parser import parse_and_chunk
 from app.ingestion.scanner import scan_sources, compute_file_hash, FileInfo
 from app.storage.trackingdb import TrackingDB
@@ -102,6 +103,9 @@ def run_index(
     )
     for path in removed:
         store.delete_by_source(path)
+        event_bus.publish(IndexEvent(
+            type="deleted", path=path, filename=Path(path).name,
+        ))
     if removed:
         report(0.05, f"Removed {len(removed)} deleted files")
 
@@ -124,13 +128,25 @@ def run_index(
 
         frac = 0.1 + 0.85 * (done / max(len(to_index), 1))
         report(frac, f"Indexing {fi.relative_path}...")
+        event_bus.publish(IndexEvent(
+            type="indexing", path=fi.path, filename=fi.relative_path,
+        ))
 
         try:
-            total_chunks += _index_file(fi, settings, store, tracking)
+            chunk_count = _index_file(fi, settings, store, tracking)
+            total_chunks += chunk_count
+            event_bus.publish(IndexEvent(
+                type="indexed", path=fi.path,
+                filename=fi.relative_path, chunks=chunk_count,
+            ))
         except (OSError, ValueError, RuntimeError) as exc:
             tracking.mark_error(fi.path, str(exc))
             logger.error("Failed to index %s: %s", fi.path, exc)
             errors += 1
+            event_bus.publish(IndexEvent(
+                type="error", path=fi.path,
+                filename=fi.relative_path, error=str(exc),
+            ))
         done += 1
 
         # Yield CPU between files to avoid pegging 100%

@@ -201,8 +201,13 @@ def index(
         return {"status": "reindexing"}
 
     cancel_event.clear()
-    result = run_index(settings, store, tracking, cancel=cancel_event)
-    return {"message": result}
+    threading.Thread(
+        target=run_index,
+        args=(settings, store, tracking),
+        kwargs={"cancel": cancel_event},
+        daemon=True,
+    ).start()
+    return {"status": "indexing", "message": "Indexing started in background"}
 
 
 @router.post("/index/cancel")

@@ -1,9 +1,10 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useFiles } from "@/hooks/use-files"
 import { useTableSort } from "@/hooks/use-table-sort"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
+import { useIndexEvents } from "@/hooks/use-index-events"
 import { FolderTree } from "./folder-tree"
 import { FileRow } from "./file-row"
 import { Input } from "@/components/ui/input"
@@ -13,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { SortableTableHead } from "@/components/ui/sortable-table-head"
-import { FileDown, FileX, RefreshCw, Search, X } from "lucide-react"
+import { FileDown, FileX, Loader2, RefreshCw, Search, X } from "lucide-react"
 import type { TrackedFile } from "@/lib/types"
 import { basename, dirname } from "@/lib/utils"
 
@@ -58,7 +59,13 @@ const getValue = (f: TrackedFile, key: string): string | number | null => {
 
 export function FilesTab() {
   const { files, busyPaths, refresh, toggleRag, unindexFile, indexFile, reindexFile, indexAll, unindexSource } = useFiles()
+  const { isIndexing, lastIndexedAt } = useIndexEvents()
   const [filterText, setFilterText] = useState("")
+
+  // Auto-refresh file list when indexing events arrive
+  useEffect(() => {
+    if (lastIndexedAt) refresh(true)
+  }, [lastIndexedAt, refresh])
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
   const [viewingPath, setViewingPath] = useState<string | null>(null)
   const [pendingUnindex, setPendingUnindex] = useState<string | null>(null)
@@ -110,9 +117,12 @@ export function FilesTab() {
                   </button>
                 )}
               </div>
-              <Button variant="outline" size="sm" onClick={() => indexAll()}>
-                <FileDown className="h-3.5 w-3.5 mr-1.5" />
-                Index All
+              <Button variant="outline" size="sm" onClick={() => indexAll()} disabled={isIndexing}>
+                {isIndexing
+                  ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  : <FileDown className="h-3.5 w-3.5 mr-1.5" />
+                }
+                {isIndexing ? "Indexing..." : "Index All"}
               </Button>
               {selectedFolder && (
                 <Button variant="outline" size="sm" onClick={() => setConfirmUnindexAll(true)}>
