@@ -1,67 +1,119 @@
-"""Venice.ai model catalog.
+"""Venice.ai model catalog — dynamic.
 
-Static list of available chat completion models from Venice.ai.
-All use the OpenAI-compatible API with ``openai/`` LiteLLM prefix.
+Fetches available chat models from the Venice.ai ``/api/v1/models``
+endpoint at runtime.  No API key required for the model list.
 
+All models use the OpenAI-compatible API with ``openai/`` LiteLLM prefix.
 API Base: https://api.venice.ai/api/v1
-Privacy: no data retention, privacy-preserving.
 """
 
-# Each entry: (model_id, display_name, input_cost_per_m, output_cost_per_m, context_k)
-# Sorted by tier then cost. model_id is the Venice API model name
-# (without the openai/ prefix — that's added by build_model_list).
+import logging
+import time
 
-MODELS = [
-    # Flagship
-    ("zai-org-glm-5", "GLM 5", 1.00, 3.20, 198),
-    ("kimi-k2-5", "Kimi K2.5", 0.75, 3.75, 256),
-    ("kimi-k2-thinking", "Kimi K2 Thinking", 0.75, 3.20, 256),
-    ("qwen3-coder-480b-a35b-instruct", "Qwen 3 Coder 480B", 0.75, 3.00, 256),
-    # Strong
-    ("zai-org-glm-4.7", "GLM 4.7", 0.55, 2.65, 198),
-    ("qwen3-235b-a22b-thinking-2507", "Qwen 3 235B Thinking", 0.45, 3.50, 128),
-    ("deepseek-v3.2", "DeepSeek V3.2", 0.40, 1.00, 160),
-    ("minimax-m25", "MiniMax M2.5", 0.40, 1.60, 198),
-    ("minimax-m21", "MiniMax M2.1", 0.40, 1.60, 198),
-    ("qwen3-next-80b", "Qwen 3 Next 80B", 0.35, 1.90, 256),
-    ("qwen3-5-35b-a3b", "Qwen 3.5 35B A3B", 0.31, 1.25, 256),
-    ("qwen3-vl-235b-a22b", "Qwen 3 VL 235B", 0.25, 1.50, 256),
-    # Value
-    ("zai-org-glm-4.6", "GLM 4.6", 0.85, 2.75, 198),
-    ("hermes-3-llama-3.1-405b", "Hermes 3 Llama 3.1 405B", 1.10, 3.00, 128),
-    ("llama-3.3-70b", "Llama 3.3 70B", 0.70, 2.80, 128),
-    ("qwen3-235b-a22b-instruct-2507", "Qwen 3 235B Instruct", 0.15, 0.75, 128),
-    # Budget / Fast
-    ("olafangensan-glm-4.7-flash-heretic", "GLM 4.7 Flash Heretic", 0.14, 0.80, 128),
-    ("zai-org-glm-4.7-flash", "GLM 4.7 Flash", 0.13, 0.50, 128),
-    ("llama-3.2-3b", "Llama 3.2 3B", 0.15, 0.60, 128),
-    ("google-gemma-3-27b-it", "Google Gemma 3 27B", 0.12, 0.20, 198),
-    ("openai-gpt-oss-120b", "OpenAI GPT OSS 120B", 0.07, 0.30, 128),
-]
+import httpx
+
+logger = logging.getLogger(__name__)
+
+VENICE_API = "https://api.venice.ai/api/v1/models"
+_CACHE_TTL = 300  # seconds — cache the model list for 5 minutes
+_cache: dict = {"models": [], "ts": 0.0}
+
+
+def _fetch_models() -> list[dict]:
+    """Fetch and cache Venice models from the live API.
+
+    Returns a list of raw model dicts (type=text, online only).
+    Results are cached in-memory for ``_CACHE_TTL`` seconds.
+    """
+    now = time.monotonic()
+    if _cache["models"] and (now - _cache["ts"]) < _CACHE_TTL:
+        return _cache["models"]
+
+    try:
+        resp = httpx.get(VENICE_API, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+    except (httpx.HTTPError, ValueError) as e:
+        logger.warning("Failed to fetch Venice models: %s", e)
+        # Return stale cache if available, otherwise empty
+        return _cache["models"]
+
+    # Accept both {"data": [...]} envelope and bare list
+    models_raw = data if isinstance(data, list) else data.get("data", [])
+
+    # Filter: text (chat) models that are online
+    models = [
+        m for m in models_raw
+        if m.get("type") == "text"
+        and not m.get("model_spec", {}).get("offline", False)
+    ]
+
+    # Sort by input cost ascending (cheapest first)
+    models.sort(
+        key=lambda m: m.get("model_spec", {}).get("pricing", {}).get("input", {}).get("usd", 999)
+    )
+
+    _cache["models"] = models
+    _cache["ts"] = now
+    return models
+
+
+def _parse_model(m: dict) -> dict:
+    """Extract normalized fields from a raw Venice model dict."""
+    spec = m.get("model_spec", {})
+    pricing = spec.get("pricing", {})
+    caps = spec.get("capabilities", {})
+    return {
+        "id": m["id"],
+        "name": spec.get("name", m["id"]),
+        "input_cost": pricing.get("input", {}).get("usd", 0),
+        "output_cost": pricing.get("output", {}).get("usd", 0),
+        "context_tokens": spec.get("availableContextTokens", 0),
+        "max_output_tokens": spec.get("maxCompletionTokens", 0),
+        "function_calling": caps.get("supportsFunctionCalling", False),
+        "vision": caps.get("supportsVision", False),
+        "response_schema": caps.get("supportsResponseSchema", False),
+    }
 
 
 def get_model_ids() -> list[str]:
     """Return Venice model IDs with openai/ prefix for LiteLLM."""
-    return [f"openai/{m[0]}" for m in MODELS]
+    return [f"openai/{m['id']}" for m in _fetch_models()]
+
+
+def get_model_entries() -> list[dict]:
+    """Return model entries with id and display label for the UI dropdown."""
+    entries = []
+    for raw in _fetch_models():
+        p = _parse_model(raw)
+        ctx_k = p["context_tokens"] // 1000
+        out_k = p["max_output_tokens"] // 1000
+        label = (
+            f"{p['name']}  —  {ctx_k}K ctx, {out_k}K out, "
+            f"${p['input_cost']:.2f}/M in"
+        )
+        entries.append({"id": f"openai/{p['id']}", "label": label})
+    return entries
 
 
 def get_model_info(model_id: str) -> dict | None:
-    """Return pricing and context info for a Venice model.
+    """Return pricing and capability info for a Venice model.
 
     Accepts both ``openai/model-name`` and bare ``model-name`` formats.
     """
     bare = model_id.split("/", 1)[-1] if "/" in model_id else model_id
-    for mid, name, in_cost, out_cost, ctx_k in MODELS:
-        if mid == bare:
+    for raw in _fetch_models():
+        if raw["id"] == bare:
+            p = _parse_model(raw)
             return {
-                "display_name": name,
-                "max_input_tokens": ctx_k * 1000,
-                "max_output_tokens": None,
-                "input_cost_per_token": in_cost / 1_000_000,
-                "output_cost_per_token": out_cost / 1_000_000,
-                "supports_vision": "vl" in mid.lower(),
-                "supports_function_calling": False,
-                "supports_response_schema": False,
+                "display_name": p["name"],
+                "max_input_tokens": p["context_tokens"],
+                "max_output_tokens": p["max_output_tokens"],
+                "input_cost_per_token": p["input_cost"] / 1_000_000,
+                "output_cost_per_token": p["output_cost"] / 1_000_000,
+                "supports_vision": p["vision"],
+                "supports_function_calling": p["function_calling"],
+                "supports_response_schema": p["response_schema"],
                 "supports_pdf_input": False,
                 "litellm_provider": "venice",
                 "mode": "chat",

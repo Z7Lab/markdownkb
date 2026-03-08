@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { useSettings } from "@/hooks/use-settings"
+import type { ModelEntry } from "@/lib/types"
 import {
   Select,
   SelectContent,
@@ -10,7 +11,7 @@ import {
 
 export function ModelPicker() {
   const { settings, refreshModels, saveProvider } = useSettings()
-  const [models, setModels] = useState<string[]>([])
+  const [models, setModels] = useState<ModelEntry[]>([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -37,8 +38,8 @@ export function ModelPicker() {
 
   const activeModel = settings.active_model
   const options = [...models]
-  if (activeModel && !models.includes(activeModel)) {
-    options.unshift(activeModel)
+  if (activeModel && !models.some((m) => m.id === activeModel)) {
+    options.unshift({ id: activeModel, label: activeModel })
   }
 
   return (
@@ -56,8 +57,8 @@ export function ModelPicker() {
       </SelectTrigger>
       <SelectContent>
         {options.map((m) => (
-          <SelectItem key={m} value={m} className="text-xs">
-            {m}
+          <SelectItem key={m.id} value={m.id} className="text-xs">
+            {m.label}
           </SelectItem>
         ))}
       </SelectContent>

@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react"
 import { createElement } from "react"
 import { api } from "@/lib/api"
-import type { AppSettings, EmbeddingModel, ModelInfo } from "@/lib/types"
+import type { AppSettings, EmbeddingModel, ModelEntry, ModelInfo } from "@/lib/types"
 
 type SettingsValue = ReturnType<typeof useSettingsInternal>
 
@@ -148,7 +148,7 @@ function useSettingsInternal() {
   )
 
   const refreshModels = useCallback(async (name: string, apiBase: string) => {
-    const res = await api.post<{ models: string[]; status: string }>(
+    const res = await api.post<{ models: ModelEntry[]; status: string }>(
       "/api/settings/refresh-models",
       { name, api_base: apiBase },
     )

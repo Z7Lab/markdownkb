@@ -153,6 +153,9 @@ def get_settings_endpoint(request: Request, settings: Settings = Depends(get_set
                 "model": p.get("model", ""),
                 "api_base": p.get("api_base", ""),
                 "api_key": p.get("api_key", ""),
+                "temperature": p.get("temperature"),
+                "max_tokens": p.get("max_tokens"),
+                "num_ctx": p.get("num_ctx"),
             }
             for p in settings.llm_providers
         ],

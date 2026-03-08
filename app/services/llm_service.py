@@ -57,37 +57,42 @@ def get_provider_models(provider_name: str) -> list[str]:
     return []
 
 
-def _get_plugin_catalog(provider_name: str) -> list[str] | None:
-    """Check if a plugin catalog provides models for this provider."""
+def _get_plugin_catalog(provider_name: str) -> list[dict] | None:
+    """Check if a plugin catalog provides model entries for this provider."""
     try:
         from app.plugins.catalogs import get_catalog
         mod = get_catalog(provider_name)
-        if mod and hasattr(mod, "get_model_ids"):
-            return mod.get_model_ids()
+        if mod and hasattr(mod, "get_model_entries"):
+            return mod.get_model_entries()
     except ImportError:
         pass
     return None
 
 
+def _ids_to_entries(ids: list[str]) -> list[dict]:
+    """Convert plain model ID strings to {id, label} dicts."""
+    return [{"id": m, "label": m} for m in ids]
+
+
 def build_model_list(
     provider_name: str, api_base: str,
-) -> tuple[list[str], str]:
-    """Fetch and return model list with status message."""
+) -> tuple[list[dict], str]:
+    """Fetch and return model list as {id, label} entries with status message."""
     if "ollama" in provider_name.lower() and api_base:
         raw = fetch_ollama_models(api_base)
         if raw:
-            choices = [f"ollama/{m}" for m in raw]
-            return choices, f"Found {len(raw)} model(s)"
+            entries = [{"id": f"ollama/{m}", "label": m} for m in raw]
+            return entries, f"Found {len(raw)} model(s)"
         return [], f"No models found at {api_base}"
 
-    # Check plugin catalogs first
+    # Check plugin catalogs first (returns rich {id, label} entries)
     catalog = _get_plugin_catalog(provider_name)
     if catalog:
         return catalog, f"Found {len(catalog)} model(s)"
 
     known = get_provider_models(provider_name)
     if known:
-        return known, f"Found {len(known)} known model(s)"
+        return _ids_to_entries(known), f"Found {len(known)} known model(s)"
     return [], "No models available for this provider"
 
 

@@ -96,6 +96,9 @@ export interface Provider {
   model: string
   api_base: string
   api_key: string
+  temperature?: number | null
+  max_tokens?: number | null
+  num_ctx?: number | null
 }
 
 export interface Thread {
@@ -195,6 +198,11 @@ export interface SkillInfo {
   name: string
   description: string
   source: string
+}
+
+export interface ModelEntry {
+  id: string
+  label: string
 }
 
 export interface ModelInfo {

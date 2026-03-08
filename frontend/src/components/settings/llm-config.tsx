@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/tooltip"
 import { Eye, EyeOff, HelpCircle } from "lucide-react"
 import { Slider } from "@/components/ui/slider"
-import type { AppSettings, ModelInfo } from "@/lib/types"
+import type { AppSettings, ModelEntry, ModelInfo } from "@/lib/types"
 import { TestPrompt } from "./test-prompt"
 
 export function LlmConfig({
@@ -39,7 +39,7 @@ export function LlmConfig({
   onSaveLlmParams: (temperature: number, maxTokens: number, numCtx: number | null) => Promise<void>
   onTestProvider: (name: string, model: string, apiBase: string, apiKey: string) => Promise<void>
   onPingModel: (model: string, apiBase: string, apiKey: string, signal?: AbortSignal) => Promise<void>
-  onRefreshModels: (name: string, apiBase: string) => Promise<{ models: string[]; status: string }>
+  onRefreshModels: (name: string, apiBase: string) => Promise<{ models: ModelEntry[]; status: string }>
   onFetchModelInfo: (model: string, apiBase: string) => Promise<ModelInfo>
 }) {
   const [provider, setProvider] = useState(settings.active_provider)
@@ -50,7 +50,7 @@ export function LlmConfig({
     return active?.api_key ?? ""
   })
   const [showKey, setShowKey] = useState(false)
-  const [models, setModels] = useState<string[]>([])
+  const [models, setModels] = useState<ModelEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [customMode, setCustomMode] = useState(false)
 
@@ -75,7 +75,7 @@ export function LlmConfig({
       try {
         const res = await onRefreshModels(provider, apiBase)
         if (!cancelled && res.models.length > 0) {
-          setModels(res.models)
+          setModels(res.models as ModelEntry[])
           setCustomMode(false)
         }
       } catch {
@@ -115,6 +115,10 @@ export function LlmConfig({
       setModel(p.model)
       setApiBase(p.api_base)
       setApiKey(p.api_key)
+      setTemperature(p.temperature ?? settings.temperature)
+      setMaxTokens(p.max_tokens ?? settings.max_tokens)
+      setNumCtx(p.num_ctx?.toString() ?? "")
+      setParamsDirty(false)
     }
   }
 
@@ -128,9 +132,10 @@ export function LlmConfig({
     try {
       const res = await onRefreshModels(provider, apiBase)
       if (res.models.length > 0) {
-        setModels(res.models)
-        if (!userPickedModel.current && !res.models.includes(model)) {
-          setModel(res.models[0])
+        const entries = res.models as ModelEntry[]
+        setModels(entries)
+        if (!userPickedModel.current && !entries.some((m) => m.id === model)) {
+          setModel(entries[0].id)
         }
         setCustomMode(false)
       }
@@ -158,8 +163,8 @@ export function LlmConfig({
   }
 
   const selectOptions = [...models]
-  if (model && !models.includes(model)) {
-    selectOptions.unshift(model)
+  if (model && !models.some((m) => m.id === model)) {
+    selectOptions.unshift({ id: model, label: model })
   }
 
   return (
@@ -248,7 +253,7 @@ export function LlmConfig({
                 </SelectTrigger>
                 <SelectContent>
                   {selectOptions.map((m) => (
-                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                    <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -372,7 +377,10 @@ export function LlmConfig({
               onChange={(e) => { setMaxTokens(Number(e.target.value)); setParamsDirty(true) }}
             />
             <p className="text-xs text-muted-foreground">
-              Maximum tokens in the LLM response. Default: 2048
+              Maximum tokens in the LLM response.
+              {modelInfo?.max_output_tokens != null && (
+                <> Model supports up to <strong>{(modelInfo.max_output_tokens / 1000).toFixed(0)}K</strong>.</>
+              )}
             </p>
           </div>
 

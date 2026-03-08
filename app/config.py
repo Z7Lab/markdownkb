@@ -240,32 +240,57 @@ class Settings:
 
     @property
     def llm_temperature(self) -> float:
-        """Return the LLM sampling temperature."""
+        """Return temperature for the active provider, falling back to global default."""
+        active = self.get_active_llm_config()
+        if "temperature" in active:
+            return active["temperature"]
         return self._data.get("llm", {}).get("temperature", 0.3)
 
     @llm_temperature.setter
     def llm_temperature(self, value: float):
-        """Set the LLM sampling temperature."""
+        """Set temperature on the active provider entry."""
+        for p in self.llm_providers:
+            if p.get("name") == self.active_provider:
+                p["temperature"] = value
+                return
+        # Fallback: set global default
         self._data.setdefault("llm", {})["temperature"] = value
 
     @property
     def llm_max_tokens(self) -> int:
-        """Return the maximum tokens for LLM completions."""
+        """Return max_tokens for the active provider, falling back to global default."""
+        active = self.get_active_llm_config()
+        if "max_tokens" in active:
+            return active["max_tokens"]
         return self._data.get("llm", {}).get("max_tokens", 2048)
 
     @llm_max_tokens.setter
     def llm_max_tokens(self, value: int):
-        """Set the maximum tokens for LLM completions."""
+        """Set max_tokens on the active provider entry."""
+        for p in self.llm_providers:
+            if p.get("name") == self.active_provider:
+                p["max_tokens"] = value
+                return
         self._data.setdefault("llm", {})["max_tokens"] = value
 
     @property
     def llm_num_ctx(self) -> int | None:
-        """Return the Ollama context window override (None = use model default)."""
+        """Return Ollama context window override from active provider (None = model default)."""
+        active = self.get_active_llm_config()
+        if "num_ctx" in active:
+            return active["num_ctx"]
         return self._data.get("llm", {}).get("num_ctx")
 
     @llm_num_ctx.setter
     def llm_num_ctx(self, value: int | None):
-        """Set the Ollama context window override."""
+        """Set Ollama context window on the active provider entry."""
+        for p in self.llm_providers:
+            if p.get("name") == self.active_provider:
+                if value is None:
+                    p.pop("num_ctx", None)
+                else:
+                    p["num_ctx"] = value
+                return
         if value is None:
             self._data.get("llm", {}).pop("num_ctx", None)
         else:
