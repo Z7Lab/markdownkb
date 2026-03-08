@@ -43,6 +43,8 @@ export function GraphTab() {
   const fgRef = useRef<any>(null)
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 })
   const [webglSupported] = useState(() => detectWebGL())
+  const [spread, setSpread] = useState(100)
+  const spreadInitialized = useRef(false)
 
   // Fetch on mount and scope change
   useEffect(() => {
@@ -95,37 +97,53 @@ export function GraphTab() {
 
   const hasHighlight = highlightedNodes.size > 0
 
-  // Filter edges by threshold, transform to force graph links format
+  // Filter edges by threshold and remove disconnected nodes
   const forceGraphData = useMemo(() => {
     if (!graphData) return { nodes: [], links: [] }
+    const links = graphData.edges
+      .filter(e => e.weight >= threshold)
+      .map(e => ({
+        source: e.source,
+        target: e.target,
+        weight: e.weight,
+      }))
+    // Only include nodes that have at least one visible edge
+    const connectedIds = new Set<string>()
+    for (const link of links) {
+      connectedIds.add(link.source)
+      connectedIds.add(link.target)
+    }
     return {
-      nodes: graphData.nodes.map(n => ({ ...n })),
-      links: graphData.edges
-        .filter(e => e.weight >= threshold)
-        .map(e => ({
-          source: e.source,
-          target: e.target,
-          weight: e.weight,
-        })),
+      nodes: graphData.nodes
+        .filter(n => connectedIds.has(n.id))
+        .map(n => ({ ...n })),
+      links,
     }
   }, [graphData, threshold])
 
-  // Configure d3 forces for spread
+  // Configure d3 forces — spread slider scales all distances
   useEffect(() => {
     const fg = fgRef.current
     if (!fg) return
-    fg.d3Force("charge")?.strength(-1500).distanceMax(2000)
+    const s = spread / 100
+    fg.d3Force("charge")?.strength(-1500 * s).distanceMax(2000 * s)
     fg.d3Force("link")
       ?.distance((link: any) => {
         const w = typeof link.weight === "number" ? link.weight : 0.5
-        return 200 + (1 - w) * 800
+        return (200 + (1 - w) * 800) * s
       })
       .strength((link: any) => {
         const w = typeof link.weight === "number" ? link.weight : 0.5
         return w * 0.15
       })
     fg.d3Force("center")?.strength(0.02)
-  }, [forceGraphData])
+    // Only reheat when user changes spread, not on initial mount
+    if (spreadInitialized.current) {
+      fg.d3ReheatSimulation()
+    } else {
+      spreadInitialized.current = true
+    }
+  }, [forceGraphData, spread])
 
   // Active word cloud based on selection state
   const { activeWordCloud, wordCloudLabel } = useMemo(() => {
@@ -189,19 +207,25 @@ export function GraphTab() {
     return `<div style="max-width:300px"><strong>${node.label}</strong><br/>${node.chunk_count} chunks${tags}</div>`
   }, [])
 
-  // Link styling
-  const linkColor = useCallback((link: { source: string; target: string }) => {
-    if (!hasHighlight) return "rgba(255,255,255,0.15)"
-    const srcId = typeof link.source === "object" ? (link.source as any).id : link.source
-    const tgtId = typeof link.target === "object" ? (link.target as any).id : link.target
-    if (highlightedNodes.has(srcId) && highlightedNodes.has(tgtId)) {
-      return "rgba(250,204,21,0.6)"
+  // Link styling — opacity and width scale with weight for visibility at distance
+  const linkColor = useCallback((link: { source: string; target: string; weight: number }) => {
+    if (hasHighlight) {
+      const srcId = typeof link.source === "object" ? (link.source as any).id : link.source
+      const tgtId = typeof link.target === "object" ? (link.target as any).id : link.target
+      if (highlightedNodes.has(srcId) && highlightedNodes.has(tgtId)) {
+        return "rgba(250,204,21,0.8)"
+      }
+      return "rgba(255,255,255,0.03)"
     }
-    return "rgba(255,255,255,0.04)"
+    // Stronger connections are brighter
+    const w = typeof link.weight === "number" ? link.weight : 0.5
+    const alpha = Math.min(0.6, 0.08 + w * 0.5)
+    return `rgba(140,180,255,${alpha.toFixed(2)})`
   }, [hasHighlight, highlightedNodes])
 
   const linkWidth = useCallback((link: { weight: number }) => {
-    return Math.max(0.3, link.weight * 3)
+    const w = typeof link.weight === "number" ? link.weight : 0.5
+    return Math.max(0.5, w * w * 8)
   }, [])
 
   // Node click
@@ -233,8 +257,8 @@ export function GraphTab() {
         onScopeChange={handleScopeChange}
         threshold={threshold}
         onThresholdChange={setThreshold}
-        spread={100}
-        onSpreadChange={() => {}}
+        spread={spread}
+        onSpreadChange={setSpread}
         searchTerm={searchTerm}
         onSearchChange={(term) => { setSearchTerm(term); selectNode(null) }}
         onRefresh={() => fetchGraph(selectedScopeId)}
@@ -264,7 +288,7 @@ export function GraphTab() {
         {/* Stats bar */}
         {graphData && !isLoading && (
           <div className="absolute top-3 left-3 z-10 text-xs text-muted-foreground bg-background/80 rounded px-2 py-1">
-            {graphData.stats.doc_count} docs · {graphData.stats.chunk_count} chunks · {forceGraphData.links.length} edges
+            {forceGraphData.nodes.length}/{graphData.stats.doc_count} docs · {forceGraphData.links.length} edges
           </div>
         )}
 
@@ -332,6 +356,7 @@ export function GraphTab() {
             d3VelocityDecay={0.3}
             cooldownTicks={200}
             warmupTicks={100}
+            onEngineStop={() => fgRef.current?.zoomToFit(400, 60)}
           />
         )}
       </div>
