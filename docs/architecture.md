@@ -13,9 +13,9 @@ mdkb is a search-first documentation tool with a Python backend and React fronte
 ┌────────────────────────▼────────────────────────────────┐
 │  FastAPI Backend                                        │
 │  ┌──────────────────────────────────────────────────┐   │
-│  │  Core Routers (8 modules)                        │   │
+│  │  Core Routers (9 modules)                        │   │
 │  │  health │ search │ chat │ threads │ files        │   │
-│  │  settings │ embeddings │ export                  │   │
+│  │  settings │ embeddings │ export │ scopes         │   │
 │  ├──────────────────────────────────────────────────┤   │
 │  │  Plugins (auto-discovered, feature-gated)        │   │
 │  │  planner │ tags │ write_api │ ...                │   │
@@ -31,8 +31,8 @@ mdkb is a search-first documentation tool with a Python backend and React fronte
 │             │                           │               │
 │  ┌──────────▼───────────────────────────▼───────────┐   │
 │  │  Storage Layer                                   │   │
-│  │  ChromaDB (vectors) │ SQLite ×3 (tracking,       │   │
-│  │                     │  chat history, search log)  │   │
+│  │  ChromaDB (vectors) │ SQLite ×5 (tracking,       │   │
+│  │    chat, search, plans, scopes)                  │   │
 │  └──────────────────────────────────────────────────┘   │
 │                                                         │
 │  ┌──────────────────┐  ┌────────────────────────────┐   │
@@ -67,11 +67,11 @@ mdkb is a search-first documentation tool with a Python backend and React fronte
 3. **Auth middleware** (`app/auth.py`) checks the `X-MDKB-Key` header on all `/api/*` paths (except `/api/health`) when an API key is configured. Disabled when no key is set.
 4. **Dependency injection** (`app/deps.py`) provides services via FastAPI's `Depends()`. All shared state lives on `app.state`, initialized in the async lifespan context manager (`app/main.py`).
 5. **Services** contain business logic — conversation management, LLM health checks, query enhancement.
-6. **Storage layer** persists data across three stores (see below).
+6. **Storage layer** persists data across six stores (see below).
 
 ## Storage
 
-mdkb uses one vector database and three SQLite databases:
+mdkb uses one vector database and five SQLite databases:
 
 | Database | File | Purpose |
 |----------|------|---------|
@@ -79,6 +79,8 @@ mdkb uses one vector database and three SQLite databases:
 | **TrackingDB** | `data/tracking.db` | File index state, hashes, RAG inclusion flags |
 | **ChatDB** | `data/chat.db` | Chat threads and messages |
 | **SearchDB** | `data/search.db` | Search history, versions, AI summaries |
+| **PlanDB** | `data/plans.db` | Saved planner plans and metadata |
+| **ScopeDB** | `data/scopes.db` | Named source scopes (folder subsets) |
 
 SQLite databases use `PRAGMA user_version` for schema migrations. Each database class carries a `_MIGRATIONS` list that is applied on open.
 
@@ -89,6 +91,7 @@ SQLite databases use `PRAGMA user_version` for schema migrations. Each database 
 3. **Embedder** (`app/embeddings/embedder.py`) generates vector embeddings using ONNX models (runs on CPU, no PyTorch). Three models are available — see [embedding-models.md](embedding-models.md).
 4. **Indexer** (`app/ingestion/indexer.py`) orchestrates the pipeline: scan → parse → embed → store in ChromaDB + track in TrackingDB.
 5. **Watcher** (`app/ingestion/watcher.py`) uses `watchdog` to detect file changes and re-index incrementally. Runs in a background thread. The `FileWatcher` class supports adding directories at runtime — when a new source is added via the API, it starts watching immediately without a restart.
+6. **Event Bus** (`app/events.py`) — the watcher publishes `IndexEvent` objects (indexed, deleted, error) to an `IndexEventBus`. SSE clients subscribe via `GET /api/index/events` to receive real-time notifications as files are processed.
 
 ## Retrieval & RAG
 
@@ -145,7 +148,7 @@ Optional modules are controlled by feature flags in `config/settings.yaml` under
 
 The React SPA (`frontend/`) communicates with the backend exclusively through the `/api/*` endpoints. Key patterns:
 
-- **Hooks** (`frontend/src/hooks/`) encapsulate all API interaction and state management — one hook per domain (chat, search, files, settings).
+- **Hooks** (`frontend/src/hooks/`) encapsulate all API interaction and state management — one hook per domain (chat, search, files, settings, scopes, planner).
 - **SSE streaming** uses POST-based fetch with `ReadableStream`, not `EventSource` (which only supports GET).
 - **Retry logic** in `api.ts` handles server restarts with exponential backoff. Hooks retry on initial load failure.
 - **State persistence** — some UI state (tab selection, panel sizes) is persisted to `localStorage` via `use-persisted-state`.

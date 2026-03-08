@@ -112,6 +112,20 @@ Missing or invalid keys return **401 Unauthorized**. `/api/health` is always pub
 | POST | `/api/settings/database/compact-chats` | Compact chat database |
 | POST | `/api/settings/database/compact-searches` | Compact search database |
 
+## Scopes
+
+Named subsets of source folders. Scopes can be passed to Search, Chat, and Planner to restrict retrieval to specific document collections.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/scopes` | List all scopes |
+| POST | `/api/scopes` | Create a scope (`{ name, folders }`) |
+| GET | `/api/scopes/{id}` | Get a scope by ID |
+| PUT | `/api/scopes/{id}` | Update a scope (`{ name, folders }`) |
+| DELETE | `/api/scopes/{id}` | Delete a scope |
+
+Search, Chat, and Planner endpoints accept an optional `scope_id` field in their request bodies. When provided, retrieval is restricted to the scope's folders.
+
 ## Embeddings & Indexing
 
 | Method | Path | Description |
@@ -122,6 +136,7 @@ Missing or invalid keys return **401 Unauthorized**. `/api/health` is always pub
 | PUT | `/api/settings/embedding-models/switch` | Switch model + background reindex |
 | POST | `/api/index` | Trigger indexing |
 | POST | `/api/index/cancel` | Cancel running index |
+| GET | `/api/index/events` | SSE stream of real-time index events (file indexed/deleted/error) |
 
 ## Export
 
@@ -168,6 +183,10 @@ Requires the `mcts_planner` feature flag. Plugin: `app/plugins/planner/`.
 |--------|------|-------------|
 | POST | `/api/planner/plan` | Generate an implementation plan using MCTS |
 | POST | `/api/planner/plan/stream` | Stream plan generation progress as SSE |
+| GET | `/api/planner/plans` | List saved plans |
+| POST | `/api/planner/plans` | Save a plan |
+| GET | `/api/planner/plans/{id}` | Load a saved plan |
+| DELETE | `/api/planner/plans/{id}` | Delete a saved plan |
 | GET | `/api/planner/skills` | List available agent skills |
 
 ## Tags
