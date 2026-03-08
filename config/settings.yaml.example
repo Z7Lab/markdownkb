@@ -78,6 +78,12 @@ llm:
     model: ollama/qwen3:8b
     api_key: ''
     api_base: http://localhost:11434
+  # Venice.ai — privacy-preserving OpenAI-compatible API (no data retention)
+  # Good for RAG: deepseek-r1-671b (reasoning), llama-3.3-70b (general)
+  - name: venice
+    model: openai/deepseek-r1-671b
+    api_key: ''  # Get key from https://venice.ai
+    api_base: https://api.venice.ai/api/v1
   active_provider: ollama
   temperature: 0.3
   max_tokens: 2048

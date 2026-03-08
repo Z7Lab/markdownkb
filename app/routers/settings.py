@@ -151,6 +151,7 @@ def get_settings_endpoint(request: Request, settings: Settings = Depends(get_set
                 "name": p["name"],
                 "model": p.get("model", ""),
                 "api_base": p.get("api_base", ""),
+                "api_key": p.get("api_key", ""),
             }
             for p in settings.llm_providers
         ],
@@ -191,6 +192,7 @@ def save_provider(
         if p.get("name") == req.name:
             p["model"] = req.model
             p["api_base"] = req.api_base
+            p["api_key"] = req.api_key
             break
     settings.save()
     return {"status": "saved"}
@@ -204,6 +206,7 @@ def test_connection(request: Request, req: TestConnectionRequest):
         req.name,
         req.model,
         req.api_base,
+        req.api_key,
     )
     return {"result": result}
 
@@ -212,7 +215,7 @@ def test_connection(request: Request, req: TestConnectionRequest):
 @limiter.limit(LLM)
 def ping_model_endpoint(request: Request, req: TestConnectionRequest):
     """Ping a specific model to check availability."""
-    result = ping_model(req.model, req.api_base)
+    result = ping_model(req.model, req.api_base, req.api_key)
     return {"result": result}
 
 
@@ -238,10 +241,12 @@ def test_prompt(
     if req.provider and req.model:
         model = req.model
         api_base = req.api_base or ""
+        api_key = req.api_key or ""
     else:
         active = settings.get_active_llm_config()
         model = active.get("model", "")
         api_base = active.get("api_base", "") or ""
+        api_key = active.get("api_key", "") or ""
 
     if not model:
         raise HTTPException(status_code=400, detail="No model configured")
@@ -254,6 +259,7 @@ def test_prompt(
                 api_base,
                 settings.llm_temperature,
                 settings.llm_max_tokens,
+                api_key,
             ):
                 yield sse(event, data)
         except (RuntimeError, ConnectionError, TimeoutError) as e:

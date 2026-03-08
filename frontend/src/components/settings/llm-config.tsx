@@ -16,7 +16,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { HelpCircle } from "lucide-react"
+import { Eye, EyeOff, HelpCircle } from "lucide-react"
 import type { AppSettings, ModelInfo } from "@/lib/types"
 import { TestPrompt } from "./test-prompt"
 
@@ -33,15 +33,20 @@ export function LlmConfig({
   settings: AppSettings
   providerStatus: string
   modelStatus: string
-  onSave: (name: string, model: string, apiBase: string) => Promise<void>
-  onTestProvider: (name: string, model: string, apiBase: string) => Promise<void>
-  onPingModel: (model: string, apiBase: string, signal?: AbortSignal) => Promise<void>
+  onSave: (name: string, model: string, apiBase: string, apiKey: string) => Promise<void>
+  onTestProvider: (name: string, model: string, apiBase: string, apiKey: string) => Promise<void>
+  onPingModel: (model: string, apiBase: string, apiKey: string, signal?: AbortSignal) => Promise<void>
   onRefreshModels: (name: string, apiBase: string) => Promise<{ models: string[]; status: string }>
   onFetchModelInfo: (model: string, apiBase: string) => Promise<ModelInfo>
 }) {
   const [provider, setProvider] = useState(settings.active_provider)
   const [model, setModel] = useState(settings.active_model)
   const [apiBase, setApiBase] = useState(settings.active_api_base)
+  const [apiKey, setApiKey] = useState(() => {
+    const active = settings.providers.find((p) => p.name === settings.active_provider)
+    return active?.api_key ?? ""
+  })
+  const [showKey, setShowKey] = useState(false)
   const [models, setModels] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [customMode, setCustomMode] = useState(false)
@@ -100,6 +105,7 @@ export function LlmConfig({
     if (p) {
       setModel(p.model)
       setApiBase(p.api_base)
+      setApiKey(p.api_key)
     }
   }
 
@@ -130,7 +136,7 @@ export function LlmConfig({
     pingAbortRef.current = controller
     setPingLoading(true)
     try {
-      await onPingModel(model, apiBase, controller.signal)
+      await onPingModel(model, apiBase, apiKey, controller.signal)
     } finally {
       setPingLoading(false)
     }
@@ -168,7 +174,7 @@ export function LlmConfig({
                 ))}
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={() => onTestProvider(provider, model, apiBase)}>
+            <Button variant="outline" size="sm" onClick={() => onTestProvider(provider, model, apiBase, apiKey)}>
               Test Provider
             </Button>
           </div>
@@ -189,6 +195,31 @@ export function LlmConfig({
           />
         </div>
 
+        <div>
+          <label htmlFor="llm-api-key" className="text-sm font-medium">API Key</label>
+          <div className="flex gap-2">
+            <Input
+              id="llm-api-key"
+              type={showKey ? "text" : "password"}
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="Leave empty for env var or local providers"
+              className="flex-1"
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowKey(!showKey)}
+              aria-label={showKey ? "Hide API key" : "Show API key"}
+            >
+              {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Stored in settings.yaml. Can also be set via environment variable (e.g. OPENAI_API_KEY).
+          </p>
+        </div>
+
         <div className="space-y-2">
           <label htmlFor="llm-model" className="text-sm font-medium">Model</label>
           <div className="flex gap-2">
@@ -198,7 +229,7 @@ export function LlmConfig({
                 value={model}
                 onChange={(e) => { userPickedModel.current = true; setModel(e.target.value) }}
                 className="flex-1"
-                placeholder="e.g. anthropic/claude-3-5-sonnet-20241022"
+                placeholder="e.g. openai/gpt-4o or openai/deepseek-r1-671b"
                 autoFocus
               />
             ) : (
@@ -232,7 +263,7 @@ export function LlmConfig({
               <TooltipContent side="bottom" className="max-w-64">
                 {customMode
                   ? "Switch back to picking a model from the dropdown list."
-                  : "Type a LiteLLM model ID directly, e.g. anthropic/claude-3-5-sonnet-20241022 or openai/gpt-4o. Useful for models not in the list."}
+                  : "Type a LiteLLM model ID directly, e.g. openai/gpt-4o. For OpenAI-compatible APIs (Venice, Together, etc.) use openai/<model-name> with a custom API Base."}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -280,7 +311,7 @@ export function LlmConfig({
         </div>
 
         <div className="flex gap-2">
-          <Button onClick={() => onSave(provider, model, apiBase)}>
+          <Button onClick={() => onSave(provider, model, apiBase, apiKey)}>
             Save
           </Button>
           <Button variant="outline" onClick={handlePing} disabled={pingLoading}>
@@ -299,7 +330,7 @@ export function LlmConfig({
           </pre>
         )}
 
-        <TestPrompt provider={provider} model={model} apiBase={apiBase} />
+        <TestPrompt provider={provider} model={model} apiBase={apiBase} apiKey={apiKey} />
       </CardContent>
     </Card>
   )

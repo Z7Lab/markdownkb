@@ -106,7 +106,7 @@ def test_ollama(api_base: str) -> str:
     )
 
 
-def test_api_provider(model: str, api_base: str) -> str:
+def test_api_provider(model: str, api_base: str, api_key: str = "") -> str:
     """Test connectivity to an API-based LLM provider."""
     kwargs = {
         "model": model,
@@ -116,6 +116,8 @@ def test_api_provider(model: str, api_base: str) -> str:
     }
     if api_base:
         kwargs["api_base"] = api_base
+    if api_key:
+        kwargs["api_key"] = api_key
 
     try:
         response = litellm.completion(**kwargs)
@@ -133,7 +135,7 @@ def test_api_provider(model: str, api_base: str) -> str:
 
 
 def test_llm_connection(
-    provider_name: str, model: str, api_base: str,
+    provider_name: str, model: str, api_base: str, api_key: str = "",
 ) -> str:
     """Test connectivity to an LLM provider."""
     if not model:
@@ -142,14 +144,14 @@ def test_llm_connection(
     if "ollama" in provider_name.lower() and api_base:
         return test_ollama(api_base)
 
-    return test_api_provider(model, api_base)
+    return test_api_provider(model, api_base, api_key)
 
 
-def ping_model(model: str, api_base: str) -> str:
+def ping_model(model: str, api_base: str, api_key: str = "") -> str:
     """Quick test that a specific model loads and responds."""
     if not model:
         return "No model configured."
-    return test_api_provider(model, api_base)
+    return test_api_provider(model, api_base, api_key)
 
 
 # ── Model Capabilities ────────────────────────────────────
@@ -219,6 +221,7 @@ def stream_test_prompt(
     api_base: str,
     temperature: float,
     max_tokens: int,
+    api_key: str = "",
 ):
     """Stream a raw prompt to the model, yielding (event, data) tuples."""
     kwargs: dict = {
@@ -230,6 +233,8 @@ def stream_test_prompt(
     }
     if api_base:
         kwargs["api_base"] = api_base
+    if api_key:
+        kwargs["api_key"] = api_key
 
     start = time.time()
     token_count = 0

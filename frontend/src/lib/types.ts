@@ -95,6 +95,7 @@ export interface Provider {
   name: string
   model: string
   api_base: string
+  api_key: string
 }
 
 export interface Thread {

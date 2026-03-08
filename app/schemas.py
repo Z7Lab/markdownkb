@@ -109,6 +109,7 @@ class ProviderSettingsRequest(BaseModel):
     name: str
     model: str
     api_base: str = ""
+    api_key: str = ""
 
 
 class TestConnectionRequest(BaseModel):
@@ -117,6 +118,7 @@ class TestConnectionRequest(BaseModel):
     name: str
     model: str
     api_base: str = ""
+    api_key: str = ""
 
 
 class RefreshModelsRequest(BaseModel):
@@ -140,6 +142,7 @@ class TestPromptRequest(BaseModel):
     provider: str = ""
     model: str = ""
     api_base: str = ""
+    api_key: str = ""
 
 
 class ModelInfoRequest(BaseModel):

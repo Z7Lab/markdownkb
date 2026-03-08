@@ -120,11 +120,12 @@ function useSettingsInternal() {
   }, []) // Only run on mount
 
   const saveProvider = useCallback(
-    async (name: string, model: string, apiBase: string) => {
+    async (name: string, model: string, apiBase: string, apiKey: string = "") => {
       await api.put("/api/settings/provider", {
         name,
         model,
         api_base: apiBase,
+        api_key: apiKey,
       })
       setModelStatus(`Saved: ${name} / ${model}`)
       await load()
@@ -133,12 +134,13 @@ function useSettingsInternal() {
   )
 
   const testConnection = useCallback(
-    async (name: string, model: string, apiBase: string) => {
+    async (name: string, model: string, apiBase: string, apiKey: string = "") => {
       setProviderStatus("Testing...")
       const res = await api.post<{ result: string }>("/api/settings/test-connection", {
         name,
         model,
         api_base: apiBase,
+        api_key: apiKey,
       })
       setProviderStatus(res.result)
     },
@@ -154,13 +156,14 @@ function useSettingsInternal() {
   }, [])
 
   const pingModel = useCallback(
-    async (model: string, apiBase: string, signal?: AbortSignal) => {
+    async (model: string, apiBase: string, apiKey: string = "", signal?: AbortSignal) => {
       setModelStatus("Pinging model...")
       try {
         const res = await api.post<{ result: string }>("/api/settings/ping-model", {
           name: "",
           model,
           api_base: apiBase,
+          api_key: apiKey,
         }, signal)
         setModelStatus(res.result)
       } catch (err) {

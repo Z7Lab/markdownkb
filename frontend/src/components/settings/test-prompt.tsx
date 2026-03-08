@@ -19,10 +19,12 @@ export function TestPrompt({
   provider,
   model,
   apiBase,
+  apiKey,
 }: {
   provider: string
   model: string
   apiBase: string
+  apiKey: string
 }) {
   const [open, setOpen] = useState(false)
   const [promptText, setPromptText] = useState("")
@@ -50,6 +52,7 @@ export function TestPrompt({
           provider,
           model,
           api_base: apiBase,
+          api_key: apiKey,
         }),
         signal: controller.signal,
       })
