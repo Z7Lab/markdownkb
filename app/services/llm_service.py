@@ -57,6 +57,18 @@ def get_provider_models(provider_name: str) -> list[str]:
     return []
 
 
+def _get_plugin_catalog(provider_name: str) -> list[str] | None:
+    """Check if a plugin catalog provides models for this provider."""
+    try:
+        from app.plugins.catalogs import get_catalog
+        mod = get_catalog(provider_name)
+        if mod and hasattr(mod, "get_model_ids"):
+            return mod.get_model_ids()
+    except ImportError:
+        pass
+    return None
+
+
 def build_model_list(
     provider_name: str, api_base: str,
 ) -> tuple[list[str], str]:
@@ -67,6 +79,11 @@ def build_model_list(
             choices = [f"ollama/{m}" for m in raw]
             return choices, f"Found {len(raw)} model(s)"
         return [], f"No models found at {api_base}"
+
+    # Check plugin catalogs first
+    catalog = _get_plugin_catalog(provider_name)
+    if catalog:
+        return catalog, f"Found {len(catalog)} model(s)"
 
     known = get_provider_models(provider_name)
     if known:
@@ -207,6 +224,21 @@ def get_model_capabilities(model: str, api_base: str = "") -> dict:
                             break
         except (httpx.HTTPError, httpx.ConnectError) as e:
             logger.debug("Failed to fetch Ollama model details for %s: %s", model, e)
+
+    # Fall back to plugin catalogs for model info (e.g. Venice)
+    if not result:
+        try:
+            from app.plugins.catalogs import get_catalog
+            # Try all catalogs — the model ID itself hints at the provider
+            for name in ("venice",):  # extend as catalogs are added
+                mod = get_catalog(name)
+                if mod and hasattr(mod, "get_model_info"):
+                    info = mod.get_model_info(model)
+                    if info:
+                        result = info
+                        break
+        except ImportError:
+            pass
 
     if not result:
         result["error"] = "No model info available"

@@ -50,12 +50,19 @@ Three embedding models are available: `all-MiniLM-L6-v2`, `all-MiniLM-L12-v2`, a
 |-----|---------|-------------|
 | `llm.providers` | anthropic, openai, ollama | LLM backends with `name`, `model`, `api_key`, `api_base` |
 | `llm.active_provider` | `ollama` | Which provider to use |
-| `llm.temperature` | `0.3` | Response randomness |
-| `llm.max_tokens` | `2048` | Max response length |
+| `llm.temperature` | `0.3` | Response randomness (0.0–2.0) |
+| `llm.max_tokens` | `2048` | Max output tokens |
+| `llm.num_ctx` | (unset) | Ollama context window override. Leave unset for the model's built-in default. Set higher (e.g. `32768`) to use more context for longer documents. Only applies to Ollama providers. |
 
-Model names use [LiteLLM format](https://docs.litellm.ai/docs/providers): `provider/model` (e.g. `ollama/qwen3:8b`, `anthropic/claude-3-5-sonnet-20241022`).
+Model names use [LiteLLM format](https://docs.litellm.ai/docs/providers): `provider/model` (e.g. `ollama/qwen3:8b`, `anthropic/claude-3-5-sonnet-20241022`). For OpenAI-compatible APIs (Venice, Together, etc.) use `openai/<model-name>` with a custom `api_base`.
 
-Providers without an `api_key` are skipped (except Ollama). If the active provider fails, others are tried as fallbacks.
+Providers without an `api_key` are skipped (except Ollama). If the active provider fails, others are tried as fallbacks. API keys can be set in `settings.yaml` or via the Settings UI.
+
+### Model Catalogs
+
+Static model catalogs live in `app/plugins/catalogs/`. When a provider matches a catalog (by name), the model dropdown in the Settings UI is populated from the catalog instead of querying the LiteLLM registry. Model info (pricing, context size) is also served from the catalog.
+
+Available catalogs: `venice` (Venice.ai — privacy-preserving OpenAI-compatible API).
 
 ## Retrieval
 

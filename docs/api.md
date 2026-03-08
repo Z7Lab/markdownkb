@@ -64,6 +64,7 @@ Missing or invalid keys return **401 Unauthorized**. `/api/health` is always pub
 | POST | `/api/files/unindex` | Remove file chunks from index |
 | POST | `/api/files/index` | Index a single file |
 | POST | `/api/files/reindex` | Re-embed a file's chunks |
+| POST | `/api/files/unindex-source` | Unindex all files under a source directory |
 
 ## Settings
 
@@ -72,10 +73,11 @@ Missing or invalid keys return **401 Unauthorized**. `/api/health` is always pub
 | GET | `/api/settings` | Get full settings |
 | GET | `/api/sources` | List source directories |
 | POST | `/api/sources` | Add source directory (immediately starts watching + indexing) |
-| DELETE | `/api/sources` | Remove source directory |
+| DELETE | `/api/sources` | Remove source directory (with optional `cleanup` to unindex files) |
 | POST | `/api/ignore-patterns` | Add ignore pattern |
 | DELETE | `/api/ignore-patterns` | Remove ignore pattern |
-| PUT | `/api/settings/provider` | Save LLM provider config |
+| PUT | `/api/settings/provider` | Save LLM provider config (name, model, api_base, api_key) |
+| PUT | `/api/settings/llm-params` | Save generation parameters (temperature, max_tokens, num_ctx) |
 | POST | `/api/settings/test-connection` | Test LLM connectivity |
 | POST | `/api/settings/ping-model` | Ping a specific model |
 | POST | `/api/settings/refresh-models` | Fetch model list from provider |

@@ -50,7 +50,7 @@ mdkb is a search-first documentation tool with a Python backend and React fronte
          │                        │
          ▼                        ▼
    ONNX Embeddings          LLM Providers
-   (local CPU)              (Ollama / Anthropic / OpenAI)
+   (local CPU)              (Ollama / Anthropic / OpenAI / Venice / ...)
 
 ┌─────────────────────────────────────────────────────────┐
 │  MCP Server (mcp_server.py — separate process)          │
@@ -114,7 +114,7 @@ LLM calls go through **LiteLLM** (`app/rag/llm.py`), which provides a unified in
 2. Other configured providers with valid API keys
 3. Ollama (no key required)
 
-Connection testing and model discovery for Ollama use `httpx` directly (`app/services/llm_service.py`).
+Connection testing and model discovery for Ollama use `httpx` directly (`app/services/llm_service.py`). For providers with a model catalog plugin (e.g. Venice), the catalog provides the model list and capability info instead of relying on LiteLLM's registry. API keys are passed through from the provider config or the Settings UI.
 
 ## Plugin System
 
@@ -126,6 +126,12 @@ Optional routers live under `app/plugins/`. Each plugin is a directory with an `
 At startup, `app/plugins/__init__.py` scans the directory, imports each plugin, checks its feature flag, and registers the router if enabled. Adding a new plugin requires no changes to core files — just create a new folder in `app/plugins/`.
 
 Current plugins: `planner` (MCTS plan generation), `tags` (AI tag generation), `write_api` (document creation via HTTP).
+
+### Model Catalogs
+
+A separate plugin type lives under `app/plugins/catalogs/`. Each subdirectory provides a static model catalog for an LLM provider, exposing `get_model_ids()` and `get_model_info()`. These are used by `llm_service.build_model_list()` to populate the model dropdown and display pricing/context info in the UI. No feature flag is needed — catalogs are always active.
+
+Current catalogs: `venice` (Venice.ai — 21 privacy-preserving chat models).
 
 ## Feature Flags
 
