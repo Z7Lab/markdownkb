@@ -3,7 +3,7 @@ import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { MessageSquare, Eye, FileSearch, Terminal, Brain, Wrench, Activity, Shield, Tag, Settings } from "lucide-react"
+import { MessageSquare, Eye, FileSearch, Terminal, Brain, Wrench, Activity, Shield, Tag, Settings, Network } from "lucide-react"
 import { McpSettingsDialog } from "./mcp-settings-dialog"
 
 type FeatureInfo = {
@@ -60,6 +60,12 @@ const FEATURE_METADATA: Record<string, FeatureInfo> = {
     label: "Diagnostics",
     description: "Show detailed diagnostic information in the UI",
     icon: Activity,
+    category: "advanced",
+  },
+  knowledge_graph: {
+    label: "Knowledge Graph",
+    description: "Interactive 3D visualization of document relationships and topic clusters",
+    icon: Network,
     category: "advanced",
   },
   rate_limiting: {

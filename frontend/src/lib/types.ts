@@ -214,6 +214,49 @@ export interface Scope {
   created_at: string
 }
 
+// -- Knowledge Graph --
+
+export interface GraphNode {
+  id: string
+  label: string
+  cluster_id: number
+  chunk_count: number
+  source_root: string
+  tags: string[]
+  headings: string[]
+  word_cloud: Record<string, number>
+}
+
+export interface GraphEdge {
+  source: string
+  target: string
+  weight: number
+  top_chunk_pairs: {
+    source_text: string
+    target_text: string
+    similarity: number
+  }[]
+}
+
+export interface GraphCluster {
+  id: number
+  label: string
+  doc_count: number
+  word_cloud: Record<string, number>
+}
+
+export interface GraphData {
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+  clusters: GraphCluster[]
+  global_word_cloud: Record<string, number>
+  stats: {
+    doc_count: number
+    chunk_count: number
+    edge_count: number
+  }
+}
+
 export interface ModelEntry {
   id: string
   label: string

@@ -78,6 +78,30 @@ class VectorStore:
         result = self._collection.get(include=["metadatas"])
         return result["metadatas"] or []
 
+    def get_all_with_embeddings(
+        self, source_roots: list[str] | None = None,
+    ) -> dict:
+        """Return all chunks with documents, embeddings, and metadatas.
+
+        Args:
+            source_roots: Optional list of source_root values to filter by.
+
+        Returns dict with keys: ids, documents, embeddings, metadatas.
+        """
+        if self._collection.count() == 0:
+            return {"ids": [], "documents": [], "embeddings": [], "metadatas": []}
+
+        kwargs: dict[str, Any] = {
+            "include": ["documents", "embeddings", "metadatas"],
+        }
+        if source_roots:
+            if len(source_roots) == 1:
+                kwargs["where"] = {"source_root": source_roots[0]}
+            else:
+                kwargs["where"] = {"source_root": {"$in": source_roots}}
+
+        return self._collection.get(**kwargs)
+
     def delete_by_source(self, source_path: str):
         """Delete all chunks from a given source file.
 
