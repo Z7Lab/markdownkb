@@ -129,6 +129,9 @@ export interface AppSettings {
   bm25_weight: number
   default_bm25_weight: number
   log_level: string
+  temperature: number
+  max_tokens: number
+  num_ctx: number | null
 }
 
 export interface LogEntry {

@@ -311,6 +311,18 @@ function useSettingsInternal() {
     [load],
   )
 
+  const saveLlmParams = useCallback(
+    async (temperature: number, maxTokens: number, numCtx: number | null) => {
+      await api.put("/api/settings/llm-params", {
+        temperature,
+        max_tokens: maxTokens,
+        num_ctx: numCtx,
+      })
+      await load()
+    },
+    [load],
+  )
+
   const saveRetrievalSettings = useCallback(
     async (settings: {
       top_k: number
@@ -444,6 +456,7 @@ function useSettingsInternal() {
     embeddingStatus,
     embeddingSwitching,
     saveProvider,
+    saveLlmParams,
     testConnection,
     refreshModels,
     pingModel,

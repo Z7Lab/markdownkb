@@ -17,6 +17,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { Eye, EyeOff, HelpCircle } from "lucide-react"
+import { Slider } from "@/components/ui/slider"
 import type { AppSettings, ModelInfo } from "@/lib/types"
 import { TestPrompt } from "./test-prompt"
 
@@ -25,6 +26,7 @@ export function LlmConfig({
   providerStatus,
   modelStatus,
   onSave,
+  onSaveLlmParams,
   onTestProvider,
   onPingModel,
   onRefreshModels,
@@ -34,6 +36,7 @@ export function LlmConfig({
   providerStatus: string
   modelStatus: string
   onSave: (name: string, model: string, apiBase: string, apiKey: string) => Promise<void>
+  onSaveLlmParams: (temperature: number, maxTokens: number, numCtx: number | null) => Promise<void>
   onTestProvider: (name: string, model: string, apiBase: string, apiKey: string) => Promise<void>
   onPingModel: (model: string, apiBase: string, apiKey: string, signal?: AbortSignal) => Promise<void>
   onRefreshModels: (name: string, apiBase: string) => Promise<{ models: string[]; status: string }>
@@ -58,6 +61,12 @@ export function LlmConfig({
 
   const [pingLoading, setPingLoading] = useState(false)
   const pingAbortRef = useRef<AbortController | null>(null)
+
+  const [temperature, setTemperature] = useState(settings.temperature)
+  const [maxTokens, setMaxTokens] = useState(settings.max_tokens)
+  const [numCtx, setNumCtx] = useState<string>(settings.num_ctx?.toString() ?? "")
+  const [paramsDirty, setParamsDirty] = useState(false)
+  const isOllama = provider.toLowerCase().includes("ollama")
 
   useEffect(() => {
     let cancelled = false
@@ -331,6 +340,73 @@ export function LlmConfig({
         )}
 
         <TestPrompt provider={provider} model={model} apiBase={apiBase} apiKey={apiKey} />
+
+        <div className="border-t pt-4 mt-4 space-y-4">
+          <h4 className="text-sm font-medium">Generation Parameters</h4>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-sm text-muted-foreground">Temperature</label>
+              <span className="text-sm font-mono w-12 text-right">{temperature.toFixed(2)}</span>
+            </div>
+            <Slider
+              value={[temperature]}
+              min={0}
+              max={2}
+              step={0.05}
+              onValueChange={([v]) => { setTemperature(v); setParamsDirty(true) }}
+            />
+            <p className="text-xs text-muted-foreground">
+              Lower = more focused, higher = more creative. Default: 0.30
+            </p>
+          </div>
+
+          <div className="space-y-1">
+            <label htmlFor="llm-max-tokens" className="text-sm text-muted-foreground">Max Output Tokens</label>
+            <Input
+              id="llm-max-tokens"
+              type="number"
+              min={1}
+              max={128000}
+              value={maxTokens}
+              onChange={(e) => { setMaxTokens(Number(e.target.value)); setParamsDirty(true) }}
+            />
+            <p className="text-xs text-muted-foreground">
+              Maximum tokens in the LLM response. Default: 2048
+            </p>
+          </div>
+
+          {isOllama && (
+            <div className="space-y-1">
+              <label htmlFor="llm-num-ctx" className="text-sm text-muted-foreground">Context Window (num_ctx)</label>
+              <Input
+                id="llm-num-ctx"
+                type="number"
+                min={1024}
+                max={1048576}
+                value={numCtx}
+                onChange={(e) => { setNumCtx(e.target.value); setParamsDirty(true) }}
+                placeholder="Model default"
+              />
+              <p className="text-xs text-muted-foreground">
+                Ollama context window size. Leave empty for model default (usually 2048-4096).
+                Set higher (e.g. 32768) for longer documents.
+              </p>
+            </div>
+          )}
+
+          <Button
+            size="sm"
+            disabled={!paramsDirty}
+            onClick={async () => {
+              const ctx = numCtx ? Number(numCtx) : null
+              await onSaveLlmParams(temperature, maxTokens, ctx)
+              setParamsDirty(false)
+            }}
+          >
+            Save Parameters
+          </Button>
+        </div>
       </CardContent>
     </Card>
   )

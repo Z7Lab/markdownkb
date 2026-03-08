@@ -87,6 +87,7 @@ llm:
   active_provider: ollama
   temperature: 0.3
   max_tokens: 2048
+  # num_ctx: 32768  # Ollama context window override (default: model's built-in limit)
 
 # Semantic search tuning
 retrieval:

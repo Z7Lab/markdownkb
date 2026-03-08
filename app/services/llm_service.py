@@ -222,6 +222,7 @@ def stream_test_prompt(
     temperature: float,
     max_tokens: int,
     api_key: str = "",
+    num_ctx: int | None = None,
 ):
     """Stream a raw prompt to the model, yielding (event, data) tuples."""
     kwargs: dict = {
@@ -235,6 +236,8 @@ def stream_test_prompt(
         kwargs["api_base"] = api_base
     if api_key:
         kwargs["api_key"] = api_key
+    if num_ctx:
+        kwargs["num_ctx"] = num_ctx
 
     start = time.time()
     token_count = 0

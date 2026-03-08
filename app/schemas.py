@@ -152,6 +152,14 @@ class ModelInfoRequest(BaseModel):
     api_base: str = ""
 
 
+class LlmParamsRequest(BaseModel):
+    """Request model for updating LLM generation parameters."""
+
+    temperature: float = Field(..., ge=0.0, le=2.0)
+    max_tokens: int = Field(..., ge=1, le=128000)
+    num_ctx: int | None = Field(None, ge=1024, le=1048576)
+
+
 class SystemPromptRequest(BaseModel):
     """Request model for updating system prompt."""
 

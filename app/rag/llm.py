@@ -76,6 +76,8 @@ def get_completion(
             kwargs["api_key"] = api_key
         if api_base:
             kwargs["api_base"] = api_base
+        if settings.llm_num_ctx and "ollama" in provider.get("name", "").lower():
+            kwargs["num_ctx"] = settings.llm_num_ctx
 
         try:
             response = litellm.completion(**kwargs)

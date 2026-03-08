@@ -45,6 +45,7 @@ export function SettingsTab() {
     embeddingStatus,
     embeddingSwitching,
     saveProvider,
+    saveLlmParams,
     testConnection,
     refreshModels,
     pingModel,
@@ -100,6 +101,7 @@ export function SettingsTab() {
                 providerStatus={providerStatus}
                 modelStatus={modelStatus}
                 onSave={saveProvider}
+                onSaveLlmParams={saveLlmParams}
                 onTestProvider={testConnection}
                 onPingModel={pingModel}
                 onRefreshModels={refreshModels}

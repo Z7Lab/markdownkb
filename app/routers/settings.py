@@ -14,6 +14,7 @@ from app.schemas import (
     AddSourceRequest,
     FeatureToggleRequest,
     IgnorePatternRequest,
+    LlmParamsRequest,
     LogLevelRequest,
     McpToolConfigRequest,
     ModelInfoRequest,
@@ -176,6 +177,9 @@ def get_settings_endpoint(request: Request, settings: Settings = Depends(get_set
         "bm25_weight": settings.bm25_weight,
         "default_bm25_weight": settings.default_bm25_weight,
         "log_level": settings.log_level,
+        "temperature": settings.llm_temperature,
+        "max_tokens": settings.llm_max_tokens,
+        "num_ctx": settings.llm_num_ctx,
     }
 
 
@@ -194,6 +198,21 @@ def save_provider(
             p["api_base"] = req.api_base
             p["api_key"] = req.api_key
             break
+    settings.save()
+    return {"status": "saved"}
+
+
+@router.put("/settings/llm-params")
+@limiter.limit(STANDARD)
+def save_llm_params(
+    request: Request,
+    req: LlmParamsRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """Save LLM generation parameters (temperature, max_tokens, num_ctx)."""
+    settings.llm_temperature = req.temperature
+    settings.llm_max_tokens = req.max_tokens
+    settings.llm_num_ctx = req.num_ctx
     settings.save()
     return {"status": "saved"}
 
@@ -260,6 +279,7 @@ def test_prompt(
                 settings.llm_temperature,
                 settings.llm_max_tokens,
                 api_key,
+                settings.llm_num_ctx,
             ):
                 yield sse(event, data)
         except (RuntimeError, ConnectionError, TimeoutError) as e:

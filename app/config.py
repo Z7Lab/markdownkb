@@ -243,10 +243,33 @@ class Settings:
         """Return the LLM sampling temperature."""
         return self._data.get("llm", {}).get("temperature", 0.3)
 
+    @llm_temperature.setter
+    def llm_temperature(self, value: float):
+        """Set the LLM sampling temperature."""
+        self._data.setdefault("llm", {})["temperature"] = value
+
     @property
     def llm_max_tokens(self) -> int:
         """Return the maximum tokens for LLM completions."""
         return self._data.get("llm", {}).get("max_tokens", 2048)
+
+    @llm_max_tokens.setter
+    def llm_max_tokens(self, value: int):
+        """Set the maximum tokens for LLM completions."""
+        self._data.setdefault("llm", {})["max_tokens"] = value
+
+    @property
+    def llm_num_ctx(self) -> int | None:
+        """Return the Ollama context window override (None = use model default)."""
+        return self._data.get("llm", {}).get("num_ctx")
+
+    @llm_num_ctx.setter
+    def llm_num_ctx(self, value: int | None):
+        """Set the Ollama context window override."""
+        if value is None:
+            self._data.get("llm", {}).pop("num_ctx", None)
+        else:
+            self._data.setdefault("llm", {})["num_ctx"] = value
 
     # --- Retrieval ---
     @property
