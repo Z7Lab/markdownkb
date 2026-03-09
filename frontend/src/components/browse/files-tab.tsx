@@ -21,26 +21,11 @@ import { ArrowDown, ArrowUp, FileDown, FileText, FileX, Loader2, RefreshCw, Sear
 import type { TrackedFile } from "@/lib/types"
 import { basename, dirname, cn } from "@/lib/utils"
 
-/** VSCode-style fuzzy match: characters must appear in order but not contiguous */
-function fuzzyMatch(text: string, pattern: string): boolean {
-  const textLower = text.toLowerCase()
-  const patternLower = pattern.toLowerCase()
-  let ti = 0
-  for (let pi = 0; pi < patternLower.length; pi++) {
-    const idx = textLower.indexOf(patternLower[pi], ti)
-    if (idx === -1) return false
-    ti = idx + 1
-  }
-  return true
-}
-
-/** If pattern is "quoted", do exact substring match; otherwise fuzzy */
+/** Multi-term AND: split on spaces, each term must substring-match in the path */
 function filterMatch(text: string, pattern: string): boolean {
-  if (pattern.startsWith('"') && pattern.endsWith('"') && pattern.length > 2) {
-    const exact = pattern.slice(1, -1).toLowerCase()
-    return text.toLowerCase().includes(exact)
-  }
-  return fuzzyMatch(text, pattern)
+  const textLower = text.toLowerCase()
+  const terms = pattern.toLowerCase().split(/\s+/).filter(Boolean)
+  return terms.every((term) => textLower.includes(term))
 }
 
 const getValue = (f: TrackedFile, key: string): string | number | null => {
@@ -239,7 +224,7 @@ export function FilesTab() {
                   <Input
                     value={filterText}
                     onChange={(e) => setFilterText(e.target.value)}
-                    placeholder={searchMode === "path" ? 'Fuzzy filter or "exact match"' : "Search file content..."}
+                    placeholder={searchMode === "path" ? "Filter by path..." : "Search file content..."}
                     className="pl-8 pr-8 h-9 w-72"
                   />
                   {filterText && (
