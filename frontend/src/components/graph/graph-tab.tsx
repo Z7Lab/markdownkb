@@ -5,6 +5,7 @@ import { useScopes } from "@/hooks/use-scopes"
 import { useIndexEvents } from "@/hooks/use-index-events"
 import { GraphSidebar } from "./graph-sidebar"
 import { EdgeDetailPanel } from "./edge-detail-panel"
+import { GraphControls } from "./graph-controls"
 import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
 import { AlertTriangle, Loader2, MonitorX } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -71,6 +72,7 @@ export function GraphTab() {
   const [webglSupported] = useState(() => detectWebGL())
   const [spread, setSpread] = useState(100)
   const spreadInitialized = useRef(false)
+  const initialFitDone = useRef(false)
   const prevScopeRef = useRef(selectedScopeId)
 
   // Re-fetch only when scope actually changes (not on initial mount)
@@ -150,6 +152,9 @@ export function GraphTab() {
       links,
     }
   }, [graphData, threshold])
+
+  // Reset initial fit when graph data changes (new build/scope)
+  useEffect(() => { initialFitDone.current = false }, [graphData])
 
   // Configure d3 forces — spread slider scales all distances
   useEffect(() => {
@@ -273,11 +278,12 @@ export function GraphTab() {
     setSelectedEdge({ source: srcId, target: tgtId, weight: link.weight ?? 0 })
   }, [])
 
-  // Background click
+  // Background click / clear all selection
   const handleBackgroundClick = useCallback(() => {
     clearSelection()
     setSelectedEdge(null)
-  }, [clearSelection])
+    setSearchTerm("")
+  }, [clearSelection, setSearchTerm])
 
   // Term click from word cloud
   const handleTermClick = useCallback((term: string) => {
@@ -398,17 +404,6 @@ export function GraphTab() {
           </div>
         )}
 
-        {/* Edge detail panel */}
-        {selectedEdge && (
-          <EdgeDetailPanel
-            source={selectedEdge.source}
-            target={selectedEdge.target}
-            weight={selectedEdge.weight}
-            onClose={() => setSelectedEdge(null)}
-            onDocClick={(path) => setViewingPath(path)}
-          />
-        )}
-
         {/* 3D Force Graph */}
         {webglSupported && graphData && graphData.nodes.length > 0 && (
           <ForceGraph3D
@@ -436,7 +431,32 @@ export function GraphTab() {
             d3VelocityDecay={0.3}
             cooldownTicks={200}
             warmupTicks={100}
-            onEngineStop={() => fgRef.current?.zoomToFit(400, 60)}
+            onEngineStop={() => {
+              if (!initialFitDone.current) {
+                initialFitDone.current = true
+                fgRef.current?.zoomToFit(400, 60)
+              }
+            }}
+          />
+        )}
+
+        {/* Zoom controls — rendered after canvas so they appear on top */}
+        {webglSupported && graphData && graphData.nodes.length > 0 && !isLoading && (
+          <GraphControls
+            fgRef={fgRef}
+            hasSelection={!!selectedNodeId || !!selectedEdge || !!searchTerm}
+            onClearSelection={handleBackgroundClick}
+          />
+        )}
+
+        {/* Edge detail panel */}
+        {selectedEdge && (
+          <EdgeDetailPanel
+            source={selectedEdge.source}
+            target={selectedEdge.target}
+            weight={selectedEdge.weight}
+            onClose={() => setSelectedEdge(null)}
+            onDocClick={(path) => setViewingPath(path)}
           />
         )}
       </div>

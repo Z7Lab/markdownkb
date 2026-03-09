@@ -48,7 +48,8 @@ export function EdgeDetailPanel({
         <div className="min-w-0 space-y-0.5">
           <button
             onClick={() => onDocClick(source)}
-            className="flex items-center gap-1 text-xs font-medium truncate hover:underline text-left cursor-pointer"
+            title={source}
+            className="flex items-center gap-1 text-xs font-medium hover:underline text-left cursor-pointer max-w-full overflow-hidden"
           >
             <FileText className="h-3 w-3 shrink-0 text-muted-foreground" />
             <span className="truncate">{source}</span>
@@ -58,7 +59,8 @@ export function EdgeDetailPanel({
           </div>
           <button
             onClick={() => onDocClick(target)}
-            className="flex items-center gap-1 text-xs font-medium truncate hover:underline text-left cursor-pointer"
+            title={target}
+            className="flex items-center gap-1 text-xs font-medium hover:underline text-left cursor-pointer max-w-full overflow-hidden"
           >
             <FileText className="h-3 w-3 shrink-0 text-muted-foreground" />
             <span className="truncate">{target}</span>
@@ -74,7 +76,7 @@ export function EdgeDetailPanel({
       </div>
 
       <ScrollArea className="flex-1 min-h-0">
-        <div className="p-3 space-y-3">
+        <div className="px-3 py-3 space-y-3">
           {loading && (
             <div className="flex items-center justify-center py-6 text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -100,11 +102,12 @@ export function EdgeDetailPanel({
                   {pair.similarity.toFixed(4)}
                 </span>
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 overflow-hidden">
                 <div>
                   <button
                     onClick={() => onDocClick(source)}
-                    className="text-[10px] text-muted-foreground mb-0.5 hover:underline cursor-pointer truncate max-w-full block text-left"
+                    title={source}
+                    className="text-[10px] text-muted-foreground mb-0.5 hover:underline cursor-pointer truncate w-full block text-left"
                   >
                     {source}
                   </button>
@@ -115,7 +118,8 @@ export function EdgeDetailPanel({
                 <div>
                   <button
                     onClick={() => onDocClick(target)}
-                    className="text-[10px] text-muted-foreground mb-0.5 hover:underline cursor-pointer truncate max-w-full block text-left"
+                    title={target}
+                    className="text-[10px] text-muted-foreground mb-0.5 hover:underline cursor-pointer truncate w-full block text-left"
                   >
                     {target}
                   </button>
