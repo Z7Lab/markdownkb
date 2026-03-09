@@ -45,6 +45,8 @@ const getValue = (f: TrackedFile, key: string): string | number | null => {
       return basename(f.path)
     case "folder":
       return dirname(f.path)
+    case "tags":
+      return f.tags || ""
     case "rag":
       return f.include_rag
     case "status":
@@ -57,9 +59,9 @@ const getValue = (f: TrackedFile, key: string): string | number | null => {
 }
 
 // Column IDs and default sizes as percentages (must sum to 100)
-const COL_IDS = ["file", "folder", "rag", "status", "chunks", "actions"] as const
+const COL_IDS = ["file", "folder", "tags", "rag", "status", "chunks", "actions"] as const
 const DEFAULT_LAYOUT: Record<string, number> = {
-  file: 25, folder: 25, rag: 12, status: 12, chunks: 10, actions: 16,
+  file: 22, folder: 22, tags: 14, rag: 10, status: 10, chunks: 8, actions: 14,
 }
 
 function SortHeader({
@@ -99,7 +101,7 @@ function SortHeader({
 }
 
 export function FilesTab() {
-  const { files, busyPaths, refresh, toggleRag, unindexFile, indexFile, reindexFile, indexAll, unindexSource } = useFiles()
+  const { files, busyPaths, refresh, toggleRag, unindexFile, indexFile, reindexFile, indexAll, unindexSource, updateTags } = useFiles()
   const { isIndexing, lastIndexedAt } = useIndexEvents()
   const [filterText, setFilterText] = useState("")
 
@@ -213,6 +215,12 @@ export function FilesTab() {
                 </SortHeader>
               </ResizablePanel>
               <ResizableHandle />
+              <ResizablePanel id="tags" defaultSize={DEFAULT_LAYOUT.tags} minSize={6}>
+                <SortHeader sortKey="tags" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort}>
+                  Tags
+                </SortHeader>
+              </ResizablePanel>
+              <ResizableHandle />
               <ResizablePanel id="rag" defaultSize={DEFAULT_LAYOUT.rag} minSize={5}>
                 <SortHeader sortKey="rag" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort} className="justify-center">
                   Include RAG
@@ -252,6 +260,7 @@ export function FilesTab() {
                 onReindexFile={reindexFile}
                 onUnindexFile={setPendingUnindex}
                 onViewFile={setViewingPath}
+                onUpdateTags={updateTags}
               />
             ))}
             {filteredFiles.length === 0 && (

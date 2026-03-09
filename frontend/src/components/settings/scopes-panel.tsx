@@ -5,27 +5,31 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Plus, Pencil, Trash2, X, Check } from "lucide-react"
+import { Plus, Pencil, Trash2, X, Check, Tag } from "lucide-react"
 
-export function ScopesPanel({ folders }: { folders: string[] }) {
+export function ScopesPanel({ folders, availableTags }: { folders: string[]; availableTags: string[] }) {
   const { scopes, createScope, updateScope, deleteScope } = useScopes()
   const [isCreating, setIsCreating] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [name, setName] = useState("")
   const [selectedFolders, setSelectedFolders] = useState<Set<string>>(new Set())
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
+  const [newTag, setNewTag] = useState("")
 
   function startCreate() {
     setIsCreating(true)
     setEditingId(null)
     setName("")
     setSelectedFolders(new Set())
+    setSelectedTags(new Set())
   }
 
-  function startEdit(scope: { id: string; name: string; folders: string[] }) {
+  function startEdit(scope: { id: string; name: string; folders: string[]; tags: string[] }) {
     setEditingId(scope.id)
     setIsCreating(false)
     setName(scope.name)
     setSelectedFolders(new Set(scope.folders))
+    setSelectedTags(new Set(scope.tags))
   }
 
   function cancel() {
@@ -33,15 +37,18 @@ export function ScopesPanel({ folders }: { folders: string[] }) {
     setEditingId(null)
     setName("")
     setSelectedFolders(new Set())
+    setSelectedTags(new Set())
+    setNewTag("")
   }
 
   async function save() {
-    if (!name.trim() || selectedFolders.size === 0) return
+    if (!name.trim() || (selectedFolders.size === 0 && selectedTags.size === 0)) return
     const folderList = Array.from(selectedFolders)
+    const tagList = Array.from(selectedTags)
     if (editingId) {
-      await updateScope(editingId, name.trim(), folderList)
+      await updateScope(editingId, name.trim(), folderList, tagList)
     } else {
-      await createScope(name.trim(), folderList)
+      await createScope(name.trim(), folderList, tagList)
     }
     cancel()
   }
@@ -49,13 +56,27 @@ export function ScopesPanel({ folders }: { folders: string[] }) {
   function toggleFolder(folder: string) {
     setSelectedFolders((prev) => {
       const next = new Set(prev)
-      if (next.has(folder)) {
-        next.delete(folder)
-      } else {
-        next.add(folder)
-      }
+      if (next.has(folder)) next.delete(folder)
+      else next.add(folder)
       return next
     })
+  }
+
+  function toggleTag(tag: string) {
+    setSelectedTags((prev) => {
+      const next = new Set(prev)
+      if (next.has(tag)) next.delete(tag)
+      else next.add(tag)
+      return next
+    })
+  }
+
+  function addCustomTag() {
+    const tag = newTag.trim()
+    if (tag) {
+      setSelectedTags((prev) => new Set(prev).add(tag))
+      setNewTag("")
+    }
   }
 
   const isEditing = isCreating || editingId !== null
@@ -66,7 +87,7 @@ export function ScopesPanel({ folders }: { folders: string[] }) {
         <div>
           <h2 className="text-lg font-semibold">Scopes</h2>
           <p className="text-sm text-muted-foreground">
-            Named subsets of your sources. Use scopes to focus Chat, Search, and Planner on specific document collections.
+            Named subsets of your sources. Filter by folders, tags, or both.
           </p>
         </div>
         {!isEditing && (
@@ -93,14 +114,14 @@ export function ScopesPanel({ folders }: { folders: string[] }) {
             />
             <div className="space-y-1.5">
               <p className="text-xs text-muted-foreground font-medium">
-                Select folders to include:
+                Folders (optional):
               </p>
               {folders.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  No source folders configured. Add sources in the Sources panel first.
+                  No source folders configured.
                 </p>
               ) : (
-                <div className="space-y-1 max-h-48 overflow-y-auto">
+                <div className="space-y-1 max-h-36 overflow-y-auto">
                   {folders.map((f) => (
                     <label
                       key={f}
@@ -116,11 +137,55 @@ export function ScopesPanel({ folders }: { folders: string[] }) {
                 </div>
               )}
             </div>
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground font-medium">
+                Tags (optional):
+              </p>
+              {availableTags.length > 0 && (
+                <div className="space-y-1 max-h-36 overflow-y-auto">
+                  {availableTags.map((t) => (
+                    <label
+                      key={t}
+                      className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent cursor-pointer text-sm"
+                    >
+                      <Checkbox
+                        checked={selectedTags.has(t)}
+                        onCheckedChange={() => toggleTag(t)}
+                      />
+                      <span className="truncate">{t}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-1.5">
+                <Input
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
+                  placeholder="Add custom tag..."
+                  className="h-8 text-xs"
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustomTag() } }}
+                />
+                <Button size="sm" variant="outline" className="h-8 px-2" onClick={addCustomTag} disabled={!newTag.trim()}>
+                  <Plus className="h-3 w-3" />
+                </Button>
+              </div>
+              {selectedTags.size > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {Array.from(selectedTags).map((t) => (
+                    <Badge key={t} variant="outline" className="text-xs gap-1 cursor-pointer" onClick={() => toggleTag(t)}>
+                      <Tag className="h-2.5 w-2.5" />
+                      {t}
+                      <X className="h-2.5 w-2.5" />
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="flex gap-2 pt-1">
               <Button
                 size="sm"
                 onClick={save}
-                disabled={!name.trim() || selectedFolders.size === 0}
+                disabled={!name.trim() || (selectedFolders.size === 0 && selectedTags.size === 0)}
                 className="gap-1"
               >
                 <Check className="h-3.5 w-3.5" />
@@ -152,6 +217,12 @@ export function ScopesPanel({ folders }: { folders: string[] }) {
                 {scope.folders.map((f) => (
                   <Badge key={f} variant="secondary" className="text-xs font-normal">
                     {f.split("/").pop() || f}
+                  </Badge>
+                ))}
+                {scope.tags.map((t) => (
+                  <Badge key={t} variant="outline" className="text-xs font-normal gap-1">
+                    <Tag className="h-2.5 w-2.5" />
+                    {t}
                   </Badge>
                 ))}
               </div>

@@ -138,14 +138,17 @@ def rewrite_query(message: str, settings: Settings) -> str:
 def chat_respond(message: str, retriever: Retriever,
                  settings: Settings, chatdb=None,
                  thread_id: str | None = None,
-                 folders_filter: list[str] | None = None) -> Generator:
+                 folders_filter: list[str] | None = None,
+                 scope_tags: list[str] | None = None) -> Generator:
     """Generate a streaming RAG response for the given message."""
     if not message.strip():
         yield ""
         return
 
     search_query = rewrite_query(message, settings)
-    results = retriever.search(search_query, folders_filter=folders_filter)
+    results = retriever.search(
+        search_query, folders_filter=folders_filter, scope_tags=scope_tags
+    )
 
     if not results:
         reply = ("I don't have any relevant information in your knowledge base. "

@@ -77,11 +77,11 @@ mdkb uses one vector database and five SQLite databases:
 | Database | File | Purpose |
 |----------|------|---------|
 | **ChromaDB** | `data/chromadb/` | Vector embeddings for semantic search |
-| **TrackingDB** | `data/tracking.db` | File index state, hashes, RAG inclusion flags |
+| **TrackingDB** | `data/tracking.db` | File index state, hashes, RAG inclusion flags, tags |
 | **ChatDB** | `data/chat.db` | Chat threads and messages |
 | **SearchDB** | `data/search.db` | Search history, versions, AI summaries |
 | **PlanDB** | `data/plans.db` | Saved planner plans and metadata |
-| **ScopeDB** | `data/scopes.db` | Named source scopes (folder subsets) |
+| **ScopeDB** | `data/scopes.db` | Named scopes (folder + tag filters) |
 
 SQLite databases use `PRAGMA user_version` for schema migrations. Each database class carries a `_MIGRATIONS` list that is applied on open.
 
@@ -101,7 +101,7 @@ Search combines two strategies via the **Retriever** (`app/rag/retriever.py`):
 - **Vector similarity**: Embeds the query and finds nearest neighbors in ChromaDB.
 - **BM25 keyword matching**: Tokenizes all stored documents and scores by term frequency. Uses whole-word matching to avoid substring false positives.
 
-The hybrid score is a weighted combination (configurable via `retrieval.bm25_weight`). Results below `score_threshold` are filtered out. Files marked as RAG-excluded in TrackingDB are post-filtered.
+The hybrid score is a weighted combination (configurable via `retrieval.bm25_weight`). Results below `score_threshold` are filtered out. Files marked as RAG-excluded in TrackingDB are post-filtered. When a scope with tags is active, results are further filtered to documents matching any of the scope's tags (OR logic).
 
 **RAG chat flow:**
 1. User sends a message.

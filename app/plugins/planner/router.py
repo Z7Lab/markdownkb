@@ -34,7 +34,7 @@ def plan(
         scope = scopedb.get(req.scope_id)
         if not scope:
             raise HTTPException(status_code=404, detail="Scope not found")
-        scope_folders = scope["folders"]
+        scope_folders = scope["folders"] or None
 
     try:
         result = run_planner(
@@ -67,7 +67,7 @@ def plan_stream(
         scope = scopedb.get(req.scope_id)
         if not scope:
             raise HTTPException(status_code=404, detail="Scope not found")
-        scope_folders = scope["folders"]
+        scope_folders = scope["folders"] or None
 
     def generate():
         try:

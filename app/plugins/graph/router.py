@@ -23,12 +23,13 @@ _cache_lock = threading.Lock()
 
 
 def _resolve_scope(scope_id: str | None, scopedb: ScopeDB) -> list[str] | None:
+    """Resolve scope to folder list. Graph only supports folder-based filtering."""
     if not scope_id:
         return None
     scope = scopedb.get(scope_id)
     if not scope:
         raise HTTPException(status_code=404, detail="Scope not found")
-    return scope["folders"]
+    return scope["folders"] or None
 
 
 def _cache_key(source_roots: list[str] | None, top_k: int, word_clouds: bool = True, min_weight: float = 0.0) -> tuple:

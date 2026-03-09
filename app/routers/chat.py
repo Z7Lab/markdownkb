@@ -24,14 +24,14 @@ from app.storage.scopedb import ScopeDB
 from app.utils import short_title, sse
 
 
-def _resolve_scope(scope_id: str | None, scopedb: ScopeDB) -> list[str] | None:
-    """Resolve a scope_id to its folder list, or None if no scope."""
+def _resolve_scope(scope_id: str | None, scopedb: ScopeDB) -> dict | None:
+    """Resolve a scope_id to its folders and tags, or None if no scope."""
     if not scope_id:
         return None
     scope = scopedb.get(scope_id)
     if not scope:
         raise HTTPException(status_code=404, detail="Scope not found")
-    return scope["folders"]
+    return {"folders": scope["folders"], "tags": scope["tags"]}
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +91,9 @@ def chat_stream(
     chatdb: ChatDB = Depends(get_chatdb),
     scopedb: ScopeDB = Depends(get_scopedb),
 ):
-    scope_folders = _resolve_scope(req.scope_id, scopedb)
+    resolved = _resolve_scope(req.scope_id, scopedb)
+    scope_folders = resolved["folders"] if resolved else None
+    scope_tags = resolved["tags"] if resolved else None
 
     if req.thread_id:
         thread_id = req.thread_id
@@ -110,7 +112,8 @@ def chat_stream(
             settings,
             chatdb=chatdb,
             thread_id=thread_id,
-            folders_filter=scope_folders,
+            folders_filter=scope_folders or None,
+            scope_tags=scope_tags or None,
         ):
             new_text = partial[len(last_yielded):]
             if new_text:
@@ -118,7 +121,11 @@ def chat_stream(
                 last_yielded = partial
 
         # Extract sources from the final response
-        results = retriever.search(req.message, folders_filter=scope_folders)
+        results = retriever.search(
+            req.message,
+            folders_filter=scope_folders or None,
+            scope_tags=scope_tags or None,
+        )
         if results:
             metadatas = [r.metadata for r in results]
             sources = extract_unique_sources(metadatas)

@@ -10,7 +10,7 @@ from app.deps import get_settings, get_store, get_tracking
 from app.ingestion.indexer import ReindexError, reindex_file
 from app.ingestion.scanner import discover_sources
 from app.ratelimit import STANDARD, limiter
-from app.schemas import FileActionRequest, SourceActionRequest, ToggleRagRequest
+from app.schemas import FileActionRequest, SourceActionRequest, ToggleRagRequest, UpdateTagsRequest
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 
@@ -82,6 +82,7 @@ def list_files(
                 "indexed_at": None,
                 "updated_at": None,
                 "include_rag": 1,
+                "tags": "",
             })
 
     # Include any tracked files not in discovery
@@ -150,6 +151,25 @@ def toggle_rag(
         raise HTTPException(status_code=404, detail="File not tracked")
     tracking.set_include_rag(req.path, req.include)
     return {"status": "ok", "include_rag": req.include}
+
+
+@router.put("/files/tags")
+@limiter.limit(STANDARD)
+def update_file_tags(
+    request: Request,
+    req: UpdateTagsRequest,
+    tracking: TrackingDB = Depends(get_tracking),
+    settings: Settings = Depends(get_settings),
+):
+    """Update tags on a file — writes to both tracking DB and markdown frontmatter."""
+    record = tracking.get_file(req.path)
+    if not record:
+        raise HTTPException(status_code=404, detail="File not tracked")
+
+    tags_str = ", ".join(req.tags)
+    tracking.update_tags(req.path, tags_str)
+
+    return {"status": "ok", "tags": tags_str}
 
 
 @router.post("/files/unindex")

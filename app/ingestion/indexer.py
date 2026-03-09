@@ -68,7 +68,18 @@ def _index_file(fi: FileInfo, settings: Settings,
         metadatas = [c.metadata for c in batch]
         store.add(ids, texts, embeddings, metadatas)
 
+    # Extract file-level tags from first chunk's frontmatter metadata
+    file_tags = ""
+    if chunks:
+        raw_tags = chunks[0].metadata.get("tags", "")
+        if isinstance(raw_tags, list):
+            file_tags = ", ".join(str(t) for t in raw_tags)
+        elif isinstance(raw_tags, str):
+            file_tags = raw_tags
+
     tracking.mark_complete(fi.path, len(chunks))
+    if file_tags:
+        tracking.update_tags(fi.path, file_tags)
     return len(chunks)
 
 

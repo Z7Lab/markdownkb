@@ -33,7 +33,7 @@ Missing or invalid keys return **401 Unauthorized**. `/api/health` is always pub
 | POST | `/api/search/summarize` | AI summary of search results (streaming) |
 | POST | `/api/search/enhance-query` | LLM query enhancement (keywords, acronyms) |
 | GET | `/api/folders` | List unique folders from indexed documents |
-| GET | `/api/tags` | List unique tags from indexed documents |
+| GET | `/api/tags` | List unique tags (merged from vector store and tracking DB) |
 
 ## Chat
 
@@ -61,6 +61,7 @@ Missing or invalid keys return **401 Unauthorized**. `/api/health` is always pub
 | GET | `/api/file` | Read file content |
 | GET | `/api/file/status` | Get status of a single file |
 | PUT | `/api/files/toggle-rag` | Toggle RAG inclusion for a file |
+| PUT | `/api/files/tags` | Update tags on a file (`{ path, tags[] }`) |
 | POST | `/api/files/unindex` | Remove file chunks from index |
 | POST | `/api/files/index` | Index a single file |
 | POST | `/api/files/reindex` | Re-embed a file's chunks |
@@ -114,17 +115,19 @@ Missing or invalid keys return **401 Unauthorized**. `/api/health` is always pub
 
 ## Scopes
 
-Named subsets of source folders. Scopes can be passed to Search, Chat, and Planner to restrict retrieval to specific document collections.
+Named subsets of your knowledge base. Scopes can filter by folders, tags, or both. Pass a scope to Search, Chat, and Planner to restrict retrieval.
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/scopes` | List all scopes |
-| POST | `/api/scopes` | Create a scope (`{ name, folders }`) |
+| POST | `/api/scopes` | Create a scope (`{ name, folders[], tags[] }`) |
 | GET | `/api/scopes/{id}` | Get a scope by ID |
-| PUT | `/api/scopes/{id}` | Update a scope (`{ name, folders }`) |
+| PUT | `/api/scopes/{id}` | Update a scope (`{ name, folders[], tags[] }`) |
 | DELETE | `/api/scopes/{id}` | Delete a scope |
 
-Search, Chat, and Planner endpoints accept an optional `scope_id` field in their request bodies. When provided, retrieval is restricted to the scope's folders.
+A scope requires at least one folder or tag. When resolved, folder filtering restricts by source path prefix; tag filtering uses OR logic (documents matching any listed tag are included). Both can be combined.
+
+Search, Chat, and Planner endpoints accept an optional `scope_id` field in their request bodies. When provided, retrieval is restricted to the scope's folders and/or tags.
 
 ## Embeddings & Indexing
 

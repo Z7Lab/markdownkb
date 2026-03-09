@@ -16,12 +16,14 @@ router = APIRouter(prefix="/api/scopes", tags=["scopes"])
 
 class ScopeCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
-    folders: list[str] = Field(..., min_length=1)
+    folders: list[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
 
 
 class ScopeUpdate(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
-    folders: list[str] = Field(..., min_length=1)
+    folders: list[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
 
 
 @router.get("")
@@ -42,7 +44,9 @@ def create_scope(
     scopedb: ScopeDB = Depends(get_scopedb),
 ):
     """Create a new named scope."""
-    scope_id = scopedb.create(req.name, req.folders)
+    if not req.folders and not req.tags:
+        raise HTTPException(status_code=422, detail="At least one folder or tag is required")
+    scope_id = scopedb.create(req.name, req.folders, req.tags)
     return {"id": scope_id, "status": "created"}
 
 
@@ -69,7 +73,9 @@ def update_scope(
     scopedb: ScopeDB = Depends(get_scopedb),
 ):
     """Update a scope's name and folders."""
-    if not scopedb.update(scope_id, req.name, req.folders):
+    if not req.folders and not req.tags:
+        raise HTTPException(status_code=422, detail="At least one folder or tag is required")
+    if not scopedb.update(scope_id, req.name, req.folders, req.tags):
         raise HTTPException(status_code=404, detail="Scope not found")
     return {"status": "updated"}
 

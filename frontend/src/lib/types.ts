@@ -89,6 +89,7 @@ export interface TrackedFile {
   file_size: number
   mtime: number
   include_rag: number
+  tags: string
 }
 
 export interface Provider {
@@ -211,6 +212,7 @@ export interface Scope {
   id: string
   name: string
   folders: string[]
+  tags: string[]
   created_at: string
 }
 

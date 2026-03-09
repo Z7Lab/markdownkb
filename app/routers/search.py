@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
 from app.config import Settings
-from app.deps import get_retriever, get_scopedb, get_searchdb, get_settings
+from app.deps import get_retriever, get_scopedb, get_searchdb, get_settings, get_tracking
 from app.rag.llm import get_streaming_completion
 from app.rag.prompts import SEARCH_SUMMARY_USER, format_context
 from app.rag.retriever import Retriever
@@ -15,18 +15,19 @@ from app.schemas import SearchRequest, SummarizeRequest
 from app.services.chat_service import _strip_thinking, extract_unique_sources
 from app.services.query_service import build_enhanced_search_query, enhance_query
 from app.storage.scopedb import ScopeDB
+from app.storage.trackingdb import TrackingDB
 from app.storage.searchdb import SearchDB
 from app.utils import sse
 
 
-def _resolve_scope(scope_id: str | None, scopedb: ScopeDB) -> list[str] | None:
-    """Resolve a scope_id to its folder list, or None if no scope."""
+def _resolve_scope(scope_id: str | None, scopedb: ScopeDB) -> dict | None:
+    """Resolve a scope_id to its folders and tags, or None if no scope."""
     if not scope_id:
         return None
     scope = scopedb.get(scope_id)
     if not scope:
         raise HTTPException(status_code=404, detail="Scope not found")
-    return scope["folders"]
+    return {"folders": scope["folders"], "tags": scope["tags"]}
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +106,9 @@ def search(
     settings: Settings = Depends(get_settings),
 ):
     """Search the vector database with optional intelligent query enhancement."""
-    scope_folders = _resolve_scope(req.scope_id, scopedb)
+    resolved = _resolve_scope(req.scope_id, scopedb)
+    scope_folders = resolved["folders"] if resolved else None
+    scope_tags = resolved["tags"] if resolved else None
     search_query = req.query
     llm_offline = False
     top_k = req.top_k if req.top_k is not None else settings.top_k
@@ -128,8 +131,9 @@ def search(
         search_query,
         top_k=chunk_fetch_limit,
         folder_filter=req.folder,
-        folders_filter=scope_folders,
+        folders_filter=scope_folders or None,
         tag_filter=req.tag,
+        scope_tags=scope_tags or None,
     )
 
     # Group chunks by file for cleaner results
@@ -350,14 +354,17 @@ def summarize_search(
     settings: Settings = Depends(get_settings),
 ):
     """Generate AI summary of search results with streaming response."""
-    scope_folders = _resolve_scope(req.scope_id, scopedb)
+    resolved = _resolve_scope(req.scope_id, scopedb)
+    scope_folders = resolved["folders"] if resolved else None
+    scope_tags = resolved["tags"] if resolved else None
     top_k = req.top_k if req.top_k is not None else settings.top_k
     results = retriever.search(
         req.query,
         top_k=top_k,
         folder_filter=req.folder,
-        folders_filter=scope_folders,
+        folders_filter=scope_folders or None,
         tag_filter=req.tag,
+        scope_tags=scope_tags or None,
     )
 
     if not results:
@@ -428,9 +435,18 @@ def get_tags(
     offset: int = Query(0, ge=0),
     limit: int = Query(200, ge=1, le=1000),
     retriever: Retriever = Depends(get_retriever),
+    tracking: TrackingDB = Depends(get_tracking),
 ):
-    """Get unique tags from indexed documents."""
-    all_tags = retriever.get_unique_tags()
+    """Get unique tags from indexed documents and tracking DB."""
+    # Merge tags from vector store metadata and tracking DB
+    tags = set(retriever.get_unique_tags())
+    for f in tracking.get_all_files():
+        tag_str = f.get("tags", "")
+        if tag_str:
+            for t in tag_str.split(", "):
+                if t.strip():
+                    tags.add(t.strip())
+    all_tags = sorted(tags)
     total = len(all_tags)
     items = all_tags[offset:offset + limit]
     return {"items": items, "total": total, "offset": offset, "limit": limit}

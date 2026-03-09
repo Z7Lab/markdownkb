@@ -20,9 +20,9 @@ export function useScopes() {
     refresh()
   }, [refresh])
 
-  const createScope = useCallback(async (name: string, folders: string[]) => {
+  const createScope = useCallback(async (name: string, folders: string[], tags: string[] = []) => {
     try {
-      const res = await api.post<{ id: string }>("/api/scopes", { name, folders })
+      const res = await api.post<{ id: string }>("/api/scopes", { name, folders, tags })
       await refresh()
       return res.id
     } catch (err) {
@@ -31,9 +31,9 @@ export function useScopes() {
     }
   }, [refresh])
 
-  const updateScope = useCallback(async (id: string, name: string, folders: string[]) => {
+  const updateScope = useCallback(async (id: string, name: string, folders: string[], tags: string[] = []) => {
     try {
-      await api.put(`/api/scopes/${id}`, { name, folders })
+      await api.put(`/api/scopes/${id}`, { name, folders, tags })
       await refresh()
       return true
     } catch (err) {

@@ -34,14 +34,21 @@ export function ScopePicker({
               No scopes — create in Settings
             </SelectItem>
           )}
-          {scopes.map((s) => (
-            <SelectItem key={s.id} value={s.id}>
-              {s.name}
-              <span className="text-muted-foreground ml-1">
-                ({s.folders.length})
-              </span>
-            </SelectItem>
-          ))}
+          {scopes.map((s) => {
+            const parts: string[] = []
+            if (s.folders.length > 0) parts.push(`${s.folders.length} folders`)
+            if (s.tags.length > 0) parts.push(`${s.tags.length} tags`)
+            return (
+              <SelectItem key={s.id} value={s.id}>
+                {s.name}
+                {parts.length > 0 && (
+                  <span className="text-muted-foreground ml-1">
+                    ({parts.join(", ")})
+                  </span>
+                )}
+              </SelectItem>
+            )
+          })}
         </SelectContent>
       </Select>
     </div>

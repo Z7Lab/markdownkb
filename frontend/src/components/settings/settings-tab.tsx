@@ -1,6 +1,7 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useSettings } from "@/hooks/use-settings"
 import { useIndexEvents } from "@/hooks/use-index-events"
+import { api } from "@/lib/api"
 import { AppSidebar } from "@/components/ui/app-sidebar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
@@ -71,6 +72,13 @@ export function SettingsTab() {
   } = useSettings()
 
   const { errorCount, clearErrors } = useIndexEvents()
+  const [availableTags, setAvailableTags] = useState<string[]>([])
+
+  useEffect(() => {
+    if (activeSection === "scopes") {
+      api.get<{ items: string[] }>("/api/tags").then((r) => setAvailableTags(r.items)).catch(() => {})
+    }
+  }, [activeSection])
 
   if (!settings) {
     return <div className="p-4 text-muted-foreground">Loading settings...</div>
@@ -151,7 +159,7 @@ export function SettingsTab() {
               />
             )}
             {activeSection === "scopes" && (
-              <ScopesPanel folders={settings.sources} />
+              <ScopesPanel folders={settings.sources} availableTags={availableTags} />
             )}
             {activeSection === "embeddings" && (
               <EmbeddingPanel

@@ -79,6 +79,13 @@ class FileActionRequest(BaseModel):
     path: str
 
 
+class UpdateTagsRequest(BaseModel):
+    """Request model for updating file tags."""
+
+    path: str
+    tags: list[str]
+
+
 class AddSourceRequest(BaseModel):
     """Request model for adding a source."""
 

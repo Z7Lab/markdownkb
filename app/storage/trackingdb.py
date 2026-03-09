@@ -11,7 +11,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 _CREATE_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS indexed_files (
     error_msg   TEXT,
     indexed_at  TEXT,
     updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
-    include_rag INTEGER NOT NULL DEFAULT 1
+    include_rag INTEGER NOT NULL DEFAULT 1,
+    tags        TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_files_source_root
@@ -53,6 +54,17 @@ def _migrate_v1_to_v2(conn: sqlite3.Connection):
     )
     conn.commit()
     logger.info("Migrated schema v1 → v2: added include_rag column")
+
+
+def _migrate_v2_to_v3(conn: sqlite3.Connection):
+    """Add tags column for storing file-level tags from frontmatter."""
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(indexed_files)")]
+    if "tags" not in cols:
+        conn.execute(
+            "ALTER TABLE indexed_files ADD COLUMN tags TEXT NOT NULL DEFAULT ''"
+        )
+        conn.commit()
+        logger.info("Migrated schema v2 → v3: added tags column")
 
 
 class TrackingDB:
@@ -86,6 +98,8 @@ class TrackingDB:
             current = row["version"]
             if current < 2:
                 _migrate_v1_to_v2(self._conn)
+            if current < 3:
+                _migrate_v2_to_v3(self._conn)
             if current < SCHEMA_VERSION:
                 self._conn.execute(
                     "UPDATE schema_version SET version = ?",
@@ -163,14 +177,15 @@ class TrackingDB:
         self, path: str, source_root: str,
         content_hash: str, file_size: int, mtime: float, *,
         status: str = "pending", chunk_count: int = 0,
+        tags: str = "",
     ):
         """Insert or update a file's tracking record."""
         with self._lock:
             self._conn.execute(
                 """INSERT INTO indexed_files
                     (path, source_root, content_hash, file_size, mtime,
-                     chunk_count, status, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                     chunk_count, status, tags, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                 ON CONFLICT(path) DO UPDATE SET
                     source_root = excluded.source_root,
                     content_hash = excluded.content_hash,
@@ -178,6 +193,7 @@ class TrackingDB:
                     mtime = excluded.mtime,
                     chunk_count = excluded.chunk_count,
                     status = excluded.status,
+                    tags = excluded.tags,
                     error_msg = NULL,
                     indexed_at = CASE
                         WHEN excluded.status = 'complete'
@@ -187,7 +203,16 @@ class TrackingDB:
                     updated_at = datetime('now')
                 """,
                 (path, source_root, content_hash, file_size, mtime,
-                 chunk_count, status),
+                 chunk_count, status, tags),
+            )
+            self._conn.commit()
+
+    def update_tags(self, path: str, tags: str):
+        """Update only the tags field for a file."""
+        with self._lock:
+            self._conn.execute(
+                "UPDATE indexed_files SET tags = ?, updated_at = datetime('now') WHERE path = ?",
+                (tags, path),
             )
             self._conn.commit()
 

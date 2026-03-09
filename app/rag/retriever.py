@@ -46,13 +46,16 @@ class Retriever:
     def search(self, query: str, top_k: int | None = None,
                folder_filter: str | None = None,
                folders_filter: list[str] | None = None,
-               tag_filter: str | None = None) -> list[SearchResult]:
+               tag_filter: str | None = None,
+               scope_tags: list[str] | None = None) -> list[SearchResult]:
         """Search using vector similarity and optional BM25.
 
         Args:
             folder_filter: Single folder path (legacy, used by Search tab).
             folders_filter: Multiple folder paths (used by scope filtering).
                             Uses ChromaDB ``$in`` operator.
+            scope_tags: Tags from a scope definition. Results must match at
+                        least one scope tag (OR). Applied as post-filter.
         """
         k = top_k or self._settings.top_k
 
@@ -89,12 +92,21 @@ class Retriever:
         if self._settings.hybrid_search:
             results = self._apply_bm25_rerank(query, results)
 
-        # Apply tag filter
+        # Apply tag filter (user-selected single tag)
         if tag_filter:
             results = [
                 r for r in results
                 if tag_filter in r.metadata.get("tags", "")
             ]
+
+        # Apply scope tags filter (match any scope tag — OR logic)
+        if scope_tags:
+            def _has_scope_tag(meta_tags: str) -> bool:
+                for st in scope_tags:
+                    if st in meta_tags:
+                        return True
+                return False
+            results = [r for r in results if _has_scope_tag(r.metadata.get("tags", ""))]
 
         # Exclude files where include_rag is toggled off
         if self._tracking:

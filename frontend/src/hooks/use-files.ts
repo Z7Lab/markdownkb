@@ -156,5 +156,14 @@ export function useFiles() {
     }
   }, [refresh])
 
-  return { files, busyPaths, error, refresh, toggleRag, unindexFile, indexFile, reindexFile, indexAll, unindexSource }
+  const updateTags = useCallback(async (path: string, tags: string[]) => {
+    try {
+      await api.put("/api/files/tags", { path, tags })
+      await refresh()
+    } catch (err) {
+      toast.error(`Failed to update tags: ${(err as Error).message}`)
+    }
+  }, [refresh])
+
+  return { files, busyPaths, error, refresh, toggleRag, unindexFile, indexFile, reindexFile, indexAll, unindexSource, updateTags }
 }
