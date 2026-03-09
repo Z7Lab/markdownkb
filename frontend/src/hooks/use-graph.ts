@@ -11,11 +11,14 @@ interface GraphProgress {
 /** Server-side minimum edge weight — edges below this are never sent. */
 const MIN_WEIGHT = 0.5
 
-function buildQs(scopeIds?: string | null, wordClouds = true): string {
+function buildQs(scopeIds?: string | null, wordClouds = true, adHocTags?: string[] | null): string {
   const params = new URLSearchParams()
   if (scopeIds) params.set("scope_ids", scopeIds)
   if (!wordClouds) params.set("word_clouds", "false")
   params.set("min_weight", String(MIN_WEIGHT))
+  if (adHocTags && adHocTags.length > 0) {
+    for (const t of adHocTags) params.append("ad_hoc_tags", t)
+  }
   const qs = params.toString()
   return qs ? `?${qs}` : ""
 }
@@ -84,6 +87,7 @@ export function useGraph() {
     scopeIds?: string | null,
     force = false,
     wc = true,
+    adHocTags?: string[] | null,
   ) => {
     // Skip if we already have data for this scope selection (unless forced)
     if (!force && graphDataRef.current && lastScopeRef.current === scopeIds) return
@@ -101,7 +105,7 @@ export function useGraph() {
 
     try {
       // Start the data fetch first, then begin progress polling
-      const dataPromise = api.get<GraphData>(`/api/graph/data${buildQs(scopeIds, wc)}`)
+      const dataPromise = api.get<GraphData>(`/api/graph/data${buildQs(scopeIds, wc, adHocTags)}`)
 
       // Brief delay so the data request claims a connection before polls compete
       await new Promise(r => setTimeout(r, 50))

@@ -1,5 +1,5 @@
 import { AppSidebar } from "@/components/ui/app-sidebar"
-import { MultiScopePicker } from "@/components/multi-scope-picker"
+import { ScopeTagFilter } from "@/components/scope-tag-filter"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
@@ -12,6 +12,9 @@ export function GraphSidebar({
   scopes,
   selectedScopeIds,
   onScopeChange,
+  availableTags,
+  selectedTags,
+  onTagChange,
   threshold,
   onThresholdChange,
   spread,
@@ -29,6 +32,9 @@ export function GraphSidebar({
   scopes: Scope[]
   selectedScopeIds: Set<string>
   onScopeChange: (ids: Set<string>) => void
+  availableTags: string[]
+  selectedTags: Set<string>
+  onTagChange: (tags: Set<string>) => void
   threshold: number
   onThresholdChange: (v: number) => void
   spread: number
@@ -47,10 +53,13 @@ export function GraphSidebar({
     <AppSidebar
       header={
         <div className="space-y-3">
-          <MultiScopePicker
+          <ScopeTagFilter
             scopes={scopes}
-            selectedIds={selectedScopeIds}
-            onChange={onScopeChange}
+            selectedScopeIds={selectedScopeIds}
+            onScopeChange={onScopeChange}
+            availableTags={availableTags}
+            selectedTags={selectedTags}
+            onTagChange={onTagChange}
           />
 
           <div className="space-y-1.5">

@@ -3,7 +3,7 @@
 import logging
 import threading
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.config import Settings
 from app.deps import get_retriever, get_scopedb, get_settings, get_tracking
@@ -28,13 +28,15 @@ _cache_lock = threading.Lock()
 def _cache_key(
     source_roots: list[str] | None,
     scope_tags: list[str] | None,
+    ad_hoc_tags: list[str] | None,
     top_k: int,
     word_clouds: bool = True,
     min_weight: float = 0.0,
 ) -> tuple:
     roots = frozenset(source_roots) if source_roots else frozenset()
     tags = frozenset(scope_tags) if scope_tags else frozenset()
-    return (roots, tags, top_k, word_clouds, min_weight)
+    adhoc = frozenset(ad_hoc_tags) if ad_hoc_tags else frozenset()
+    return (roots, tags, adhoc, top_k, word_clouds, min_weight)
 
 
 @router.get("/data")
@@ -43,6 +45,7 @@ def graph_data(
     request: Request,
     scope_id: str | None = None,
     scope_ids: str | None = None,
+    ad_hoc_tags: list[str] | None = Query(None),
     top_k: int = 3,
     word_clouds: bool = True,
     min_weight: float = 0.5,
@@ -54,8 +57,8 @@ def graph_data(
     """Return the full knowledge graph (nodes, edges, clusters, word clouds)."""
     ids = parse_scope_ids(scope_ids) or ([scope_id] if scope_id else None)
     scope_folders, scope_tags = resolve_scopes(ids, scopedb)
-    allowed = resolve_tag_paths(scope_tags, None, tracking)
-    key = _cache_key(scope_folders, scope_tags, top_k, word_clouds, min_weight)
+    allowed = resolve_tag_paths(scope_tags, ad_hoc_tags, tracking)
+    key = _cache_key(scope_folders, scope_tags, ad_hoc_tags, top_k, word_clouds, min_weight)
 
     with _cache_lock:
         if key in _graph_cache:
@@ -117,6 +120,7 @@ def graph_status(
     request: Request,
     scope_id: str | None = None,
     scope_ids: str | None = None,
+    ad_hoc_tags: list[str] | None = Query(None),
     top_k: int = 3,
     word_clouds: bool = True,
     min_weight: float = 0.5,
@@ -125,7 +129,7 @@ def graph_status(
     """Check if cached graph data is available (no computation)."""
     ids = parse_scope_ids(scope_ids) or ([scope_id] if scope_id else None)
     scope_folders, scope_tags = resolve_scopes(ids, scopedb)
-    key = _cache_key(scope_folders, scope_tags, top_k, word_clouds, min_weight)
+    key = _cache_key(scope_folders, scope_tags, ad_hoc_tags, top_k, word_clouds, min_weight)
     with _cache_lock:
         return {"cached": key in _graph_cache}
 

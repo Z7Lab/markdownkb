@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import ForceGraph3D from "react-force-graph-3d"
 import { useGraph } from "@/hooks/use-graph"
 import { useScopes } from "@/hooks/use-scopes"
+import { useTags } from "@/hooks/use-tags"
 import { useIndexEvents } from "@/hooks/use-index-events"
 import { GraphSidebar } from "./graph-sidebar"
 import { EdgeDetailPanel } from "./edge-detail-panel"
@@ -61,6 +62,7 @@ export function GraphTab() {
     searchTerm, setSearchTerm, fetchGraph, progress,
   } = useGraph()
   const { scopes } = useScopes()
+  const { tags: availableTags } = useTags()
   const { lastIndexedAt } = useIndexEvents()
   const isDark = useIsDark()
   const colors = isDark ? THEME.dark : THEME.light
@@ -76,19 +78,28 @@ export function GraphTab() {
 
   // Multi-scope selection (local to graph tab)
   const [selectedScopeIds, setSelectedScopeIds] = useState<Set<string>>(new Set())
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
   const scopeIdsParam = useMemo(() => {
     if (selectedScopeIds.size === 0) return null
     return Array.from(selectedScopeIds).sort().join(",")
   }, [selectedScopeIds])
+  const adHocTagsParam = useMemo(() => {
+    if (selectedTags.size === 0) return null
+    return Array.from(selectedTags).sort()
+  }, [selectedTags])
   const prevScopeRef = useRef(scopeIdsParam)
+  const prevTagsRef = useRef(adHocTagsParam)
 
-  // Re-fetch only when scope selection actually changes (not on initial mount)
+  // Re-fetch when scope or tag selection changes (not on initial mount)
   useEffect(() => {
-    if (prevScopeRef.current !== scopeIdsParam) {
+    const scopeChanged = prevScopeRef.current !== scopeIdsParam
+    const tagsChanged = JSON.stringify(prevTagsRef.current) !== JSON.stringify(adHocTagsParam)
+    if (scopeChanged || tagsChanged) {
       prevScopeRef.current = scopeIdsParam
-      fetchGraph(scopeIdsParam, true, wordClouds)
+      prevTagsRef.current = adHocTagsParam
+      fetchGraph(scopeIdsParam, true, wordClouds, adHocTagsParam)
     }
-  }, [fetchGraph, scopeIdsParam, wordClouds])
+  }, [fetchGraph, scopeIdsParam, adHocTagsParam, wordClouds])
 
   // Track container dimensions
   useEffect(() => {
@@ -302,19 +313,26 @@ export function GraphTab() {
     setSelectedScopeIds(ids)
   }, [])
 
+  const handleTagChange = useCallback((tags: Set<string>) => {
+    setSelectedTags(tags)
+  }, [])
+
   return (
     <div className="flex flex-row h-full overflow-hidden">
       <GraphSidebar
         scopes={scopes}
         selectedScopeIds={selectedScopeIds}
         onScopeChange={handleScopeChange}
+        availableTags={availableTags}
+        selectedTags={selectedTags}
+        onTagChange={handleTagChange}
         threshold={threshold}
         onThresholdChange={setThreshold}
         spread={spread}
         onSpreadChange={setSpread}
         searchTerm={searchTerm}
         onSearchChange={(term) => { setSearchTerm(term); selectNode(null) }}
-        onRefresh={() => fetchGraph(scopeIdsParam, true, wordClouds)}
+        onRefresh={() => fetchGraph(scopeIdsParam, true, wordClouds, adHocTagsParam)}
         isLoading={isLoading}
         wordCloudsEnabled={wordClouds}
         onWordCloudsChange={setWordClouds}
@@ -333,7 +351,7 @@ export function GraphTab() {
               variant="ghost"
               size="sm"
               className="h-6 text-xs text-yellow-500"
-              onClick={() => fetchGraph(scopeIdsParam, true, wordClouds)}
+              onClick={() => fetchGraph(scopeIdsParam, true, wordClouds, adHocTagsParam)}
             >
               Refresh
             </Button>
@@ -376,7 +394,7 @@ export function GraphTab() {
             <div className="text-center text-muted-foreground space-y-3">
               <p className="text-sm font-medium">Knowledge graph not built yet</p>
               <p className="text-xs">Build the graph to visualize document relationships</p>
-              <Button variant="outline" size="sm" onClick={() => fetchGraph(scopeIdsParam, true, wordClouds)}>
+              <Button variant="outline" size="sm" onClick={() => fetchGraph(scopeIdsParam, true, wordClouds, adHocTagsParam)}>
                 Build Graph
               </Button>
             </div>
