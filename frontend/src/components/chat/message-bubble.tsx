@@ -11,6 +11,11 @@ import type { ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { FileViewerDialog } from "@/components/ui/file-viewer-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ThinkBlock {
   type: "think" | "text" | "thinking";
@@ -167,24 +172,30 @@ export const MessageBubble = memo(function MessageBubble({
           <Markdown className="p-1">{message.content}</Markdown>
         )}
         {(!isUser && (message.content || (sources && sources.length > 0))) && (
-          <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-foreground/10">
+          <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-foreground/10">
             {sources && sources.length > 0 && (
               <>
                 <span className="text-xs text-muted-foreground">
                   Sources:
                 </span>
                 {sources.map((src) => (
-                  <button
-                    key={src}
-                    type="button"
-                    onClick={() => setViewingFile(src)}
-                    className="inline-flex items-center gap-1 text-xs bg-background/60 hover:bg-background px-2 py-0.5 rounded border border-border hover:border-primary/50 transition-colors cursor-pointer"
-                  >
-                    <FileText className="h-3 w-3 shrink-0" />
-                    <span className="truncate max-w-[200px]">
-                      {src.split("/").pop()}
-                    </span>
-                  </button>
+                  <Tooltip key={src}>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => setViewingFile(src)}
+                        className="inline-flex items-center gap-1 text-xs bg-background/60 hover:bg-background px-2 py-0.5 rounded border border-border hover:border-primary/50 transition-colors cursor-pointer"
+                      >
+                        <FileText className="h-3 w-3 shrink-0" />
+                        <span className="truncate max-w-[200px]">
+                          {src.split("/").pop()}
+                        </span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-md break-all text-xs font-mono">
+                      {src}
+                    </TooltipContent>
+                  </Tooltip>
                 ))}
               </>
             )}
