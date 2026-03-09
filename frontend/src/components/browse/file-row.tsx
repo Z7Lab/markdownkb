@@ -1,5 +1,4 @@
 import React from "react"
-import { TableCell, TableRow } from "@/components/ui/table"
 import { basename, dirname } from "@/lib/utils"
 import { FileActions } from "./file-actions"
 import type { TrackedFile } from "@/lib/types"
@@ -7,6 +6,7 @@ import type { TrackedFile } from "@/lib/types"
 interface FileRowProps {
   file: TrackedFile
   busy: boolean
+  gridTemplate: string
   onToggleRag: (path: string, checked: boolean) => void
   onIndexFile: (path: string) => void
   onReindexFile: (path: string) => void
@@ -17,6 +17,7 @@ interface FileRowProps {
 export const FileRow = React.memo(function FileRow({
   file,
   busy,
+  gridTemplate,
   onToggleRag,
   onIndexFile,
   onReindexFile,
@@ -24,31 +25,30 @@ export const FileRow = React.memo(function FileRow({
   onViewFile,
 }: FileRowProps) {
   return (
-    <TableRow
-      className="cursor-pointer"
+    <div
+      className="grid items-center border-b hover:bg-muted/50 cursor-pointer transition-colors text-sm"
+      style={{ gridTemplateColumns: gridTemplate }}
       onClick={() => onViewFile(file.path)}
     >
-      <TableCell className="font-mono text-sm truncate max-w-[200px]">
+      <div className="px-2 py-2 font-mono truncate overflow-hidden">
         {basename(file.path)}
-      </TableCell>
-      <TableCell className="text-sm text-muted-foreground truncate max-w-[180px]">
+      </div>
+      <div className="px-2 py-2 text-muted-foreground truncate overflow-hidden">
         {dirname(file.path)}
-      </TableCell>
-      <TableCell>
-        <div className="flex justify-center">
-          <FileActions
-            status={file.status}
-            includeRag={file.include_rag === 1}
-            busy={busy}
-            onToggleRag={(checked) => onToggleRag(file.path, checked)}
-            onIndexFile={() => onIndexFile(file.path)}
-            onReindexFile={() => onReindexFile(file.path)}
-            onUnindexFile={() => onUnindexFile(file.path)}
-            variant="toggle-only"
-          />
-        </div>
-      </TableCell>
-      <TableCell className="text-sm">
+      </div>
+      <div className="px-2 py-2 flex justify-center">
+        <FileActions
+          status={file.status}
+          includeRag={file.include_rag === 1}
+          busy={busy}
+          onToggleRag={(checked) => onToggleRag(file.path, checked)}
+          onIndexFile={() => onIndexFile(file.path)}
+          onReindexFile={() => onReindexFile(file.path)}
+          onUnindexFile={() => onUnindexFile(file.path)}
+          variant="toggle-only"
+        />
+      </div>
+      <div className="px-2 py-2">
         {file.status === "not_indexed" ? (
           <span className="text-muted-foreground">not indexed</span>
         ) : file.status === "indexing" ? (
@@ -58,11 +58,11 @@ export const FileRow = React.memo(function FileRow({
         ) : (
           file.status
         )}
-      </TableCell>
-      <TableCell>
-        <div className="flex justify-center">{file.chunk_count}</div>
-      </TableCell>
-      <TableCell>
+      </div>
+      <div className="px-2 py-2 text-center">
+        {file.chunk_count}
+      </div>
+      <div className="px-2 py-2">
         <FileActions
           status={file.status}
           includeRag={file.include_rag === 1}
@@ -73,7 +73,7 @@ export const FileRow = React.memo(function FileRow({
           onUnindexFile={() => onUnindexFile(file.path)}
           variant="buttons-only"
         />
-      </TableCell>
-    </TableRow>
+      </div>
+    </div>
   )
 })
