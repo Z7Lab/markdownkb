@@ -9,13 +9,15 @@ import { useIndexEvents } from "@/hooks/use-index-events"
 import { FolderTree } from "./folder-tree"
 import { FileRow } from "./file-row"
 import { BulkTagDialog } from "./bulk-tag-dialog"
+import { AutoTagDialog } from "./auto-tag-dialog"
 import { Input } from "@/components/ui/input"
+import { api } from "@/lib/api"
 import {
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable"
-import { ArrowDown, ArrowUp, FileDown, FileX, Loader2, RefreshCw, Search, Tag, X } from "lucide-react"
+import { ArrowDown, ArrowUp, FileDown, FileX, Loader2, RefreshCw, Search, Tag, Wand2, X } from "lucide-react"
 import type { TrackedFile } from "@/lib/types"
 import { basename, dirname, cn } from "@/lib/utils"
 
@@ -117,7 +119,14 @@ export function FilesTab() {
   const [confirmUnindexAll, setConfirmUnindexAll] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkTagOpen, setBulkTagOpen] = useState(false)
+  const [autoTagOpen, setAutoTagOpen] = useState(false)
+  const [sources, setSources] = useState<string[]>([])
   const { sorted, sortKey, sortDir, onSort } = useTableSort(files, getValue)
+
+  // Fetch sources for auto-tag dialog
+  useEffect(() => {
+    api.get<{ sources: string[] }>("/api/sources").then((res) => setSources(res.sources)).catch(() => {})
+  }, [])
 
   const toggleSelect = useCallback((path: string) => {
     setSelected((prev) => {
@@ -193,6 +202,10 @@ export function FilesTab() {
                   Unindex Folder
                 </Button>
               )}
+              <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => setAutoTagOpen(true)}>
+                <Wand2 className="h-3.5 w-3.5 mr-1.5" />
+                Auto-Tag
+              </Button>
               <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => refresh()}>
                 <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
                 Refresh
@@ -354,6 +367,13 @@ export function FilesTab() {
             bulkUpdateTags(paths, tags, mode)
             setSelected(new Set())
           }}
+        />
+
+        <AutoTagDialog
+          open={autoTagOpen}
+          onOpenChange={setAutoTagOpen}
+          sources={sources}
+          onApplied={() => refresh()}
         />
       </div>
     </div>

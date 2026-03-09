@@ -10,7 +10,7 @@ from app.deps import get_settings, get_store, get_tracking
 from app.ingestion.indexer import ReindexError, reindex_file
 from app.ingestion.scanner import discover_sources
 from app.ratelimit import STANDARD, limiter
-from app.schemas import BulkUpdateTagsRequest, FileActionRequest, SourceActionRequest, ToggleRagRequest, UpdateTagsRequest
+from app.schemas import AutoTagApplyRequest, AutoTagPreviewRequest, BulkUpdateTagsRequest, FileActionRequest, SourceActionRequest, ToggleRagRequest, UpdateTagsRequest
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 
@@ -222,6 +222,84 @@ def bulk_update_tags(
         tracking.update_tags(path, ", ".join(sorted(merged)))
         updated += 1
     return {"status": "ok", "updated": updated}
+
+
+@router.post("/files/auto-tag-preview")
+@limiter.limit(STANDARD)
+def auto_tag_preview(
+    request: Request,
+    req: AutoTagPreviewRequest,
+    tracking: TrackingDB = Depends(get_tracking),
+):
+    """Dry-run auto-tagging: returns a plan mapping tags to file paths.
+
+    strategy=subfolder: extract folder name at `depth` below base_path as tag.
+    strategy=doc_type: extract the immediate parent folder name (e.g. implementation_docs).
+    """
+    base = req.base_path.rstrip("/")
+    all_files = tracking.get_all_files()
+    plan: dict[str, list[str]] = {}
+
+    for f in all_files:
+        path = f["path"]
+        if not path.startswith(base + "/"):
+            continue
+        rest = path[len(base) + 1:]
+        parts = rest.split("/")
+
+        if req.strategy == "subfolder":
+            if len(parts) <= req.depth:
+                continue  # file is at or above the target depth
+            tag = parts[req.depth - 1]
+        else:  # doc_type
+            if len(parts) < 2:
+                continue
+            tag = parts[-2]  # immediate parent folder
+
+        if req.tag_prefix:
+            tag = f"{req.tag_prefix}{tag}"
+        plan.setdefault(tag, []).append(path)
+
+    # Sort for stable output
+    summary = []
+    for tag in sorted(plan):
+        summary.append({
+            "tag": tag,
+            "count": len(plan[tag]),
+            "paths": sorted(plan[tag]),
+        })
+
+    return {
+        "strategy": req.strategy,
+        "base_path": base,
+        "depth": req.depth,
+        "tag_prefix": req.tag_prefix,
+        "rules": summary,
+        "total_files": sum(r["count"] for r in summary),
+        "total_tags": len(summary),
+    }
+
+
+@router.post("/files/auto-tag-apply")
+@limiter.limit(STANDARD)
+def auto_tag_apply(
+    request: Request,
+    req: AutoTagApplyRequest,
+    tracking: TrackingDB = Depends(get_tracking),
+):
+    """Apply an auto-tag plan (from preview). Adds tags without replacing existing ones."""
+    total = 0
+    for tag, paths in req.plan.items():
+        for path in paths:
+            record = tracking.get_file(path)
+            if not record:
+                continue
+            existing = {t.strip() for t in (record.get("tags") or "").split(",") if t.strip()}
+            if tag not in existing:
+                merged = existing | {tag}
+                tracking.update_tags(path, ", ".join(sorted(merged)))
+                total += 1
+    return {"status": "ok", "updated": total}
 
 
 @router.post("/files/unindex")

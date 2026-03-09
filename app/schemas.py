@@ -100,6 +100,21 @@ class BulkUpdateTagsRequest(BaseModel):
     mode: str = Field("add", pattern=r"^(add|remove|replace)$")
 
 
+class AutoTagPreviewRequest(BaseModel):
+    """Request model for auto-tag dry run preview."""
+
+    base_path: str = Field(..., description="Base directory to apply rules under")
+    strategy: str = Field("subfolder", pattern=r"^(subfolder|doc_type)$")
+    depth: int = Field(1, ge=1, le=5, description="Folder depth to extract tag from")
+    tag_prefix: str = Field("", description="Optional prefix for generated tags")
+
+
+class AutoTagApplyRequest(BaseModel):
+    """Request model for applying auto-tag plan."""
+
+    plan: dict = Field(..., description="Tag-to-paths mapping from preview")
+
+
 class AddSourceRequest(BaseModel):
     """Request model for adding a source."""
 
