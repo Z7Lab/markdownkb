@@ -231,7 +231,14 @@ export interface GraphEdge {
   source: string
   target: string
   weight: number
-  top_chunk_pairs: {
+}
+
+export interface EdgeDetail {
+  source: string
+  target: string
+  source_chunks: number
+  target_chunks: number
+  pairs: {
     source_text: string
     target_text: string
     similarity: number

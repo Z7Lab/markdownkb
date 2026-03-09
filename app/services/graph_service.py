@@ -37,6 +37,8 @@ def compute_graph(
     source_roots: list[str] | None = None,
     top_k: int = 3,
     max_terms: int = 30,
+    word_clouds: bool = True,
+    min_weight: float = 0.0,
 ) -> dict:
     """Compute the full knowledge graph from chunk embeddings.
 
@@ -45,6 +47,7 @@ def compute_graph(
         source_roots: Optional scope filter (list of source_root paths).
         top_k: Number of top chunk pairs to average for doc similarity.
         max_terms: Max terms per word cloud.
+        min_weight: Minimum edge weight to include (filters weak edges).
 
     Returns dict with keys: nodes, edges, clusters, global_word_cloud, stats.
     """
@@ -88,10 +91,12 @@ def compute_graph(
         return _empty_graph()
 
     progress(0.1, f"Computing embeddings for {n_docs} documents...")
-    # Compute mean embedding per document
+    # Pre-compute embedding arrays and mean embeddings once
+    doc_emb_arrays: dict[str, np.ndarray] = {}
     doc_mean_embeddings = {}
     for path in doc_paths:
         embs = np.array(docs[path]["embeddings"], dtype=np.float32)
+        doc_emb_arrays[path] = embs
         doc_mean_embeddings[path] = embs.mean(axis=0)
 
     # Pairwise doc similarity using top-K mean of chunk pairs
@@ -101,8 +106,8 @@ def compute_graph(
     pair_count = 0
     if n_docs >= 2:
         for path_a, path_b in combinations(doc_paths, 2):
-            embs_a = np.array(docs[path_a]["embeddings"], dtype=np.float32)
-            embs_b = np.array(docs[path_b]["embeddings"], dtype=np.float32)
+            embs_a = doc_emb_arrays[path_a]
+            embs_b = doc_emb_arrays[path_b]
             # Dot product matrix (embeddings are L2-normalized, so dot = cosine sim)
             sim_matrix = embs_a @ embs_b.T
             # Flatten and take top-K
@@ -111,22 +116,12 @@ def compute_graph(
             top_indices = np.argpartition(flat, -k)[-k:]
             weight = float(flat[top_indices].mean())
 
-            # Build top chunk pair previews
-            top_pairs = []
-            for idx in np.argsort(flat)[-min(3, len(flat)):]:
-                idx_a, idx_b = divmod(int(idx), sim_matrix.shape[1])
-                top_pairs.append({
-                    "source_text": _truncate(docs[path_a]["texts"][idx_a], 120),
-                    "target_text": _truncate(docs[path_b]["texts"][idx_b], 120),
-                    "similarity": round(float(flat[idx]), 3),
+            if weight >= min_weight:
+                edges.append({
+                    "source": path_a,
+                    "target": path_b,
+                    "weight": round(weight, 4),
                 })
-
-            edges.append({
-                "source": path_a,
-                "target": path_b,
-                "weight": round(weight, 4),
-                "top_chunk_pairs": top_pairs,
-            })
             pair_count += 1
             if pair_count % 500 == 0:
                 frac = 0.15 + 0.55 * (pair_count / max(n_pairs, 1))
@@ -142,24 +137,36 @@ def compute_graph(
         cluster_docs[cid].append(path)
 
     # Word clouds per cluster, per doc, and global
-    all_texts = []
-    doc_text_map: dict[str, str] = {}
-    for path in doc_paths:
-        combined = " ".join(docs[path]["texts"])
-        doc_text_map[path] = combined
-        all_texts.append(combined)
+    global_word_cloud: dict[str, float] = {}
+    doc_word_clouds: dict[str, dict[str, float]] = {}
 
-    progress(0.8, "Extracting word clouds...")
-    global_word_cloud = _extract_word_cloud(all_texts, max_terms)
+    if word_clouds:
+        all_texts = []
+        doc_text_map: dict[str, str] = {}
+        for path in doc_paths:
+            combined = " ".join(docs[path]["texts"])
+            doc_text_map[path] = combined
+            all_texts.append(combined)
+
+        progress(0.8, "Extracting word clouds...")
+        global_word_cloud = _extract_word_cloud(all_texts, max_terms)
+
+        for path in doc_paths:
+            doc_word_clouds[path] = _extract_word_cloud([doc_text_map[path]], max_terms)
+    else:
+        doc_text_map = {}
 
     clusters = []
     for cid in sorted(cluster_docs.keys()):
-        cluster_texts = [doc_text_map[p] for p in cluster_docs[cid]]
+        cluster_wc: dict[str, float] = {}
+        if word_clouds:
+            cluster_texts = [doc_text_map[p] for p in cluster_docs[cid]]
+            cluster_wc = _extract_word_cloud(cluster_texts, max_terms)
         clusters.append({
             "id": cid,
             "label": f"Cluster {cid}" if cid >= 0 else "Unclustered",
             "doc_count": len(cluster_docs[cid]),
-            "word_cloud": _extract_word_cloud(cluster_texts, max_terms),
+            "word_cloud": cluster_wc,
         })
 
     # Build nodes
@@ -175,7 +182,7 @@ def compute_graph(
             "source_root": meta.get("source_root", ""),
             "tags": docs[path]["tags"],
             "headings": sorted(docs[path]["headings"]),
-            "word_cloud": _extract_word_cloud([doc_text_map[path]], max_terms),
+            "word_cloud": doc_word_clouds.get(path, {}),
         })
 
     progress(0.95, "Finalizing graph...")
@@ -249,11 +256,52 @@ def _extract_word_cloud(texts: list[str], max_terms: int = 30) -> dict[str, floa
         return {}
 
 
-def _truncate(text: str, max_len: int) -> str:
-    """Truncate text with ellipsis."""
-    if len(text) <= max_len:
-        return text
-    return text[:max_len - 3] + "..."
+def compute_edge_detail(
+    store: VectorStore,
+    source: str,
+    target: str,
+    top_k: int = 5,
+) -> dict:
+    """Compute chunk-level similarity detail for a single document pair.
+
+    Returns the top-K most similar chunk pairs between the two documents,
+    with text previews and similarity scores.
+    """
+    src_data = store.get_chunks_for_doc(source)
+    tgt_data = store.get_chunks_for_doc(target)
+
+    source_texts = [d or "" for d in (src_data.get("documents") or [])]
+    target_texts = [d or "" for d in (tgt_data.get("documents") or [])]
+    source_embs = src_data.get("embeddings")
+    target_embs = tgt_data.get("embeddings")
+
+    if source_embs is None or target_embs is None or len(source_embs) == 0 or len(target_embs) == 0:
+        return {"source": source, "target": target, "source_chunks": 0, "target_chunks": 0, "pairs": []}
+
+    embs_a = np.array(source_embs, dtype=np.float32)
+    embs_b = np.array(target_embs, dtype=np.float32)
+    sim_matrix = embs_a @ embs_b.T
+    flat = sim_matrix.flatten()
+
+    k = min(top_k, len(flat))
+    top_indices = np.argsort(flat)[-k:][::-1]
+
+    pairs = []
+    for idx in top_indices:
+        idx_a, idx_b = divmod(int(idx), sim_matrix.shape[1])
+        pairs.append({
+            "source_text": source_texts[idx_a][:300],
+            "target_text": target_texts[idx_b][:300],
+            "similarity": round(float(flat[idx]), 4),
+        })
+
+    return {
+        "source": source,
+        "target": target,
+        "source_chunks": len(source_embs),
+        "target_chunks": len(target_embs),
+        "pairs": pairs,
+    }
 
 
 def _empty_graph() -> dict:

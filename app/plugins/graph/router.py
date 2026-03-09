@@ -10,7 +10,7 @@ from app.deps import get_retriever, get_scopedb, get_settings
 from app.events import event_bus
 from app.rag.retriever import Retriever
 from app.ratelimit import STANDARD, limiter
-from app.services.graph_service import compute_graph, graph_progress
+from app.services.graph_service import compute_edge_detail, compute_graph, graph_progress
 from app.storage.scopedb import ScopeDB
 
 logger = logging.getLogger(__name__)
@@ -31,9 +31,9 @@ def _resolve_scope(scope_id: str | None, scopedb: ScopeDB) -> list[str] | None:
     return scope["folders"]
 
 
-def _cache_key(source_roots: list[str] | None, top_k: int) -> tuple:
+def _cache_key(source_roots: list[str] | None, top_k: int, word_clouds: bool = True, min_weight: float = 0.0) -> tuple:
     roots = frozenset(source_roots) if source_roots else frozenset()
-    return (roots, top_k)
+    return (roots, top_k, word_clouds, min_weight)
 
 
 @router.get("/data")
@@ -42,19 +42,24 @@ def graph_data(
     request: Request,
     scope_id: str | None = None,
     top_k: int = 3,
+    word_clouds: bool = True,
+    min_weight: float = 0.5,
     retriever: Retriever = Depends(get_retriever),
     settings: Settings = Depends(get_settings),
     scopedb: ScopeDB = Depends(get_scopedb),
 ):
     """Return the full knowledge graph (nodes, edges, clusters, word clouds)."""
     scope_folders = _resolve_scope(scope_id, scopedb)
-    key = _cache_key(scope_folders, top_k)
+    key = _cache_key(scope_folders, top_k, word_clouds, min_weight)
 
     with _cache_lock:
         if key in _graph_cache:
             return _graph_cache[key]
 
-    result = compute_graph(retriever.store, scope_folders, top_k)
+    result = compute_graph(
+        retriever.store, scope_folders, top_k,
+        word_clouds=word_clouds, min_weight=min_weight,
+    )
 
     with _cache_lock:
         _graph_cache[key] = result
@@ -87,6 +92,38 @@ def graph_stats(
         "doc_count": len(doc_paths),
         "chunk_count": len(all_meta),
     }
+
+
+@router.get("/status")
+@limiter.limit(STANDARD)
+def graph_status(
+    request: Request,
+    scope_id: str | None = None,
+    top_k: int = 3,
+    word_clouds: bool = True,
+    min_weight: float = 0.5,
+    scopedb: ScopeDB = Depends(get_scopedb),
+):
+    """Check if cached graph data is available (no computation)."""
+    scope_folders = _resolve_scope(scope_id, scopedb)
+    key = _cache_key(scope_folders, top_k, word_clouds, min_weight)
+    with _cache_lock:
+        return {"cached": key in _graph_cache}
+
+
+@router.get("/edge-detail")
+@limiter.limit(STANDARD)
+def edge_detail(
+    request: Request,
+    source: str = "",
+    target: str = "",
+    top_k: int = 5,
+    retriever: Retriever = Depends(get_retriever),
+):
+    """Return chunk-level similarity detail for a single document pair."""
+    if not source or not target:
+        raise HTTPException(status_code=400, detail="source and target are required")
+    return compute_edge_detail(retriever.store, source, target, top_k)
 
 
 @router.get("/progress")

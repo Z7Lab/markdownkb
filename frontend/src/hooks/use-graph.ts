@@ -8,15 +8,32 @@ interface GraphProgress {
   phase: string
 }
 
+/** Server-side minimum edge weight — edges below this are never sent. */
+const MIN_WEIGHT = 0.5
+
+function buildQs(scopeId?: string | null, wordClouds = true): string {
+  const params = new URLSearchParams()
+  if (scopeId) params.set("scope_id", scopeId)
+  if (!wordClouds) params.set("word_clouds", "false")
+  params.set("min_weight", String(MIN_WEIGHT))
+  const qs = params.toString()
+  return qs ? `?${qs}` : ""
+}
+
 export function useGraph() {
   const [graphData, setGraphData] = useState<GraphData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isComputing, setIsComputing] = useState(false)
+  const [checkingCache, setCheckingCache] = useState(true)
   const [fetchedAt, setFetchedAt] = useState<number | null>(null)
   const [threshold, setThreshold] = useState(0.65)
+  const [wordClouds, setWordClouds] = useState(true)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [progress, setProgress] = useState<GraphProgress>({ fraction: 0, phase: "idle" })
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const graphDataRef = useRef<GraphData | null>(null)
+  const lastScopeRef = useRef<string | null | undefined>(undefined)
 
   // Clean up poll on unmount
   useEffect(() => {
@@ -25,27 +42,82 @@ export function useGraph() {
     }
   }, [])
 
-  const fetchGraph = useCallback(async (scopeId?: string | null) => {
-    setIsLoading(true)
-    setProgress({ fraction: 0, phase: "Starting..." })
-
-    // Poll progress while waiting
-    pollRef.current = setInterval(async () => {
+  // On mount, check if server has cached graph data and load it transparently
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
       try {
-        const p = await api.get<GraphProgress>("/api/graph/progress")
-        if (p.phase !== "idle") {
-          setProgress(p)
+        // Check both with and without word clouds
+        const mw = `&min_weight=${MIN_WEIGHT}`
+        const [withWc, withoutWc] = await Promise.all([
+          api.get<{ cached: boolean }>(`/api/graph/status?word_clouds=true${mw}`),
+          api.get<{ cached: boolean }>(`/api/graph/status?word_clouds=false${mw}`),
+        ])
+        if (cancelled || graphDataRef.current) return
+
+        const hasCached = withWc.cached || withoutWc.cached
+        if (hasCached) {
+          // Prefer the one that's cached; if both, prefer with word clouds
+          const useWc = withWc.cached
+          setIsLoading(true)
+          const data = await api.get<GraphData>(`/api/graph/data${buildQs(null, useWc)}`)
+          if (cancelled) return
+          graphDataRef.current = data
+          lastScopeRef.current = null
+          setWordClouds(useWc)
+          setGraphData(data)
+          setFetchedAt(Date.now() / 1000)
         }
       } catch {
-        // Ignore poll errors
+        // Ignore — user can manually build
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false)
+          setCheckingCache(false)
+        }
       }
-    }, 500)
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  const fetchGraph = useCallback(async (
+    scopeId?: string | null,
+    force = false,
+    wc = true,
+  ) => {
+    // Skip if we already have data for this scope (unless forced)
+    if (!force && graphDataRef.current && lastScopeRef.current === scopeId) return
+    lastScopeRef.current = scopeId ?? null
+
+    // Abort any in-flight poll
+    if (pollRef.current) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+
+    setIsLoading(true)
+    setIsComputing(true)
+    setProgress({ fraction: 0, phase: "Starting..." })
 
     try {
-      const params = new URLSearchParams()
-      if (scopeId) params.set("scope_id", scopeId)
-      const qs = params.toString()
-      const data = await api.get<GraphData>(`/api/graph/data${qs ? `?${qs}` : ""}`)
+      // Start the data fetch first, then begin progress polling
+      const dataPromise = api.get<GraphData>(`/api/graph/data${buildQs(scopeId, wc)}`)
+
+      // Brief delay so the data request claims a connection before polls compete
+      await new Promise(r => setTimeout(r, 50))
+      pollRef.current = setInterval(async () => {
+        try {
+          const p = await api.get<GraphProgress>("/api/graph/progress")
+          if (p.phase !== "idle") {
+            setProgress(p)
+          }
+        } catch {
+          // Ignore poll errors
+        }
+      }, 1000)
+
+      const data = await dataPromise
+      graphDataRef.current = data
       setGraphData(data)
       setFetchedAt(Date.now() / 1000)
       setSelectedNodeId(null)
@@ -58,6 +130,7 @@ export function useGraph() {
         pollRef.current = null
       }
       setProgress({ fraction: 0, phase: "idle" })
+      setIsComputing(false)
       setIsLoading(false)
     }
   }, [])
@@ -75,9 +148,13 @@ export function useGraph() {
   return {
     graphData,
     isLoading,
+    isComputing,
+    checkingCache,
     fetchedAt,
     threshold,
     setThreshold,
+    wordClouds,
+    setWordClouds,
     selectedNodeId,
     selectNode,
     clearSelection,

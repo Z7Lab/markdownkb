@@ -1,6 +1,7 @@
 import { AppSidebar } from "@/components/ui/app-sidebar"
 import { ScopePicker } from "@/components/scope-picker"
 import { Slider } from "@/components/ui/slider"
+import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { WordCloud } from "./word-cloud"
@@ -19,6 +20,8 @@ export function GraphSidebar({
   onSearchChange,
   onRefresh,
   isLoading,
+  wordCloudsEnabled,
+  onWordCloudsChange,
   activeWordCloud,
   wordCloudLabel,
   onTermClick,
@@ -34,6 +37,8 @@ export function GraphSidebar({
   onSearchChange: (term: string) => void
   onRefresh: () => void
   isLoading: boolean
+  wordCloudsEnabled: boolean
+  onWordCloudsChange: (v: boolean) => void
   activeWordCloud: Record<string, number>
   wordCloudLabel: string
   onTermClick: (term: string) => void
@@ -57,7 +62,7 @@ export function GraphSidebar({
             <Slider
               value={[threshold]}
               onValueChange={([v]) => onThresholdChange(v)}
-              min={0}
+              min={0.5}
               max={1}
               step={0.05}
               className="w-full"
@@ -98,6 +103,15 @@ export function GraphSidebar({
             )}
           </div>
 
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-muted-foreground">Word Clouds</label>
+            <Switch
+              checked={wordCloudsEnabled}
+              onCheckedChange={onWordCloudsChange}
+              aria-label="Include word clouds"
+            />
+          </div>
+
           <Button
             variant="outline"
             size="sm"
@@ -111,16 +125,18 @@ export function GraphSidebar({
         </div>
       }
     >
-      <div className="px-1 py-2">
-        <p className="text-xs font-medium text-muted-foreground px-3 mb-2">
-          {wordCloudLabel}
-        </p>
-        <WordCloud
-          terms={activeWordCloud}
-          activeTerm={searchTerm || undefined}
-          onTermClick={onTermClick}
-        />
-      </div>
+      {wordCloudsEnabled && (
+        <div className="px-1 py-2">
+          <p className="text-xs font-medium text-muted-foreground px-3 mb-2">
+            {wordCloudLabel}
+          </p>
+          <WordCloud
+            terms={activeWordCloud}
+            activeTerm={searchTerm || undefined}
+            onTermClick={onTermClick}
+          />
+        </div>
+      )}
     </AppSidebar>
   )
 }

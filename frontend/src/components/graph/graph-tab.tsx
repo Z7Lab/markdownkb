@@ -4,10 +4,12 @@ import { useGraph } from "@/hooks/use-graph"
 import { useScopes } from "@/hooks/use-scopes"
 import { useIndexEvents } from "@/hooks/use-index-events"
 import { GraphSidebar } from "./graph-sidebar"
+import { EdgeDetailPanel } from "./edge-detail-panel"
 import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
 import { AlertTriangle, Loader2, MonitorX } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { GraphNode } from "@/lib/types"
+import { dirname } from "@/lib/utils"
 
 function detectWebGL(): boolean {
   try {
@@ -19,6 +21,21 @@ function detectWebGL(): boolean {
   }
 }
 
+/** Observe .dark class on <html> to track theme changes */
+function useIsDark() {
+  const [isDark, setIsDark] = useState(
+    () => document.documentElement.classList.contains("dark"),
+  )
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains("dark"))
+    })
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] })
+    return () => observer.disconnect()
+  }, [])
+  return isDark
+}
+
 // Cluster color palette — distinct hues
 const CLUSTER_COLORS = [
   "#6366f1", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6",
@@ -27,29 +44,42 @@ const CLUSTER_COLORS = [
 ]
 
 const UNCLUSTERED_COLOR = "#6b7280"
-const DIM_COLOR = "#1f2937"
 const HIGHLIGHT_COLOR = "#facc15"
+
+// Theme-aware colors
+const THEME = {
+  dark: { bg: "#09090b", dim: "#1f2937", linkBase: "140,180,255", linkDim: "255,255,255" },
+  light: { bg: "#f8fafc", dim: "#d1d5db", linkBase: "59,130,246", linkDim: "0,0,0" },
+} as const
 
 export function GraphTab() {
   const {
-    graphData, isLoading, fetchedAt, threshold, setThreshold,
+    graphData, isLoading, isComputing, checkingCache, fetchedAt, threshold, setThreshold,
+    wordClouds, setWordClouds,
     selectedNodeId, selectNode, clearSelection,
     searchTerm, setSearchTerm, fetchGraph, progress,
   } = useGraph()
   const { scopes, selectedScopeId, setSelectedScopeId } = useScopes()
   const { lastIndexedAt } = useIndexEvents()
+  const isDark = useIsDark()
+  const colors = isDark ? THEME.dark : THEME.light
   const [viewingPath, setViewingPath] = useState<string | null>(null)
+  const [selectedEdge, setSelectedEdge] = useState<{ source: string; target: string; weight: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const fgRef = useRef<any>(null)
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 })
   const [webglSupported] = useState(() => detectWebGL())
   const [spread, setSpread] = useState(100)
   const spreadInitialized = useRef(false)
+  const prevScopeRef = useRef(selectedScopeId)
 
-  // Fetch on mount and scope change
+  // Re-fetch only when scope actually changes (not on initial mount)
   useEffect(() => {
-    fetchGraph(selectedScopeId)
-  }, [fetchGraph, selectedScopeId])
+    if (prevScopeRef.current !== selectedScopeId) {
+      prevScopeRef.current = selectedScopeId
+      fetchGraph(selectedScopeId, true, wordClouds)
+    }
+  }, [fetchGraph, selectedScopeId, wordClouds])
 
   // Track container dimensions
   useEffect(() => {
@@ -188,11 +218,11 @@ export function GraphTab() {
         if (node.id === selectedNodeId) return HIGHLIGHT_COLOR
         return CLUSTER_COLORS[((node.cluster_id % CLUSTER_COLORS.length) + CLUSTER_COLORS.length) % CLUSTER_COLORS.length] || UNCLUSTERED_COLOR
       }
-      return DIM_COLOR
+      return colors.dim
     }
     if (node.cluster_id < 0) return UNCLUSTERED_COLOR
     return CLUSTER_COLORS[node.cluster_id % CLUSTER_COLORS.length] || UNCLUSTERED_COLOR
-  }, [hasHighlight, highlightedNodes, selectedNodeId])
+  }, [hasHighlight, highlightedNodes, selectedNodeId, colors.dim])
 
   // Node size: chunk count, enlarged when highlighted
   const nodeVal = useCallback((node: GraphNode) => {
@@ -203,8 +233,9 @@ export function GraphTab() {
 
   // Node tooltip
   const nodeLabel = useCallback((node: GraphNode) => {
+    const dir = dirname(node.id)
     const tags = node.tags.length > 0 ? `<br/>Tags: ${node.tags.join(", ")}` : ""
-    return `<div style="max-width:300px"><strong>${node.label}</strong><br/>${node.chunk_count} chunks${tags}</div>`
+    return `<div style="max-width:350px"><strong>${node.label}</strong><br/><span style="opacity:0.7">${dir}</span><br/>${node.chunk_count} chunks${tags}</div>`
   }, [])
 
   // Link styling — opacity and width scale with weight for visibility at distance
@@ -215,13 +246,13 @@ export function GraphTab() {
       if (highlightedNodes.has(srcId) && highlightedNodes.has(tgtId)) {
         return "rgba(250,204,21,0.8)"
       }
-      return "rgba(255,255,255,0.03)"
+      return `rgba(${colors.linkDim},0.03)`
     }
     // Stronger connections are brighter
     const w = typeof link.weight === "number" ? link.weight : 0.5
     const alpha = Math.min(0.6, 0.08 + w * 0.5)
-    return `rgba(140,180,255,${alpha.toFixed(2)})`
-  }, [hasHighlight, highlightedNodes])
+    return `rgba(${colors.linkBase},${alpha.toFixed(2)})`
+  }, [hasHighlight, highlightedNodes, colors])
 
   const linkWidth = useCallback((link: { weight: number }) => {
     const w = typeof link.weight === "number" ? link.weight : 0.5
@@ -232,11 +263,20 @@ export function GraphTab() {
   const handleNodeClick = useCallback((node: GraphNode) => {
     selectNode(node.id)
     setViewingPath(node.id)
+    setSelectedEdge(null)
   }, [selectNode])
+
+  // Link click — show edge detail
+  const handleLinkClick = useCallback((link: any) => {
+    const srcId = typeof link.source === "object" ? link.source.id : link.source
+    const tgtId = typeof link.target === "object" ? link.target.id : link.target
+    setSelectedEdge({ source: srcId, target: tgtId, weight: link.weight ?? 0 })
+  }, [])
 
   // Background click
   const handleBackgroundClick = useCallback(() => {
     clearSelection()
+    setSelectedEdge(null)
   }, [clearSelection])
 
   // Term click from word cloud
@@ -261,8 +301,10 @@ export function GraphTab() {
         onSpreadChange={setSpread}
         searchTerm={searchTerm}
         onSearchChange={(term) => { setSearchTerm(term); selectNode(null) }}
-        onRefresh={() => fetchGraph(selectedScopeId)}
+        onRefresh={() => fetchGraph(selectedScopeId, true, wordClouds)}
         isLoading={isLoading}
+        wordCloudsEnabled={wordClouds}
+        onWordCloudsChange={setWordClouds}
         activeWordCloud={activeWordCloud}
         wordCloudLabel={wordCloudLabel}
         onTermClick={handleTermClick}
@@ -278,7 +320,7 @@ export function GraphTab() {
               variant="ghost"
               size="sm"
               className="h-6 text-xs text-yellow-500"
-              onClick={() => fetchGraph(selectedScopeId)}
+              onClick={() => fetchGraph(selectedScopeId, true, wordClouds)}
             >
               Refresh
             </Button>
@@ -298,9 +340,9 @@ export function GraphTab() {
             <div className="flex flex-col items-center gap-3 text-muted-foreground w-64">
               <div className="flex items-center gap-2">
                 <Loader2 className="h-5 w-5 animate-spin" />
-                <span>Computing graph...</span>
+                <span>{isComputing ? "Computing graph..." : "Loading graph..."}</span>
               </div>
-              {progress.phase !== "idle" && (
+              {isComputing && progress.phase !== "idle" && (
                 <>
                   <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                     <div
@@ -311,6 +353,19 @@ export function GraphTab() {
                   <span className="text-xs">{progress.phase}</span>
                 </>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Not yet built */}
+        {!isLoading && !checkingCache && !graphData && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center text-muted-foreground space-y-3">
+              <p className="text-sm font-medium">Knowledge graph not built yet</p>
+              <p className="text-xs">Build the graph to visualize document relationships</p>
+              <Button variant="outline" size="sm" onClick={() => fetchGraph(selectedScopeId, true, wordClouds)}>
+                Build Graph
+              </Button>
             </div>
           </div>
         )}
@@ -343,6 +398,17 @@ export function GraphTab() {
           </div>
         )}
 
+        {/* Edge detail panel */}
+        {selectedEdge && (
+          <EdgeDetailPanel
+            source={selectedEdge.source}
+            target={selectedEdge.target}
+            weight={selectedEdge.weight}
+            onClose={() => setSelectedEdge(null)}
+            onDocClick={(path) => setViewingPath(path)}
+          />
+        )}
+
         {/* 3D Force Graph */}
         {webglSupported && graphData && graphData.nodes.length > 0 && (
           <ForceGraph3D
@@ -350,7 +416,7 @@ export function GraphTab() {
             graphData={forceGraphData}
             width={dimensions.width}
             height={dimensions.height}
-            backgroundColor="#09090b"
+            backgroundColor={colors.bg}
             nodeId="id"
             nodeLabel={nodeLabel as any}
             nodeColor={nodeColor as any}
@@ -362,6 +428,7 @@ export function GraphTab() {
             linkOpacity={0.6}
             linkDirectionalParticles={0}
             onNodeClick={handleNodeClick as any}
+            onLinkClick={handleLinkClick}
             onBackgroundClick={handleBackgroundClick}
             showNavInfo={false}
             enableNodeDrag={true}

@@ -102,6 +102,16 @@ class VectorStore:
 
         return self._collection.get(**kwargs)
 
+    def get_chunks_for_doc(self, source_path: str) -> dict:
+        """Return chunks with documents and embeddings for a single source file."""
+        if self._collection.count() == 0:
+            return {"ids": [], "documents": [], "embeddings": []}
+        result = self._collection.get(
+            where={"source_path": source_path},
+            include=["documents", "embeddings"],
+        )
+        return result
+
     def delete_by_source(self, source_path: str):
         """Delete all chunks from a given source file.
 
