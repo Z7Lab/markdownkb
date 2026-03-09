@@ -9,6 +9,7 @@ import { ChevronRight, Brain, FileText, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { FileViewerDialog } from "@/components/ui/file-viewer-dialog";
 
 interface ThinkBlock {
@@ -102,7 +103,7 @@ export const MessageBubble = memo(function MessageBubble({
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // Clipboard API unavailable (non-HTTPS or no focus)
+      toast.error("Failed to copy — clipboard access denied")
     }
   }
 

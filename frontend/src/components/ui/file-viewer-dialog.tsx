@@ -246,10 +246,13 @@ export function FileViewerDialog({
   const filename = path?.split("/").pop() ?? ""
   const isMarkdown = filename.endsWith(".md")
 
-  const handleCopyPath = () => {
-    if (path) {
-      navigator.clipboard.writeText(path)
+  const handleCopyPath = async () => {
+    if (!path) return
+    try {
+      await navigator.clipboard.writeText(path)
       toast.success("File path copied to clipboard")
+    } catch {
+      toast.error("Failed to copy — clipboard access denied")
     }
   }
 
