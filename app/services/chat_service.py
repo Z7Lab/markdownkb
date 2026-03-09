@@ -9,7 +9,7 @@ from typing import Generator
 
 from app.config import Settings
 from app.rag.llm import get_completion, get_streaming_completion
-from app.rag.prompts import QUERY_REWRITE_PROMPT, build_rag_messages
+from app.rag.prompts import build_rag_messages, get_query_rewrite_prompt
 from app.rag.retriever import Retriever
 
 logger = logging.getLogger(__name__)
@@ -122,7 +122,7 @@ def rewrite_query(message: str, settings: Settings) -> str:
         return message
     try:
         messages = [
-            {"role": "system", "content": QUERY_REWRITE_PROMPT},
+            {"role": "system", "content": get_query_rewrite_prompt()},
             {"role": "user", "content": message},
         ]
         rewritten = get_completion(messages, settings)

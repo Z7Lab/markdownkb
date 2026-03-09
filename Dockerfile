@@ -41,6 +41,7 @@ RUN pip install --no-cache-dir /tmp/wheels/*.whl && rm -rf /tmp/wheels
 COPY app/ ./app/
 COPY mcp_server.py ./mcp_server.py
 COPY config/settings.yaml.example ./config/settings.yaml.example
+COPY config/prompts/ ./config/prompts/
 
 # Copy frontend build
 COPY --from=frontend-builder /app/frontend/dist/ ./frontend/dist/

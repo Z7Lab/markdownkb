@@ -1,85 +1,55 @@
-"""Prompt templates for RAG, planning, skill review, and search summary."""
+"""Prompt templates for RAG, planning, skill review, and search summary.
 
-# Note: SEARCH_SUMMARY_SYSTEM is now loaded from config.search_summary_prompt
-# (kept as fallback constant for backward compatibility)
-SEARCH_SUMMARY_SYSTEM = (
-    "You are a knowledge base search assistant. "
-    "Provide a focused, concise summary that directly answers "
-    "the user's query based on the provided context. "
-    "Cite sources using (Source: filename) notation. "
-    "If the context doesn't contain enough information, say so clearly. "
-    "Keep it brief: 1-2 short paragraphs maximum. Be direct and to the point."
-)
+All templates are loaded from ``config/prompts/{name}.md``.
+Edit those files to customise prompts without touching code.
+"""
 
-SEARCH_SUMMARY_USER = """Context from knowledge base:
----
-{context}
----
-
-Query: {query}
-
-Provide a concise summary answering this query, citing sources."""
+from app.config import Settings
 
 
-QUERY_REWRITE_PROMPT = (
-    "Extract search keywords from the user's message. "
-    "Return ONLY the key topics and terms, no explanation. "
-    "Keep it under 10 words."
-)
+def _get(name: str) -> str:
+    return Settings.get().get_prompt(name)
 
-RAG_USER_TEMPLATE = """Context from your knowledge base:
----
-{context}
----
 
-Question: {question}"""
+# ---------------------------------------------------------------------------
+# Public accessors
+# ---------------------------------------------------------------------------
 
-PLANNING_SYSTEM_PROMPT = (
-    "You are mdkb in planning mode. Your job is to create "
-    "precise implementation plans by analyzing the user's "
-    "knowledge base, code, and patterns.\n\n"
-    "Rules:\n"
-    "- Research thoroughly before proposing solutions.\n"
-    "- Reference specific files, functions, and patterns "
-    "from the user's codebase.\n"
-    "- Evaluate multiple approaches and explain trade-offs.\n"
-    "- The output should be a detailed, actionable plan "
-    "- not vague advice.\n"
-    "- Always cite which documents/files informed each "
-    "decision.\n"
-    "- Match the user's existing patterns and stack choices.\n"
-    "- Flag any potential issues "
-    "(security, performance, compatibility)."
-)
+def get_system_prompt() -> str:
+    return _get("system")
 
-PLANNING_USER_TEMPLATE = """Knowledge base context:
----
-{context}
----
 
-Additional context from file exploration:
----
-{exploration_context}
----
+def get_search_summary_system() -> str:
+    return _get("search_summary_system")
 
-User's request: {request}
 
-Create a detailed implementation plan based on the \
-user's existing code and patterns."""
+def get_search_summary_user() -> str:
+    return _get("search_summary_user")
 
-SKILL_REVIEW_TEMPLATE = (
-    "You are a specialist reviewer with the following "
-    "expertise:\n\n{skill_description}\n\n"
-    "Review the following plan and provide specific, "
-    "actionable feedback:\n\n"
-    "Plan:\n---\n{plan}\n---\n\n"
-    "Context from the knowledge base:\n"
-    "---\n{context}\n---\n\n"
-    "Provide your review with specific issues, "
-    "suggestions, and approvals. Be concrete - reference "
-    "specific files, patterns, and potential problems."
-)
 
+def get_query_rewrite_prompt() -> str:
+    return _get("query_rewrite")
+
+
+def get_rag_user_template() -> str:
+    return _get("rag_user")
+
+
+def get_planning_system_prompt() -> str:
+    return _get("planning_system")
+
+
+def get_planning_user_template() -> str:
+    return _get("planning_user")
+
+
+def get_skill_review_template() -> str:
+    return _get("skill_review")
+
+
+# ---------------------------------------------------------------------------
+# Context formatting and message builders
+# ---------------------------------------------------------------------------
 
 def format_context(
     documents: list[str], metadatas: list[dict]
@@ -116,7 +86,7 @@ def build_rag_messages(
 
     messages.append({
         "role": "user",
-        "content": RAG_USER_TEMPLATE.format(
+        "content": get_rag_user_template().format(
             context=context, question=question
         ),
     })
@@ -133,8 +103,8 @@ def build_planning_messages(
     """Build the message list for a planning request."""
     context = format_context(documents, metadatas)
     return [
-        {"role": "system", "content": PLANNING_SYSTEM_PROMPT},
-        {"role": "user", "content": PLANNING_USER_TEMPLATE.format(
+        {"role": "system", "content": get_planning_system_prompt()},
+        {"role": "user", "content": get_planning_user_template().format(
             context=context,
             exploration_context=exploration_context or "N/A",
             request=request,
@@ -153,7 +123,7 @@ def build_skill_review_messages(
     return [
         {"role": "system",
          "content": "You are a specialist plan reviewer."},
-        {"role": "user", "content": SKILL_REVIEW_TEMPLATE.format(
+        {"role": "user", "content": get_skill_review_template().format(
             skill_description=skill_description,
             plan=plan,
             context=context,

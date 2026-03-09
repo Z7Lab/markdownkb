@@ -544,73 +544,62 @@ class Settings:
         return self._resolve_path(raw)
 
     # --- Prompts ---
-    _DEFAULT_SYSTEM_PROMPT = (
-        "You are mdkb, a personal knowledge base assistant. "
-        "You answer questions based on the user's indexed markdown documents.\n\n"
-        "Rules:\n"
-        "- Answer ONLY based on the provided context. "
-        "If the context doesn't contain enough information, say so.\n"
-        "- ALWAYS cite sources inline when you reference information. "
-        "After each claim or quote, include the source path like this: "
-        "(Source: /path/to/file.md). The context provides [Source: ...] tags "
-        "— use those paths in your citations.\n"
-        "- When synthesizing information from multiple files, "
-        "cite each source next to the relevant information.\n"
-        "- Be concise but thorough. "
-        "Summarize across multiple documents when relevant.\n"
-        "- If the user asks about something not in the context, "
-        "say \"I don't have information about that in your knowledge base.\"\n"
-        "- Preserve technical accuracy "
-        "— don't paraphrase code or configuration incorrectly.\n"
-        "- NEVER guess or speculate about a file's contents based on its name or path. "
-        "If a file is mentioned but its content is not in the provided context, "
-        "say you don't have that file indexed — do not say \"this file likely\" "
-        "or make assumptions about what it contains.\n"
-        "- Use markdown formatting in your responses."
-    )
+    _prompt_cache: dict[str, str] = {}
 
-    _DEFAULT_SEARCH_SUMMARY_PROMPT = (
-        "You are a knowledge base search assistant. "
-        "Provide a focused, concise summary that directly answers "
-        "the user's query based on the provided context. "
-        "Cite sources using (Source: filename) notation. "
-        "If the context doesn't contain enough information, say so clearly. "
-        "Keep it brief: 1-2 short paragraphs maximum. Be direct and to the point."
-    )
+    def get_prompt(self, name: str) -> str:
+        """Load a prompt template from config/prompts/{name}.md.
+
+        Results are cached per name until reload_prompts() is called.
+        Raises FileNotFoundError if the prompt file is missing.
+        """
+        if name in self._prompt_cache:
+            return self._prompt_cache[name]
+
+        prompt_file = self._path.parent / "prompts" / f"{name}.md"
+        text = prompt_file.read_text(encoding="utf-8").strip()
+        logger.debug("Loaded prompt '%s' from %s", name, prompt_file)
+        self._prompt_cache[name] = text
+        return text
+
+    def reload_prompts(self):
+        """Clear the prompt cache so files are re-read on next access."""
+        self._prompt_cache.clear()
 
     @property
     def system_prompt(self) -> str:
-        """Return the RAG system prompt."""
-        return self._data.get("prompts", {}).get(
-            "system_prompt", self._DEFAULT_SYSTEM_PROMPT
-        )
+        """Return the RAG system prompt (settings.yaml override > file)."""
+        override = self._data.get("prompts", {}).get("system_prompt")
+        if override:
+            return override
+        return self.get_prompt("system")
 
     @system_prompt.setter
     def system_prompt(self, value: str):
-        """Set the RAG system prompt."""
+        """Set the RAG system prompt (written to settings.yaml)."""
         self._data.setdefault("prompts", {})["system_prompt"] = value
 
     @property
     def default_system_prompt(self) -> str:
-        """Return the built-in default system prompt."""
-        return self._DEFAULT_SYSTEM_PROMPT
+        """Return the file-based default system prompt."""
+        return self.get_prompt("system")
 
     @property
     def search_summary_prompt(self) -> str:
-        """Return the search summary prompt."""
-        return self._data.get("prompts", {}).get(
-            "search_summary_prompt", self._DEFAULT_SEARCH_SUMMARY_PROMPT
-        )
+        """Return the search summary prompt (settings.yaml override > file)."""
+        override = self._data.get("prompts", {}).get("search_summary_prompt")
+        if override:
+            return override
+        return self.get_prompt("search_summary_system")
 
     @search_summary_prompt.setter
     def search_summary_prompt(self, value: str):
-        """Set the search summary prompt."""
+        """Set the search summary prompt (written to settings.yaml)."""
         self._data.setdefault("prompts", {})["search_summary_prompt"] = value
 
     @property
     def default_search_summary_prompt(self) -> str:
-        """Return the built-in default search summary prompt."""
-        return self._DEFAULT_SEARCH_SUMMARY_PROMPT
+        """Return the file-based default search summary prompt."""
+        return self.get_prompt("search_summary_system")
 
     # --- UI ---
     @property

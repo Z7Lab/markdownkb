@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from app.config import Settings
 from app.deps import get_retriever, get_scopedb, get_searchdb, get_settings, get_tracking
 from app.rag.llm import get_streaming_completion
-from app.rag.prompts import SEARCH_SUMMARY_USER, format_context
+from app.rag.prompts import format_context, get_search_summary_user
 from app.rag.retriever import Retriever
 from app.ratelimit import HEAVY, LLM, STANDARD, limiter
 from app.schemas import SearchRequest, SummarizeRequest
@@ -374,7 +374,7 @@ def summarize_search(
 
     messages = [
         {"role": "system", "content": settings.search_summary_prompt},
-        {"role": "user", "content": SEARCH_SUMMARY_USER.format(
+        {"role": "user", "content": get_search_summary_user().format(
             context=context, query=req.query,
         )},
     ]

@@ -128,14 +128,16 @@ class Retriever:
         # Filter by threshold and limit
         threshold = self._settings.score_threshold
         pre_filter_count = len(results)
+        pre_filter_top = max((r.score for r in results), default=0.0)
         results = [r for r in results if r.score >= threshold]
         results.sort(key=lambda r: r.score, reverse=True)
 
         if pre_filter_count > len(results):
             logger.info(
-                "Filtered %d/%d results below threshold %.2f (top score: %.3f)",
+                "Filtered %d/%d results below threshold %.2f "
+                "(pre-filter top: %.3f, post-filter top: %.3f)",
                 pre_filter_count - len(results), pre_filter_count, threshold,
-                results[0].score if results else 0.0
+                pre_filter_top, results[0].score if results else 0.0,
             )
 
         return results[:k]
@@ -152,6 +154,12 @@ class Retriever:
         bm25 = BM25Okapi(corpus)
         query_tokens = query.lower().split()
         bm25_scores = bm25.get_scores(query_tokens)
+
+        # Clamp negative BM25 scores to zero — BM25Okapi computes IDF on
+        # the small retrieved corpus, so common query terms get negative IDF
+        # which can drag combined scores below threshold.  BM25 should only
+        # boost keyword matches, never penalize their absence.
+        bm25_scores = [max(0.0, s) for s in bm25_scores]
 
         # Normalize BM25 scores
         max_bm25 = max(bm25_scores) if max(bm25_scores) > 0 else 1.0

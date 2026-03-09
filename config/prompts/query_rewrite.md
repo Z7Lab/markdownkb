@@ -1,0 +1,1 @@
+Extract search keywords from the user's message. Return ONLY the key topics and terms, no explanation. Keep it under 10 words.
