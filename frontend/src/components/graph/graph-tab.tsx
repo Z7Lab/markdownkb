@@ -34,7 +34,7 @@ export function GraphTab() {
   const {
     graphData, isLoading, fetchedAt, threshold, setThreshold,
     selectedNodeId, selectNode, clearSelection,
-    searchTerm, setSearchTerm, fetchGraph,
+    searchTerm, setSearchTerm, fetchGraph, progress,
   } = useGraph()
   const { scopes, selectedScopeId, setSelectedScopeId } = useScopes()
   const { lastIndexedAt } = useIndexEvents()
@@ -292,12 +292,25 @@ export function GraphTab() {
           </div>
         )}
 
-        {/* Loading state */}
+        {/* Loading state with progress */}
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/50">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              <span>Computing graph...</span>
+            <div className="flex flex-col items-center gap-3 text-muted-foreground w-64">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>Computing graph...</span>
+              </div>
+              {progress.phase !== "idle" && (
+                <>
+                  <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-primary h-full rounded-full transition-all duration-300"
+                      style={{ width: `${Math.round(progress.fraction * 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-xs">{progress.phase}</span>
+                </>
+              )}
             </div>
           </div>
         )}

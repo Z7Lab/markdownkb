@@ -25,6 +25,12 @@ logger = logging.getLogger(__name__)
 # Regex to filter code-like tokens from word clouds
 _CODE_TOKEN_RE = re.compile(r"^[a-z]{1,2}$|[^a-zA-Z]")
 
+# Progress tracking for graph computation
+graph_progress: dict[str, float | str] = {
+    "fraction": 0.0,
+    "phase": "idle",
+}
+
 
 def compute_graph(
     store: VectorStore,
@@ -42,8 +48,14 @@ def compute_graph(
 
     Returns dict with keys: nodes, edges, clusters, global_word_cloud, stats.
     """
+    def progress(frac: float, phase: str):
+        graph_progress["fraction"] = frac
+        graph_progress["phase"] = phase
+
+    progress(0.0, "Loading embeddings...")
     raw = store.get_all_with_embeddings(source_roots)
     if not raw["ids"]:
+        progress(1.0, "idle")
         return _empty_graph()
 
     # Group chunks by source_path (document)
@@ -72,8 +84,10 @@ def compute_graph(
     n_docs = len(doc_paths)
 
     if n_docs == 0:
+        progress(1.0, "idle")
         return _empty_graph()
 
+    progress(0.1, f"Computing embeddings for {n_docs} documents...")
     # Compute mean embedding per document
     doc_mean_embeddings = {}
     for path in doc_paths:
@@ -81,7 +95,10 @@ def compute_graph(
         doc_mean_embeddings[path] = embs.mean(axis=0)
 
     # Pairwise doc similarity using top-K mean of chunk pairs
+    n_pairs = n_docs * (n_docs - 1) // 2
+    progress(0.15, f"Computing {n_pairs:,} pairwise similarities...")
     edges = []
+    pair_count = 0
     if n_docs >= 2:
         for path_a, path_b in combinations(doc_paths, 2):
             embs_a = np.array(docs[path_a]["embeddings"], dtype=np.float32)
@@ -110,7 +127,12 @@ def compute_graph(
                 "weight": round(weight, 4),
                 "top_chunk_pairs": top_pairs,
             })
+            pair_count += 1
+            if pair_count % 500 == 0:
+                frac = 0.15 + 0.55 * (pair_count / max(n_pairs, 1))
+                progress(frac, f"Similarities: {pair_count:,}/{n_pairs:,} pairs...")
 
+    progress(0.7, "Clustering documents...")
     # DBSCAN clustering on mean doc embeddings
     cluster_labels = _cluster_docs(doc_paths, doc_mean_embeddings)
 
@@ -127,6 +149,7 @@ def compute_graph(
         doc_text_map[path] = combined
         all_texts.append(combined)
 
+    progress(0.8, "Extracting word clouds...")
     global_word_cloud = _extract_word_cloud(all_texts, max_terms)
 
     clusters = []
@@ -155,8 +178,10 @@ def compute_graph(
             "word_cloud": _extract_word_cloud([doc_text_map[path]], max_terms),
         })
 
+    progress(0.95, "Finalizing graph...")
     total_chunks = sum(len(docs[p]["embeddings"]) for p in doc_paths)
 
+    progress(1.0, "idle")
     return {
         "nodes": nodes,
         "edges": edges,

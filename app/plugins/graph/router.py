@@ -10,7 +10,7 @@ from app.deps import get_retriever, get_scopedb, get_settings
 from app.events import event_bus
 from app.rag.retriever import Retriever
 from app.ratelimit import STANDARD, limiter
-from app.services.graph_service import compute_graph
+from app.services.graph_service import compute_graph, graph_progress
 from app.storage.scopedb import ScopeDB
 
 logger = logging.getLogger(__name__)
@@ -86,6 +86,16 @@ def graph_stats(
     return {
         "doc_count": len(doc_paths),
         "chunk_count": len(all_meta),
+    }
+
+
+@router.get("/progress")
+@limiter.limit(STANDARD)
+def get_graph_progress(request: Request):
+    """Return current graph computation progress."""
+    return {
+        "fraction": graph_progress["fraction"],
+        "phase": graph_progress["phase"],
     }
 
 
