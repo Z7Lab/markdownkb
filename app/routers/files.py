@@ -6,11 +6,12 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.config import Settings
-from app.deps import get_settings, get_store, get_tracking
+from app.deps import get_retriever, get_settings, get_store, get_tracking
 from app.ingestion.indexer import ReindexError, reindex_file
 from app.ingestion.scanner import discover_sources
+from app.rag.retriever import Retriever
 from app.ratelimit import STANDARD, limiter
-from app.schemas import AutoTagApplyRequest, AutoTagPreviewRequest, BulkUpdateTagsRequest, FileActionRequest, SourceActionRequest, ToggleRagRequest, UpdateTagsRequest
+from app.schemas import AutoTagApplyRequest, AutoTagPreviewRequest, BulkUpdateTagsRequest, FileActionRequest, FileSearchRequest, SourceActionRequest, ToggleRagRequest, UpdateTagsRequest
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 
@@ -94,6 +95,30 @@ def list_files(
     effective_limit = limit if limit is not None else settings.file_list_limit
     items = merged[offset:offset + effective_limit]
     return {"items": items, "total": total, "offset": offset, "limit": effective_limit}
+
+
+@router.post("/files/search")
+@limiter.limit(STANDARD)
+def search_files_by_content(
+    request: Request,
+    req: FileSearchRequest,
+    retriever: Retriever = Depends(get_retriever),
+):
+    """Lightweight content search returning unique file paths.
+
+    Used by the files tab content-search mode. No search history is saved.
+    """
+    results = retriever.search(req.query, top_k=req.top_k * 5)
+    seen: set[str] = set()
+    paths: list[str] = []
+    for r in results:
+        src = r.metadata.get("source_path", "")
+        if src and src not in seen:
+            seen.add(src)
+            paths.append(src)
+        if len(paths) >= req.top_k:
+            break
+    return {"paths": paths, "total": len(paths)}
 
 
 @router.post("/files/prune")

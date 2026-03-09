@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useFiles } from "@/hooks/use-files"
 import { useTableSort } from "@/hooks/use-table-sort"
 import { Button } from "@/components/ui/button"
@@ -17,7 +17,7 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable"
-import { ArrowDown, ArrowUp, FileDown, FileX, Loader2, RefreshCw, Search, Tag, Wand2, X } from "lucide-react"
+import { ArrowDown, ArrowUp, FileDown, FileText, FileX, Loader2, RefreshCw, Search, Tag, Wand2, X } from "lucide-react"
 import type { TrackedFile } from "@/lib/types"
 import { basename, dirname, cn } from "@/lib/utils"
 
@@ -121,12 +121,40 @@ export function FilesTab() {
   const [bulkTagOpen, setBulkTagOpen] = useState(false)
   const [autoTagOpen, setAutoTagOpen] = useState(false)
   const [sources, setSources] = useState<string[]>([])
+  const [searchMode, setSearchMode] = useState<"path" | "content">("path")
+  const [contentMatches, setContentMatches] = useState<Set<string> | null>(null)
+  const [contentSearching, setContentSearching] = useState(false)
+  const contentDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { sorted, sortKey, sortDir, onSort } = useTableSort(files, getValue)
 
   // Fetch sources for auto-tag dialog
   useEffect(() => {
     api.get<{ sources: string[] }>("/api/sources").then((res) => setSources(res.sources)).catch(() => {})
   }, [])
+
+  // Content search: debounced vector search
+  useEffect(() => {
+    if (searchMode !== "content" || !filterText.trim()) {
+      setContentMatches(null)
+      return
+    }
+    if (contentDebounce.current) clearTimeout(contentDebounce.current)
+    setContentSearching(true)
+    contentDebounce.current = setTimeout(async () => {
+      try {
+        const res = await api.post<{ paths: string[] }>("/api/files/search", {
+          query: filterText,
+          top_k: 50,
+        })
+        setContentMatches(new Set(res.paths))
+      } catch {
+        setContentMatches(null)
+      } finally {
+        setContentSearching(false)
+      }
+    }, 400)
+    return () => { if (contentDebounce.current) clearTimeout(contentDebounce.current) }
+  }, [filterText, searchMode])
 
   const toggleSelect = useCallback((path: string) => {
     setSelected((prev) => {
@@ -152,7 +180,11 @@ export function FilesTab() {
     : sorted
 
   const filteredFiles = filterText
-    ? folderFiltered.filter((f) => filterMatch(f.path, filterText))
+    ? searchMode === "content"
+      ? contentMatches
+        ? folderFiltered.filter((f) => contentMatches.has(f.path))
+        : contentSearching ? [] : folderFiltered
+      : folderFiltered.filter((f) => filterMatch(f.path, filterText))
     : folderFiltered
 
   const ragIncluded = files.filter((f) => f.include_rag === 1 && f.status !== "not_indexed").length
@@ -171,23 +203,55 @@ export function FilesTab() {
           <h2 className="text-lg font-semibold shrink-0">Browse MD Files</h2>
           <div className="flex flex-col items-end gap-1">
             <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  value={filterText}
-                  onChange={(e) => setFilterText(e.target.value)}
-                  placeholder='Fuzzy filter or "exact match"'
-                  className="pl-8 pr-8 h-9 w-72"
-                />
-                {filterText && (
+              <div className="flex items-center gap-1">
+                <div className="flex border rounded-md overflow-hidden h-9">
                   <button
                     type="button"
-                    onClick={() => setFilterText("")}
-                    className="absolute right-2 top-2.5 text-muted-foreground hover:text-foreground"
+                    onClick={() => { setSearchMode("path"); setContentMatches(null) }}
+                    className={cn(
+                      "px-2 flex items-center gap-1 text-xs cursor-pointer transition-colors",
+                      searchMode === "path" ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+                    )}
+                    title="Filter by file path"
                   >
-                    <X className="h-4 w-4" />
+                    <Search className="h-3 w-3" />
+                    Path
                   </button>
-                )}
+                  <button
+                    type="button"
+                    onClick={() => setSearchMode("content")}
+                    className={cn(
+                      "px-2 flex items-center gap-1 text-xs cursor-pointer transition-colors",
+                      searchMode === "content" ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+                    )}
+                    title="Search file content (vector search)"
+                  >
+                    <FileText className="h-3 w-3" />
+                    Content
+                  </button>
+                </div>
+                <div className="relative">
+                  {contentSearching ? (
+                    <Loader2 className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground animate-spin" />
+                  ) : (
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  )}
+                  <Input
+                    value={filterText}
+                    onChange={(e) => setFilterText(e.target.value)}
+                    placeholder={searchMode === "path" ? 'Fuzzy filter or "exact match"' : "Search file content..."}
+                    className="pl-8 pr-8 h-9 w-72"
+                  />
+                  {filterText && (
+                    <button
+                      type="button"
+                      onClick={() => { setFilterText(""); setContentMatches(null) }}
+                      className="absolute right-2 top-2.5 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
               </div>
               <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => indexAll()} disabled={isIndexing}>
                 {isIndexing
@@ -213,7 +277,9 @@ export function FilesTab() {
             </div>
             <p className="text-sm text-muted-foreground">
               {filterText
-                ? `Showing ${filteredFiles.length} of ${folderFiltered.length} files`
+                ? searchMode === "content" && contentSearching
+                  ? "Searching content..."
+                  : `Showing ${filteredFiles.length} of ${folderFiltered.length} files${searchMode === "content" ? " (by content)" : ""}`
                 : selectedFolder
                   ? `${folderFiltered.length} of ${files.length} files`
                   : `${files.length} files — ${ragIncluded} in RAG, ${notIndexed} not indexed${ragExcluded > 0 ? `, ${ragExcluded} excluded` : ""}`}

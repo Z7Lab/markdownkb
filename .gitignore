@@ -24,3 +24,4 @@ config/settings.yaml
 # Frontend
 node_modules/
 frontend/dist/
+app/static/

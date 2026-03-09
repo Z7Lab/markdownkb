@@ -100,6 +100,13 @@ class BulkUpdateTagsRequest(BaseModel):
     mode: str = Field("add", pattern=r"^(add|remove|replace)$")
 
 
+class FileSearchRequest(BaseModel):
+    """Request model for content-based file search (lightweight, no history)."""
+
+    query: str = Field(..., min_length=1, max_length=10000)
+    top_k: int = Field(50, ge=1, le=200)
+
+
 class AutoTagPreviewRequest(BaseModel):
     """Request model for auto-tag dry run preview."""
 
