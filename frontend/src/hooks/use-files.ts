@@ -165,5 +165,15 @@ export function useFiles() {
     }
   }, [refresh])
 
-  return { files, busyPaths, error, refresh, toggleRag, unindexFile, indexFile, reindexFile, indexAll, unindexSource, updateTags }
+  const bulkUpdateTags = useCallback(async (paths: string[], tags: string[], mode: "add" | "remove" | "replace" = "add") => {
+    try {
+      const res = await api.put<{ updated: number }>("/api/files/bulk-tags", { paths, tags, mode })
+      toast.success(`Updated tags on ${res.updated} files`)
+      await refresh()
+    } catch (err) {
+      toast.error(`Failed to update tags: ${(err as Error).message}`)
+    }
+  }, [refresh])
+
+  return { files, busyPaths, error, refresh, toggleRag, unindexFile, indexFile, reindexFile, indexAll, unindexSource, updateTags, bulkUpdateTags }
 }

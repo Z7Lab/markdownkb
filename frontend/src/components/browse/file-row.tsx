@@ -2,6 +2,7 @@ import React, { useState } from "react"
 import { basename, dirname } from "@/lib/utils"
 import { FileActions } from "./file-actions"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Tag, Plus, X } from "lucide-react"
 import type { TrackedFile } from "@/lib/types"
@@ -10,6 +11,8 @@ interface FileRowProps {
   file: TrackedFile
   busy: boolean
   gridTemplate: string
+  selected?: boolean
+  onToggleSelect?: (path: string) => void
   onToggleRag: (path: string, checked: boolean) => void
   onIndexFile: (path: string) => void
   onReindexFile: (path: string) => void
@@ -27,6 +30,8 @@ export const FileRow = React.memo(function FileRow({
   file,
   busy,
   gridTemplate,
+  selected,
+  onToggleSelect,
   onToggleRag,
   onIndexFile,
   onReindexFile,
@@ -52,12 +57,20 @@ export const FileRow = React.memo(function FileRow({
 
   return (
     <div
-      className="grid items-center border-b hover:bg-muted/50 cursor-pointer transition-colors text-sm"
+      className={`grid items-center border-b hover:bg-muted/50 cursor-pointer transition-colors text-sm ${selected ? "bg-primary/5" : ""}`}
       style={{ gridTemplateColumns: gridTemplate }}
       onClick={() => onViewFile(file.path)}
     >
-      <div className="px-2 py-2 font-mono truncate overflow-hidden">
-        {basename(file.path)}
+      <div className="px-2 py-2 flex items-center gap-2 font-mono truncate overflow-hidden">
+        {onToggleSelect && (
+          <Checkbox
+            checked={selected}
+            onCheckedChange={() => onToggleSelect(file.path)}
+            onClick={(e) => e.stopPropagation()}
+            className="shrink-0"
+          />
+        )}
+        <span className="truncate">{basename(file.path)}</span>
       </div>
       <div className="px-2 py-2 text-muted-foreground truncate overflow-hidden">
         {dirname(file.path)}
@@ -141,6 +154,8 @@ export const FileRow = React.memo(function FileRow({
           <span className="text-blue-500">indexing</span>
         ) : file.status === "error" ? (
           <span className="text-destructive">error</span>
+        ) : file.status === "missing" ? (
+          <span className="text-destructive/70">missing</span>
         ) : (
           file.status
         )}

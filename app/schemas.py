@@ -92,6 +92,14 @@ class UpdateTagsRequest(BaseModel):
     tags: list[str]
 
 
+class BulkUpdateTagsRequest(BaseModel):
+    """Request model for bulk tag updates across multiple files."""
+
+    paths: list[str] = Field(..., min_length=1)
+    tags: list[str]
+    mode: str = Field("add", pattern=r"^(add|remove|replace)$")
+
+
 class AddSourceRequest(BaseModel):
     """Request model for adding a source."""
 

@@ -2,18 +2,20 @@ import { useCallback, useEffect, useState } from "react"
 import { useFiles } from "@/hooks/use-files"
 import { useTableSort } from "@/hooks/use-table-sort"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
 import { useIndexEvents } from "@/hooks/use-index-events"
 import { FolderTree } from "./folder-tree"
 import { FileRow } from "./file-row"
+import { BulkTagDialog } from "./bulk-tag-dialog"
 import { Input } from "@/components/ui/input"
 import {
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable"
-import { ArrowDown, ArrowUp, FileDown, FileX, Loader2, RefreshCw, Search, X } from "lucide-react"
+import { ArrowDown, ArrowUp, FileDown, FileX, Loader2, RefreshCw, Search, Tag, X } from "lucide-react"
 import type { TrackedFile } from "@/lib/types"
 import { basename, dirname, cn } from "@/lib/utils"
 
@@ -101,7 +103,7 @@ function SortHeader({
 }
 
 export function FilesTab() {
-  const { files, busyPaths, refresh, toggleRag, unindexFile, indexFile, reindexFile, indexAll, unindexSource, updateTags } = useFiles()
+  const { files, busyPaths, refresh, toggleRag, unindexFile, indexFile, reindexFile, indexAll, unindexSource, updateTags, bulkUpdateTags } = useFiles()
   const { isIndexing, lastIndexedAt } = useIndexEvents()
   const [filterText, setFilterText] = useState("")
 
@@ -113,7 +115,18 @@ export function FilesTab() {
   const [viewingPath, setViewingPath] = useState<string | null>(null)
   const [pendingUnindex, setPendingUnindex] = useState<string | null>(null)
   const [confirmUnindexAll, setConfirmUnindexAll] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkTagOpen, setBulkTagOpen] = useState(false)
   const { sorted, sortKey, sortDir, onSort } = useTableSort(files, getValue)
+
+  const toggleSelect = useCallback((path: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(path)) next.delete(path)
+      else next.add(path)
+      return next
+    })
+  }, [])
 
   // Column sizes as percentages (synced from ResizablePanelGroup)
   const [colLayout, setColLayout] = useState(DEFAULT_LAYOUT)
@@ -167,7 +180,7 @@ export function FilesTab() {
                   </button>
                 )}
               </div>
-              <Button variant="outline" size="sm" onClick={() => indexAll()} disabled={isIndexing}>
+              <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => indexAll()} disabled={isIndexing}>
                 {isIndexing
                   ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                   : <FileDown className="h-3.5 w-3.5 mr-1.5" />
@@ -175,12 +188,12 @@ export function FilesTab() {
                 {isIndexing ? "Indexing..." : "Index All"}
               </Button>
               {selectedFolder && (
-                <Button variant="outline" size="sm" onClick={() => setConfirmUnindexAll(true)}>
+                <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => setConfirmUnindexAll(true)}>
                   <FileX className="h-3.5 w-3.5 mr-1.5" />
                   Unindex Folder
                 </Button>
               )}
-              <Button variant="outline" size="sm" onClick={() => refresh()}>
+              <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => refresh()}>
                 <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
                 Refresh
               </Button>
@@ -195,6 +208,22 @@ export function FilesTab() {
           </div>
         </div>
 
+        {/* Bulk action bar */}
+        {selected.size > 0 && (
+          <div className="flex items-center gap-3 px-3 py-2 bg-primary/5 border rounded-md -mt-2">
+            <span className="text-sm font-medium">{selected.size} selected</span>
+            <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => setBulkTagOpen(true)}>
+              <Tag className="h-3.5 w-3.5 mr-1.5" />
+              Edit Tags
+            </Button>
+            <div className="flex-1" />
+            <Button variant="ghost" size="sm" className="cursor-pointer" onClick={() => setSelected(new Set())}>
+              <X className="h-3.5 w-3.5 mr-1.5" />
+              Clear selection
+            </Button>
+          </div>
+        )}
+
         <div className="flex-1 border rounded-md min-h-0 flex flex-col overflow-hidden">
           {/* Resizable header */}
           <div className="border-b bg-background sticky top-0 z-10 shrink-0">
@@ -204,9 +233,23 @@ export function FilesTab() {
               className="h-10"
             >
               <ResizablePanel id="file" defaultSize={DEFAULT_LAYOUT.file} minSize={8}>
-                <SortHeader sortKey="file" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort}>
-                  File
-                </SortHeader>
+                <div className="flex items-center h-full">
+                  <div className="pl-2 flex items-center" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={filteredFiles.length > 0 && filteredFiles.every((f) => selected.has(f.path))}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelected(new Set(filteredFiles.map((f) => f.path)))
+                        } else {
+                          setSelected(new Set())
+                        }
+                      }}
+                    />
+                  </div>
+                  <SortHeader sortKey="file" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort}>
+                    File
+                  </SortHeader>
+                </div>
               </ResizablePanel>
               <ResizableHandle />
               <ResizablePanel id="folder" defaultSize={DEFAULT_LAYOUT.folder} minSize={8}>
@@ -255,6 +298,8 @@ export function FilesTab() {
                 file={f}
                 busy={busyPaths.has(f.path)}
                 gridTemplate={gridTemplate}
+                selected={selected.has(f.path)}
+                onToggleSelect={toggleSelect}
                 onToggleRag={toggleRag}
                 onIndexFile={indexFile}
                 onReindexFile={reindexFile}
@@ -297,6 +342,17 @@ export function FilesTab() {
           onConfirm={async () => {
             setConfirmUnindexAll(false)
             if (selectedFolder) await unindexSource(selectedFolder)
+          }}
+        />
+
+        <BulkTagDialog
+          open={bulkTagOpen}
+          onOpenChange={setBulkTagOpen}
+          selectedFiles={selected}
+          allFiles={files}
+          onApply={(paths, tags, mode) => {
+            bulkUpdateTags(paths, tags, mode)
+            setSelected(new Set())
           }}
         />
       </div>

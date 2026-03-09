@@ -10,7 +10,7 @@ from app.deps import get_settings, get_store, get_tracking
 from app.ingestion.indexer import ReindexError, reindex_file
 from app.ingestion.scanner import discover_sources
 from app.ratelimit import STANDARD, limiter
-from app.schemas import FileActionRequest, SourceActionRequest, ToggleRagRequest, UpdateTagsRequest
+from app.schemas import BulkUpdateTagsRequest, FileActionRequest, SourceActionRequest, ToggleRagRequest, UpdateTagsRequest
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 
@@ -46,17 +46,12 @@ def list_files(
     limit: int | None = Query(None, ge=1, le=100000),
     settings: Settings = Depends(get_settings),
     tracking: TrackingDB = Depends(get_tracking),
-    store: VectorStore = Depends(get_store),
 ):
-    """List all discovered files, merging tracking DB info when available."""
-    # Prune tracked files that no longer exist on disk
-    all_tracked = tracking.get_all_files()
-    existing_paths = {f["path"] for f in all_tracked if Path(f["path"]).exists()}
-    removed = tracking.remove_files_not_in(existing_paths)
-    for path in removed:
-        store.delete_by_source(path)
-        logger.info("Pruned missing file: %s", path)
+    """List all discovered files, merging tracking DB info when available.
 
+    This is a read-only endpoint — pruning of stale records is handled by
+    the indexer (run_index) and the explicit POST /api/files/prune endpoint.
+    """
     # Build lookup of tracked files
     tracked_map = {f["path"]: f for f in tracking.get_all_files()}
 
@@ -65,7 +60,9 @@ def list_files(
 
     # Merge: tracked data wins, untracked files get synthetic entries
     merged = []
+    discovered_paths: set[str] = set()
     for d in discovered:
+        discovered_paths.add(d["path"])
         tracked = tracked_map.pop(d["path"], None)
         if tracked:
             merged.append(tracked)
@@ -85,8 +82,11 @@ def list_files(
                 "tags": "",
             })
 
-    # Include any tracked files not in discovery
+    # Include tracked files not in discovery — mark missing ones
     for leftover in tracked_map.values():
+        if not Path(leftover["path"]).exists():
+            leftover = dict(leftover)
+            leftover["status"] = "missing"
         merged.append(leftover)
 
     merged.sort(key=lambda f: f["path"])
@@ -94,6 +94,28 @@ def list_files(
     effective_limit = limit if limit is not None else settings.file_list_limit
     items = merged[offset:offset + effective_limit]
     return {"items": items, "total": total, "offset": offset, "limit": effective_limit}
+
+
+@router.post("/files/prune")
+@limiter.limit(STANDARD)
+def prune_missing_files(
+    request: Request,
+    tracking: TrackingDB = Depends(get_tracking),
+    store: VectorStore = Depends(get_store),
+):
+    """Remove tracked files that no longer exist on disk.
+
+    Deletes both tracking records and vector store chunks for missing files.
+    This is safe to call at any time — the indexer also prunes at the start
+    of each index run.
+    """
+    all_tracked = tracking.get_all_files()
+    existing_paths = {f["path"] for f in all_tracked if Path(f["path"]).exists()}
+    removed = tracking.remove_files_not_in(existing_paths)
+    for path in removed:
+        store.delete_by_source(path)
+        logger.info("Pruned missing file: %s", path)
+    return {"status": "ok", "pruned": len(removed), "paths": removed}
 
 
 @router.get("/file")
@@ -170,6 +192,36 @@ def update_file_tags(
     tracking.update_tags(req.path, tags_str)
 
     return {"status": "ok", "tags": tags_str}
+
+
+@router.put("/files/bulk-tags")
+@limiter.limit(STANDARD)
+def bulk_update_tags(
+    request: Request,
+    req: BulkUpdateTagsRequest,
+    tracking: TrackingDB = Depends(get_tracking),
+):
+    """Update tags on multiple files at once.
+
+    mode=add: merge new tags with existing
+    mode=remove: remove specified tags from each file
+    mode=replace: overwrite all tags on each file
+    """
+    updated = 0
+    for path in req.paths:
+        record = tracking.get_file(path)
+        if not record:
+            continue
+        existing = {t.strip() for t in (record.get("tags") or "").split(",") if t.strip()}
+        if req.mode == "add":
+            merged = existing | set(req.tags)
+        elif req.mode == "remove":
+            merged = existing - set(req.tags)
+        else:  # replace
+            merged = set(req.tags)
+        tracking.update_tags(path, ", ".join(sorted(merged)))
+        updated += 1
+    return {"status": "ok", "updated": updated}
 
 
 @router.post("/files/unindex")
