@@ -1,5 +1,5 @@
 import { AppSidebar } from "@/components/ui/app-sidebar"
-import { ScopePicker } from "@/components/scope-picker"
+import { MultiScopePicker } from "@/components/multi-scope-picker"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
@@ -10,7 +10,7 @@ import type { Scope } from "@/lib/types"
 
 export function GraphSidebar({
   scopes,
-  selectedScopeId,
+  selectedScopeIds,
   onScopeChange,
   threshold,
   onThresholdChange,
@@ -27,8 +27,8 @@ export function GraphSidebar({
   onTermClick,
 }: {
   scopes: Scope[]
-  selectedScopeId: string | null
-  onScopeChange: (id: string | null) => void
+  selectedScopeIds: Set<string>
+  onScopeChange: (ids: Set<string>) => void
   threshold: number
   onThresholdChange: (v: number) => void
   spread: number
@@ -47,9 +47,9 @@ export function GraphSidebar({
     <AppSidebar
       header={
         <div className="space-y-3">
-          <ScopePicker
+          <MultiScopePicker
             scopes={scopes}
-            value={selectedScopeId}
+            selectedIds={selectedScopeIds}
             onChange={onScopeChange}
           />
 

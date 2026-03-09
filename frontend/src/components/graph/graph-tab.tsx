@@ -60,7 +60,7 @@ export function GraphTab() {
     selectedNodeId, selectNode, clearSelection,
     searchTerm, setSearchTerm, fetchGraph, progress,
   } = useGraph()
-  const { scopes, selectedScopeId, setSelectedScopeId } = useScopes()
+  const { scopes } = useScopes()
   const { lastIndexedAt } = useIndexEvents()
   const isDark = useIsDark()
   const colors = isDark ? THEME.dark : THEME.light
@@ -73,15 +73,22 @@ export function GraphTab() {
   const [spread, setSpread] = useState(100)
   const spreadInitialized = useRef(false)
   const initialFitDone = useRef(false)
-  const prevScopeRef = useRef(selectedScopeId)
 
-  // Re-fetch only when scope actually changes (not on initial mount)
+  // Multi-scope selection (local to graph tab)
+  const [selectedScopeIds, setSelectedScopeIds] = useState<Set<string>>(new Set())
+  const scopeIdsParam = useMemo(() => {
+    if (selectedScopeIds.size === 0) return null
+    return Array.from(selectedScopeIds).sort().join(",")
+  }, [selectedScopeIds])
+  const prevScopeRef = useRef(scopeIdsParam)
+
+  // Re-fetch only when scope selection actually changes (not on initial mount)
   useEffect(() => {
-    if (prevScopeRef.current !== selectedScopeId) {
-      prevScopeRef.current = selectedScopeId
-      fetchGraph(selectedScopeId, true, wordClouds)
+    if (prevScopeRef.current !== scopeIdsParam) {
+      prevScopeRef.current = scopeIdsParam
+      fetchGraph(scopeIdsParam, true, wordClouds)
     }
-  }, [fetchGraph, selectedScopeId, wordClouds])
+  }, [fetchGraph, scopeIdsParam, wordClouds])
 
   // Track container dimensions
   useEffect(() => {
@@ -291,15 +298,15 @@ export function GraphTab() {
     selectNode(null)
   }, [setSearchTerm, selectNode])
 
-  const handleScopeChange = useCallback((id: string | null) => {
-    setSelectedScopeId(id)
-  }, [setSelectedScopeId])
+  const handleScopeChange = useCallback((ids: Set<string>) => {
+    setSelectedScopeIds(ids)
+  }, [])
 
   return (
     <div className="flex flex-row h-full overflow-hidden">
       <GraphSidebar
         scopes={scopes}
-        selectedScopeId={selectedScopeId}
+        selectedScopeIds={selectedScopeIds}
         onScopeChange={handleScopeChange}
         threshold={threshold}
         onThresholdChange={setThreshold}
@@ -307,7 +314,7 @@ export function GraphTab() {
         onSpreadChange={setSpread}
         searchTerm={searchTerm}
         onSearchChange={(term) => { setSearchTerm(term); selectNode(null) }}
-        onRefresh={() => fetchGraph(selectedScopeId, true, wordClouds)}
+        onRefresh={() => fetchGraph(scopeIdsParam, true, wordClouds)}
         isLoading={isLoading}
         wordCloudsEnabled={wordClouds}
         onWordCloudsChange={setWordClouds}
@@ -326,7 +333,7 @@ export function GraphTab() {
               variant="ghost"
               size="sm"
               className="h-6 text-xs text-yellow-500"
-              onClick={() => fetchGraph(selectedScopeId, true, wordClouds)}
+              onClick={() => fetchGraph(scopeIdsParam, true, wordClouds)}
             >
               Refresh
             </Button>
@@ -369,7 +376,7 @@ export function GraphTab() {
             <div className="text-center text-muted-foreground space-y-3">
               <p className="text-sm font-medium">Knowledge graph not built yet</p>
               <p className="text-xs">Build the graph to visualize document relationships</p>
-              <Button variant="outline" size="sm" onClick={() => fetchGraph(selectedScopeId, true, wordClouds)}>
+              <Button variant="outline" size="sm" onClick={() => fetchGraph(scopeIdsParam, true, wordClouds)}>
                 Build Graph
               </Button>
             </div>

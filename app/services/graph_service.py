@@ -39,6 +39,7 @@ def compute_graph(
     max_terms: int = 30,
     word_clouds: bool = True,
     min_weight: float = 0.0,
+    allowed_paths: set[str] | None = None,
 ) -> dict:
     """Compute the full knowledge graph from chunk embeddings.
 
@@ -48,6 +49,7 @@ def compute_graph(
         top_k: Number of top chunk pairs to average for doc similarity.
         max_terms: Max terms per word cloud.
         min_weight: Minimum edge weight to include (filters weak edges).
+        allowed_paths: Optional set of file paths to include (for tag-based filtering).
 
     Returns dict with keys: nodes, edges, clusters, global_word_cloud, stats.
     """
@@ -82,6 +84,13 @@ def compute_graph(
         heading = meta.get("heading", "")
         if heading:
             doc["headings"].add(heading)
+
+    # Path-based filtering: keep only documents in the allowed set
+    if allowed_paths is not None:
+        docs = {
+            path: doc for path, doc in docs.items()
+            if path in allowed_paths
+        }
 
     doc_paths = list(docs.keys())
     n_docs = len(doc_paths)

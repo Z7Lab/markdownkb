@@ -11,9 +11,9 @@ interface GraphProgress {
 /** Server-side minimum edge weight — edges below this are never sent. */
 const MIN_WEIGHT = 0.5
 
-function buildQs(scopeId?: string | null, wordClouds = true): string {
+function buildQs(scopeIds?: string | null, wordClouds = true): string {
   const params = new URLSearchParams()
-  if (scopeId) params.set("scope_id", scopeId)
+  if (scopeIds) params.set("scope_ids", scopeIds)
   if (!wordClouds) params.set("word_clouds", "false")
   params.set("min_weight", String(MIN_WEIGHT))
   const qs = params.toString()
@@ -81,13 +81,13 @@ export function useGraph() {
   }, [])
 
   const fetchGraph = useCallback(async (
-    scopeId?: string | null,
+    scopeIds?: string | null,
     force = false,
     wc = true,
   ) => {
-    // Skip if we already have data for this scope (unless forced)
-    if (!force && graphDataRef.current && lastScopeRef.current === scopeId) return
-    lastScopeRef.current = scopeId ?? null
+    // Skip if we already have data for this scope selection (unless forced)
+    if (!force && graphDataRef.current && lastScopeRef.current === scopeIds) return
+    lastScopeRef.current = scopeIds ?? null
 
     // Abort any in-flight poll
     if (pollRef.current) {
@@ -101,7 +101,7 @@ export function useGraph() {
 
     try {
       // Start the data fetch first, then begin progress polling
-      const dataPromise = api.get<GraphData>(`/api/graph/data${buildQs(scopeId, wc)}`)
+      const dataPromise = api.get<GraphData>(`/api/graph/data${buildQs(scopeIds, wc)}`)
 
       // Brief delay so the data request claims a connection before polls compete
       await new Promise(r => setTimeout(r, 50))
