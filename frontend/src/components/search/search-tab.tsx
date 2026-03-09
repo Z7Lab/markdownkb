@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Markdown } from "@/components/ui/markdown"
+import { SourceList } from "@/components/ui/source-badge"
 import { Loader2, Search, Sparkles, Square, RotateCcw, Clock, AlertCircle, ChevronDown, ChevronRight, History } from "lucide-react"
 import { useMemo, useState, type KeyboardEvent } from "react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -321,18 +322,11 @@ export function SearchTab() {
                     <>
                       <Markdown className="text-sm">{summary || "Generating summary..."}</Markdown>
                       {summarySources.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t">
-                          {summarySources.map((src) => (
-                            <Badge
-                              key={src}
-                              variant="outline"
-                              className="cursor-pointer hover:bg-accent text-xs"
-                              onClick={() => setViewingPath(src)}
-                            >
-                              {src.split("/").pop()}
-                            </Badge>
-                          ))}
-                        </div>
+                        <SourceList
+                          sources={summarySources}
+                          onSelect={setViewingPath}
+                          className="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t"
+                        />
                       )}
                     </>
                   )}
