@@ -1,6 +1,7 @@
 """File listing and management endpoints."""
 
 import logging
+import re
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -107,14 +108,27 @@ def search_files_by_content(
     """Lightweight content search returning unique file paths.
 
     Used by the files tab content-search mode. No search history is saved.
+    Supports quoted phrases: "exact phrase" requires literal match in file content.
     """
-    results = retriever.search(req.query, top_k=req.top_k * 5)
+    # Extract quoted phrases and remaining terms
+    exact_phrases = [m.lower() for m in re.findall(r'"([^"]+)"', req.query)]
+    search_query = re.sub(r'"[^"]*"', '', req.query).strip() or req.query.strip('"')
+
+    results = retriever.search(search_query, top_k=req.top_k * 5)
     seen: set[str] = set()
     paths: list[str] = []
     for r in results:
         src = r.metadata.get("source_path", "")
         if src and src not in seen:
             seen.add(src)
+            # If exact phrases requested, verify they appear in the file
+            if exact_phrases:
+                try:
+                    content = Path(src).read_text(encoding="utf-8", errors="replace").lower()
+                    if not all(phrase in content for phrase in exact_phrases):
+                        continue
+                except OSError:
+                    continue
             paths.append(src)
         if len(paths) >= req.top_k:
             break
