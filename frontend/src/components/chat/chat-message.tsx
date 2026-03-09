@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/collapsible";
 import { ChevronRight, Brain, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { ChatMessage } from "@/lib/types";
+import type { ChatMessage as ChatMessageType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { FileViewerDialog } from "@/components/ui/file-viewer-dialog";
@@ -87,11 +87,11 @@ function ThinkCollapsible({
   );
 }
 
-export const MessageBubble = memo(function MessageBubble({
+export const ChatMessage = memo(function ChatMessage({
   message,
   showDiagnostics = false,
 }: {
-  message: ChatMessage;
+  message: ChatMessageType;
   showDiagnostics?: boolean;
 }) {
   const isUser = message.role === "user";

@@ -5,7 +5,7 @@ import { useTags } from "@/hooks/use-tags";
 import { useSettings } from "@/hooks/use-settings";
 import { ChatControls } from "./chat-controls";
 import { ChatInput } from "./chat-input";
-import { MessageList } from "./message-list";
+import { ChatMessageList } from "./chat-message-list";
 import { ThreadSidebar } from "./thread-sidebar";
 
 export function ChatTab() {
@@ -61,7 +61,7 @@ export function ChatTab() {
         onDeleteThread={deleteThread}
       />
       <div className="flex flex-col flex-1 min-w-0 min-h-0">
-        <MessageList
+        <ChatMessageList
           messages={messages}
           isStreaming={isStreaming}
           showDiagnostics={showDiagnostics}

@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { ChatMessage } from "@/lib/types";
-import { MessageBubble } from "./message-bubble";
+import { ChatMessage as ChatMessageComponent } from "./chat-message";
 
-export function MessageList({
+export function ChatMessageList({
   messages,
   isStreaming,
   showDiagnostics = false,
@@ -30,7 +30,7 @@ export function MessageList({
     <ScrollArea className="flex-1 min-h-0">
       <div className="w-0 min-w-full space-y-4 p-4">
         {messages.map((msg) => (
-          <MessageBubble
+          <ChatMessageComponent
             key={msg.id}
             message={msg}
             showDiagnostics={showDiagnostics}

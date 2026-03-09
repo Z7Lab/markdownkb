@@ -3,18 +3,17 @@ import { useScopes } from "@/hooks/use-scopes"
 import { useTags } from "@/hooks/use-tags"
 import { useIndexEvents } from "@/hooks/use-index-events"
 import { SearchSidebar } from "./search-sidebar"
+import { SearchSummaryCard } from "./search-summary-card"
+import { SearchResultCard } from "./search-result-card"
 import { ResultsChangedDialog } from "./results-changed-dialog"
 import { SearchHistoryDialog } from "./search-history-dialog"
 import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Markdown } from "@/components/ui/markdown"
-import { SourceList } from "@/components/ui/source-badge"
-import { Loader2, Search, Sparkles, Square, RotateCcw, Clock, AlertCircle, ChevronDown, ChevronRight, History } from "lucide-react"
+import { Loader2, Search, RotateCcw, Clock, AlertCircle, History } from "lucide-react"
 import { useMemo, useState, type KeyboardEvent } from "react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
@@ -282,56 +281,15 @@ export function SearchTab() {
 
             {/* AI Summary Card */}
             {(summary || isSummarizing || (isHistorical && !summary)) && (
-              <Card className="border-primary/30 bg-primary/5">
-                <CardContent className="pt-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Sparkles className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-semibold text-primary">AI Summary</span>
-                    {isSummarizing && (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-5 w-5 ml-auto"
-                          onClick={stopSummary}
-                          aria-label="Stop summary"
-                        >
-                          <Square className="h-3 w-3" />
-                        </Button>
-                      </>
-                    )}
-                    {/* Show Generate/Regenerate button for historical searches */}
-                    {isHistorical && !isSummarizing && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-6 px-2 ml-auto"
-                        onClick={() => setConfirmGenerateSummaryOpen(true)}
-                      >
-                        <Sparkles className="h-3 w-3 mr-1" />
-                        {summary ? "Regenerate" : "Generate Summary"}
-                      </Button>
-                    )}
-                  </div>
-                  {!summary && !isSummarizing ? (
-                    <p className="text-sm text-muted-foreground italic">
-                      No AI summary available for this historical search.
-                    </p>
-                  ) : (
-                    <>
-                      <Markdown className="text-sm">{summary || "Generating summary..."}</Markdown>
-                      {summarySources.length > 0 && (
-                        <SourceList
-                          sources={summarySources}
-                          onSelect={setViewingPath}
-                          className="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t"
-                        />
-                      )}
-                    </>
-                  )}
-                </CardContent>
-              </Card>
+              <SearchSummaryCard
+                summary={summary}
+                summarySources={summarySources}
+                isSummarizing={isSummarizing}
+                isHistorical={isHistorical}
+                onStop={stopSummary}
+                onGenerate={() => setConfirmGenerateSummaryOpen(true)}
+                onSelectSource={setViewingPath}
+              />
             )}
 
             {/* Empty state - only show after search with no results */}
@@ -340,93 +298,23 @@ export function SearchTab() {
                 No results found for "{query}"
               </p>
             )}
-            {results.map((r, i) => {
-              const hasMultipleSnippets = (r.snippets?.length ?? 0) > 1
-              const isExpanded = expandedResults.has(i)
-              const toggleExpanded = (e: React.MouseEvent) => {
-                e.stopPropagation()
-                setExpandedResults((prev) => {
-                  const next = new Set(prev)
-                  if (next.has(i)) {
-                    next.delete(i)
-                  } else {
-                    next.add(i)
-                  }
-                  return next
-                })
-              }
-
-              return (
-                <Card
-                  key={`${r.metadata.source_path ?? ""}:${r.score}:${i}`}
-                  className="cursor-pointer hover:bg-accent/50 transition-colors"
-                  onClick={() => setViewingPath(r.metadata.source_path ?? null)}
-                >
-                  <CardContent className="pt-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge variant="secondary">
-                        {Math.round(r.score * 100)}%
-                      </Badge>
-                      {r.chunk_count && r.chunk_count > 1 && (
-                        <Badge variant="outline" className="text-xs">
-                          {r.chunk_count} sections
-                        </Badge>
-                      )}
-                      <span className="text-sm font-mono text-muted-foreground truncate flex-1">
-                        {r.metadata.source_path ?? "unknown"}
-                      </span>
-                      {hasMultipleSnippets && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-2 shrink-0"
-                          onClick={toggleExpanded}
-                        >
-                          {isExpanded ? (
-                            <>
-                              <ChevronDown className="h-3 w-3 mr-1" />
-                              Hide sections
-                            </>
-                          ) : (
-                            <>
-                              <ChevronRight className="h-3 w-3 mr-1" />
-                              Show all sections
-                            </>
-                          )}
-                        </Button>
-                      )}
-                    </div>
-
-                    {/* Show snippets if expanded, otherwise show primary chunk */}
-                    {hasMultipleSnippets && isExpanded ? (
-                      <div className="space-y-3 mt-3">
-                        {r.snippets!.map((snippet, si) => (
-                          <div key={si} className="border-l-2 border-primary/30 pl-3">
-                            {snippet.heading && (
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-xs font-semibold text-primary">
-                                  {snippet.heading}
-                                </span>
-                                <Badge variant="outline" className="text-xs">
-                                  {Math.round(snippet.score * 100)}%
-                                </Badge>
-                              </div>
-                            )}
-                            <Markdown className="text-sm">
-                              {snippet.text.length > 400 ? snippet.text.slice(0, 400) + "..." : snippet.text}
-                            </Markdown>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <Markdown className="text-sm">
-                        {r.document.length > 500 ? r.document.slice(0, 500) + "..." : r.document}
-                      </Markdown>
-                    )}
-                  </CardContent>
-                </Card>
-              )
-            })}
+            {results.map((r, i) => (
+              <SearchResultCard
+                key={`${r.metadata.source_path ?? ""}:${r.score}:${i}`}
+                result={r}
+                isExpanded={expandedResults.has(i)}
+                onToggleExpanded={(e) => {
+                  e.stopPropagation()
+                  setExpandedResults((prev) => {
+                    const next = new Set(prev)
+                    if (next.has(i)) next.delete(i)
+                    else next.add(i)
+                    return next
+                  })
+                }}
+                onSelect={(path) => setViewingPath(path || null)}
+              />
+            ))}
             </div>
           </ScrollArea>
         )}

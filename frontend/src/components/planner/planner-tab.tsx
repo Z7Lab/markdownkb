@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Markdown } from "@/components/ui/markdown"
 import { SourceList } from "@/components/ui/source-badge"
-import { Loader2, Lightbulb, Square, Save, Download, ChevronDown, ChevronRight, ShieldCheck } from "lucide-react"
+import { PlannerSkillReview } from "./planner-skill-review"
+import { Loader2, Lightbulb, Square, Save, Download } from "lucide-react"
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 
 const ASCII_BANNER = `
@@ -48,7 +49,6 @@ export function PlannerTab() {
 
   const [inputQuery, setInputQuery] = useState("")
   const [viewingPath, setViewingPath] = useState<string | null>(null)
-  const [expandedReviews, setExpandedReviews] = useState<Set<number>>(new Set())
   const [elapsed, setElapsed] = useState(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -89,18 +89,6 @@ export function PlannerTab() {
     a.download = `plan-${query.slice(0, 40).replace(/[^a-zA-Z0-9]+/g, "-")}.md`
     a.click()
     URL.revokeObjectURL(url)
-  }
-
-  function toggleReview(idx: number) {
-    setExpandedReviews((prev) => {
-      const next = new Set(prev)
-      if (next.has(idx)) {
-        next.delete(idx)
-      } else {
-        next.add(idx)
-      }
-      return next
-    })
   }
 
   const hasResults = plan || approaches.length > 0
@@ -214,46 +202,7 @@ export function PlannerTab() {
               )}
 
               {/* Skill reviews */}
-              {reviews.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold mb-2 text-muted-foreground">Skill Reviews</h3>
-                  <div className="space-y-2">
-                    {reviews.map((r, i) => (
-                      <Card key={i}>
-                        <CardContent className="pt-3 pb-3">
-                          <button
-                            className="flex items-center gap-2 w-full text-left"
-                            onClick={() => toggleReview(i)}
-                          >
-                            <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
-                            <span className="text-sm font-medium flex-1">{r.skill_name}</span>
-                            {r.issues.length > 0 && (
-                              <Badge variant="destructive" className="text-xs">
-                                {r.issues.length} issue{r.issues.length > 1 ? "s" : ""}
-                              </Badge>
-                            )}
-                            {r.approvals.length > 0 && (
-                              <Badge variant="secondary" className="text-xs">
-                                {r.approvals.length} approved
-                              </Badge>
-                            )}
-                            {expandedReviews.has(i) ? (
-                              <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                            )}
-                          </button>
-                          {expandedReviews.has(i) && (
-                            <div className="mt-3 border-t pt-3">
-                              <Markdown className="text-sm">{r.review}</Markdown>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <PlannerSkillReview reviews={reviews} />
 
               {/* Explored approaches — shown below plan */}
               {approaches.length > 0 && (
