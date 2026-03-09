@@ -1,5 +1,7 @@
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { AppSidebar } from "@/components/ui/app-sidebar"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Plus, Search, Trash2, FolderOpen, Tag } from "lucide-react"
 import {
   Select,
@@ -43,6 +45,8 @@ export function SearchSidebar({
   onTagChange: (tag: string | null) => void
   onScopeChange: (id: string | null) => void
 }) {
+  const [pendingDelete, setPendingDelete] = useState<SavedSearch | null>(null)
+
   return (
     <AppSidebar
       header={
@@ -109,21 +113,15 @@ export function SearchSidebar({
     >
       <div className="p-3 space-y-1" role="list">
         {searches.map((s) => (
-          <div
+          <button
             key={s.id}
+            type="button"
             role="listitem"
             className={cn(
               "w-full text-left rounded-md px-3 py-2 text-sm cursor-pointer hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               activeSearchId === s.id && "bg-accent border-l-2 border-l-primary",
             )}
             onClick={() => onLoadSearch(s)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                onLoadSearch(s)
-              }
-            }}
-            tabIndex={0}
           >
             <div className="flex items-center gap-1.5 mb-0.5">
               <Search className="h-3 w-3 shrink-0 text-muted-foreground" />
@@ -143,13 +141,13 @@ export function SearchSidebar({
                 className="h-5 w-5 shrink-0 text-muted-foreground hover:text-destructive"
                 onClick={(e) => {
                   e.stopPropagation()
-                  onDeleteSearch(s.id)
+                  setPendingDelete(s)
                 }}
               >
                 <Trash2 className="h-3 w-3" />
               </Button>
             </div>
-          </div>
+          </button>
         ))}
         {searches.length === 0 && (
           <p className="text-xs text-muted-foreground text-center py-4">
@@ -157,6 +155,17 @@ export function SearchSidebar({
           </p>
         )}
       </div>
+      <ConfirmDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null) }}
+        title="Delete search?"
+        description={`This will permanently delete the search "${pendingDelete?.query || "this search"}".`}
+        confirmLabel="Delete"
+        onConfirm={() => {
+          if (pendingDelete) onDeleteSearch(pendingDelete.id)
+          setPendingDelete(null)
+        }}
+      />
     </AppSidebar>
   )
 }
