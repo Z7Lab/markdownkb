@@ -9,7 +9,17 @@ import { Database, Trash2, RefreshCw, PackageMinus } from "lucide-react"
 interface DatabaseStats {
   chat_history: { path: string; size_bytes: number }
   search_history: { path: string; size_bytes: number }
-  vector_database: { tracking_path: string; chroma_path: string; size_bytes: number }
+  vector_database: {
+    tracking_path: string
+    chroma_path: string
+    size_bytes: number
+    indexed_files: number
+    total_files: number
+    total_chunks: number
+    vector_count: number
+    embedding_model: string
+    data_directory: string
+  }
 }
 
 function formatBytes(bytes: number): string {
@@ -236,9 +246,8 @@ export function DatabasePanel() {
                   <Database className="h-4 w-4" />
                   Vector Database
                 </CardTitle>
-                <CardDescription className="mt-1.5 space-y-0.5">
-                  <div>{stats.vector_database.tracking_path}</div>
-                  <div>{stats.vector_database.chroma_path}</div>
+                <CardDescription className="mt-1.5">
+                  {stats.vector_database.data_directory}
                 </CardDescription>
               </div>
               <div className="text-right">
@@ -247,8 +256,18 @@ export function DatabasePanel() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground mb-3">
-              Contains vector embeddings and file tracking metadata (both databases are interdependent and must be cleared together)
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm mb-3">
+              <div className="text-muted-foreground">Indexed files</div>
+              <div>{stats.vector_database.indexed_files} / {stats.vector_database.total_files}</div>
+              <div className="text-muted-foreground">Chunks</div>
+              <div>{stats.vector_database.total_chunks.toLocaleString()}</div>
+              <div className="text-muted-foreground">Vectors</div>
+              <div>{stats.vector_database.vector_count.toLocaleString()}</div>
+              <div className="text-muted-foreground">Embedding model</div>
+              <div>{stats.vector_database.embedding_model}</div>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              To back up, copy the entire <code className="bg-muted px-1 rounded">{stats.vector_database.data_directory}</code> directory.
             </p>
             <Button
               variant="destructive"

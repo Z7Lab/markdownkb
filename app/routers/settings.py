@@ -497,6 +497,20 @@ def get_database_stats(
             ),
         },
     }
+
+    # Add index counts from tracking DB and vector store
+    tracking = request.app.state.tracking
+    store = request.app.state.store
+    all_files = tracking.get_all_files()
+    indexed_files = [f for f in all_files if f["status"] == "indexed"]
+    total_chunks = sum(f.get("chunk_count", 0) for f in indexed_files)
+    stats["vector_database"]["indexed_files"] = len(indexed_files)
+    stats["vector_database"]["total_files"] = len(all_files)
+    stats["vector_database"]["total_chunks"] = total_chunks
+    stats["vector_database"]["vector_count"] = store.count
+    stats["vector_database"]["embedding_model"] = settings.embedding_model
+    stats["vector_database"]["data_directory"] = str(data_dir)
+
     return stats
 
 
