@@ -1,5 +1,6 @@
 import { usePlanner } from "@/hooks/use-planner"
 import { useScopes } from "@/hooks/use-scopes"
+import { useTags } from "@/hooks/use-tags"
 import { PlannerSidebar } from "./planner-sidebar"
 import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
 import { Button } from "@/components/ui/button"
@@ -9,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Markdown } from "@/components/ui/markdown"
 import { Loader2, Lightbulb, Square, Save, Download, ChevronDown, ChevronRight, ShieldCheck } from "lucide-react"
-import { useEffect, useRef, useState, type KeyboardEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 
 const ASCII_BANNER = `
 ███╗   ███╗██████╗ ██╗  ██╗██████╗     ██████╗ ██╗      █████╗ ███╗   ██╗
@@ -28,7 +29,21 @@ export function PlannerTab() {
     generatePlan, stop, clear, savePlan, loadPlan, deletePlan,
   } = usePlanner()
 
-  const { scopes, selectedScopeId, setSelectedScopeId } = useScopes()
+  const { scopes } = useScopes()
+  const { tags: availableTags } = useTags()
+
+  const [selectedScopeIds, setSelectedScopeIds] = useState<Set<string>>(new Set())
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
+
+  const scopeIdsParam = useMemo(() => {
+    if (selectedScopeIds.size === 0) return null
+    return Array.from(selectedScopeIds).join(",")
+  }, [selectedScopeIds])
+
+  const adHocTagsParam = useMemo(() => {
+    if (selectedTags.size === 0) return null
+    return Array.from(selectedTags)
+  }, [selectedTags])
 
   const [inputQuery, setInputQuery] = useState("")
   const [viewingPath, setViewingPath] = useState<string | null>(null)
@@ -55,7 +70,7 @@ export function PlannerTab() {
 
   function handleGenerate() {
     if (!inputQuery.trim() || isPlanning) return
-    generatePlan(inputQuery, { scope_id: selectedScopeId })
+    generatePlan(inputQuery, { scope_ids: scopeIdsParam, ad_hoc_tags: adHocTagsParam })
   }
 
   function handleNewPlan() {
@@ -95,8 +110,11 @@ export function PlannerTab() {
         plans={savedPlans}
         activePlanId={activePlanId}
         scopes={scopes}
-        selectedScopeId={selectedScopeId}
-        onScopeChange={setSelectedScopeId}
+        selectedScopeIds={selectedScopeIds}
+        onScopeChange={setSelectedScopeIds}
+        availableTags={availableTags}
+        selectedTags={selectedTags}
+        onTagChange={setSelectedTags}
         onNewPlan={handleNewPlan}
         onLoadPlan={loadPlan}
         onDeletePlan={deletePlan}

@@ -22,7 +22,7 @@ const STORAGE_KEYS = {
   STREAMING_THREAD: "mdkb_streaming_thread",
 } as const
 
-export function useChat(scopeId?: string | null) {
+export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const [threads, setThreads] = useState<Thread[]>([])
@@ -216,10 +216,11 @@ export function useChat(scopeId?: string | null) {
           },
         },
         activeThreadId,
-        scopeId,
+        scopeIds,
+        adHocTags,
       )
     },
-    [isStreaming, activeThreadId, refreshThreads, scopeId],
+    [isStreaming, activeThreadId, refreshThreads, scopeIds, adHocTags],
   )
 
   const stop = useCallback(() => {

@@ -47,15 +47,16 @@ class Retriever:
                folder_filter: str | None = None,
                folders_filter: list[str] | None = None,
                tag_filter: str | None = None,
-               scope_tags: list[str] | None = None) -> list[SearchResult]:
+               scope_tags: list[str] | None = None,
+               allowed_paths: set[str] | None = None) -> list[SearchResult]:
         """Search using vector similarity and optional BM25.
 
         Args:
             folder_filter: Single folder path (legacy, used by Search tab).
             folders_filter: Multiple folder paths (used by scope filtering).
                             Uses ChromaDB ``$in`` operator.
-            scope_tags: Tags from a scope definition. Results must match at
-                        least one scope tag (OR). Applied as post-filter.
+            scope_tags: Tags from a scope definition (ChromaDB metadata).
+            allowed_paths: Pre-resolved file paths from tracking DB tags.
         """
         k = top_k or self._settings.top_k
 
@@ -107,6 +108,13 @@ class Retriever:
                         return True
                 return False
             results = [r for r in results if _has_scope_tag(r.metadata.get("tags", ""))]
+
+        # Apply allowed_paths filter (from tracking DB tag resolution)
+        if allowed_paths is not None:
+            results = [
+                r for r in results
+                if r.metadata.get("source_path", "") in allowed_paths
+            ]
 
         # Exclude files where include_rag is toggled off
         if self._tracking:

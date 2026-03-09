@@ -10,6 +10,8 @@ from app.deps import get_retriever, get_scopedb, get_settings, get_tracking
 from app.events import event_bus
 from app.rag.retriever import Retriever
 from app.ratelimit import STANDARD, limiter
+from app.scope_utils import parse_scope_ids, resolve_scopes
+from app.tag_utils import resolve_tag_paths
 from app.services.graph_service import compute_edge_detail, compute_graph, graph_progress
 from app.storage.scopedb import ScopeDB
 from app.storage.trackingdb import TrackingDB
@@ -21,54 +23,6 @@ router = APIRouter(prefix="/api/graph", tags=["graph"])
 # In-memory cache: key = (frozenset(folders), frozenset(tags), top_k, ...) -> graph data
 _graph_cache: dict[tuple, dict] = {}
 _cache_lock = threading.Lock()
-
-
-def _resolve_scopes(
-    scope_ids: list[str] | None, scopedb: ScopeDB,
-) -> tuple[list[str] | None, list[str] | None]:
-    """Resolve one or more scope IDs into merged (folders, tags).
-
-    Returns (folders_or_None, tags_or_None).
-    """
-    if not scope_ids:
-        return None, None
-
-    all_folders: list[str] = []
-    all_tags: list[str] = []
-    for sid in scope_ids:
-        scope = scopedb.get(sid)
-        if not scope:
-            raise HTTPException(status_code=404, detail=f"Scope not found: {sid}")
-        all_folders.extend(scope["folders"])
-        all_tags.extend(scope["tags"])
-
-    # Deduplicate while preserving order
-    folders = list(dict.fromkeys(all_folders)) or None
-    tags = list(dict.fromkeys(all_tags)) or None
-    return folders, tags
-
-
-def _resolve_tag_paths(
-    scope_tags: list[str] | None, tracking: TrackingDB,
-) -> set[str] | None:
-    """Resolve scope tags to a set of allowed file paths via tracking DB."""
-    if not scope_tags:
-        return None
-    tag_set = set(scope_tags)
-    paths = set()
-    for f in tracking.get_all_files():
-        file_tags = {t.strip() for t in f.get("tags", "").split(",") if t.strip()}
-        if tag_set.intersection(file_tags):
-            paths.add(f["path"])
-    return paths
-
-
-def _parse_scope_ids(scope_ids: str | None) -> list[str] | None:
-    """Parse comma-separated scope_ids query param."""
-    if not scope_ids:
-        return None
-    ids = [s.strip() for s in scope_ids.split(",") if s.strip()]
-    return ids or None
 
 
 def _cache_key(
@@ -98,9 +52,9 @@ def graph_data(
     tracking: TrackingDB = Depends(get_tracking),
 ):
     """Return the full knowledge graph (nodes, edges, clusters, word clouds)."""
-    ids = _parse_scope_ids(scope_ids) or ([scope_id] if scope_id else None)
-    scope_folders, scope_tags = _resolve_scopes(ids, scopedb)
-    allowed = _resolve_tag_paths(scope_tags, tracking)
+    ids = parse_scope_ids(scope_ids) or ([scope_id] if scope_id else None)
+    scope_folders, scope_tags = resolve_scopes(ids, scopedb)
+    allowed = resolve_tag_paths(scope_tags, None, tracking)
     key = _cache_key(scope_folders, scope_tags, top_k, word_clouds, min_weight)
 
     with _cache_lock:
@@ -130,8 +84,8 @@ def graph_stats(
     tracking: TrackingDB = Depends(get_tracking),
 ):
     """Lightweight stats without computing the full graph."""
-    ids = _parse_scope_ids(scope_ids) or ([scope_id] if scope_id else None)
-    scope_folders, scope_tags = _resolve_scopes(ids, scopedb)
+    ids = parse_scope_ids(scope_ids) or ([scope_id] if scope_id else None)
+    scope_folders, scope_tags = resolve_scopes(ids, scopedb)
 
     if scope_folders:
         raw = retriever.store.get_all_with_embeddings(scope_folders)
@@ -140,7 +94,7 @@ def graph_stats(
         all_meta = retriever.store.get_all_metadatas()
 
     # Apply tag filtering via tracking DB paths
-    allowed = _resolve_tag_paths(scope_tags, tracking)
+    allowed = resolve_tag_paths(scope_tags, None, tracking)
     if allowed is not None:
         all_meta = [
             m for m in all_meta
@@ -169,8 +123,8 @@ def graph_status(
     scopedb: ScopeDB = Depends(get_scopedb),
 ):
     """Check if cached graph data is available (no computation)."""
-    ids = _parse_scope_ids(scope_ids) or ([scope_id] if scope_id else None)
-    scope_folders, scope_tags = _resolve_scopes(ids, scopedb)
+    ids = parse_scope_ids(scope_ids) or ([scope_id] if scope_id else None)
+    scope_folders, scope_tags = resolve_scopes(ids, scopedb)
     key = _cache_key(scope_folders, scope_tags, top_k, word_clouds, min_weight)
     with _cache_lock:
         return {"cached": key in _graph_cache}

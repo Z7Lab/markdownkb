@@ -13,6 +13,8 @@ class SearchRequest(BaseModel):
     folder: str | None = None
     tag: str | None = None
     scope_id: str | None = None
+    scope_ids: str | None = None  # Comma-separated scope IDs (multi-select)
+    ad_hoc_tags: list[str] | None = None  # Ad-hoc tag filter (OR logic)
     parent_id: str | None = None  # Link re-queries into a version chain
 
 
@@ -24,6 +26,8 @@ class SummarizeRequest(BaseModel):
     folder: str | None = None
     tag: str | None = None
     scope_id: str | None = None
+    scope_ids: str | None = None
+    ad_hoc_tags: list[str] | None = None
     search_id: str | None = None  # Optional: save summary when provided
 
 
@@ -42,6 +46,8 @@ class StreamChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=50000)
     thread_id: str | None = None
     scope_id: str | None = None
+    scope_ids: str | None = None
+    ad_hoc_tags: list[str] | None = None
 
 
 class SavePlanRequest(BaseModel):
@@ -224,6 +230,8 @@ class PlanRequest(BaseModel):
     n_approaches: int = Field(3, ge=1, le=10)
     skill_names: list[str] | None = None
     scope_id: str | None = None
+    scope_ids: str | None = None
+    ad_hoc_tags: list[str] | None = None
 
 
 # -- Logging --

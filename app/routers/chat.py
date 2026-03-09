@@ -6,12 +6,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from app.config import Settings
-from app.deps import get_chatdb, get_retriever, get_scopedb, get_settings
+from app.deps import get_chatdb, get_retriever, get_scopedb, get_settings, get_tracking
 from app.rag.llm import get_completion
 from app.rag.prompts import build_rag_messages
 from app.rag.retriever import Retriever
 from app.ratelimit import LLM, STANDARD, limiter
 from app.schemas import ChatRequest, SavePlanRequest, StreamChatRequest
+from app.scope_utils import parse_scope_ids, resolve_scopes
+from app.tag_utils import resolve_tag_paths
 from app.services.chat_service import (
     chat_respond,
     conversation_history,
@@ -21,17 +23,8 @@ from app.services.chat_service import (
 )
 from app.storage.chatdb import ChatDB
 from app.storage.scopedb import ScopeDB
+from app.storage.trackingdb import TrackingDB
 from app.utils import short_title, sse
-
-
-def _resolve_scope(scope_id: str | None, scopedb: ScopeDB) -> dict | None:
-    """Resolve a scope_id to its folders and tags, or None if no scope."""
-    if not scope_id:
-        return None
-    scope = scopedb.get(scope_id)
-    if not scope:
-        raise HTTPException(status_code=404, detail="Scope not found")
-    return {"folders": scope["folders"], "tags": scope["tags"]}
 
 logger = logging.getLogger(__name__)
 
@@ -90,10 +83,12 @@ def chat_stream(
     retriever: Retriever = Depends(get_retriever),
     chatdb: ChatDB = Depends(get_chatdb),
     scopedb: ScopeDB = Depends(get_scopedb),
+    tracking: TrackingDB = Depends(get_tracking),
 ):
-    resolved = _resolve_scope(req.scope_id, scopedb)
-    scope_folders = resolved["folders"] if resolved else None
-    scope_tags = resolved["tags"] if resolved else None
+    # Multi-scope: prefer scope_ids, fall back to single scope_id
+    ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
+    scope_folders, scope_tags = resolve_scopes(ids, scopedb)
+    allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags, tracking)
 
     if req.thread_id:
         thread_id = req.thread_id
@@ -113,7 +108,7 @@ def chat_stream(
             chatdb=chatdb,
             thread_id=thread_id,
             folders_filter=scope_folders or None,
-            scope_tags=scope_tags or None,
+            allowed_paths=allowed,
         ):
             new_text = partial[len(last_yielded):]
             if new_text:
@@ -124,7 +119,7 @@ def chat_stream(
         results = retriever.search(
             req.message,
             folders_filter=scope_folders or None,
-            scope_tags=scope_tags or None,
+            allowed_paths=allowed,
         )
         if results:
             metadatas = [r.metadata for r in results]

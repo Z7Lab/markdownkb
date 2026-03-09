@@ -12,14 +12,17 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import type { Scope, Thread } from "@/lib/types";
 import { cn, relativeTime } from "@/lib/utils";
 import { ModelPicker } from "./model-picker";
-import { ScopePicker } from "@/components/scope-picker";
+import { ScopeTagFilter } from "@/components/scope-tag-filter";
 
 export function ThreadSidebar({
   threads,
   activeThreadId,
   scopes,
-  selectedScopeId,
+  selectedScopeIds,
   onScopeChange,
+  availableTags,
+  selectedTags,
+  onTagChange,
   onNewChat,
   onLoadThread,
   onRenameThread,
@@ -28,8 +31,11 @@ export function ThreadSidebar({
   threads: Thread[];
   activeThreadId: string | null;
   scopes: Scope[];
-  selectedScopeId: string | null;
-  onScopeChange: (id: string | null) => void;
+  selectedScopeIds: Set<string>;
+  onScopeChange: (ids: Set<string>) => void;
+  availableTags: string[];
+  selectedTags: Set<string>;
+  onTagChange: (tags: Set<string>) => void;
   onNewChat: () => void;
   onLoadThread: (id: string) => void;
   onRenameThread: (id: string, title: string) => void;
@@ -63,10 +69,13 @@ export function ThreadSidebar({
       header={
         <div className="space-y-2">
           <ModelPicker />
-          <ScopePicker
+          <ScopeTagFilter
             scopes={scopes}
-            value={selectedScopeId}
-            onChange={onScopeChange}
+            selectedScopeIds={selectedScopeIds}
+            onScopeChange={onScopeChange}
+            availableTags={availableTags}
+            selectedTags={selectedTags}
+            onTagChange={onTagChange}
           />
           <Button
             onClick={onNewChat}

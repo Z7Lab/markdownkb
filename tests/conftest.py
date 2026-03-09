@@ -47,6 +47,8 @@ class FakeSettings:
     default_hybrid_search: bool = True
     default_bm25_weight: float = 0.5
     log_level: str = "INFO"
+    file_list_limit: int = 5000
+    llm_num_ctx: int | None = None
 
     def get_active_llm_config(self):
         for p in self.llm_providers:
@@ -180,6 +182,11 @@ def app():
         {"id": "srch001", "query": "test query", "result_count": 0, "summary": None, "created_at": "2024-01-01 00:00:00", "parent_id": None}
     ]
     application.state.searchdb = searchdb
+
+    scopedb = MagicMock()
+    scopedb.get_scope.return_value = None
+    scopedb.list_scopes.return_value = []
+    application.state.scopedb = scopedb
 
     application.state.cancel_event = threading.Event()
 

@@ -12,22 +12,14 @@ from app.rag.prompts import SEARCH_SUMMARY_USER, format_context
 from app.rag.retriever import Retriever
 from app.ratelimit import HEAVY, LLM, STANDARD, limiter
 from app.schemas import SearchRequest, SummarizeRequest
+from app.scope_utils import parse_scope_ids, resolve_scopes
+from app.tag_utils import resolve_tag_paths
 from app.services.chat_service import _strip_thinking, extract_unique_sources
 from app.services.query_service import build_enhanced_search_query, enhance_query
 from app.storage.scopedb import ScopeDB
 from app.storage.trackingdb import TrackingDB
 from app.storage.searchdb import SearchDB
 from app.utils import sse
-
-
-def _resolve_scope(scope_id: str | None, scopedb: ScopeDB) -> dict | None:
-    """Resolve a scope_id to its folders and tags, or None if no scope."""
-    if not scope_id:
-        return None
-    scope = scopedb.get(scope_id)
-    if not scope:
-        raise HTTPException(status_code=404, detail="Scope not found")
-    return {"folders": scope["folders"], "tags": scope["tags"]}
 
 logger = logging.getLogger(__name__)
 
@@ -104,11 +96,12 @@ def search(
     searchdb: SearchDB = Depends(get_searchdb),
     scopedb: ScopeDB = Depends(get_scopedb),
     settings: Settings = Depends(get_settings),
+    tracking: TrackingDB = Depends(get_tracking),
 ):
     """Search the vector database with optional intelligent query enhancement."""
-    resolved = _resolve_scope(req.scope_id, scopedb)
-    scope_folders = resolved["folders"] if resolved else None
-    scope_tags = resolved["tags"] if resolved else None
+    ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
+    scope_folders, scope_tags = resolve_scopes(ids, scopedb)
+    allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags, tracking)
     search_query = req.query
     llm_offline = False
     top_k = req.top_k if req.top_k is not None else settings.top_k
@@ -133,7 +126,7 @@ def search(
         folder_filter=req.folder,
         folders_filter=scope_folders or None,
         tag_filter=req.tag,
-        scope_tags=scope_tags or None,
+        allowed_paths=allowed,
     )
 
     # Group chunks by file for cleaner results
@@ -352,11 +345,12 @@ def summarize_search(
     searchdb: SearchDB = Depends(get_searchdb),
     scopedb: ScopeDB = Depends(get_scopedb),
     settings: Settings = Depends(get_settings),
+    tracking: TrackingDB = Depends(get_tracking),
 ):
     """Generate AI summary of search results with streaming response."""
-    resolved = _resolve_scope(req.scope_id, scopedb)
-    scope_folders = resolved["folders"] if resolved else None
-    scope_tags = resolved["tags"] if resolved else None
+    ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
+    scope_folders, scope_tags = resolve_scopes(ids, scopedb)
+    allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags, tracking)
     top_k = req.top_k if req.top_k is not None else settings.top_k
     results = retriever.search(
         req.query,
@@ -364,7 +358,7 @@ def summarize_search(
         folder_filter=req.folder,
         folders_filter=scope_folders or None,
         tag_filter=req.tag,
-        scope_tags=scope_tags or None,
+        allowed_paths=allowed,
     )
 
     if not results:

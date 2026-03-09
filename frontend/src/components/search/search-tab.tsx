@@ -1,5 +1,6 @@
 import { useSearch } from "@/hooks/use-search"
 import { useScopes } from "@/hooks/use-scopes"
+import { useTags } from "@/hooks/use-tags"
 import { useIndexEvents } from "@/hooks/use-index-events"
 import { SearchSidebar } from "./search-sidebar"
 import { ResultsChangedDialog } from "./results-changed-dialog"
@@ -13,7 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Markdown } from "@/components/ui/markdown"
 import { Loader2, Search, Sparkles, Square, RotateCcw, Clock, AlertCircle, ChevronDown, ChevronRight, History } from "lucide-react"
-import { useState, type KeyboardEvent } from "react"
+import { useMemo, useState, type KeyboardEvent } from "react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 // ASCII art banner
@@ -27,7 +28,21 @@ const ASCII_BANNER = `
 `.trim()
 
 export function SearchTab() {
-  const { scopes, selectedScopeId, setSelectedScopeId } = useScopes()
+  const { scopes } = useScopes()
+  const { tags: availableTags } = useTags()
+
+  const [selectedScopeIds, setSelectedScopeIds] = useState<Set<string>>(new Set())
+  const [selectedAdHocTags, setSelectedAdHocTags] = useState<Set<string>>(new Set())
+
+  const scopeIdsParam = useMemo(() => {
+    if (selectedScopeIds.size === 0) return null
+    return Array.from(selectedScopeIds).join(",")
+  }, [selectedScopeIds])
+
+  const adHocTagsParam = useMemo(() => {
+    if (selectedAdHocTags.size === 0) return null
+    return Array.from(selectedAdHocTags)
+  }, [selectedAdHocTags])
 
   const {
     query, setQuery,
@@ -51,7 +66,7 @@ export function SearchTab() {
     requery,
     loadVersion,
     fetchVersions,
-  } = useSearch(selectedScopeId)
+  } = useSearch(scopeIdsParam, adHocTagsParam)
   const { lastIndexedAt } = useIndexEvents()
   const [viewingPath, setViewingPath] = useState<string | null>(null)
   const [resultsChangedDialogOpen, setResultsChangedDialogOpen] = useState(false)
@@ -78,13 +93,16 @@ export function SearchTab() {
         scopes={scopes}
         selectedFolder={folder}
         selectedTag={tag}
-        selectedScopeId={selectedScopeId}
+        selectedScopeIds={selectedScopeIds}
         onNewSearch={newSearch}
         onLoadSearch={loadSearch}
         onDeleteSearch={deleteSearch}
         onFolderChange={setFolder}
         onTagChange={setTag}
-        onScopeChange={setSelectedScopeId}
+        onScopeChange={setSelectedScopeIds}
+        availableTags={availableTags}
+        selectedAdHocTags={selectedAdHocTags}
+        onAdHocTagChange={setSelectedAdHocTags}
       />
 
       <div className="flex flex-col flex-1 min-w-0 min-h-0">

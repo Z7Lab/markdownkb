@@ -10,14 +10,17 @@ import {
 import { Plus, Trash2 } from "lucide-react"
 import type { SavedPlan, Scope } from "@/lib/types"
 import { cn, relativeTime } from "@/lib/utils"
-import { ScopePicker } from "@/components/scope-picker"
+import { ScopeTagFilter } from "@/components/scope-tag-filter"
 
 export function PlannerSidebar({
   plans,
   activePlanId,
   scopes,
-  selectedScopeId,
+  selectedScopeIds,
   onScopeChange,
+  availableTags,
+  selectedTags,
+  onTagChange,
   onNewPlan,
   onLoadPlan,
   onDeletePlan,
@@ -25,8 +28,11 @@ export function PlannerSidebar({
   plans: SavedPlan[]
   activePlanId: string | null
   scopes: Scope[]
-  selectedScopeId: string | null
-  onScopeChange: (id: string | null) => void
+  selectedScopeIds: Set<string>
+  onScopeChange: (ids: Set<string>) => void
+  availableTags: string[]
+  selectedTags: Set<string>
+  onTagChange: (tags: Set<string>) => void
   onNewPlan: () => void
   onLoadPlan: (planId: string) => void
   onDeletePlan: (planId: string) => void
@@ -37,10 +43,13 @@ export function PlannerSidebar({
     <AppSidebar
       header={
         <div className="space-y-2">
-          <ScopePicker
+          <ScopeTagFilter
             scopes={scopes}
-            value={selectedScopeId}
-            onChange={onScopeChange}
+            selectedScopeIds={selectedScopeIds}
+            onScopeChange={onScopeChange}
+            availableTags={availableTags}
+            selectedTags={selectedTags}
+            onTagChange={onTagChange}
           />
           <Button
             onClick={onNewPlan}

@@ -6,13 +6,16 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from app.config import Settings
-from app.deps import get_plandb, get_retriever, get_scopedb, get_settings
+from app.deps import get_plandb, get_retriever, get_scopedb, get_settings, get_tracking
 from app.rag.retriever import Retriever
 from app.ratelimit import LLM, STANDARD, limiter
 from app.schemas import PlanRequest
+from app.scope_utils import parse_scope_ids, resolve_scopes
+from app.tag_utils import resolve_tag_paths
 from app.services.planner_service import list_skills, run_planner, stream_planner
 from app.storage.plandb import PlanDB
 from app.storage.scopedb import ScopeDB
+from app.storage.trackingdb import TrackingDB
 
 logger = logging.getLogger(__name__)
 
@@ -27,14 +30,12 @@ def plan(
     retriever: Retriever = Depends(get_retriever),
     settings: Settings = Depends(get_settings),
     scopedb: ScopeDB = Depends(get_scopedb),
+    tracking: TrackingDB = Depends(get_tracking),
 ):
     """Generate an implementation plan using MCTS."""
-    scope_folders = None
-    if req.scope_id:
-        scope = scopedb.get(req.scope_id)
-        if not scope:
-            raise HTTPException(status_code=404, detail="Scope not found")
-        scope_folders = scope["folders"] or None
+    ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
+    scope_folders, scope_tags = resolve_scopes(ids, scopedb)
+    allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags, tracking)
 
     try:
         result = run_planner(
@@ -45,6 +46,7 @@ def plan(
             n_approaches=req.n_approaches,
             skill_names=req.skill_names,
             folders_filter=scope_folders,
+            allowed_paths=allowed,
         )
     except RuntimeError as e:
         logger.error("Planner error: %s", e)
@@ -60,14 +62,12 @@ def plan_stream(
     retriever: Retriever = Depends(get_retriever),
     settings: Settings = Depends(get_settings),
     scopedb: ScopeDB = Depends(get_scopedb),
+    tracking: TrackingDB = Depends(get_tracking),
 ):
     """Stream plan generation progress as SSE events."""
-    scope_folders = None
-    if req.scope_id:
-        scope = scopedb.get(req.scope_id)
-        if not scope:
-            raise HTTPException(status_code=404, detail="Scope not found")
-        scope_folders = scope["folders"] or None
+    ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
+    scope_folders, scope_tags = resolve_scopes(ids, scopedb)
+    allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags, tracking)
 
     def generate():
         try:
@@ -79,6 +79,7 @@ def plan_stream(
                 n_approaches=req.n_approaches,
                 skill_names=req.skill_names,
                 folders_filter=scope_folders,
+                allowed_paths=allowed,
             )
         except RuntimeError as e:
             logger.error("Planner stream error: %s", e)

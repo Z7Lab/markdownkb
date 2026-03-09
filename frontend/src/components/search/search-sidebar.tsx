@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select"
 import type { SavedSearch, Scope } from "@/lib/types"
 import { cn, relativeTime } from "@/lib/utils"
-import { ScopePicker } from "@/components/scope-picker"
+import { ScopeTagFilter } from "@/components/scope-tag-filter"
 
 export function SearchSidebar({
   searches,
@@ -22,13 +22,16 @@ export function SearchSidebar({
   scopes,
   selectedFolder,
   selectedTag,
-  selectedScopeId,
+  selectedScopeIds,
   onNewSearch,
   onLoadSearch,
   onDeleteSearch,
   onFolderChange,
   onTagChange,
   onScopeChange,
+  availableTags,
+  selectedAdHocTags,
+  onAdHocTagChange,
 }: {
   searches: SavedSearch[]
   activeSearchId: string | null
@@ -37,13 +40,16 @@ export function SearchSidebar({
   scopes: Scope[]
   selectedFolder: string | null
   selectedTag: string | null
-  selectedScopeId: string | null
+  selectedScopeIds: Set<string>
   onNewSearch: () => void
   onLoadSearch: (search: SavedSearch) => void
   onDeleteSearch: (id: string) => void
   onFolderChange: (folder: string | null) => void
   onTagChange: (tag: string | null) => void
-  onScopeChange: (id: string | null) => void
+  onScopeChange: (ids: Set<string>) => void
+  availableTags: string[]
+  selectedAdHocTags: Set<string>
+  onAdHocTagChange: (tags: Set<string>) => void
 }) {
   const [pendingDelete, setPendingDelete] = useState<SavedSearch | null>(null)
 
@@ -102,10 +108,13 @@ export function SearchSidebar({
               </Select>
             </div>
 
-            <ScopePicker
+            <ScopeTagFilter
               scopes={scopes}
-              value={selectedScopeId}
-              onChange={onScopeChange}
+              selectedScopeIds={selectedScopeIds}
+              onScopeChange={onScopeChange}
+              availableTags={availableTags}
+              selectedTags={selectedAdHocTags}
+              onTagChange={onAdHocTagChange}
             />
           </div>
         </div>

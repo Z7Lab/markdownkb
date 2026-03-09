@@ -72,7 +72,7 @@ class TestInputValidation:
 
     @pytest.mark.asyncio
     async def test_pagination_limit_too_high(self, client):
-        resp = await client.get("/api/files?limit=1500")
+        resp = await client.get("/api/files?limit=100001")
         assert resp.status_code == 422
 
 

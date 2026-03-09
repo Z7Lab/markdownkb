@@ -50,17 +50,15 @@ export function streamChat(
   message: string,
   callbacks: SSECallbacks,
   threadId?: string | null,
-  scopeId?: string | null,
+  scopeIds?: string | null,
+  adHocTags?: string[] | null,
 ): AbortController {
   const controller = new AbortController()
 
-  const body: Record<string, string> = { message }
-  if (threadId) {
-    body.thread_id = threadId
-  }
-  if (scopeId) {
-    body.scope_id = scopeId
-  }
+  const body: Record<string, unknown> = { message }
+  if (threadId) body.thread_id = threadId
+  if (scopeIds) body.scope_ids = scopeIds
+  if (adHocTags && adHocTags.length > 0) body.ad_hoc_tags = adHocTags
 
   fetch("/api/chat/stream", {
     method: "POST",
@@ -115,7 +113,7 @@ export interface PlanCallbacks {
 export function streamPlan(
   request: string,
   callbacks: PlanCallbacks,
-  options?: { iterations?: number; n_approaches?: number; skill_names?: string[]; scope_id?: string | null },
+  options?: { iterations?: number; n_approaches?: number; skill_names?: string[]; scope_ids?: string | null; ad_hoc_tags?: string[] | null },
 ): AbortController {
   const controller = new AbortController()
 
@@ -123,7 +121,8 @@ export function streamPlan(
   if (options?.iterations) body.iterations = options.iterations
   if (options?.n_approaches) body.n_approaches = options.n_approaches
   if (options?.skill_names) body.skill_names = options.skill_names
-  if (options?.scope_id) body.scope_id = options.scope_id
+  if (options?.scope_ids) body.scope_ids = options.scope_ids
+  if (options?.ad_hoc_tags && options.ad_hoc_tags.length > 0) body.ad_hoc_tags = options.ad_hoc_tags
 
   fetch("/api/planner/plan/stream", {
     method: "POST",
@@ -172,7 +171,7 @@ export function streamPlan(
 export function streamSearchSummary(
   query: string,
   callbacks: SummaryCallbacks,
-  options?: { top_k?: number; folder?: string | null; tag?: string | null; search_id?: string | null },
+  options?: { top_k?: number; folder?: string | null; tag?: string | null; search_id?: string | null; scope_ids?: string | null; ad_hoc_tags?: string[] | null },
 ): AbortController {
   const controller = new AbortController()
 
@@ -181,6 +180,8 @@ export function streamSearchSummary(
   if (options?.folder) body.folder = options.folder
   if (options?.tag) body.tag = options.tag
   if (options?.search_id) body.search_id = options.search_id
+  if (options?.scope_ids) body.scope_ids = options.scope_ids
+  if (options?.ad_hoc_tags && options.ad_hoc_tags.length > 0) body.ad_hoc_tags = options.ad_hoc_tags
 
   fetch("/api/search/summarize", {
     method: "POST",

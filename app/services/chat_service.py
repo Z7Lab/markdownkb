@@ -139,7 +139,8 @@ def chat_respond(message: str, retriever: Retriever,
                  settings: Settings, chatdb=None,
                  thread_id: str | None = None,
                  folders_filter: list[str] | None = None,
-                 scope_tags: list[str] | None = None) -> Generator:
+                 scope_tags: list[str] | None = None,
+                 allowed_paths: set[str] | None = None) -> Generator:
     """Generate a streaming RAG response for the given message."""
     if not message.strip():
         yield ""
@@ -147,7 +148,8 @@ def chat_respond(message: str, retriever: Retriever,
 
     search_query = rewrite_query(message, settings)
     results = retriever.search(
-        search_query, folders_filter=folders_filter, scope_tags=scope_tags
+        search_query, folders_filter=folders_filter, scope_tags=scope_tags,
+        allowed_paths=allowed_paths,
     )
 
     if not results:
