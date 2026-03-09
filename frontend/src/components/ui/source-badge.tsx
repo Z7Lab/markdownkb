@@ -14,7 +14,7 @@ export function SourceBadge({
   onClick,
 }: {
   path: string;
-  onClick: () => void;
+  onClick: (e?: React.MouseEvent) => void;
 }) {
   return (
     <Tooltip>

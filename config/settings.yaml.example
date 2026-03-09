@@ -17,8 +17,8 @@ global_ignore:
 # Embedding model settings (ONNX, runs locally on CPU)
 embeddings:
   model: all-MiniLM-L6-v2
-  chunk_size: 512
-  chunk_overlap: 50
+  chunk_size: 1500       # ~375-500 tokens; use 512 chars for small corpora
+  chunk_overlap: 150     # 10% overlap for context continuity
 
   # Available models — the active model is auto-downloaded on first startup.
   # Add your own ONNX sentence-transformer models here.

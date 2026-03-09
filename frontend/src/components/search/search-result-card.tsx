@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Markdown } from "@/components/ui/markdown"
 import { ChevronDown, ChevronRight } from "lucide-react"
+import { SourceBadge } from "@/components/ui/source-badge"
 import type { SearchResult } from "@/lib/types"
 
 export function SearchResultCard({
@@ -16,12 +17,20 @@ export function SearchResultCard({
   onToggleExpanded: (e: React.MouseEvent) => void
   onSelect: (path: string) => void
 }) {
-  const hasMultipleSnippets = (result.snippets?.length ?? 0) > 1
+  const snippets = result.snippets ?? []
+  const hasMultipleSnippets = snippets.length > 1
+  const path = result.metadata.source_path ?? "unknown"
+
+  // Best available preview text: first snippet text, then document field
+  const previewText = snippets[0]?.text || result.document
+  const truncated = previewText.length > 500
+    ? previewText.slice(0, 500) + "..."
+    : previewText
 
   return (
     <Card
       className="cursor-pointer hover:bg-accent/50 transition-colors"
-      onClick={() => onSelect(result.metadata.source_path ?? "")}
+      onClick={() => onSelect(path)}
     >
       <CardContent className="pt-4">
         <div className="flex items-center gap-2 mb-2">
@@ -33,9 +42,14 @@ export function SearchResultCard({
               {result.chunk_count} sections
             </Badge>
           )}
-          <span className="text-sm font-mono text-muted-foreground truncate flex-1">
-            {result.metadata.source_path ?? "unknown"}
-          </span>
+          <SourceBadge
+            path={path}
+            onClick={(e) => {
+              e?.stopPropagation()
+              onSelect(path)
+            }}
+          />
+          <div className="flex-1" />
           {hasMultipleSnippets && (
             <Button
               variant="ghost"
@@ -60,7 +74,7 @@ export function SearchResultCard({
 
         {hasMultipleSnippets && isExpanded ? (
           <div className="space-y-3 mt-3">
-            {result.snippets!.map((snippet, si) => (
+            {snippets.map((snippet, si) => (
               <div key={si} className="border-l-2 border-primary/30 pl-3">
                 {snippet.heading && (
                   <div className="flex items-center gap-2 mb-1">
@@ -79,9 +93,7 @@ export function SearchResultCard({
             ))}
           </div>
         ) : (
-          <Markdown className="text-sm">
-            {result.document.length > 500 ? result.document.slice(0, 500) + "..." : result.document}
-          </Markdown>
+          <Markdown className="text-sm">{truncated}</Markdown>
         )}
       </CardContent>
     </Card>

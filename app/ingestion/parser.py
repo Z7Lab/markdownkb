@@ -1,5 +1,6 @@
 """Parse markdown files and split into chunks by headers."""
 
+import os
 import re
 from dataclasses import dataclass, field
 
@@ -9,6 +10,22 @@ import frontmatter
 import yaml
 
 logger = logging.getLogger(__name__)
+
+
+def _doc_breadcrumb(filepath: str, source_root: str,
+                    heading: str) -> str:
+    """Build a short breadcrumb like 'From: project/filename > Section'."""
+    if source_root:
+        rel = os.path.relpath(filepath, source_root)
+    else:
+        rel = os.path.basename(filepath)
+    # Strip .md extension for readability
+    name = re.sub(r"\.md$", "", rel, flags=re.IGNORECASE)
+    parts = ["From:", name]
+    if heading:
+        parts.append(">")
+        parts.append(heading)
+    return " ".join(parts)
 
 
 @dataclass
@@ -50,8 +67,13 @@ def parse_markdown(filepath: str,
         if not text:
             continue
 
+        # Contextual retrieval: prepend breadcrumb so the embedding
+        # captures which document and section this chunk belongs to.
+        breadcrumb = _doc_breadcrumb(filepath, source_root, heading)
         if heading:
-            text = f"# {heading}\n\n{text}"
+            text = f"{breadcrumb}\n\n# {heading}\n\n{text}"
+        else:
+            text = f"{breadcrumb}\n\n{text}"
 
         metadata = {
             "source_path": filepath,
@@ -123,8 +145,13 @@ def _split_long_paragraph(para: str, max_size: int) -> list[str]:
 
 
 def chunk_text(text: str, max_size: int = 512,
-               overlap: int = 50) -> list[str]:
-    """Split text into chunks respecting paragraph boundaries."""
+               overlap: int = 50,
+               min_chunk_size: int = 200) -> list[str]:
+    """Split text into chunks respecting paragraph boundaries.
+
+    Chunks shorter than *min_chunk_size* (e.g. a bare heading) are kept
+    as a prefix for the next chunk rather than emitted on their own.
+    """
     if len(text) <= max_size:
         return [text]
 
@@ -136,13 +163,19 @@ def chunk_text(text: str, max_size: int = 512,
         if len(current) + len(para) + 2 <= max_size:
             current = f"{current}\n\n{para}" if current else para
         else:
-            if current:
+            if current and len(current.strip()) >= min_chunk_size:
                 chunks.append(current.strip())
+                current = ""
+            # If current is too short (heading stub), keep it as prefix
             if len(para) > max_size:
-                chunks.extend(_split_long_paragraph(para, max_size))
+                prefix = f"{current}\n\n" if current else ""
+                sub_chunks = _split_long_paragraph(para, max_size)
+                if sub_chunks:
+                    sub_chunks[0] = (prefix + sub_chunks[0]).strip()
+                chunks.extend(sub_chunks)
                 current = ""
             else:
-                current = para
+                current = f"{current}\n\n{para}" if current else para
 
     if current.strip():
         chunks.append(current.strip())
