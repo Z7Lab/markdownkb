@@ -236,7 +236,29 @@ class Settings:
         if config.get("name") == "ollama" and os.environ.get("OLLAMA_API_BASE"):
             config = {**config, "api_base": os.environ["OLLAMA_API_BASE"]}
 
+        # Allow per-provider API key env vars to override yaml
+        # Pattern: <PROVIDER_NAME>_API_KEY (e.g. VENICE_API_KEY, ANTHROPIC_API_KEY)
+        name = config.get("name", "")
+        env_key = os.environ.get(f"{name.upper()}_API_KEY", "")
+        if env_key:
+            config = {**config, "api_key": env_key}
+
         return config
+
+    def resolve_provider_key(self, provider_name: str) -> str:
+        """Return the effective API key for a provider (env var wins over yaml)."""
+        env_key = os.environ.get(f"{provider_name.upper()}_API_KEY", "")
+        if env_key:
+            return env_key
+        for p in self.llm_providers:
+            if p.get("name") == provider_name:
+                return p.get("api_key", "")
+        return ""
+
+    @staticmethod
+    def key_is_from_env(provider_name: str) -> bool:
+        """Return True if the provider's API key comes from an env var."""
+        return bool(os.environ.get(f"{provider_name.upper()}_API_KEY", ""))
 
     @property
     def llm_temperature(self) -> float:

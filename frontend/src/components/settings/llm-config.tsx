@@ -45,10 +45,10 @@ export function LlmConfig({
   const [provider, setProvider] = useState(settings.active_provider)
   const [model, setModel] = useState(settings.active_model)
   const [apiBase, setApiBase] = useState(settings.active_api_base)
-  const [apiKey, setApiKey] = useState(() => {
-    const active = settings.providers.find((p) => p.name === settings.active_provider)
-    return active?.api_key ?? ""
-  })
+  const [apiKey, setApiKey] = useState("")
+  const activeProvider = settings.providers.find((p) => p.name === provider)
+  const keyFromEnv = activeProvider?.api_key_source === "env"
+  const keyIsSet = activeProvider?.api_key_set ?? false
   const [showKey, setShowKey] = useState(false)
   const [models, setModels] = useState<ModelEntry[]>([])
   const [loading, setLoading] = useState(false)
@@ -114,7 +114,7 @@ export function LlmConfig({
     if (p) {
       setModel(p.model)
       setApiBase(p.api_base)
-      setApiKey(p.api_key)
+      setApiKey("")
       setTemperature(p.temperature ?? settings.temperature)
       setMaxTokens(p.max_tokens ?? settings.max_tokens)
       setNumCtx(p.num_ctx?.toString() ?? "")
@@ -211,26 +211,35 @@ export function LlmConfig({
 
         <div>
           <label htmlFor="llm-api-key" className="text-sm font-medium">API Key</label>
-          <div className="flex gap-2">
-            <Input
-              id="llm-api-key"
-              type={showKey ? "text" : "password"}
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="Leave empty for env var or local providers"
-              className="flex-1"
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowKey(!showKey)}
-              aria-label={showKey ? "Hide API key" : "Show API key"}
-            >
-              {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </Button>
-          </div>
+          {keyFromEnv ? (
+            <div className="flex items-center gap-2 mt-1">
+              <Badge variant="secondary">{provider.toUpperCase()}_API_KEY</Badge>
+              <span className="text-xs text-muted-foreground">Set via environment variable</span>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Input
+                id="llm-api-key"
+                type={showKey ? "text" : "password"}
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder={keyIsSet ? "Key set (leave empty to keep)" : "Enter API key or set via env var"}
+                className="flex-1"
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowKey(!showKey)}
+                aria-label={showKey ? "Hide API key" : "Show API key"}
+              >
+                {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+            </div>
+          )}
           <p className="text-xs text-muted-foreground mt-1">
-            Stored in settings.yaml. Can also be set via environment variable (e.g. OPENAI_API_KEY).
+            {keyFromEnv
+              ? "Managed via .env file. Edit .env and restart to change."
+              : `Set ${provider.toUpperCase()}_API_KEY in .env to avoid storing keys in settings.yaml.`}
           </p>
         </div>
 

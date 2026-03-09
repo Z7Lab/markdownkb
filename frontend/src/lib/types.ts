@@ -96,7 +96,8 @@ export interface Provider {
   name: string
   model: string
   api_base: string
-  api_key: string
+  api_key_set: boolean
+  api_key_source: "env" | "yaml"
   temperature?: number | null
   max_tokens?: number | null
   num_ctx?: number | null

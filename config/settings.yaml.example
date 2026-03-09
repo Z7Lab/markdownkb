@@ -63,7 +63,9 @@ embeddings:
 
 # LLM provider configuration
 # Model names use LiteLLM format: provider/model
-# Providers without an api_key are skipped (except Ollama)
+# API keys: set <PROVIDER_NAME>_API_KEY in .env (recommended) or api_key below.
+#   Env vars always override yaml values. Providers without a key are skipped
+#   (except Ollama which doesn't need one).
 # Generation params (temperature, max_tokens, num_ctx) are per-provider.
 # Global defaults under llm.temperature / llm.max_tokens apply when a
 # provider doesn't have its own value set.
@@ -71,20 +73,17 @@ llm:
   providers:
   - name: anthropic
     model: anthropic/claude-3-5-sonnet-20241022
-    api_key: ''
     api_base: ''
     temperature: 0.3
     max_tokens: 4096
   - name: openai
     model: openai/gpt-4
-    api_key: ''
     api_base: ''
     temperature: 0.3
     max_tokens: 4096
   - name: ollama
     model: ollama/qwen3:8b
-    api_key: ''
-    api_base: http://localhost:11434
+    api_base: http://host.docker.internal:11434  # Use localhost:11434 if running without Docker
     temperature: 0.3
     max_tokens: 4096
     num_ctx: 32768  # Ollama context window override (default: model's built-in limit)
@@ -92,7 +91,6 @@ llm:
   # Good for RAG: deepseek-v3.2 (value), kimi-k2-5 (flagship), qwen3-235b (budget)
   - name: venice
     model: openai/deepseek-v3.2
-    api_key: ''  # Get key from https://venice.ai
     api_base: https://api.venice.ai/api/v1
     temperature: 0.3
     max_tokens: 16384  # Venice models support 4K-65K output depending on model

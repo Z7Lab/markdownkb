@@ -16,7 +16,6 @@ export function useLLMStatus() {
         active_provider: string
         active_model: string
         active_api_base: string
-        providers: { name: string; api_key: string }[]
       }>("/api/settings")
 
       setProvider(settings.active_provider)
@@ -27,16 +26,12 @@ export function useLLMStatus() {
         return
       }
 
-      const activeKey = settings.providers.find(
-        (p) => p.name === settings.active_provider,
-      )?.api_key ?? ""
-
-      // Use test-connection (same as "Test Provider" button - DRY!)
+      // Backend resolves API key from env/yaml — no need to send it
       const result = await api.post<{ result: string }>("/api/settings/test-connection", {
         name: settings.active_provider,
         model: settings.active_model,
         api_base: settings.active_api_base,
-        api_key: activeKey,
+        api_key: "",
       })
 
       // test-connection returns a string - check if it indicates success

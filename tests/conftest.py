@@ -56,6 +56,21 @@ class FakeSettings:
                 return p
         return {}
 
+    def resolve_provider_key(self, provider_name):
+        import os
+        env_key = os.environ.get(f"{provider_name.upper()}_API_KEY", "")
+        if env_key:
+            return env_key
+        for p in self.llm_providers:
+            if p.get("name") == provider_name:
+                return p.get("api_key", "")
+        return ""
+
+    @staticmethod
+    def key_is_from_env(provider_name):
+        import os
+        return bool(os.environ.get(f"{provider_name.upper()}_API_KEY", ""))
+
     def feature_enabled(self, name):
         return self.features.get(name, False)
 

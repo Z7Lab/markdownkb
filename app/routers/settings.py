@@ -152,7 +152,8 @@ def get_settings_endpoint(request: Request, settings: Settings = Depends(get_set
                 "name": p["name"],
                 "model": p.get("model", ""),
                 "api_base": p.get("api_base", ""),
-                "api_key": p.get("api_key", ""),
+                "api_key_set": bool(settings.resolve_provider_key(p["name"])),
+                "api_key_source": "env" if settings.key_is_from_env(p["name"]) else "yaml",
                 "temperature": p.get("temperature"),
                 "max_tokens": p.get("max_tokens"),
                 "num_ctx": p.get("num_ctx"),
@@ -199,7 +200,9 @@ def save_provider(
         if p.get("name") == req.name:
             p["model"] = req.model
             p["api_base"] = req.api_base
-            p["api_key"] = req.api_key
+            # Only write api_key to yaml if not managed by env var
+            if not settings.key_is_from_env(req.name):
+                p["api_key"] = req.api_key
             break
     settings.save()
     return {"status": "saved"}
@@ -222,22 +225,32 @@ def save_llm_params(
 
 @router.post("/settings/test-connection")
 @limiter.limit(LLM)
-def test_connection(request: Request, req: TestConnectionRequest):
+def test_connection(
+    request: Request,
+    req: TestConnectionRequest,
+    settings: Settings = Depends(get_settings),
+):
     """Test LLM provider connection."""
+    api_key = req.api_key or settings.resolve_provider_key(req.name)
     result = test_llm_connection(
         req.name,
         req.model,
         req.api_base,
-        req.api_key,
+        api_key,
     )
     return {"result": result}
 
 
 @router.post("/settings/ping-model")
 @limiter.limit(LLM)
-def ping_model_endpoint(request: Request, req: TestConnectionRequest):
+def ping_model_endpoint(
+    request: Request,
+    req: TestConnectionRequest,
+    settings: Settings = Depends(get_settings),
+):
     """Ping a specific model to check availability."""
-    result = ping_model(req.model, req.api_base, req.api_key)
+    api_key = req.api_key or settings.resolve_provider_key(req.name)
+    result = ping_model(req.model, req.api_base, api_key)
     return {"result": result}
 
 
