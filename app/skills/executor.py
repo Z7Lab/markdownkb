@@ -113,7 +113,9 @@ def refine_plan_with_reviews(plan: str, reviews: list[SkillReview],
         return get_completion(messages, settings)
     except RuntimeError as e:
         logger.error("Plan refinement failed: %s", e)
-        return plan
+        raise RuntimeError(
+            f"Plan refinement failed (LLM error): {e}. Original plan is unchanged."
+        ) from e
 
 
 def _extract_items(text: str, markers: list[str]) -> list[str]:

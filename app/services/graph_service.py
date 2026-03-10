@@ -17,6 +17,9 @@ try:
 except ImportError:
     DBSCAN = None  # type: ignore[assignment,misc]  # optional dep, checked at call site
     TfidfVectorizer = None  # type: ignore[assignment,misc]  # optional dep, checked at call site
+    logging.getLogger(__name__).warning(
+        "scikit-learn not installed — graph clustering and word clouds will be degraded"
+    )
 
 from app.storage.vectorstore import VectorStore
 
@@ -226,8 +229,8 @@ def _cluster_docs(
         clusterer = DBSCAN(eps=0.5, min_samples=2, metric="cosine")
         labels = clusterer.fit_predict(X)
         return [int(l) for l in labels]
-    except Exception as e:
-        logger.warning("DBSCAN clustering failed, falling back: %s", e)
+    except (ValueError, RuntimeError, np.linalg.LinAlgError) as e:
+        logger.error("DBSCAN clustering failed, falling back to single cluster: %s", e)
         return [0] * n
 
 
@@ -260,8 +263,8 @@ def _extract_word_cloud(texts: list[str], max_terms: int = 30) -> dict[str, floa
             if not _CODE_TOKEN_RE.match(term) and scores[idx] > 0:
                 result[term] = round(float(scores[idx]), 4)
         return result
-    except Exception as e:
-        logger.warning("TF-IDF extraction failed: %s", e)
+    except (ValueError, RuntimeError) as e:
+        logger.error("TF-IDF extraction failed: %s", e)
         return {}
 
 

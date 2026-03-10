@@ -2,9 +2,12 @@
 
 import fnmatch
 import hashlib
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -50,6 +53,7 @@ def discover_sources(
     for source in sources:
         source_path = Path(source).resolve()
         if not source_path.exists():
+            logger.warning("Configured source does not exist, skipping: %s", source_path)
             continue
 
         if source_path.is_file() and source_path.suffix == ".md":
@@ -97,6 +101,7 @@ def scan_sources(sources: list[str], ignore_patterns: list[str]) -> list[FileInf
     for source in sources:
         source_path = Path(source).resolve()
         if not source_path.exists():
+            logger.warning("Configured source does not exist, skipping: %s", source_path)
             continue
 
         if source_path.is_file() and source_path.suffix == ".md":

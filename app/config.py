@@ -27,7 +27,8 @@ def _read_secret(name: str) -> str:
     path = _SECRETS_DIR / name
     try:
         return path.read_text().strip() if path.is_file() else ""
-    except OSError:
+    except OSError as e:
+        logger.warning("Failed to read secret '%s': %s", name, e)
         return ""
 
 
@@ -37,7 +38,11 @@ def _resolve_env(value: str) -> str:
         env_var = value[2:-1]
         resolved = os.environ.get(env_var)
         if resolved is None:
-            logger.warning("Environment variable %s is not set, using empty string", env_var)
+            logger.warning(
+                "Environment variable %s is not set (referenced in settings.yaml) — "
+                "using empty string, which may disable dependent features",
+                env_var,
+            )
             return ""
         return resolved
     return value
@@ -66,6 +71,7 @@ class Settings:
             with open(path, encoding="utf-8") as f:
                 self._data = yaml.safe_load(f) or {}
         else:
+            logger.warning("Config file not found at %s — using built-in defaults", path)
             self._data = {}
         self._data = _resolve_env_recursive(self._data)
         self._path = path
@@ -243,6 +249,13 @@ class Settings:
                 break
         if not config:
             if self.llm_providers:
+                logger.warning(
+                    "Active provider '%s' not found in configured providers %s — "
+                    "falling back to '%s'",
+                    self.active_provider,
+                    [p.get("name") for p in self.llm_providers],
+                    self.llm_providers[0].get("name"),
+                )
                 config = self.llm_providers[0]
             else:
                 logger.warning("No LLM providers configured — LLM features will be unavailable")
@@ -563,7 +576,11 @@ class Settings:
     def server_port(self) -> int:
         """Return the server port number (API_PORT env var > settings.yaml > 9713)."""
         if os.environ.get("API_PORT"):
-            return int(os.environ["API_PORT"])
+            try:
+                return int(os.environ["API_PORT"])
+            except ValueError:
+                logger.error("API_PORT env var is not a valid integer: %r", os.environ["API_PORT"])
+                raise
         return self._data.get("server", {}).get("port", 9713)
 
     # --- CORS ---

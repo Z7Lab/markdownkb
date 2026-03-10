@@ -99,8 +99,9 @@ def get_completion(
             else:
                 logger.info("LLM response: model=%s (no usage data)", model)
             if content is None:
-                logger.warning("LLM returned None content for model %s", model)
-                return ""
+                logger.warning("LLM returned None content for model %s — trying next provider", model)
+                last_error = RuntimeError(f"LLM returned None content for model {model}")
+                continue
             return content
 
         except (

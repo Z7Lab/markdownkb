@@ -122,6 +122,7 @@ def chat_stream(
                 yield sse("sources", {"sources": sources})
         except Exception:
             logger.exception("Error during chat stream")
+            yield sse("error", {"message": "LLM request failed. Check server logs for details."})
 
         yield sse("done", {})
 

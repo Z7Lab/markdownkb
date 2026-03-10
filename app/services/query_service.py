@@ -87,14 +87,13 @@ def enhance_query(
             error=str(e),
         )
     except (OSError, ValueError) as e:
-        # Expected IO/parsing error — fall back silently
-        logger.debug("Query enhancement parsing error: %s", e)
+        logger.warning("Query enhancement IO/parsing error: %s", e)
         return EnhancedQuery(
             original=query,
             keywords=[],
             expanded_terms={},
             context="",
-            error=None,
+            error=str(e),
         )
     except (TypeError, AttributeError) as e:
         # Likely a code bug — log prominently and report to caller

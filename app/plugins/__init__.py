@@ -57,8 +57,8 @@ def register_plugins(app: FastAPI, settings: Settings) -> list[str]:
         try:
             mod = importlib.import_module(info["module_path"])
         except Exception:
-            logger.warning(
-                "Plugin '%s' failed to import — skipping",
+            logger.error(
+                "Plugin '%s' failed to import — disabled due to error",
                 info["name"], exc_info=True,
             )
             continue

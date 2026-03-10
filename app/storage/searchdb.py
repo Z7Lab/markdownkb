@@ -130,32 +130,24 @@ class SearchDB:
                 return None
             result = dict(row)
             # Parse JSON result_paths
-            if result.get("result_paths"):
-                try:
-                    result["result_paths"] = json.loads(result["result_paths"])
-                except json.JSONDecodeError:
-                    logger.error("Corrupt result_paths JSON for search %s, returning empty list", search_id)
-                    result["result_paths"] = []
-            else:
-                result["result_paths"] = []
-            # Parse JSON result_details
-            if result.get("result_details"):
-                try:
-                    result["result_details"] = json.loads(result["result_details"])
-                except json.JSONDecodeError:
-                    logger.error("Corrupt result_details JSON for search %s, returning empty list", search_id)
-                    result["result_details"] = []
-            else:
-                result["result_details"] = []
-            # Parse JSON result_data
-            if result.get("result_data"):
-                try:
-                    result["result_data"] = json.loads(result["result_data"])
-                except json.JSONDecodeError:
-                    logger.error("Corrupt result_data JSON for search %s, returning empty list", search_id)
-                    result["result_data"] = []
-            else:
-                result["result_data"] = []
+            for field in ("result_paths", "result_details", "result_data"):
+                raw = result.get(field)
+                if raw:
+                    try:
+                        result[field] = json.loads(raw)
+                    except json.JSONDecodeError:
+                        logger.error(
+                            "Corrupt %s JSON for search %s — clearing column",
+                            field, search_id,
+                        )
+                        result[field] = []
+                        self._conn.execute(
+                            f"UPDATE searches SET {field} = NULL WHERE id = ?",  # noqa: S608
+                            (search_id,),
+                        )
+                        self._conn.commit()
+                else:
+                    result[field] = []
             return result
 
     def get_search_versions(self, search_id: str) -> list[dict]:

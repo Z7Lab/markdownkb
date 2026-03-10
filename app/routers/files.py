@@ -127,7 +127,8 @@ def search_files_by_content(
                     content = Path(src).read_text(encoding="utf-8", errors="replace").lower()
                     if not all(phrase in content for phrase in exact_phrases):
                         continue
-                except OSError:
+                except OSError as e:
+                    logger.warning("Skipping unreadable file in content search: %s: %s", src, e)
                     continue
             paths.append(src)
         if len(paths) >= req.top_k:

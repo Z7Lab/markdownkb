@@ -119,16 +119,16 @@ def get_document(path: str) -> dict:
         for s in settings.sources
     )
     if not in_source:
-        return {"error": "Path is not within a configured source directory"}
+        raise ValueError("Path is not within a configured source directory")
 
     record = tracking.get_file(resolved)
     if not record:
-        return {"error": "File is not indexed"}
+        raise ValueError("File is not indexed")
 
     try:
         content = P(resolved).read_text(encoding="utf-8")
     except OSError as exc:
-        return {"error": f"Cannot read file: {exc}"}
+        raise ValueError(f"Cannot read file: {exc}") from exc
 
     return {
         "path": resolved,
@@ -179,14 +179,14 @@ def index_file(path: str) -> dict:
     resolved = str(P(path).resolve())
 
     if not resolved.endswith(".md"):
-        return {"error": "Only .md files can be indexed"}
+        raise ValueError("Only .md files can be indexed")
 
     in_source = any(
         resolved.startswith(str(P(s).resolve()))
         for s in settings.sources
     )
     if not in_source:
-        return {"error": "File is not within a configured source directory"}
+        raise ValueError("File is not within a configured source directory")
 
     reindex_file(resolved, settings, store, tracking)
 

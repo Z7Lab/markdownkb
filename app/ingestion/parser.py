@@ -54,8 +54,11 @@ def parse_markdown(filepath: str,
         post = frontmatter.loads(raw)
         front = dict(post.metadata) if post.metadata else {}
         content = post.content
-    except yaml.YAMLError:
-        logger.warning("Bad frontmatter in %s, skipping metadata", filepath)
+    except yaml.YAMLError as e:
+        logger.warning(
+            "Bad YAML frontmatter in %s — all metadata (title, tags) will be lost for this file: %s",
+            filepath, e,
+        )
         front = {}
         content = raw
 

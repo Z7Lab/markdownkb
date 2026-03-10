@@ -48,7 +48,12 @@ export function usePersistedValue<T extends string | number | boolean>(
     try {
       const item = localStorage.getItem(key)
       if (item !== null) {
-        if (typeof initialValue === "number") return Number(item) as T
+        if (typeof initialValue === "number") {
+          const n = Number(item)
+          if (!Number.isNaN(n)) return n as T
+          console.warn(`Persisted value for "${key}" is not a valid number: ${item}`)
+          return initialValue
+        }
         if (typeof initialValue === "boolean") return (item === "true") as T
         return item as T
       }

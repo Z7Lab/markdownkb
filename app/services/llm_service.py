@@ -210,7 +210,7 @@ def get_model_capabilities(model: str, api_base: str = "") -> dict:
             "mode": info.get("mode", ""),
         }
     except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
-        logger.debug("Could not fetch model info for %s: %s", model, e)
+        logger.info("Could not fetch model info for %s: %s", model, e)
 
     if not result:
         result["error"] = "No model info available"

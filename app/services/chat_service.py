@@ -201,10 +201,7 @@ def chat_respond(message: str, retriever: Retriever,
                     break
     except RuntimeError as e:
         logger.error("LLM error: %s", e)
-        yield "Error communicating with LLM. Check server logs for details."
-        # Don't persist error messages — they're transient and would
-        # appear as permanent assistant responses in thread history.
-        return
+        raise
 
     # Final clean for storage
     cleaned = strip_thinking(raw_response)

@@ -241,7 +241,8 @@ def test_connection(
         req.api_base,
         api_key,
     )
-    return {"result": result}
+    success = not result.startswith(("Connection failed", "Cannot reach", "No model"))
+    return {"result": result, "success": success}
 
 
 @router.post("/settings/ping-model")
@@ -254,7 +255,8 @@ def ping_model_endpoint(
     """Ping a specific model to check availability."""
     api_key = req.api_key or settings.resolve_provider_key(req.name)
     result = ping_model(req.model, req.api_base, api_key)
-    return {"result": result}
+    success = not result.startswith(("Connection failed", "No model"))
+    return {"result": result, "success": success}
 
 
 @router.post("/settings/refresh-models")
@@ -546,7 +548,7 @@ def get_database_stats(
 
     # Add index counts from tracking DB and vector store (via DI)
     all_files = tracking.get_all_files()
-    indexed_files = [f for f in all_files if f["status"] == "indexed"]
+    indexed_files = [f for f in all_files if f["status"] == "complete"]
     total_chunks = sum(f.get("chunk_count", 0) for f in indexed_files)
     stats["vector_database"]["indexed_files"] = len(indexed_files)
     stats["vector_database"]["total_files"] = len(all_files)
