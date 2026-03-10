@@ -22,6 +22,10 @@ Missing or invalid keys return **401 Unauthorized**. `/api/health` is always pub
 
 ## Search
 
+Requires the `search` feature flag. Plugin: `app/plugins/search/`.
+
+Supports Google-style quoted phrases: `"exact phrase"` requires literal match in chunk content. Unquoted terms use semantic (vector) search. Configurable via `plugins.search` in settings.
+
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/api/search` | Semantic search with optional query enhancement |
@@ -32,8 +36,6 @@ Missing or invalid keys return **401 Unauthorized**. `/api/health` is always pub
 | DELETE | `/api/searches/{id}` | Delete a search from history |
 | POST | `/api/search/summarize` | AI summary of search results (streaming) |
 | POST | `/api/search/enhance-query` | LLM query enhancement (keywords, acronyms) |
-| GET | `/api/folders` | List unique folders from indexed documents |
-| GET | `/api/tags` | List unique tags (merged from vector store and tracking DB) |
 
 ## Chat
 
@@ -60,8 +62,14 @@ Missing or invalid keys return **401 Unauthorized**. `/api/health` is always pub
 | GET | `/api/files` | List all discovered files (paginated) |
 | GET | `/api/file` | Read file content |
 | GET | `/api/file/status` | Get status of a single file |
+| GET | `/api/folders` | List unique folders from indexed documents |
+| GET | `/api/tags` | List unique tags (merged from vector store and tracking DB) |
 | PUT | `/api/files/toggle-rag` | Toggle RAG inclusion for a file |
 | PUT | `/api/files/tags` | Update tags on a file (`{ path, tags[] }`) |
+| PUT | `/api/files/bulk-tags` | Bulk update tags on multiple files |
+| POST | `/api/files/search` | Content-based file search (returns file paths). Supports quoted exact phrases. |
+| POST | `/api/files/auto-tag-preview` | Preview auto-tag assignments by folder pattern (dry run) |
+| POST | `/api/files/auto-tag-apply` | Apply auto-tag assignments from preview |
 | POST | `/api/files/unindex` | Remove file chunks from index |
 | POST | `/api/files/index` | Index a single file |
 | POST | `/api/files/reindex` | Re-embed a file's chunks |
@@ -89,6 +97,8 @@ Missing or invalid keys return **401 Unauthorized**. `/api/health` is always pub
 | PUT | `/api/settings/intelligent-search` | Toggle intelligent search |
 | PUT | `/api/settings/search-summary-prompt` | Update search summary prompt |
 | PUT | `/api/settings/retrieval` | Update retrieval settings |
+| GET | `/api/settings/plugins/{name}` | Get plugin configuration |
+| PUT | `/api/settings/plugins/{name}` | Update plugin configuration (shallow merge) |
 | GET | `/api/settings/log-level` | Get current log level |
 | PUT | `/api/settings/log-level` | Set log level (INFO/DEBUG) |
 | GET | `/api/settings/logs` | Get log entries (incremental via `?since=`) |
@@ -142,6 +152,8 @@ Search, Chat, and Planner endpoints accept an optional `scope_id` field in their
 | GET | `/api/index/events` | SSE stream of real-time index events (file indexed/deleted/error) |
 
 ## Export
+
+Requires the `export` feature flag. Plugin: `app/plugins/export/`.
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -199,9 +211,12 @@ Requires the `knowledge_graph` feature flag. Plugin: `app/plugins/graph/`.
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/graph/data` | Compute similarity graph (nodes, edges, clusters, word clouds) |
-| GET | `/api/graph/stats` | Graph statistics (doc count, chunk count, edge count) |
+| GET | `/api/graph/stats` | Graph statistics (doc count, chunk count) |
+| GET | `/api/graph/status` | Check if cached graph data is available (no computation) |
+| GET | `/api/graph/edge-detail` | Chunk-level similarity detail for a document pair |
+| GET | `/api/graph/progress` | Current graph computation progress |
 
-Accepts optional `scope_id` query parameter to restrict to a scope's folders.
+Accepts optional `scope_ids`, `ad_hoc_tags[]`, `word_clouds`, and `min_weight` query parameters. Supports both scope and tag filtering.
 
 ## Tags
 

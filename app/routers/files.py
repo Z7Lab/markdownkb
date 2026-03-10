@@ -415,3 +415,41 @@ def unindex_source(
             tracking.unindex_file(f["path"])
             count += 1
     return {"status": "ok", "unindexed": count}
+
+
+@router.get("/folders")
+@limiter.limit(STANDARD)
+def get_folders(
+    request: Request,
+    offset: int = Query(0, ge=0),
+    limit: int = Query(200, ge=1, le=1000),
+    retriever: Retriever = Depends(get_retriever),
+):
+    """Get unique folder paths from indexed documents."""
+    all_folders = retriever.get_unique_folders()
+    total = len(all_folders)
+    items = all_folders[offset:offset + limit]
+    return {"items": items, "total": total, "offset": offset, "limit": limit}
+
+
+@router.get("/tags")
+@limiter.limit(STANDARD)
+def get_tags(
+    request: Request,
+    offset: int = Query(0, ge=0),
+    limit: int = Query(200, ge=1, le=1000),
+    retriever: Retriever = Depends(get_retriever),
+    tracking: TrackingDB = Depends(get_tracking),
+):
+    """Get unique tags from indexed documents and tracking DB."""
+    tags = set(retriever.get_unique_tags())
+    for f in tracking.get_all_files():
+        tag_str = f.get("tags", "")
+        if tag_str:
+            for t in tag_str.split(", "):
+                if t.strip():
+                    tags.add(t.strip())
+    all_tags = sorted(tags)
+    total = len(all_tags)
+    items = all_tags[offset:offset + limit]
+    return {"items": items, "total": total, "offset": offset, "limit": limit}

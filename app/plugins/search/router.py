@@ -1,6 +1,7 @@
 """Search endpoints with history and AI summary."""
 
 import logging
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
@@ -24,6 +25,18 @@ from app.utils import sse
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["search"])
+
+# Plugin config defaults — overridable via plugins.search in settings.yaml
+_DEFAULTS = {
+    "chunk_multiplier": 10,
+    "exact_phrase_multiplier": 20,
+    "exact_phrase_matching": True,
+}
+
+
+def _cfg(settings: Settings) -> dict:
+    """Return search plugin config with defaults applied."""
+    return {**_DEFAULTS, **settings.get_plugin_config("search")}
 
 
 def _group_results_by_file(results: list) -> list[dict]:
@@ -99,16 +112,21 @@ def search(
     tracking: TrackingDB = Depends(get_tracking),
 ):
     """Search the vector database with optional intelligent query enhancement."""
+    cfg = _cfg(settings)
     ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
     scope_folders, scope_tags = resolve_scopes(ids, scopedb)
     allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags, tracking)
-    search_query = req.query
+    # Extract "quoted phrases" for exact post-filtering when enabled
+    exact_phrases: list[str] = []
+    if cfg["exact_phrase_matching"]:
+        exact_phrases = [m.lower() for m in re.findall(r'"([^"]+)"', req.query)]
+    search_query = req.query.replace('"', '') if exact_phrases else req.query
     llm_offline = False
     top_k = req.top_k if req.top_k is not None else settings.top_k
 
     # Optionally enhance query with LLM
     if settings.intelligent_search_enabled:
-        enhanced = enhance_query(req.query, settings)
+        enhanced = enhance_query(search_query, settings)
         if enhanced.error:
             logger.warning("Intelligent search failed, using original query: %s", enhanced.error)
             llm_offline = True
@@ -117,9 +135,9 @@ def search(
             search_query = build_enhanced_search_query(enhanced)
             logger.info("Enhanced query: %s -> %s", req.query, search_query)
 
-    # Fetch more chunks to ensure file diversity (10x multiplier)
-    # This prevents getting all chunks from just 1-2 files
-    chunk_fetch_limit = top_k * 10
+    # Fetch more chunks to ensure file diversity
+    multiplier = cfg["exact_phrase_multiplier"] if exact_phrases else cfg["chunk_multiplier"]
+    chunk_fetch_limit = top_k * multiplier
     chunk_results = retriever.search(
         search_query,
         top_k=chunk_fetch_limit,
@@ -128,6 +146,12 @@ def search(
         tag_filter=req.tag,
         allowed_paths=allowed,
     )
+
+    # Post-filter: if quoted phrases were used, only keep chunks containing them
+    if exact_phrases:
+        filtered = [r for r in chunk_results if all(p in r.document.lower() for p in exact_phrases)]
+        logger.info("Exact phrase filter: %d -> %d chunks", len(chunk_results), len(filtered))
+        chunk_results = filtered
 
     # Group chunks by file for cleaner results
     grouped_results = _group_results_by_file(chunk_results)
@@ -255,20 +279,28 @@ def compare_historical_search(
     if not search_record:
         raise HTTPException(status_code=404, detail="Search not found")
 
+    cfg = _cfg(settings)
     # Re-run search with current KB state for comparison
-    search_query = search_record["query"]
+    raw_query = search_record["query"]
+    cmp_phrases: list[str] = []
+    if cfg["exact_phrase_matching"]:
+        cmp_phrases = [m.lower() for m in re.findall(r'"([^"]+)"', raw_query)]
+    search_query = raw_query.replace('"', '') if cmp_phrases else raw_query
     if settings.intelligent_search_enabled:
-        enhanced = enhance_query(search_record["query"], settings)
+        enhanced = enhance_query(search_query, settings)
         if not enhanced.error:
             search_query = build_enhanced_search_query(enhanced)
 
-    chunk_fetch_limit = settings.top_k * 10
+    multiplier = cfg["exact_phrase_multiplier"] if cmp_phrases else cfg["chunk_multiplier"]
+    chunk_fetch_limit = settings.top_k * multiplier
     chunk_results = retriever.search(
         search_query,
         top_k=chunk_fetch_limit,
         folder_filter=search_record.get("folder"),
         tag_filter=search_record.get("tag"),
     )
+    if cmp_phrases:
+        chunk_results = [r for r in chunk_results if all(p in r.document.lower() for p in cmp_phrases)]
     current_grouped_results = _group_results_by_file(chunk_results)
     current_grouped_results = current_grouped_results[:settings.top_k]
 
@@ -348,18 +380,30 @@ def summarize_search(
     tracking: TrackingDB = Depends(get_tracking),
 ):
     """Generate AI summary of search results with streaming response."""
+    cfg = _cfg(settings)
     ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
     scope_folders, scope_tags = resolve_scopes(ids, scopedb)
     allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags, tracking)
     top_k = req.top_k if req.top_k is not None else settings.top_k
+
+    # Strip quotes for vector search, keep original for LLM prompt
+    sum_phrases: list[str] = []
+    if cfg["exact_phrase_matching"]:
+        sum_phrases = [m.lower() for m in re.findall(r'"([^"]+)"', req.query)]
+    sum_search_q = req.query.replace('"', '') if sum_phrases else req.query
+
     results = retriever.search(
-        req.query,
+        sum_search_q,
         top_k=top_k,
         folder_filter=req.folder,
         folders_filter=scope_folders or None,
         tag_filter=req.tag,
         allowed_paths=allowed,
     )
+
+    # Post-filter for exact phrase matches
+    if sum_phrases:
+        results = [r for r in results if all(p in r.document.lower() for p in sum_phrases)]
 
     if not results:
         def empty():
@@ -405,45 +449,6 @@ def summarize_search(
         yield sse("done", {})
 
     return StreamingResponse(generate(), media_type="text/event-stream")
-
-
-@router.get("/folders")
-@limiter.limit(STANDARD)
-def get_folders(
-    request: Request,
-    offset: int = Query(0, ge=0),
-    limit: int = Query(200, ge=1, le=1000),
-    retriever: Retriever = Depends(get_retriever),
-):
-    """Get unique folder paths from indexed documents."""
-    all_folders = retriever.get_unique_folders()
-    total = len(all_folders)
-    items = all_folders[offset:offset + limit]
-    return {"items": items, "total": total, "offset": offset, "limit": limit}
-
-
-@router.get("/tags")
-@limiter.limit(STANDARD)
-def get_tags(
-    request: Request,
-    offset: int = Query(0, ge=0),
-    limit: int = Query(200, ge=1, le=1000),
-    retriever: Retriever = Depends(get_retriever),
-    tracking: TrackingDB = Depends(get_tracking),
-):
-    """Get unique tags from indexed documents and tracking DB."""
-    # Merge tags from vector store metadata and tracking DB
-    tags = set(retriever.get_unique_tags())
-    for f in tracking.get_all_files():
-        tag_str = f.get("tags", "")
-        if tag_str:
-            for t in tag_str.split(", "):
-                if t.strip():
-                    tags.add(t.strip())
-    all_tags = sorted(tags)
-    total = len(all_tags)
-    items = all_tags[offset:offset + limit]
-    return {"items": items, "total": total, "offset": offset, "limit": limit}
 
 
 @router.post("/search/enhance-query")

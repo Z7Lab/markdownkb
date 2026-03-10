@@ -12,7 +12,7 @@ async def test_export_json(client):
         {"role": "user", "content": "Hello"},
         {"role": "assistant", "content": "Hi there"},
     ]
-    with patch("app.routers.export.conversation_history", mock_history):
+    with patch("app.plugins.export.router.conversation_history", mock_history):
         resp = await client.post("/api/export", json={"format": "json"})
     assert resp.status_code == 200
     data = resp.json()
@@ -27,7 +27,7 @@ async def test_export_markdown(client):
     mock_history.get_history.return_value = [
         {"role": "user", "content": "Hello"},
     ]
-    with patch("app.routers.export.conversation_history", mock_history):
+    with patch("app.plugins.export.router.conversation_history", mock_history):
         resp = await client.post("/api/export", json={"format": "markdown"})
     assert resp.status_code == 200
     data = resp.json()

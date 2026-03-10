@@ -31,6 +31,8 @@ class FakeSettings:
         "file_watcher": False,
         "rate_limiting": False,
         "mcts_planner": True,
+        "search": True,
+        "export": True,
     })
     llm_temperature: float = 0.3
     llm_max_tokens: int = 2048
@@ -71,8 +73,17 @@ class FakeSettings:
         import os
         return bool(os.environ.get(f"{provider_name.upper()}_API_KEY", ""))
 
+    _plugin_configs: dict = field(default_factory=dict)
+
     def feature_enabled(self, name):
         return self.features.get(name, False)
+
+    def get_plugin_config(self, plugin_name):
+        return dict(self._plugin_configs.get(plugin_name, {}))
+
+    def set_plugin_config(self, plugin_name, config):
+        existing = self._plugin_configs.setdefault(plugin_name, {})
+        existing.update(config)
 
     def add_source(self, path):
         self.sources.append(path)

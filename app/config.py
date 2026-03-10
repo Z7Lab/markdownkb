@@ -441,6 +441,18 @@ class Settings:
         """Check whether a named feature is enabled."""
         return self.features.get(name, False)
 
+    # --- Plugin Configuration ---
+
+    def get_plugin_config(self, plugin_name: str) -> dict:
+        """Return the config dict for a plugin from ``plugins.<name>``."""
+        return dict(self._data.get("plugins", {}).get(plugin_name, {}))
+
+    def set_plugin_config(self, plugin_name: str, config: dict) -> None:
+        """Merge *config* into ``plugins.<name>`` (shallow update)."""
+        plugins = self._data.setdefault("plugins", {})
+        existing = plugins.setdefault(plugin_name, {})
+        existing.update(config)
+
     # --- MCP Tools Configuration ---
     def _load_mcp_config(self, tool_name: str) -> dict:
         """Load MCP tool config from tool folder + user overrides."""

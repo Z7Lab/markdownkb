@@ -12,11 +12,9 @@ from app.ratelimit import limiter
 from app.routers import (
     chat,
     embeddings,
-    export,
     files,
     health,
     scopes,
-    search,
     settings,
     threads,
 )
@@ -50,8 +48,8 @@ def create_app(lifespan=None, settings_override=None) -> FastAPI:
 
     # Core routers (always registered)
     for router_module in (
-        health, search, chat, threads, files,
-        settings, embeddings, export, scopes,
+        health, chat, threads, files,
+        settings, embeddings, scopes,
     ):
         app.include_router(router_module.router)
 

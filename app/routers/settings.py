@@ -382,6 +382,33 @@ def update_retrieval_settings(
     return {"status": "saved"}
 
 
+# -- Plugin Settings --
+
+@router.get("/settings/plugins/{plugin_name}")
+@limiter.limit(STANDARD)
+def get_plugin_settings(
+    request: Request,
+    plugin_name: str,
+    settings: Settings = Depends(get_settings),
+):
+    """Get configuration for a specific plugin."""
+    return {"plugin": plugin_name, "config": settings.get_plugin_config(plugin_name)}
+
+
+@router.put("/settings/plugins/{plugin_name}")
+@limiter.limit(STANDARD)
+def update_plugin_settings(
+    request: Request,
+    plugin_name: str,
+    config: dict,
+    settings: Settings = Depends(get_settings),
+):
+    """Update configuration for a specific plugin (shallow merge)."""
+    settings.set_plugin_config(plugin_name, config)
+    settings.save()
+    return {"status": "saved", "plugin": plugin_name, "config": settings.get_plugin_config(plugin_name)}
+
+
 # -- MCP Settings --
 
 @router.get("/settings/mcp")

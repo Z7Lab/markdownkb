@@ -1,6 +1,6 @@
 # Architecture
 
-mdkb is a search-first documentation tool with a Python backend and React frontend. This document explains how the pieces fit together.
+mdkb is a chat-with-your-docs tool with a Python backend and React frontend. The core experience is RAG chat — everything else (search, graph, planner) is an optional plugin. This document explains how the pieces fit together.
 
 ## System Overview
 
@@ -13,12 +13,12 @@ mdkb is a search-first documentation tool with a Python backend and React fronte
 ┌────────────────────────▼────────────────────────────────┐
 │  FastAPI Backend                                        │
 │  ┌──────────────────────────────────────────────────┐   │
-│  │  Core Routers (9 modules)                        │   │
-│  │  health │ search │ chat │ threads │ files        │   │
-│  │  settings │ embeddings │ export │ scopes         │   │
+│  │  Core Routers (7 modules)                        │   │
+│  │  health │ chat │ threads │ files                 │   │
+│  │  settings │ embeddings │ scopes                  │   │
 │  ├──────────────────────────────────────────────────┤   │
 │  │  Plugins (auto-discovered, feature-gated)        │   │
-│  │  planner │ tags │ write_api │ ...                │   │
+│  │  search │ export │ graph │ planner │ tags │ ...  │   │
 │  └──────────┬───────────────────────────┬───────────┘   │
 │             │                           │               │
 │  ┌──────────▼──────────┐  ┌─────────────▼───────────┐   │
@@ -64,7 +64,7 @@ mdkb is a search-first documentation tool with a Python backend and React fronte
 ## Request Lifecycle
 
 1. **Frontend** makes HTTP requests to `/api/*`. Streaming responses (chat, summaries) use POST-based SSE via `fetch` + `ReadableStream`.
-2. **Routers** handle request validation and call into services. Core routers (health, search, chat, etc.) are always registered. **Plugins** (`app/plugins/`) are auto-discovered at startup — each plugin exposes a feature flag and a router; only enabled plugins are registered.
+2. **Routers** handle request validation and call into services. Core routers (health, chat, threads, files, settings, embeddings, scopes) are always registered. **Plugins** (`app/plugins/`) are auto-discovered at startup — each plugin exposes a feature flag and a router; only enabled plugins are registered.
 3. **Auth middleware** (`app/auth.py`) checks the `X-MDKB-Key` header on all `/api/*` paths (except `/api/health`) when an API key is configured. Disabled when no key is set.
 4. **Dependency injection** (`app/deps.py`) provides services via FastAPI's `Depends()`. All shared state lives on `app.state`, initialized in the async lifespan context manager (`app/main.py`).
 5. **Services** contain business logic — conversation management, LLM health checks, query enhancement.
@@ -129,7 +129,22 @@ Optional routers live under `app/plugins/`. Each plugin is a directory with an `
 
 At startup, `app/plugins/__init__.py` scans the directory, imports each plugin, checks its feature flag, and registers the router if enabled. Adding a new plugin requires no changes to core files — just create a new folder in `app/plugins/`.
 
-Current plugins: `planner` (MCTS plan generation), `tags` (AI tag generation), `write_api` (document creation via HTTP), `graph` (knowledge graph visualization).
+### Plugin Configuration
+
+Each plugin can have its own configuration in `config/settings.yaml` under the `plugins:` section:
+
+```yaml
+plugins:
+  search:
+    chunk_multiplier: 10
+    exact_phrase_matching: true
+  graph:
+    min_weight: 0.5
+```
+
+Plugins read their config via `Settings.get_plugin_config("name")` and define their own defaults internally. A generic API (`GET/PUT /api/settings/plugins/{name}`) allows reading and updating any plugin's config without changes to core code.
+
+Current plugins: `search` (search with history and AI summaries), `export` (conversation export), `graph` (knowledge graph visualization), `planner` (MCTS plan generation), `tags` (AI tag generation), `write_api` (document creation via HTTP).
 
 ### Model Catalogs
 

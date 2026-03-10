@@ -111,6 +111,8 @@ Feature flags toggle optional modules. All security-sensitive features default t
 |-----|---------|-------------|
 | `features.rag_chat` | `true` | Chat with RAG |
 | `features.file_watcher` | `true` | Auto-reindex on file changes |
+| `features.search` | `true` | Search tab with history, summaries, and query enhancement |
+| `features.export` | `true` | Conversation export (markdown/JSON) |
 | `features.mcp_filesystem` | `false` | MCP file browsing tool |
 | `features.mcp_terminal` | `false` | MCP terminal tool |
 | `features.mcp_tag_generator` | `false` | AI tag generation for markdown files |
@@ -118,8 +120,24 @@ Feature flags toggle optional modules. All security-sensitive features default t
 | `features.agent_skills` | `false` | Agent skill system |
 | `features.write_api` | `false` | HTTP endpoint for creating/updating markdown files |
 | `features.diagnostics` | `false` | Diagnostic endpoints |
-| `features.knowledge_graph` | `false` | 3D document similarity graph visualization |
+| `features.knowledge_graph` | `true` | 3D document similarity graph visualization |
 | `features.rate_limiting` | `false` | API rate limiting (slowapi) |
+
+## Plugin Configuration
+
+Plugins can have their own configuration under the `plugins:` section. Each plugin defines its own defaults internally — you only need to add entries here to override them.
+
+```yaml
+plugins:
+  search:
+    chunk_multiplier: 10        # chunks fetched per result (higher = more diversity)
+    exact_phrase_multiplier: 20  # chunk multiplier when quoted phrases are used
+    exact_phrase_matching: true   # enable Google-style "quoted phrase" exact matching
+```
+
+Plugin config is read/written via the generic API:
+- `GET /api/settings/plugins/{name}` — read config
+- `PUT /api/settings/plugins/{name}` — update config (shallow merge)
 
 ## UI
 
