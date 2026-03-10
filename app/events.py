@@ -50,10 +50,17 @@ class IndexEventBus:
             for q in dead:
                 self._subscribers.remove(q)
 
+    _MAX_SUBSCRIBERS = 50
+
     def subscribe(self) -> queue.Queue[IndexEvent | None]:
-        """Create a new subscriber queue. Returns a Queue that yields events."""
+        """Create a new subscriber queue. Returns a Queue that yields events.
+
+        Raises RuntimeError if the subscriber limit is reached.
+        """
         q: queue.Queue[IndexEvent | None] = queue.Queue(maxsize=256)
         with self._lock:
+            if len(self._subscribers) >= self._MAX_SUBSCRIBERS:
+                raise RuntimeError("Too many SSE subscribers")
             self._subscribers.append(q)
         return q
 

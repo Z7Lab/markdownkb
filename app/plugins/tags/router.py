@@ -105,8 +105,8 @@ def generate_tags(
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        logger.error(f"Tag generation error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Tag generation failed: {str(e)}")
+        logger.error("Tag generation error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Tag generation failed. Check server logs for details.")
 
 
 @router.post("/apply")
@@ -139,8 +139,8 @@ def apply_tags(
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        logger.error(f"Tag application error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to apply tags: {str(e)}")
+        logger.error("Tag application error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to apply tags. Check server logs for details.")
 
 
 @router.post("/bulk")
@@ -176,5 +176,5 @@ def bulk_tag(
         }
 
     except Exception as e:
-        logger.error(f"Bulk tagging error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Bulk tagging failed: {str(e)}")
+        logger.error("Bulk tagging error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Bulk tagging failed. Check server logs for details.")

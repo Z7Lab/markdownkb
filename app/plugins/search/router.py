@@ -15,7 +15,7 @@ from app.ratelimit import HEAVY, LLM, STANDARD, limiter
 from app.schemas import SearchRequest, SummarizeRequest
 from app.scope_utils import parse_scope_ids, resolve_scopes
 from app.tag_utils import resolve_tag_paths
-from app.services.chat_service import _strip_thinking, extract_unique_sources
+from app.services.chat_service import strip_thinking, extract_unique_sources
 from app.services.query_service import build_enhanced_search_query, enhance_query
 from app.storage.scopedb import ScopeDB
 from app.storage.trackingdb import TrackingDB
@@ -431,7 +431,7 @@ def summarize_search(
         try:
             for chunk in get_streaming_completion(messages, settings):
                 raw += chunk
-                cleaned = _strip_thinking(raw)
+                cleaned = strip_thinking(raw)
                 if cleaned != last_yielded:
                     delta = cleaned[len(last_yielded):]
                     if delta:
@@ -439,7 +439,7 @@ def summarize_search(
                         last_yielded = cleaned
         except RuntimeError as e:
             logger.error("Summary LLM error: %s", e)
-            yield sse("error", {"message": str(e)})
+            yield sse("error", {"message": "LLM request failed. Check server logs for details."})
 
         # Save summary if search_id provided
         if req.search_id and last_yielded:

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from app.config import Settings
-from app.deps import get_cancel_event, get_settings, get_store, get_tracking, get_watcher
+from app.deps import get_cancel_event, get_chatdb, get_searchdb, get_settings, get_store, get_tracking, get_watcher
 from app.ratelimit import HEAVY, LLM, STANDARD, limiter
 from app.logbuffer import log_buffer
 from app.schemas import (
@@ -194,15 +194,18 @@ def save_provider(
     req: ProviderSettingsRequest,
     settings: Settings = Depends(get_settings),
 ):
-    """Save LLM provider configuration."""
+    """Save LLM provider configuration.
+
+    API keys are never written to YAML — they must be provided via
+    Docker secrets or environment variables.
+    """
     settings.active_provider = req.name
     for p in settings.llm_providers:
         if p.get("name") == req.name:
             p["model"] = req.model
             p["api_base"] = req.api_base
-            # Only write api_key to yaml if not managed by env var
-            if not settings.key_is_from_env(req.name):
-                p["api_key"] = req.api_key
+            # Never write api_key to YAML — use secrets/env vars instead
+            p.pop("api_key", None)
             break
     settings.save()
     return {"status": "saved"}
@@ -299,7 +302,8 @@ def test_prompt(
             ):
                 yield sse(event, data)
         except (RuntimeError, ConnectionError, TimeoutError) as e:
-            yield sse("error", {"message": str(e)})
+            logger.error("Test prompt error: %s", e)
+            yield sse("error", {"message": "LLM request failed. Check server logs for details."})
 
     return StreamingResponse(
         generate(),
@@ -515,6 +519,8 @@ def get_path_size(path: Path) -> int:
 def get_database_stats(
     request: Request,
     settings: Settings = Depends(get_settings),
+    tracking=Depends(get_tracking),
+    store=Depends(get_store),
 ):
     """Get statistics for all databases."""
     data_dir = Path(settings.data_directory)
@@ -538,9 +544,7 @@ def get_database_stats(
         },
     }
 
-    # Add index counts from tracking DB and vector store
-    tracking = request.app.state.tracking
-    store = request.app.state.store
+    # Add index counts from tracking DB and vector store (via DI)
     all_files = tracking.get_all_files()
     indexed_files = [f for f in all_files if f["status"] == "indexed"]
     total_chunks = sum(f.get("chunk_count", 0) for f in indexed_files)
@@ -556,9 +560,8 @@ def get_database_stats(
 
 @router.post("/settings/database/clear-chats")
 @limiter.limit(STANDARD)
-def clear_chat_history(request: Request):
+def clear_chat_history(request: Request, chatdb=Depends(get_chatdb)):
     """Clear all chat history (threads and messages)."""
-    chatdb = request.app.state.chatdb
     chatdb.clear_all()
     logger.info("Cleared all chat history")
     return {"status": "cleared", "database": "chats"}
@@ -566,9 +569,8 @@ def clear_chat_history(request: Request):
 
 @router.post("/settings/database/clear-searches")
 @limiter.limit(STANDARD)
-def clear_search_history(request: Request):
+def clear_search_history(request: Request, searchdb=Depends(get_searchdb)):
     """Clear all search history."""
-    searchdb = request.app.state.searchdb
     searchdb.clear_all()
     logger.info("Cleared all search history")
     return {"status": "cleared", "database": "searches"}
@@ -576,12 +578,12 @@ def clear_search_history(request: Request):
 
 @router.post("/settings/database/clear-vectors")
 @limiter.limit(HEAVY)
-def clear_vector_database(request: Request):
+def clear_vector_database(
+    request: Request,
+    vectorstore=Depends(get_store),
+    trackingdb=Depends(get_tracking),
+):
     """Clear vector database and file tracking, then trigger reindex."""
-    vectorstore = request.app.state.store
-    trackingdb = request.app.state.tracking
-
-    # Clear both databases
     vectorstore.clear()
     trackingdb.clear()
 
@@ -598,9 +600,8 @@ def clear_vector_database(request: Request):
 
 @router.post("/settings/database/compact-chats")
 @limiter.limit(STANDARD)
-def compact_chat_database(request: Request):
+def compact_chat_database(request: Request, chatdb=Depends(get_chatdb)):
     """Compact chat database by running VACUUM to reclaim disk space."""
-    chatdb = request.app.state.chatdb
     chatdb.vacuum()
     logger.info("Compacted chat database")
     return {"status": "compacted", "database": "chats"}
@@ -608,9 +609,8 @@ def compact_chat_database(request: Request):
 
 @router.post("/settings/database/compact-searches")
 @limiter.limit(STANDARD)
-def compact_search_database(request: Request):
+def compact_search_database(request: Request, searchdb=Depends(get_searchdb)):
     """Compact search database by running VACUUM to reclaim disk space."""
-    searchdb = request.app.state.searchdb
     searchdb.vacuum()
     logger.info("Compacted search database")
     return {"status": "compacted", "database": "searches"}

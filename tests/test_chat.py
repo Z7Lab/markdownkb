@@ -45,12 +45,11 @@ async def test_save_plan(client):
 @pytest.mark.asyncio
 async def test_chat_stream_returns_sse(client):
     """Test that the streaming endpoint returns SSE events."""
-    def fake_respond(message, retriever, settings, chatdb=None, thread_id=None, folders_filter=None, allowed_paths=None):
+    def fake_respond(message, retriever, settings, chatdb=None, thread_id=None, folders_filter=None, allowed_paths=None, sources_out=None):
         yield "Hello"
         yield "Hello world"
 
-    with patch("app.routers.chat.chat_respond", side_effect=fake_respond), \
-         patch("app.routers.chat.extract_unique_sources", return_value=[]):
+    with patch("app.routers.chat.chat_respond", side_effect=fake_respond):
         resp = await client.post("/api/chat/stream", json={
             "message": "Hello",
         })

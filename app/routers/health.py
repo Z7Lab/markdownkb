@@ -58,7 +58,14 @@ def stats(
 @router.get("/index/events")
 def index_events(request: Request):
     """SSE stream of real-time index events (file indexed/deleted/error)."""
-    sub = event_bus.subscribe()
+    try:
+        sub = event_bus.subscribe()
+    except RuntimeError:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            {"detail": "Too many concurrent SSE connections"},
+            status_code=429,
+        )
 
     def generate():
         try:

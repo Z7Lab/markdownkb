@@ -114,7 +114,7 @@ def create_document(
         full_path.write_text(req.content, encoding="utf-8")
     except OSError as exc:
         logger.error("Failed to write document %s: %s", full_path, exc)
-        raise HTTPException(500, f"Failed to write file: {exc}")
+        raise HTTPException(500, "Failed to write file")
 
     logger.info("Document written: %s", full_path)
     return {
@@ -157,7 +157,7 @@ def delete_document(
         full_path.unlink()
     except OSError as exc:
         logger.error("Failed to delete document %s: %s", full_path, exc)
-        raise HTTPException(500, f"Failed to delete file: {exc}")
+        raise HTTPException(500, "Failed to delete file")
 
     logger.info("Document deleted: %s", full_path)
     return {"status": "deleted", "path": str(full_path)}

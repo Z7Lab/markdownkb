@@ -17,11 +17,12 @@ services:
       - "host.docker.internal:host-gateway"
     environment:
       - SERVER_HOST=0.0.0.0
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - VENICE_API_KEY=${VENICE_API_KEY:-}
       - OLLAMA_API_BASE=${OLLAMA_API_BASE:-}
-      - MDKB_API_KEY=${MDKB_API_KEY:-}
+    secrets:
+      - anthropic_api_key
+      - openai_api_key
+      - venice_api_key
+      - mdkb_api_key
     healthcheck:
       test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:9713/api/health').raise_for_status()"]
       interval: 30s
@@ -29,3 +30,16 @@ services:
       retries: 3
       start_period: 30s
     restart: unless-stopped
+
+# Docker secrets — create files in ./secrets/ with one key per file.
+# Only the secrets that exist will be mounted; missing files cause a
+# warning but don't prevent the container from starting.
+secrets:
+  anthropic_api_key:
+    file: ./secrets/anthropic_api_key
+  openai_api_key:
+    file: ./secrets/openai_api_key
+  venice_api_key:
+    file: ./secrets/venice_api_key
+  mdkb_api_key:
+    file: ./secrets/mdkb_api_key

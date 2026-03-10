@@ -15,6 +15,22 @@ _DEFAULT_CONFIG_PATH = (
 )
 
 
+_SECRETS_DIR = Path("/run/secrets")
+
+
+def _read_secret(name: str) -> str:
+    """Read a Docker secret by name.
+
+    Docker secrets are mounted as files under /run/secrets/.  Returns the
+    file content (stripped) or empty string if the secret doesn't exist.
+    """
+    path = _SECRETS_DIR / name
+    try:
+        return path.read_text().strip() if path.is_file() else ""
+    except OSError:
+        return ""
+
+
 def _resolve_env(value: str) -> str:
     """Replace ${VAR} placeholders with environment variable values."""
     if isinstance(value, str) and value.startswith("${") and value.endswith("}"):
@@ -236,29 +252,35 @@ class Settings:
         if config.get("name") == "ollama" and os.environ.get("OLLAMA_API_BASE"):
             config = {**config, "api_base": os.environ["OLLAMA_API_BASE"]}
 
-        # Allow per-provider API key env vars to override yaml
-        # Pattern: <PROVIDER_NAME>_API_KEY (e.g. VENICE_API_KEY, ANTHROPIC_API_KEY)
+        # Resolve API key: Docker secret > env var (never from YAML)
+        # Secret/env pattern: <PROVIDER_NAME>_API_KEY (e.g. venice_api_key, VENICE_API_KEY)
         name = config.get("name", "")
-        env_key = os.environ.get(f"{name.upper()}_API_KEY", "")
-        if env_key:
-            config = {**config, "api_key": env_key}
+        resolved_key = (
+            _read_secret(f"{name.lower()}_api_key")
+            or os.environ.get(f"{name.upper()}_API_KEY", "")
+        )
+        config = {**config, "api_key": resolved_key}
 
         return config
 
     def resolve_provider_key(self, provider_name: str) -> str:
-        """Return the effective API key for a provider (env var wins over yaml)."""
-        env_key = os.environ.get(f"{provider_name.upper()}_API_KEY", "")
-        if env_key:
-            return env_key
-        for p in self.llm_providers:
-            if p.get("name") == provider_name:
-                return p.get("api_key", "")
-        return ""
+        """Return the effective API key for a provider.
+
+        Priority: Docker secret > env var.  YAML api_key fields are
+        intentionally ignored — secrets should never live in config files.
+        """
+        return (
+            _read_secret(f"{provider_name.lower()}_api_key")
+            or os.environ.get(f"{provider_name.upper()}_API_KEY", "")
+        )
 
     @staticmethod
     def key_is_from_env(provider_name: str) -> bool:
-        """Return True if the provider's API key comes from an env var."""
-        return bool(os.environ.get(f"{provider_name.upper()}_API_KEY", ""))
+        """Return True if the provider's API key comes from a secret or env var."""
+        return bool(
+            _read_secret(f"{provider_name.lower()}_api_key")
+            or os.environ.get(f"{provider_name.upper()}_API_KEY", "")
+        )
 
     @property
     def llm_temperature(self) -> float:
@@ -524,12 +546,10 @@ class Settings:
     def api_key(self) -> str:
         """Return the API key for header-based authentication.
 
-        Checked in order: MDKB_API_KEY env var > auth.api_key in
-        settings.yaml.  Empty string means authentication is disabled.
+        Checked in order: Docker secret ``mdkb_api_key`` > ``MDKB_API_KEY``
+        env var.  Empty string means authentication is disabled.
         """
-        if os.environ.get("MDKB_API_KEY"):
-            return os.environ["MDKB_API_KEY"]
-        return self._data.get("auth", {}).get("api_key", "")
+        return _read_secret("mdkb_api_key") or os.environ.get("MDKB_API_KEY", "")
 
     # --- Server ---
     @property
@@ -545,6 +565,23 @@ class Settings:
         if os.environ.get("API_PORT"):
             return int(os.environ["API_PORT"])
         return self._data.get("server", {}).get("port", 9713)
+
+    # --- CORS ---
+    @property
+    def cors_origins(self) -> list[str]:
+        """Return allowed CORS origins.
+
+        CORS_ORIGINS env var (comma-separated) > server.cors_origins in
+        settings.yaml > default based on FRONTEND_PORT.
+        """
+        env_val = os.environ.get("CORS_ORIGINS", "")
+        if env_val:
+            return [o.strip() for o in env_val.split(",") if o.strip()]
+        configured = self._data.get("server", {}).get("cors_origins")
+        if configured:
+            return list(configured)
+        frontend_port = os.environ.get("FRONTEND_PORT", "9714")
+        return [f"http://localhost:{frontend_port}"]
 
     # --- Plans ---
     @property

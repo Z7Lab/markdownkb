@@ -17,7 +17,6 @@ from app.tag_utils import resolve_tag_paths
 from app.services.chat_service import (
     chat_respond,
     conversation_history,
-    extract_unique_sources,
     rewrite_query,
     save_last_response_as_plan,
 )
@@ -100,33 +99,29 @@ def chat_stream(
     def generate():
         yield sse("thread", {"thread_id": thread_id, "title": title})
 
+        sources: list[str] = []
         last_yielded = ""
-        for partial in chat_respond(
-            req.message,
-            retriever,
-            settings,
-            chatdb=chatdb,
-            thread_id=thread_id,
-            folders_filter=scope_folders or None,
-            allowed_paths=allowed,
-        ):
-            new_text = partial[len(last_yielded):]
-            if new_text:
-                yield sse("token", {"content": new_text})
-                last_yielded = partial
+        try:
+            for partial in chat_respond(
+                req.message,
+                retriever,
+                settings,
+                chatdb=chatdb,
+                thread_id=thread_id,
+                folders_filter=scope_folders or None,
+                allowed_paths=allowed,
+                sources_out=sources,
+            ):
+                new_text = partial[len(last_yielded):]
+                if new_text:
+                    yield sse("token", {"content": new_text})
+                    last_yielded = partial
 
-        # Extract sources from the final response
-        results = retriever.search(
-            req.message,
-            folders_filter=scope_folders or None,
-            allowed_paths=allowed,
-        )
-        if results:
-            metadatas = [r.metadata for r in results]
-            sources = extract_unique_sources(metadatas)
             if sources:
                 chatdb.set_sources(thread_id, "assistant", sources)
                 yield sse("sources", {"sources": sources})
+        except Exception:
+            logger.exception("Error during chat stream")
 
         yield sse("done", {})
 

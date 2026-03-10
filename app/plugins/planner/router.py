@@ -50,7 +50,7 @@ def plan(
         )
     except RuntimeError as e:
         logger.error("Planner error: %s", e)
-        raise HTTPException(status_code=502, detail=str(e))
+        raise HTTPException(status_code=502, detail="Plan generation failed. Check server logs for details.")
     return result
 
 
@@ -84,7 +84,7 @@ def plan_stream(
         except RuntimeError as e:
             logger.error("Planner stream error: %s", e)
             from app.utils import sse
-            yield sse("error", {"message": str(e)})
+            yield sse("error", {"message": "Plan generation failed. Check server logs for details."})
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 

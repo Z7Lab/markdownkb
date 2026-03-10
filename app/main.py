@@ -111,6 +111,11 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    # Shutdown: stop file watcher
+    if app.state.watcher is not None:
+        app.state.watcher.stop()
+        logger.info("File watcher stopped")
+
     # Shutdown: close DB connections
     tracking.close()
     chatdb.close()

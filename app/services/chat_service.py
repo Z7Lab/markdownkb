@@ -73,7 +73,7 @@ def _truncate_at_repeat(text: str) -> str:
     return text
 
 
-def _strip_thinking(text: str) -> str:
+def strip_thinking(text: str) -> str:
     """Remove <think>...</think> blocks from model output."""
     # Strip completed thinking blocks
     text = _THINK_RE.sub("", text)
@@ -140,7 +140,8 @@ def chat_respond(message: str, retriever: Retriever,
                  thread_id: str | None = None,
                  folders_filter: list[str] | None = None,
                  scope_tags: list[str] | None = None,
-                 allowed_paths: set[str] | None = None) -> Generator:
+                 allowed_paths: set[str] | None = None,
+                 sources_out: list[str] | None = None) -> Generator:
     """Generate a streaming RAG response for the given message."""
     if not message.strip():
         yield ""
@@ -190,7 +191,7 @@ def chat_respond(message: str, retriever: Retriever,
                 last_yielded = raw_response
 
             # Track cleaned version for repetition detection
-            cleaned = _strip_thinking(raw_response)
+            cleaned = strip_thinking(raw_response)
             if len(cleaned) - last_check >= 200:
                 last_check = len(cleaned)
                 if _is_repeating(cleaned):
@@ -200,16 +201,17 @@ def chat_respond(message: str, retriever: Retriever,
                     break
     except RuntimeError as e:
         logger.error("LLM error: %s", e)
-        error_msg = f"Error communicating with LLM: {e}"
-        yield error_msg
+        yield "Error communicating with LLM. Check server logs for details."
         # Don't persist error messages — they're transient and would
         # appear as permanent assistant responses in thread history.
         return
 
     # Final clean for storage
-    cleaned = _strip_thinking(raw_response)
+    cleaned = strip_thinking(raw_response)
 
     sources = extract_unique_sources(metadatas)
+    if sources_out is not None:
+        sources_out.extend(sources)
     if sources and "Source:" not in cleaned:
         source_block = "\n\n---\n**Sources:**\n" + "\n".join(
             f"- `{s}`" for s in sources

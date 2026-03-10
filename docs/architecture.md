@@ -65,7 +65,7 @@ mdkb is a chat-with-your-docs tool with a Python backend and React frontend. The
 
 1. **Frontend** makes HTTP requests to `/api/*`. Streaming responses (chat, summaries) use POST-based SSE via `fetch` + `ReadableStream`.
 2. **Routers** handle request validation and call into services. Core routers (health, chat, threads, files, settings, embeddings, scopes) are always registered. **Plugins** (`app/plugins/`) are auto-discovered at startup — each plugin exposes a feature flag and a router; only enabled plugins are registered.
-3. **Auth middleware** (`app/auth.py`) checks the `X-MDKB-Key` header on all `/api/*` paths (except `/api/health`) when an API key is configured. Disabled when no key is set.
+3. **Auth middleware** (`app/auth.py`) checks the `X-MDKB-Key` header on all `/api/*` paths (except `/api/health`) when an API key is configured via Docker secret or env var. Uses `hmac.compare_digest()` for timing-safe comparison. Disabled when no key is set.
 4. **Dependency injection** (`app/deps.py`) provides services via FastAPI's `Depends()`. All shared state lives on `app.state`, initialized in the async lifespan context manager (`app/main.py`).
 5. **Services** contain business logic — conversation management, LLM health checks, query enhancement.
 6. **Storage layer** persists data across six stores (see below).
@@ -91,7 +91,7 @@ SQLite databases use `PRAGMA user_version` for schema migrations. Each database 
 2. **Parser** (`app/ingestion/parser.py`) splits files into chunks by heading structure, with configurable size and overlap.
 3. **Embedder** (`app/embeddings/embedder.py`) generates vector embeddings using ONNX models (runs on CPU, no PyTorch). Three models are available — see [embedding-models.md](embedding-models.md).
 4. **Indexer** (`app/ingestion/indexer.py`) orchestrates the pipeline: scan → parse → embed → store in ChromaDB + track in TrackingDB.
-5. **Watcher** (`app/ingestion/watcher.py`) uses `watchdog` to detect file changes and re-index incrementally. Runs in a background thread. The `FileWatcher` class supports adding directories at runtime — when a new source is added via the API, it starts watching immediately without a restart.
+5. **Watcher** (`app/ingestion/watcher.py`) uses `watchdog` to detect file changes and re-index incrementally. Runs in a background thread. The `FileWatcher` class supports adding directories at runtime — when a new source is added via the API, it starts watching immediately without a restart. The observer is cleanly stopped during application shutdown.
 6. **Event Bus** (`app/events.py`) — the watcher publishes `IndexEvent` objects (indexed, deleted, error) to an `IndexEventBus`. SSE clients subscribe via `GET /api/index/events` to receive real-time notifications as files are processed.
 
 ## Retrieval & RAG
@@ -118,7 +118,7 @@ LLM calls go through **LiteLLM** (`app/rag/llm.py`), which provides a unified in
 2. Other configured providers with valid API keys
 3. Ollama (no key required)
 
-Connection testing and model discovery for Ollama use `httpx` directly (`app/services/llm_service.py`). For providers with a model catalog plugin (e.g. Venice), the catalog provides the model list and capability info instead of relying on LiteLLM's registry. API keys are passed through from the provider config or the Settings UI.
+Connection testing and model discovery for Ollama use `httpx` directly (`app/services/llm_service.py`). For providers with a model catalog plugin (e.g. Venice), the catalog provides the model list and capability info instead of relying on LiteLLM's registry. API keys are resolved from Docker secrets (`/run/secrets/<provider>_api_key`) or environment variables (`<PROVIDER>_API_KEY`) — never from YAML config.
 
 ## Plugin System
 

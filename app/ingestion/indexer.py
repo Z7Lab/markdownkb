@@ -205,7 +205,7 @@ def reindex_file(
         source_root = ""
         for src in settings.sources:
             src_resolved = str(Path(src).resolve())
-            if str(p).startswith(src_resolved):
+            if str(p).startswith(src_resolved + "/"):
                 source_root = src_resolved
                 break
         if not source_root:

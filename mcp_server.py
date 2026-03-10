@@ -112,9 +112,10 @@ def get_document(path: str) -> dict:
 
     resolved = str(P(path).resolve())
 
-    # Verify the file belongs to a configured source
+    # Verify the file belongs to a configured source (trailing / prevents
+    # sibling-dir bypass, e.g. /docs matching /docs-private)
     in_source = any(
-        resolved.startswith(str(P(s).resolve()))
+        resolved.startswith(str(P(s).resolve()) + "/")
         for s in settings.sources
     )
     if not in_source:

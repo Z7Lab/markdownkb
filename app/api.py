@@ -37,11 +37,13 @@ def create_app(lifespan=None, settings_override=None) -> FastAPI:
 
     app.add_middleware(GZipMiddleware, minimum_size=1000)
 
+    # Resolve settings early for CORS config
+    from app.config import Settings
+    cfg = settings_override if settings_override is not None else Settings.get()
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            f"http://localhost:{os.environ.get('FRONTEND_PORT', '9714')}",
-        ],
+        allow_origins=getattr(cfg, "cors_origins", [f"http://localhost:{os.environ.get('FRONTEND_PORT', '9714')}"]),
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Content-Type", "Accept", "X-MDKB-Key"],
     )
@@ -54,9 +56,7 @@ def create_app(lifespan=None, settings_override=None) -> FastAPI:
         app.include_router(router_module.router)
 
     # Auto-discover and register plugins (feature-gated)
-    from app.config import Settings
     from app.plugins import register_plugins
-    cfg = settings_override if settings_override is not None else Settings.get()
     register_plugins(app, cfg)
 
     # API key authentication (only when a key is configured)

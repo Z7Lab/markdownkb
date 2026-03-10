@@ -1,27 +1,30 @@
 # Configuration
 
-mdkb is configured through two files:
+mdkb is configured through three sources:
 
 - **`config/settings.yaml`** — primary configuration (sources, LLM providers, retrieval tuning, feature flags, storage). Copy from `config/settings.yaml.example`.
-- **`.env`** — environment variables for ports, Docker settings, and API keys. Copy from `.env.example`.
+- **`secrets/`** — Docker secrets for API keys. One key per file, mounted at `/run/secrets/` inside the container. See `secrets/README.md`.
+- **`.env`** — environment variables for ports and Docker settings. Copy from `.env.example`.
 
-Both are gitignored. The example files are tracked.
+All three are gitignored. API keys should **only** be stored in `secrets/` (or env vars as a fallback) — never in `settings.yaml`.
 
 ## Precedence
 
-Environment variables override `settings.yaml` for the settings they overlap on:
+Docker secrets take highest priority, then environment variables, then `settings.yaml`:
 
-| Setting | settings.yaml | .env / Environment |
-|---------|--------------|-------------------|
+| Setting | settings.yaml | secrets / .env |
+|---------|--------------|----------------|
 | Server port | `server.port` | `API_PORT` |
 | Ollama URL | `llm.providers[].api_base` | `OLLAMA_API_BASE` |
-| LLM API keys | `llm.providers[].api_key` | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` |
-| MDKB API key | `auth.api_key` | `MDKB_API_KEY` |
+| LLM API keys | *(not supported)* | `secrets/<provider>_api_key` or `<PROVIDER>_API_KEY` env |
+| MDKB API key | *(not supported)* | `secrets/mdkb_api_key` or `MDKB_API_KEY` env |
 | Bind address | `server.host` | `MDKB_HOST` (Docker) |
+| CORS origins | `server.cors_origins` | `CORS_ORIGINS` (comma-separated) |
 
 **When to use which:**
-- Use `settings.yaml` for everything — it's the canonical config file with all options.
-- Use `.env` for machine-specific overrides (ports, Docker, API keys you don't want in YAML).
+- Use `secrets/` for all API keys (Docker mounts them read-only at `/run/secrets/`).
+- Use `settings.yaml` for non-secret configuration — it's the canonical config file.
+- Use `.env` for machine-specific overrides (ports, Docker settings).
 
 Settings changed via the **Settings** tab in the UI are saved back to `settings.yaml`.
 
@@ -48,7 +51,7 @@ Three embedding models are available: `all-MiniLM-L6-v2`, `all-MiniLM-L12-v2`, a
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `llm.providers` | anthropic, openai, ollama | LLM backends with `name`, `model`, `api_key`, `api_base` |
+| `llm.providers` | anthropic, openai, ollama | LLM backends with `name`, `model`, `api_base` |
 | `llm.active_provider` | `ollama` | Which provider to use |
 | `llm.temperature` | `0.3` | Response randomness (0.0–2.0) |
 | `llm.max_tokens` | `2048` | Max output tokens |
@@ -56,7 +59,7 @@ Three embedding models are available: `all-MiniLM-L6-v2`, `all-MiniLM-L12-v2`, a
 
 Model names use [LiteLLM format](https://docs.litellm.ai/docs/providers): `provider/model` (e.g. `ollama/qwen3:8b`, `anthropic/claude-3-5-sonnet-20241022`). For OpenAI-compatible APIs (Venice, Together, etc.) use `openai/<model-name>` with a custom `api_base`.
 
-Providers without an `api_key` are skipped (except Ollama). If the active provider fails, others are tried as fallbacks. API keys can be set in `settings.yaml` or via the Settings UI.
+Providers without an API key are skipped (except Ollama). If the active provider fails, others are tried as fallbacks. API keys are provided via Docker secrets (`secrets/<provider>_api_key`) or environment variables (`<PROVIDER>_API_KEY`).
 
 ### Model Catalogs
 
@@ -89,11 +92,19 @@ Available catalogs: `venice` (Venice.ai — privacy-preserving OpenAI-compatible
 
 ## Authentication
 
-| Key | Default | Description |
-|-----|---------|-------------|
-| `auth.api_key` | (empty) | API key for header-based authentication. When set, all `/api/*` requests must include `X-MDKB-Key: <key>`. Empty means auth is disabled. |
+API key authentication protects all `/api/*` endpoints (except `/api/health`). When a key is configured, requests must include the `X-MDKB-Key: <key>` header.
 
-Can also be set via `MDKB_API_KEY` environment variable (takes precedence over `settings.yaml`).
+Set the key via Docker secret or environment variable:
+
+```bash
+# Docker secret (preferred)
+echo -n "your-key-here" > secrets/mdkb_api_key
+
+# Or environment variable
+export MDKB_API_KEY=your-key-here
+```
+
+When no key is configured, authentication is disabled.
 
 ## Server
 
@@ -101,6 +112,7 @@ Can also be set via `MDKB_API_KEY` environment variable (takes precedence over `
 |-----|---------|-------------|
 | `server.host` | `127.0.0.1` | Bind address |
 | `server.port` | `9713` | Backend port |
+| `server.cors_origins` | `[http://localhost:9714]` | Allowed CORS origins (list). Override with `CORS_ORIGINS` env var (comma-separated). |
 | `plans.save_directory` | `./data/plans` | Where saved plans are written |
 
 ## Features

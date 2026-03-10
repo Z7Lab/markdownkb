@@ -1,6 +1,7 @@
 # Local-only files
 /untracked
 scripts/internal/
+docs/internal/
 
 .venv/
 __pycache__/
@@ -14,6 +15,7 @@ data/
 dist/
 build/
 .env
+secrets/
 
 # Pip artifacts
 =*

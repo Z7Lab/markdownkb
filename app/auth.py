@@ -9,6 +9,7 @@ Requests without a valid key receive a **401 Unauthorized** response.
 If no key is configured, authentication is silently disabled.
 """
 
+import hmac
 import logging
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -40,7 +41,7 @@ class ApiKeyMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         provided = request.headers.get(_HEADER, "")
-        if provided != self._api_key:
+        if not hmac.compare_digest(provided, self._api_key):
             return JSONResponse(
                 {"detail": "Invalid or missing API key"},
                 status_code=401,

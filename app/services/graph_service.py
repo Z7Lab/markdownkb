@@ -15,8 +15,8 @@ try:
     from sklearn.cluster import DBSCAN
     from sklearn.feature_extraction.text import TfidfVectorizer
 except ImportError:
-    DBSCAN = None  # type: ignore[assignment,misc]
-    TfidfVectorizer = None  # type: ignore[assignment,misc]
+    DBSCAN = None  # type: ignore[assignment,misc]  # optional dep, checked at call site
+    TfidfVectorizer = None  # type: ignore[assignment,misc]  # optional dep, checked at call site
 
 from app.storage.vectorstore import VectorStore
 

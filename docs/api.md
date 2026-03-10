@@ -4,7 +4,7 @@ All endpoints under `http://localhost:9713/api/`. Interactive docs (Swagger UI) 
 
 ## Authentication
 
-When an API key is configured (`auth.api_key` in `settings.yaml` or `MDKB_API_KEY` env var), all `/api/*` endpoints require the header:
+When an API key is configured (via Docker secret `mdkb_api_key` or `MDKB_API_KEY` env var), all `/api/*` endpoints require the header:
 
 ```
 X-MDKB-Key: <your-key>

@@ -65,7 +65,7 @@ def reindex_file(
     source_root = ""
     for src in settings.sources:
         resolved = str(Path(src).resolve())
-        if filepath.startswith(resolved):
+        if filepath.startswith(resolved + "/"):
             source_root = resolved
             break
 
@@ -135,6 +135,10 @@ class MarkdownHandler(FileSystemEventHandler):
         if now - last < 2.0:
             return False
         self._debounce[path] = now
+        # Prune stale entries to prevent unbounded growth
+        if len(self._debounce) > 1000:
+            cutoff = now - 10.0
+            self._debounce = {k: v for k, v in self._debounce.items() if v > cutoff}
         return True
 
     def on_created(self, event: FileSystemEvent):
@@ -185,7 +189,7 @@ class MarkdownHandler(FileSystemEventHandler):
         dest_source_root = ""
         for s in self._settings.sources:
             resolved = str(Path(s).resolve())
-            if dest.startswith(resolved):
+            if dest.startswith(resolved + "/"):
                 dest_source_root = resolved
                 break
 
@@ -260,14 +264,18 @@ class FileWatcher:
             self.add_directory(source)
         self._observer.start()
 
+    def stop(self):
+        """Stop the observer and wait for it to finish."""
+        self._observer.stop()
+        self._observer.join()
+
     def run_forever(self):
         """Block the current thread until interrupted."""
         try:
             while True:
                 time.sleep(1)
         except KeyboardInterrupt:
-            self._observer.stop()
-        self._observer.join()
+            self.stop()
 
     def index_directory(self, path: str):
         """Trigger an initial index for files in a newly added directory."""
