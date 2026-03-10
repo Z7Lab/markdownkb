@@ -4,6 +4,31 @@ import { streamSearchSummary } from "@/lib/sse"
 import { toast } from "sonner"
 import type { PaginatedResponse, SavedSearch, SearchResult, SearchResponse, CompareResponse, SearchVersion, ScoreChange } from "@/lib/types"
 
+/** Historical search comparison metadata — always set/reset together */
+interface HistoricalMeta {
+  isHistorical: boolean
+  resultsChanged: boolean
+  missingFiles: string[]
+  newFiles: string[]
+  scoreChanges: ScoreChange[]
+  storedResultCount: number | null
+  currentResultCount: number | null
+  createdAt: string | null
+  versionCount: number
+}
+
+const INITIAL_HISTORICAL: HistoricalMeta = {
+  isHistorical: false,
+  resultsChanged: false,
+  missingFiles: [],
+  newFiles: [],
+  scoreChanges: [],
+  storedResultCount: null,
+  currentResultCount: null,
+  createdAt: null,
+  versionCount: 0,
+}
+
 export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null) {
   const [query, setQuery] = useState("")
   const [folder, setFolder] = useState<string | null>(null)
@@ -19,16 +44,8 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
   const [searches, setSearches] = useState<SavedSearch[]>([])
   const [activeSearchId, setActiveSearchId] = useState<string | null>(null)
 
-  // Historical search metadata
-  const [isHistorical, setIsHistorical] = useState(false)
-  const [resultsChanged, setResultsChanged] = useState(false)
-  const [missingFiles, setMissingFiles] = useState<string[]>([])
-  const [newFiles, setNewFiles] = useState<string[]>([])
-  const [scoreChanges, setScoreChanges] = useState<ScoreChange[]>([])
-  const [storedResultCount, setStoredResultCount] = useState<number | null>(null)
-  const [currentResultCount, setCurrentResultCount] = useState<number | null>(null)
-  const [createdAt, setCreatedAt] = useState<string | null>(null)
-  const [versionCount, setVersionCount] = useState(0)
+  // Historical search metadata (compound state)
+  const [historical, setHistorical] = useState<HistoricalMeta>(INITIAL_HISTORICAL)
 
   // AI summary
   const [summary, setSummary] = useState("")
@@ -52,7 +69,6 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
         setTags(tagsRes.items)
         setSearches(searchesRes.items)
       } catch {
-        // If load failed and we haven't exceeded max retries, retry in 2 seconds
         if (retryCount < MAX_RETRIES) {
           retryCount++
           retryTimer = setTimeout(loadWithRetry, 2000)
@@ -64,7 +80,6 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
 
     return () => {
       if (retryTimer) clearTimeout(retryTimer)
-      // Clean up any active summary streaming on unmount
       summaryControllerRef.current?.abort()
     }
   }, [])
@@ -82,32 +97,45 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
     }
   }, [])
 
-  // Reset historical metadata
-  const resetHistoricalState = useCallback(() => {
-    setIsHistorical(false)
-    setResultsChanged(false)
-    setMissingFiles([])
-    setNewFiles([])
-    setScoreChanges([])
-    setStoredResultCount(null)
-    setCurrentResultCount(null)
-    setCreatedAt(null)
-    setVersionCount(0)
+  /** Stop any running summary and reset summary state */
+  const resetSummary = useCallback(() => {
+    summaryControllerRef.current?.abort()
+    setSummary("")
+    setSummarySources([])
   }, [])
 
-  const search = useCallback(async () => {
+  /** Start streaming an AI summary for the given query */
+  const startSummary = useCallback((
+    searchQuery: string,
+    options: { folder?: string | null; tag?: string | null; search_id?: string | null },
+  ) => {
+    setIsSummarizing(true)
+    summaryControllerRef.current = streamSearchSummary(
+      searchQuery,
+      {
+        onToken: (delta) => setSummary((prev) => prev + delta),
+        onSources: (sources) => setSummarySources(sources),
+        onDone: () => setIsSummarizing(false),
+        onError: (err) => {
+          setIsSummarizing(false)
+          console.error("Summary error:", err)
+        },
+      },
+      { ...options, scope_ids: scopeIds, ad_hoc_tags: adHocTags },
+    )
+  }, [scopeIds, adHocTags])
+
+  /**
+   * Shared logic for search and requery — executes a search POST and starts summary streaming.
+   * The only difference is requery passes parent_id for version chaining.
+   */
+  const executeSearch = useCallback(async (parentId?: string | null) => {
     if (!query.trim()) return
     setLoading(true)
     setLoadingHistorical(false)
     setError(null)
-
-    // Reset historical flags - this is a new search
-    resetHistoricalState()
-
-    // Stop any running summary
-    summaryControllerRef.current?.abort()
-    setSummary("")
-    setSummarySources([])
+    setHistorical(INITIAL_HISTORICAL)
+    resetSummary()
 
     try {
       const res = await api.post<SearchResponse>("/api/search", {
@@ -116,39 +144,29 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
         tag: tag || undefined,
         scope_ids: scopeIds || undefined,
         ad_hoc_tags: adHocTags && adHocTags.length > 0 ? adHocTags : undefined,
+        ...(parentId ? { parent_id: parentId } : {}),
       })
       setResults(res.results)
       setActiveSearchId(res.search_id)
       refreshSearches()
 
-      // Notify user if intelligent search fell back due to offline LLM
       if (res.llm_offline) {
         toast.warning("Intelligent search unavailable (LLM offline), using standard search")
       }
 
-      // Start AI summary streaming
-      setIsSummarizing(true)
-      summaryControllerRef.current = streamSearchSummary(
-        query.trim(),
-        {
-          onToken: (delta) => setSummary((prev) => prev + delta),
-          onSources: (sources) => setSummarySources(sources),
-          onDone: () => setIsSummarizing(false),
-          onError: (err) => {
-            setIsSummarizing(false)
-            console.error("Summary error:", err)
-          },
-        },
-        { folder, tag, search_id: res.search_id, scope_ids: scopeIds, ad_hoc_tags: adHocTags },
-      )
+      startSummary(query.trim(), { folder, tag, search_id: res.search_id })
     } catch (err) {
       const msg = (err as Error).message
       setError(msg)
-      toast.error(`Search failed: ${msg}`)
+      toast.error(`${parentId ? "Re-query" : "Search"} failed: ${msg}`)
     } finally {
       setLoading(false)
     }
-  }, [query, folder, tag, scopeIds, adHocTags, refreshSearches, resetHistoricalState])
+  }, [query, folder, tag, scopeIds, adHocTags, refreshSearches, resetSummary, startSummary])
+
+  const search = useCallback(() => executeSearch(), [executeSearch])
+
+  const requery = useCallback(() => executeSearch(activeSearchId), [executeSearch, activeSearchId])
 
   const deleteSearch = useCallback(async (id: string) => {
     try {
@@ -166,23 +184,23 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
     setTag(saved.tag)
     setActiveSearchId(saved.id)
 
-    // Stop any running summary
     summaryControllerRef.current?.abort()
     setIsSummarizing(false)
 
     setLoading(true)
     setLoadingHistorical(true)
     setError(null)
-    resetHistoricalState()
+    setHistorical(INITIAL_HISTORICAL)
 
     try {
-      // Fast load: get stored results + metadata (no re-search)
       const res = await api.get<SearchResponse>(`/api/searches/${saved.id}/load`)
-
       setResults(res.results)
-      setIsHistorical(res.is_historical)
-      setCreatedAt(res.created_at || null)
-      setVersionCount(res.version_count || 0)
+      setHistorical(prev => ({
+        ...prev,
+        isHistorical: res.is_historical,
+        createdAt: res.created_at || null,
+        versionCount: res.version_count || 0,
+      }))
       setSummary(res.summary || "")
       setSummarySources([])
     } catch (err) {
@@ -193,21 +211,23 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
       setLoading(false)
     }
 
-    // Lazy compare: fetch change detection in background (slow, non-blocking)
+    // Lazy compare: fetch change detection in background
     api.get<CompareResponse>(`/api/searches/${saved.id}/compare`).then((cmp) => {
-      setResultsChanged(cmp.results_changed)
-      setMissingFiles(cmp.missing_files)
-      setNewFiles(cmp.new_files)
-      setScoreChanges(cmp.score_changes)
-      setStoredResultCount(cmp.stored_result_count)
-      setCurrentResultCount(cmp.current_result_count)
+      setHistorical(prev => ({
+        ...prev,
+        resultsChanged: cmp.results_changed,
+        missingFiles: cmp.missing_files,
+        newFiles: cmp.new_files,
+        scoreChanges: cmp.score_changes,
+        storedResultCount: cmp.stored_result_count,
+        currentResultCount: cmp.current_result_count,
+      }))
     }).catch((err) => {
       console.warn("Results comparison failed:", err)
     })
-  }, [resetHistoricalState])
+  }, [])
 
   const loadVersion = useCallback(async (version: SearchVersion) => {
-    // Load a specific version by creating a minimal SavedSearch object
     await loadSearch({
       id: version.id,
       query: version.query,
@@ -232,65 +252,6 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
     }
   }, [])
 
-  const requery = useCallback(async () => {
-    if (!query.trim()) return
-
-    setLoading(true)
-    setLoadingHistorical(false)
-    setError(null)
-
-    // Reset historical flags - this is a fresh search
-    resetHistoricalState()
-
-    // Stop any running summary
-    summaryControllerRef.current?.abort()
-    setSummary("")
-    setSummarySources([])
-
-    try {
-      // Execute a new search linked to the current search (version chain)
-      const res = await api.post<SearchResponse>("/api/search", {
-        query: query.trim(),
-        folder: folder || undefined,
-        tag: tag || undefined,
-        scope_ids: scopeIds || undefined,
-        ad_hoc_tags: adHocTags && adHocTags.length > 0 ? adHocTags : undefined,
-        parent_id: activeSearchId || undefined,
-      })
-
-      setResults(res.results)
-      setActiveSearchId(res.search_id)
-      refreshSearches()
-
-      // Notify user if intelligent search fell back due to offline LLM
-      if (res.llm_offline) {
-        toast.warning("Intelligent search unavailable (LLM offline), using standard search")
-      }
-
-      // Generate fresh summary
-      setIsSummarizing(true)
-      summaryControllerRef.current = streamSearchSummary(
-        query.trim(),
-        {
-          onToken: (delta) => setSummary((prev) => prev + delta),
-          onSources: (sources) => setSummarySources(sources),
-          onDone: () => setIsSummarizing(false),
-          onError: (err) => {
-            setIsSummarizing(false)
-            console.error("Summary error:", err)
-          },
-        },
-        { folder, tag, search_id: res.search_id, scope_ids: scopeIds, ad_hoc_tags: adHocTags },
-      )
-    } catch (err) {
-      const msg = (err as Error).message
-      setError(msg)
-      toast.error(`Re-query failed: ${msg}`)
-    } finally {
-      setLoading(false)
-    }
-  }, [query, folder, tag, scopeIds, adHocTags, activeSearchId, refreshSearches, resetHistoricalState])
-
   const stopSummary = useCallback(() => {
     summaryControllerRef.current?.abort()
     setIsSummarizing(false)
@@ -298,29 +259,9 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
 
   const generateSummary = useCallback(async () => {
     if (!query.trim()) return
-
-    // Stop any running summary
-    summaryControllerRef.current?.abort()
-    setSummary("")
-    setSummarySources([])
-
-    // Start AI summary streaming
-    setIsSummarizing(true)
-    summaryControllerRef.current = streamSearchSummary(
-      query.trim(),
-      {
-        onToken: (delta) => setSummary((prev) => prev + delta),
-        onSources: (sources) => setSummarySources(sources),
-        onDone: () => setIsSummarizing(false),
-        onError: (err) => {
-          setIsSummarizing(false)
-          console.error("Summary error:", err)
-          toast.error(`Failed to generate summary: ${err.message}`)
-        },
-      },
-      { folder, tag, search_id: activeSearchId || undefined, scope_ids: scopeIds, ad_hoc_tags: adHocTags },
-    )
-  }, [query, folder, tag, activeSearchId, scopeIds, adHocTags])
+    resetSummary()
+    startSummary(query.trim(), { folder, tag, search_id: activeSearchId || undefined })
+  }, [query, folder, tag, activeSearchId, resetSummary, startSummary])
 
   const newSearch = useCallback(() => {
     summaryControllerRef.current?.abort()
@@ -333,8 +274,8 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
     setIsSummarizing(false)
     setActiveSearchId(null)
     setError(null)
-    resetHistoricalState()
-  }, [resetHistoricalState])
+    setHistorical(INITIAL_HISTORICAL)
+  }, [])
 
   return {
     query, setQuery, folder, setFolder, tag, setTag,
@@ -343,8 +284,15 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
     summary, summarySources, isSummarizing, stopSummary, generateSummary,
     newSearch, refreshSearches, requery,
     loadVersion, fetchVersions,
-    // Historical search metadata
-    isHistorical, resultsChanged, missingFiles, newFiles, scoreChanges,
-    storedResultCount, currentResultCount, createdAt, versionCount,
+    // Historical search metadata (spread compound state for API compatibility)
+    isHistorical: historical.isHistorical,
+    resultsChanged: historical.resultsChanged,
+    missingFiles: historical.missingFiles,
+    newFiles: historical.newFiles,
+    scoreChanges: historical.scoreChanges,
+    storedResultCount: historical.storedResultCount,
+    currentResultCount: historical.currentResultCount,
+    createdAt: historical.createdAt,
+    versionCount: historical.versionCount,
   }
 }

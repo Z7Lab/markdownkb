@@ -89,7 +89,7 @@ export function SettingsTab() {
       <AppSidebar
         header={<h3 className="text-sm font-semibold text-muted-foreground">Settings</h3>}
       >
-        <div className="p-2 space-y-0.5">
+        <nav aria-label="Settings sections" className="p-2 space-y-0.5">
           {sections.map((s) => (
             <button
               key={s.id}
@@ -98,6 +98,7 @@ export function SettingsTab() {
                 "w-full text-left rounded-md px-3 py-2 text-sm flex items-center gap-2 hover:bg-accent",
                 activeSection === s.id && "bg-accent font-medium",
               )}
+              aria-current={activeSection === s.id ? "page" : undefined}
               onClick={() => {
                 setActiveSection(s.id)
                 if (s.id === "sources" && errorCount > 0) clearErrors()
@@ -112,7 +113,7 @@ export function SettingsTab() {
               )}
             </button>
           ))}
-        </div>
+        </nav>
       </AppSidebar>
       <div className="flex-1 min-w-0 min-h-0">
         <ScrollArea className="h-full">

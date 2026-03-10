@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useMemo } from "react"
 import {
   Dialog,
   DialogContent,
@@ -33,14 +33,15 @@ export function BulkTagDialog({
   const [tags, setTags] = useState<string[]>([])
   const [input, setInput] = useState("")
 
-  // Reset state when dialog opens
-  useEffect(() => {
-    if (open) {
+  // Reset state when dialog opens/closes
+  function handleOpenChange(next: boolean) {
+    if (next) {
       setMode("add")
       setTags([])
       setInput("")
     }
-  }, [open])
+    onOpenChange(next)
+  }
 
   // Collect all existing tags for suggestions
   const existingTags = useMemo(() => {
@@ -89,7 +90,7 @@ export function BulkTagDialog({
   const paths = Array.from(selectedFiles)
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Bulk Tag — {paths.length} files</DialogTitle>

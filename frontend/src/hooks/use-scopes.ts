@@ -17,7 +17,7 @@ export function useScopes() {
   }, [])
 
   useEffect(() => {
-    refresh()
+    refresh() // eslint-disable-line react-hooks/set-state-in-effect -- initial data fetch on mount
   }, [refresh])
 
   const createScope = useCallback(async (name: string, folders: string[], tags: string[] = []) => {

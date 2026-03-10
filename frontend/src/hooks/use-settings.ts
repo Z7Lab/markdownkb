@@ -1,7 +1,9 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react"
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react"
 import { createElement } from "react"
 import { api } from "@/lib/api"
-import type { AppSettings, EmbeddingModel, ModelEntry, ModelInfo } from "@/lib/types"
+import type { AppSettings } from "@/lib/types"
+import { useProviderSettings } from "./use-provider-settings"
+import { useEmbeddingSettings } from "./use-embedding-settings"
 
 type SettingsValue = ReturnType<typeof useSettingsInternal>
 
@@ -20,23 +22,6 @@ export function useSettings(): SettingsValue {
 
 function useSettingsInternal() {
   const [settings, setSettings] = useState<AppSettings | null>(null)
-  const [providerStatus, setProviderStatus] = useState("")
-  const [modelStatus, setModelStatus] = useState("")
-  const [indexStatus, setIndexStatus] = useState("")
-  const [embeddingModels, setEmbeddingModels] = useState<EmbeddingModel[]>([])
-  const [embeddingStatus, setEmbeddingStatus] = useState("")
-  const [embeddingSwitching, setEmbeddingSwitching] = useState(false)
-
-  const loadEmbeddingModels = useCallback(async () => {
-    try {
-      const res = await api.get<{ models: EmbeddingModel[]; active_model: string }>(
-        "/api/settings/embedding-models",
-      )
-      setEmbeddingModels(res.models)
-    } catch (err) {
-      console.debug("Failed to load embedding models:", err)
-    }
-  }, [])
 
   const load = useCallback(async (): Promise<boolean> => {
     try {
@@ -49,7 +34,7 @@ function useSettingsInternal() {
     }
   }, [])
 
-  // Initial load with retry on failure
+  // Initial load with retry
   useEffect(() => {
     let retryTimer: ReturnType<typeof setTimeout> | null = null
     let retryCount = 0
@@ -57,8 +42,6 @@ function useSettingsInternal() {
 
     const loadWithRetry = async () => {
       const success = await load()
-
-      // If load failed and we haven't exceeded max retries, retry in 2 seconds
       if (!success && retryCount < MAX_RETRIES) {
         retryCount++
         retryTimer = setTimeout(loadWithRetry, 2000)
@@ -66,117 +49,15 @@ function useSettingsInternal() {
     }
 
     loadWithRetry()
-    loadEmbeddingModels()
-    // Check if a background reindex is already running (e.g. page refresh)
-    api.get<{
-      running: boolean
-      progress: number
-      message: string
-      result: string
-    }>("/api/settings/embedding-models/status").then((st) => {
-      if (st.running) {
-        setEmbeddingSwitching(true)
-        const pct = Math.round(st.progress * 100)
-        setEmbeddingStatus(`[${pct}%] ${st.message}`)
-        // Start polling
-        switchPollRef.current = setInterval(async () => {
-          try {
-            const s = await api.get<{
-              running: boolean
-              progress: number
-              message: string
-              result: string
-            }>("/api/settings/embedding-models/status")
-            if (s.running) {
-              const p = Math.round(s.progress * 100)
-              setEmbeddingStatus(`[${p}%] ${s.message}`)
-            } else {
-              if (switchPollRef.current) clearInterval(switchPollRef.current)
-              switchPollRef.current = null
-              setEmbeddingSwitching(false)
-              setEmbeddingStatus(s.result || "Reindex complete")
-              load()
-              loadEmbeddingModels()
-            }
-          } catch {
-            if (switchPollRef.current) clearInterval(switchPollRef.current)
-            switchPollRef.current = null
-            setEmbeddingSwitching(false)
-            setEmbeddingStatus("Lost connection during reindex")
-          }
-        }, 1500)
-      }
-    }).catch((err) => { console.debug("Failed to check embedding status:", err) })
 
-    return () => {
-      if (retryTimer) clearTimeout(retryTimer)
-      // Clean up any active polling interval on unmount
-      if (switchPollRef.current) {
-        clearInterval(switchPollRef.current)
-        switchPollRef.current = null
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // Only run on mount
+    return () => { if (retryTimer) clearTimeout(retryTimer) }
+  }, [load])
 
-  const saveProvider = useCallback(
-    async (name: string, model: string, apiBase: string, apiKey: string = "") => {
-      await api.put("/api/settings/provider", {
-        name,
-        model,
-        api_base: apiBase,
-        api_key: apiKey,
-      })
-      setModelStatus(`Saved: ${name} / ${model}`)
-      await load()
-    },
-    [load],
-  )
+  // Domain hooks
+  const provider = useProviderSettings(load)
+  const embedding = useEmbeddingSettings(load)
 
-  const testConnection = useCallback(
-    async (name: string, model: string, apiBase: string, apiKey: string = "") => {
-      setProviderStatus("Testing...")
-      const res = await api.post<{ result: string }>("/api/settings/test-connection", {
-        name,
-        model,
-        api_base: apiBase,
-        api_key: apiKey,
-      })
-      setProviderStatus(res.result)
-    },
-    [],
-  )
-
-  const refreshModels = useCallback(async (name: string, apiBase: string) => {
-    const res = await api.post<{ models: ModelEntry[]; status: string }>(
-      "/api/settings/refresh-models",
-      { name, api_base: apiBase },
-    )
-    return res
-  }, [])
-
-  const pingModel = useCallback(
-    async (model: string, apiBase: string, apiKey: string = "", signal?: AbortSignal) => {
-      setModelStatus("Pinging model...")
-      try {
-        const res = await api.post<{ result: string }>("/api/settings/ping-model", {
-          name: "",
-          model,
-          api_base: apiBase,
-          api_key: apiKey,
-        }, signal)
-        setModelStatus(res.result)
-      } catch (err) {
-        if ((err as Error).name === "AbortError") {
-          setModelStatus("")
-        } else {
-          setModelStatus(`Error: ${err}`)
-        }
-      }
-    },
-    [],
-  )
-
+  // Simple settings actions that just save + reload
   const toggleFeature = useCallback(
     async (name: string, enabled: boolean) => {
       await api.put("/api/settings/features", { name, enabled })
@@ -225,76 +106,6 @@ function useSettingsInternal() {
     [load],
   )
 
-  const fetchModelInfo = useCallback(
-    async (model: string, apiBase: string) => {
-      const res = await api.post<ModelInfo>("/api/settings/model-info", {
-        model,
-        api_base: apiBase,
-      })
-      return res
-    },
-    [],
-  )
-
-  const reindex = useCallback(async (force = false) => {
-    if (!force) {
-      setIndexStatus("Indexing...")
-      try {
-        const res = await api.post<{ message: string }>("/api/index")
-        setIndexStatus(res.message)
-      } catch (e) {
-        setIndexStatus(`Error: ${e}`)
-      }
-      return
-    }
-
-    setEmbeddingStatus("Force reindexing all files...")
-    setEmbeddingSwitching(true)
-    try {
-      await api.post("/api/index", { force: true })
-
-      switchPollRef.current = setInterval(async () => {
-        try {
-          const st = await api.get<{
-            running: boolean
-            progress: number
-            message: string
-            result: string
-          }>("/api/settings/embedding-models/status")
-          if (st.running) {
-            const pct = Math.round(st.progress * 100)
-            setEmbeddingStatus(`[${pct}%] ${st.message}`)
-          } else {
-            if (switchPollRef.current) clearInterval(switchPollRef.current)
-            switchPollRef.current = null
-            setEmbeddingSwitching(false)
-            setEmbeddingStatus(st.result || "Reindex complete")
-            await load()
-          }
-        } catch {
-          if (switchPollRef.current) clearInterval(switchPollRef.current)
-          switchPollRef.current = null
-          setEmbeddingSwitching(false)
-          setEmbeddingStatus("Lost connection during reindex")
-        }
-      }, 1500)
-    } catch (e) {
-      setEmbeddingSwitching(false)
-      setEmbeddingStatus(`Error: ${e}`)
-    }
-  }, [load])
-
-  const cancelIndex = useCallback(async () => {
-    await api.post("/api/index/cancel")
-    if (switchPollRef.current) {
-      clearInterval(switchPollRef.current)
-      switchPollRef.current = null
-    }
-    setEmbeddingSwitching(false)
-    setEmbeddingStatus("Cancelled")
-    setIndexStatus("Cancelled")
-  }, [])
-
   const saveSystemPrompt = useCallback(
     async (prompt: string) => {
       await api.put("/api/settings/system-prompt", { prompt })
@@ -311,132 +122,17 @@ function useSettingsInternal() {
     [load],
   )
 
-  const saveLlmParams = useCallback(
-    async (temperature: number, maxTokens: number, numCtx: number | null) => {
-      await api.put("/api/settings/llm-params", {
-        temperature,
-        max_tokens: maxTokens,
-        num_ctx: numCtx,
-      })
-      await load()
-    },
-    [load],
-  )
-
   const saveRetrievalSettings = useCallback(
-    async (settings: {
+    async (s: {
       top_k: number
       score_threshold: number
       hybrid_search: boolean
       bm25_weight: number
     }) => {
-      await api.put("/api/settings/retrieval", settings)
+      await api.put("/api/settings/retrieval", s)
       await load()
     },
     [load],
-  )
-
-  const installEmbeddingModel = useCallback(
-    async (modelId: string) => {
-      setEmbeddingStatus(`Installing ${modelId}...`)
-      setEmbeddingSwitching(true)
-      try {
-        const res = await api.post<{ status: string }>(
-          "/api/settings/embedding-models/install",
-          { model_id: modelId },
-        )
-        if (res.status === "already_installed") {
-          setEmbeddingStatus(`${modelId} already installed`)
-          setEmbeddingSwitching(false)
-          await loadEmbeddingModels()
-          return
-        }
-        // Poll for background install progress
-        switchPollRef.current = setInterval(async () => {
-          try {
-            const st = await api.get<{
-              running: boolean; progress: number; message: string; result: string
-            }>("/api/settings/embedding-models/status")
-            if (st.running) {
-              const pct = Math.round(st.progress * 100)
-              setEmbeddingStatus(`[${pct}%] ${st.message}`)
-            } else {
-              if (switchPollRef.current) clearInterval(switchPollRef.current)
-              switchPollRef.current = null
-              setEmbeddingSwitching(false)
-              setEmbeddingStatus(st.result || `Installed ${modelId}`)
-              await loadEmbeddingModels()
-            }
-          } catch {
-            if (switchPollRef.current) clearInterval(switchPollRef.current)
-            switchPollRef.current = null
-            setEmbeddingSwitching(false)
-            setEmbeddingStatus("Lost connection during install")
-          }
-        }, 1000)
-      } catch (e) {
-        setEmbeddingSwitching(false)
-        setEmbeddingStatus(`Error: ${e}`)
-      }
-    },
-    [loadEmbeddingModels],
-  )
-
-  const switchPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  // Clean up polling on unmount
-  useEffect(() => {
-    return () => {
-      if (switchPollRef.current) clearInterval(switchPollRef.current)
-    }
-  }, [])
-
-  const switchEmbeddingModel = useCallback(
-    async (modelId: string) => {
-      setEmbeddingStatus(`Switching to ${modelId}...`)
-      setEmbeddingSwitching(true)
-      try {
-        await api.put<{ status: string }>(
-          "/api/settings/embedding-models/switch",
-          { model_id: modelId },
-        )
-
-        // Refresh model list immediately to show new active model
-        await loadEmbeddingModels()
-
-        // Poll for background reindex progress
-        switchPollRef.current = setInterval(async () => {
-          try {
-            const st = await api.get<{
-              running: boolean
-              progress: number
-              message: string
-              result: string
-            }>("/api/settings/embedding-models/status")
-            if (st.running) {
-              const pct = Math.round(st.progress * 100)
-              setEmbeddingStatus(`[${pct}%] ${st.message}`)
-            } else {
-              if (switchPollRef.current) clearInterval(switchPollRef.current)
-              switchPollRef.current = null
-              setEmbeddingSwitching(false)
-              setEmbeddingStatus(st.result || "Switched successfully")
-              await load()
-              await loadEmbeddingModels()
-            }
-          } catch {
-            if (switchPollRef.current) clearInterval(switchPollRef.current)
-            switchPollRef.current = null
-            setEmbeddingSwitching(false)
-            setEmbeddingStatus("Lost connection during reindex")
-          }
-        }, 1500)
-      } catch (e) {
-        setEmbeddingSwitching(false)
-        setEmbeddingStatus(`Error: ${e}`)
-      }
-    },
-    [load, loadEmbeddingModels],
   )
 
   const setLogLevel = useCallback(
@@ -449,31 +145,21 @@ function useSettingsInternal() {
 
   return {
     settings,
-    providerStatus,
-    modelStatus,
-    indexStatus,
-    embeddingModels,
-    embeddingStatus,
-    embeddingSwitching,
-    saveProvider,
-    saveLlmParams,
-    testConnection,
-    refreshModels,
-    pingModel,
-    fetchModelInfo,
-    toggleFeature,
-    toggleIntelligentSearch,
+    // Provider
+    ...provider,
+    // Embedding
+    ...embedding,
+    // Sources
     addSource,
     removeSource,
     addIgnorePattern,
     removeIgnorePattern,
-    reindex,
-    cancelIndex,
+    // Features & config
+    toggleFeature,
+    toggleIntelligentSearch,
     saveSystemPrompt,
     saveSearchSummaryPrompt,
     saveRetrievalSettings,
-    installEmbeddingModel,
-    switchEmbeddingModel,
     setLogLevel,
   }
 }

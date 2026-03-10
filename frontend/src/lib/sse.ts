@@ -1,3 +1,6 @@
+import { getApiKey } from "@/lib/api"
+import type { PlanNode, SkillReview } from "@/lib/types"
+
 /** Generic SSE stream reader — parses event/data lines from a ReadableStream. */
 export async function parseSSEStream(
   reader: ReadableStreamDefaultReader<Uint8Array>,
@@ -31,6 +34,67 @@ export async function parseSSEStream(
   }
 }
 
+/** Type-safe helpers for extracting typed values from SSE data */
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback
+}
+
+function asNumber(value: unknown, fallback = 0): number {
+  return typeof value === "number" ? value : fallback
+}
+
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : []
+}
+
+/**
+ * Generic SSE streaming helper — handles fetch, error handling, and abort.
+ * All three stream functions share this pattern.
+ */
+function streamSSE(
+  url: string,
+  body: Record<string, unknown>,
+  onEvent: (event: string, data: Record<string, unknown>) => void,
+  onDone: () => void,
+  onError: (error: Error) => void,
+): AbortController {
+  const controller = new AbortController()
+
+  const headers: Record<string, string> = { "Content-Type": "application/json" }
+  const key = getApiKey()
+  if (key) headers["X-MDKB-Key"] = key
+
+  fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+    signal: controller.signal,
+  })
+    .then(async (res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const reader = res.body?.getReader()
+      if (!reader) throw new Error("No response body")
+
+      let doneReceived = false
+      await parseSSEStream(reader, (event, data) => {
+        if (event === "done") {
+          doneReceived = true
+          onDone()
+        } else {
+          onEvent(event, data)
+        }
+      })
+      if (!doneReceived) onDone()
+    })
+    .catch((err) => {
+      if (err.name !== "AbortError") {
+        onError(err)
+      }
+    })
+
+  return controller
+}
+
 export interface SSECallbacks {
   onThread: (threadId: string, title: string) => void
   onToken: (content: string) => void
@@ -53,50 +117,26 @@ export function streamChat(
   scopeIds?: string | null,
   adHocTags?: string[] | null,
 ): AbortController {
-  const controller = new AbortController()
-
   const body: Record<string, unknown> = { message }
   if (threadId) body.thread_id = threadId
   if (scopeIds) body.scope_ids = scopeIds
   if (adHocTags && adHocTags.length > 0) body.ad_hoc_tags = adHocTags
 
-  fetch("/api/chat/stream", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    signal: controller.signal,
-  })
-    .then(async (res) => {
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`)
+  return streamSSE(
+    "/api/chat/stream",
+    body,
+    (event, data) => {
+      if (event === "thread") {
+        callbacks.onThread(asString(data.thread_id), asString(data.title))
+      } else if (event === "token") {
+        callbacks.onToken(asString(data.content))
+      } else if (event === "sources") {
+        callbacks.onSources(asStringArray(data.sources))
       }
-      const reader = res.body?.getReader()
-      if (!reader) throw new Error("No response body")
-
-      let doneReceived = false
-      await parseSSEStream(reader, (event, data) => {
-        if (event === "thread") {
-          callbacks.onThread(data.thread_id as string, (data.title as string) ?? "")
-        } else if (event === "token") {
-          callbacks.onToken(data.content as string)
-        } else if (event === "sources") {
-          callbacks.onSources(data.sources as string[])
-        } else if (event === "done") {
-          doneReceived = true
-          callbacks.onDone()
-        }
-      })
-      if (!doneReceived) {
-        callbacks.onDone()
-      }
-    })
-    .catch((err) => {
-      if (err.name !== "AbortError") {
-        callbacks.onError(err)
-      }
-    })
-
-  return controller
+    },
+    callbacks.onDone,
+    callbacks.onError,
+  )
 }
 
 export interface PlanCallbacks {
@@ -104,8 +144,8 @@ export interface PlanCallbacks {
   onApproach: (content: string, score: number) => void
   onPlan: (plan: string) => void
   onSources: (sources: string[]) => void
-  onTree: (tree: Record<string, unknown>) => void
-  onReviews: (reviews: Record<string, unknown>[], refinedPlan: string) => void
+  onTree: (tree: PlanNode) => void
+  onReviews: (reviews: SkillReview[], refinedPlan: string) => void
   onDone: () => void
   onError: (error: Error) => void
 }
@@ -115,8 +155,6 @@ export function streamPlan(
   callbacks: PlanCallbacks,
   options?: { iterations?: number; n_approaches?: number; skill_names?: string[]; scope_ids?: string | null; ad_hoc_tags?: string[] | null },
 ): AbortController {
-  const controller = new AbortController()
-
   const body: Record<string, unknown> = { request }
   if (options?.iterations) body.iterations = options.iterations
   if (options?.n_approaches) body.n_approaches = options.n_approaches
@@ -124,48 +162,30 @@ export function streamPlan(
   if (options?.scope_ids) body.scope_ids = options.scope_ids
   if (options?.ad_hoc_tags && options.ad_hoc_tags.length > 0) body.ad_hoc_tags = options.ad_hoc_tags
 
-  fetch("/api/planner/plan/stream", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    signal: controller.signal,
-  })
-    .then(async (res) => {
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const reader = res.body?.getReader()
-      if (!reader) throw new Error("No response body")
-
-      let doneReceived = false
-      await parseSSEStream(reader, (event, data) => {
-        if (event === "status") {
-          callbacks.onStatus(data.phase as string, data.message as string)
-        } else if (event === "approach") {
-          callbacks.onApproach(data.content as string, data.score as number)
-        } else if (event === "plan") {
-          callbacks.onPlan(data.plan as string)
-        } else if (event === "sources") {
-          callbacks.onSources(data.sources as string[])
-        } else if (event === "tree") {
-          callbacks.onTree(data.tree as Record<string, unknown>)
-        } else if (event === "reviews") {
-          callbacks.onReviews(
-            data.reviews as Record<string, unknown>[],
-            data.refined_plan as string,
-          )
-        } else if (event === "done") {
-          doneReceived = true
-          callbacks.onDone()
-        }
-      })
-      if (!doneReceived) callbacks.onDone()
-    })
-    .catch((err) => {
-      if (err.name !== "AbortError") {
-        callbacks.onError(err)
+  return streamSSE(
+    "/api/planner/plan/stream",
+    body,
+    (event, data) => {
+      if (event === "status") {
+        callbacks.onStatus(asString(data.phase), asString(data.message))
+      } else if (event === "approach") {
+        callbacks.onApproach(asString(data.content), asNumber(data.score))
+      } else if (event === "plan") {
+        callbacks.onPlan(asString(data.plan))
+      } else if (event === "sources") {
+        callbacks.onSources(asStringArray(data.sources))
+      } else if (event === "tree") {
+        callbacks.onTree(data.tree as PlanNode)
+      } else if (event === "reviews") {
+        callbacks.onReviews(
+          Array.isArray(data.reviews) ? data.reviews as SkillReview[] : [],
+          asString(data.refined_plan),
+        )
       }
-    })
-
-  return controller
+    },
+    callbacks.onDone,
+    callbacks.onError,
+  )
 }
 
 export function streamSearchSummary(
@@ -173,8 +193,6 @@ export function streamSearchSummary(
   callbacks: SummaryCallbacks,
   options?: { top_k?: number; folder?: string | null; tag?: string | null; search_id?: string | null; scope_ids?: string | null; ad_hoc_tags?: string[] | null },
 ): AbortController {
-  const controller = new AbortController()
-
   const body: Record<string, unknown> = { query }
   if (options?.top_k) body.top_k = options.top_k
   if (options?.folder) body.folder = options.folder
@@ -183,35 +201,17 @@ export function streamSearchSummary(
   if (options?.scope_ids) body.scope_ids = options.scope_ids
   if (options?.ad_hoc_tags && options.ad_hoc_tags.length > 0) body.ad_hoc_tags = options.ad_hoc_tags
 
-  fetch("/api/search/summarize", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    signal: controller.signal,
-  })
-    .then(async (res) => {
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const reader = res.body?.getReader()
-      if (!reader) throw new Error("No response body")
-
-      let doneReceived = false
-      await parseSSEStream(reader, (event, data) => {
-        if (event === "token") {
-          callbacks.onToken(data.content as string)
-        } else if (event === "sources") {
-          callbacks.onSources(data.sources as string[])
-        } else if (event === "done") {
-          doneReceived = true
-          callbacks.onDone()
-        }
-      })
-      if (!doneReceived) callbacks.onDone()
-    })
-    .catch((err) => {
-      if (err.name !== "AbortError") {
-        callbacks.onError(err)
+  return streamSSE(
+    "/api/search/summarize",
+    body,
+    (event, data) => {
+      if (event === "token") {
+        callbacks.onToken(asString(data.content))
+      } else if (event === "sources") {
+        callbacks.onSources(asStringArray(data.sources))
       }
-    })
-
-  return controller
+    },
+    callbacks.onDone,
+    callbacks.onError,
+  )
 }

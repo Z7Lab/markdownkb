@@ -6,6 +6,7 @@ export function GraphControls({
   hasSelection,
   onClearSelection,
 }: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   fgRef: React.RefObject<any>
   hasSelection?: boolean
   onClearSelection?: () => void

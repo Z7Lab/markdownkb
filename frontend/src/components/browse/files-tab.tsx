@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
+import { useVirtualizer } from "@tanstack/react-virtual"
 import { useFiles } from "@/hooks/use-files"
 import { useTableSort } from "@/hooks/use-table-sort"
 import { Button } from "@/components/ui/button"
@@ -77,6 +78,7 @@ function SortHeader({
         "flex items-center gap-1 px-2 h-full text-sm font-medium text-foreground cursor-pointer select-none whitespace-nowrap",
         className,
       )}
+      aria-sort={active ? (sortDir === "asc" ? "ascending" : "descending") : undefined}
     >
       {children}
       {active &&
@@ -89,35 +91,12 @@ function SortHeader({
   )
 }
 
-export function FilesTab() {
-  const { files, busyPaths, refresh, toggleRag, unindexFile, indexFile, reindexFile, indexAll, unindexSource, updateTags, bulkUpdateTags } = useFiles()
-  const { isIndexing, lastIndexedAt } = useIndexEvents()
-  const [filterText, setFilterText] = useState("")
-
-  // Auto-refresh file list when indexing events arrive
-  useEffect(() => {
-    if (lastIndexedAt) refresh(true)
-  }, [lastIndexedAt, refresh])
-  const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
-  const [viewingPath, setViewingPath] = useState<string | null>(null)
-  const [pendingUnindex, setPendingUnindex] = useState<string | null>(null)
-  const [confirmUnindexAll, setConfirmUnindexAll] = useState(false)
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [bulkTagOpen, setBulkTagOpen] = useState(false)
-  const [autoTagOpen, setAutoTagOpen] = useState(false)
-  const [sources, setSources] = useState<string[]>([])
-  const [searchMode, setSearchMode] = useState<"path" | "content">("path")
+/** Hook for debounced content search */
+function useContentSearch(filterText: string, searchMode: "path" | "content") {
   const [contentMatches, setContentMatches] = useState<Set<string> | null>(null)
   const [contentSearching, setContentSearching] = useState(false)
   const contentDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const { sorted, sortKey, sortDir, onSort } = useTableSort(files, getValue)
 
-  // Fetch sources for auto-tag dialog
-  useEffect(() => {
-    api.get<{ sources: string[] }>("/api/sources").then((res) => setSources(res.sources)).catch(() => {})
-  }, [])
-
-  // Content search: debounced vector search
   useEffect(() => {
     if (searchMode !== "content" || !filterText.trim()) {
       setContentMatches(null)
@@ -141,6 +120,131 @@ export function FilesTab() {
     return () => { if (contentDebounce.current) clearTimeout(contentDebounce.current) }
   }, [filterText, searchMode])
 
+  const clearMatches = useCallback(() => setContentMatches(null), [])
+
+  return { contentMatches, contentSearching, clearMatches }
+}
+
+/** Virtualized file list — only renders visible rows for large file sets */
+function VirtualizedFileList({
+  files,
+  allFilesEmpty,
+  busyPaths,
+  gridTemplate,
+  selected,
+  onToggleSelect,
+  onToggleRag,
+  onIndexFile,
+  onReindexFile,
+  onUnindexFile,
+  onViewFile,
+  onUpdateTags,
+}: {
+  files: TrackedFile[]
+  allFilesEmpty: boolean
+  busyPaths: Set<string>
+  gridTemplate: string
+  selected: Set<string>
+  onToggleSelect: (path: string) => void
+  onToggleRag: (path: string, checked: boolean) => void
+  onIndexFile: (path: string) => void
+  onReindexFile: (path: string) => void
+  onUnindexFile: (path: string) => void
+  onViewFile: (path: string) => void
+  onUpdateTags: (path: string, tags: string[]) => Promise<void>
+}) {
+  const parentRef = useRef<HTMLDivElement>(null)
+
+  // eslint-disable-next-line react-hooks/incompatible-library -- isolated component, no memoization needed
+  const virtualizer = useVirtualizer({
+    count: files.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 40,
+    overscan: 10,
+  })
+
+  if (files.length === 0) {
+    return (
+      <div className="flex-1 overflow-auto min-h-0">
+        <div className="text-center text-muted-foreground py-8">
+          {allFilesEmpty ? "No markdown files found in watch directories." : "No files match your filter."}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div ref={parentRef} className="flex-1 overflow-auto min-h-0">
+      <div style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}>
+        {virtualizer.getVirtualItems().map((virtualRow) => {
+          const f = files[virtualRow.index]
+          return (
+            <div
+              key={f.path}
+              data-index={virtualRow.index}
+              ref={virtualizer.measureElement}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                transform: `translateY(${virtualRow.start}px)`,
+              }}
+            >
+              <FileRow
+                file={f}
+                busy={busyPaths.has(f.path)}
+                gridTemplate={gridTemplate}
+                selected={selected.has(f.path)}
+                onToggleSelect={onToggleSelect}
+                onToggleRag={onToggleRag}
+                onIndexFile={onIndexFile}
+                onReindexFile={onReindexFile}
+                onUnindexFile={onUnindexFile}
+                onViewFile={onViewFile}
+                onUpdateTags={onUpdateTags}
+              />
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+export function FilesTab() {
+  const { files, busyPaths, refresh, toggleRag, unindexFile, indexFile, reindexFile, indexAll, unindexSource, updateTags, bulkUpdateTags } = useFiles()
+  const { isIndexing, lastIndexedAt } = useIndexEvents()
+  const [filterText, setFilterText] = useState("")
+
+  // Auto-refresh file list when indexing events arrive
+  useEffect(() => {
+    if (lastIndexedAt) refresh(true)
+  }, [lastIndexedAt, refresh])
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
+  const [viewingPath, setViewingPath] = useState<string | null>(null)
+  const [pendingUnindex, setPendingUnindex] = useState<string | null>(null)
+  const [confirmUnindexAll, setConfirmUnindexAll] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkTagOpen, setBulkTagOpen] = useState(false)
+  const [autoTagOpen, setAutoTagOpen] = useState(false)
+  const [sources, setSources] = useState<string[]>([])
+  const [searchMode, setSearchMode] = useState<"path" | "content">("path")
+  const { contentMatches, contentSearching, clearMatches } = useContentSearch(filterText, searchMode)
+  const { sorted, sortKey, sortDir, onSort } = useTableSort(files, getValue)
+
+  // Column sizes as percentages (synced from ResizablePanelGroup)
+  const [colLayout, setColLayout] = useState(DEFAULT_LAYOUT)
+  const handleLayoutChange = useCallback((layout: Record<string, number>) => {
+    setColLayout(layout)
+  }, [])
+  const gridTemplate = COL_IDS.map((id) => `${colLayout[id] ?? 16}%`).join(" ")
+
+  // Fetch sources for auto-tag dialog
+  useEffect(() => {
+    api.get<{ sources: string[] }>("/api/sources").then((res) => setSources(res.sources)).catch(() => {})
+  }, [])
+
   const toggleSelect = useCallback((path: string) => {
     setSelected((prev) => {
       const next = new Set(prev)
@@ -149,13 +253,6 @@ export function FilesTab() {
       return next
     })
   }, [])
-
-  // Column sizes as percentages (synced from ResizablePanelGroup)
-  const [colLayout, setColLayout] = useState(DEFAULT_LAYOUT)
-  const handleLayoutChange = useCallback((layout: Record<string, number>) => {
-    setColLayout(layout)
-  }, [])
-  const gridTemplate = COL_IDS.map((id) => `${colLayout[id] ?? 16}%`).join(" ")
 
   const folderFiltered = selectedFolder
     ? sorted.filter((f) => {
@@ -189,14 +286,15 @@ export function FilesTab() {
           <div className="flex flex-col items-end gap-1">
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1">
-                <div className="flex border rounded-md overflow-hidden h-9">
+                <div className="flex border rounded-md overflow-hidden h-9" role="group" aria-label="Search mode">
                   <button
                     type="button"
-                    onClick={() => { setSearchMode("path"); setContentMatches(null) }}
+                    onClick={() => { setSearchMode("path"); clearMatches() }}
                     className={cn(
                       "px-2 flex items-center gap-1 text-xs cursor-pointer transition-colors",
                       searchMode === "path" ? "bg-primary text-primary-foreground" : "hover:bg-muted",
                     )}
+                    aria-pressed={searchMode === "path"}
                     title="Filter by file path"
                   >
                     <Search className="h-3 w-3" />
@@ -209,6 +307,7 @@ export function FilesTab() {
                       "px-2 flex items-center gap-1 text-xs cursor-pointer transition-colors",
                       searchMode === "content" ? "bg-primary text-primary-foreground" : "hover:bg-muted",
                     )}
+                    aria-pressed={searchMode === "content"}
                     title="Search file content (vector search)"
                   >
                     <FileText className="h-3 w-3" />
@@ -230,8 +329,9 @@ export function FilesTab() {
                   {filterText && (
                     <button
                       type="button"
-                      onClick={() => { setFilterText(""); setContentMatches(null) }}
+                      onClick={() => { setFilterText(""); clearMatches() }}
                       className="absolute right-2 top-2.5 text-muted-foreground hover:text-foreground"
+                      aria-label="Clear filter"
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -354,30 +454,21 @@ export function FilesTab() {
             </ResizablePanelGroup>
           </div>
 
-          {/* Scrollable body */}
-          <div className="flex-1 overflow-auto min-h-0">
-            {filteredFiles.map((f) => (
-              <FileRow
-                key={f.path}
-                file={f}
-                busy={busyPaths.has(f.path)}
-                gridTemplate={gridTemplate}
-                selected={selected.has(f.path)}
-                onToggleSelect={toggleSelect}
-                onToggleRag={toggleRag}
-                onIndexFile={indexFile}
-                onReindexFile={reindexFile}
-                onUnindexFile={setPendingUnindex}
-                onViewFile={setViewingPath}
-                onUpdateTags={updateTags}
-              />
-            ))}
-            {filteredFiles.length === 0 && (
-              <div className="text-center text-muted-foreground py-8">
-                {files.length === 0 ? "No markdown files found in watch directories." : "No files match your filter."}
-              </div>
-            )}
-          </div>
+          {/* Virtualized scrollable body */}
+          <VirtualizedFileList
+            files={filteredFiles}
+            allFilesEmpty={files.length === 0}
+            busyPaths={busyPaths}
+            gridTemplate={gridTemplate}
+            selected={selected}
+            onToggleSelect={toggleSelect}
+            onToggleRag={toggleRag}
+            onIndexFile={indexFile}
+            onReindexFile={reindexFile}
+            onUnindexFile={setPendingUnindex}
+            onViewFile={setViewingPath}
+            onUpdateTags={updateTags}
+          />
         </div>
 
         <FileViewerDialog path={viewingPath} onClose={() => setViewingPath(null)} />

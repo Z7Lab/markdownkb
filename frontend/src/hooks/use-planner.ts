@@ -48,7 +48,7 @@ export function usePlanner() {
   }, [])
 
   useEffect(() => {
-    loadSkills()
+    loadSkills() // eslint-disable-line react-hooks/set-state-in-effect -- initial data fetch on mount
     refreshPlans()
     return () => {
       controllerRef.current?.abort()
@@ -88,9 +88,9 @@ export function usePlanner() {
         },
         onPlan: (p) => setPlan(p),
         onSources: (s) => setSources(s),
-        onTree: (t) => setTree(t as unknown as PlanNode),
+        onTree: (t) => setTree(t),
         onReviews: (revs, refined) => {
-          setReviews(revs as unknown as SkillReview[])
+          setReviews(revs)
           setRefinedPlan(refined)
           setIsRefined(true)
         },

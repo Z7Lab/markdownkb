@@ -51,7 +51,7 @@ function GraphTabTrigger() {
   )
 }
 
-function App() {
+export function App() {
   const [location, setLocation] = useLocation()
   const activeTab = routeToTab[location] || "chat"
 
@@ -152,4 +152,3 @@ function App() {
   )
 }
 
-export default App

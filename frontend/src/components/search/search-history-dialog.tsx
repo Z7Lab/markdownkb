@@ -31,6 +31,7 @@ export function SearchHistoryDialog({
 
   useEffect(() => {
     if (open && activeSearchId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sync loading flag before async fetch
       setLoading(true)
       fetchVersions(activeSearchId).then((v) => {
         setVersions(v)

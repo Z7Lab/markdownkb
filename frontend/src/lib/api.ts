@@ -1,5 +1,18 @@
 const BASE = ""
 
+/** API key for X-MDKB-Key auth header — set via setApiKey() */
+let apiKey: string | null = null
+
+/** Configure the API key for authenticated requests */
+export function setApiKey(key: string | null) {
+  apiKey = key
+}
+
+/** Get the currently configured API key */
+export function getApiKey(): string | null {
+  return apiKey
+}
+
 async function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
@@ -11,9 +24,16 @@ async function request<T>(
   signal?: AbortSignal,
   retries = 3,
 ): Promise<T> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  }
+  if (apiKey) {
+    headers["X-MDKB-Key"] = apiKey
+  }
+
   const opts: RequestInit = {
     method,
-    headers: { "Content-Type": "application/json" },
+    headers,
   }
   if (body !== undefined) {
     opts.body = JSON.stringify(body)

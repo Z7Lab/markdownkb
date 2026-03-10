@@ -1,5 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { FileViewerDialog } from "@/components/ui/file-viewer-dialog";
 import type { ChatMessage } from "@/lib/types";
 import { ChatMessage as ChatMessageComponent } from "./chat-message";
 
@@ -13,6 +14,7 @@ export function ChatMessageList({
   showDiagnostics?: boolean;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [viewingFile, setViewingFile] = useState<string | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -27,24 +29,28 @@ export function ChatMessageList({
   }
 
   return (
-    <ScrollArea className="flex-1 min-h-0">
-      <div className="w-0 min-w-full space-y-4 p-4">
-        {messages.map((msg) => (
-          <ChatMessageComponent
-            key={msg.id}
-            message={msg}
-            showDiagnostics={showDiagnostics}
-          />
-        ))}
-        {isStreaming && messages[messages.length - 1]?.content === "" && (
-          <div className="flex justify-start">
-            <div className="text-muted-foreground text-sm animate-pulse">
-              Thinking...
+    <>
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="w-0 min-w-full space-y-4 p-4">
+          {messages.map((msg) => (
+            <ChatMessageComponent
+              key={msg.id}
+              message={msg}
+              showDiagnostics={showDiagnostics}
+              onViewFile={setViewingFile}
+            />
+          ))}
+          {isStreaming && messages[messages.length - 1]?.content === "" && (
+            <div className="flex justify-start">
+              <div className="text-muted-foreground text-sm animate-pulse">
+                Thinking...
+              </div>
             </div>
-          </div>
-        )}
-        <div ref={bottomRef} />
-      </div>
-    </ScrollArea>
+          )}
+          <div ref={bottomRef} />
+        </div>
+      </ScrollArea>
+      <FileViewerDialog path={viewingFile} onClose={() => setViewingFile(null)} />
+    </>
   );
 }

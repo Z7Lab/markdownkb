@@ -18,14 +18,11 @@ export function EdgeDetailPanel({
   onDocClick: (path: string) => void
 }) {
   const [detail, setDetail] = useState<EdgeDetail | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true) // starts true; reset via key prop on parent
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    setError(null)
-    setDetail(null)
 
     const params = new URLSearchParams({ source, target, top_k: "5" })
     api.get<EdgeDetail>(`/api/graph/edge-detail?${params}`)

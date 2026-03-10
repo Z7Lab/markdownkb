@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import type { ChatMessage as ChatMessageType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { FileViewerDialog } from "@/components/ui/file-viewer-dialog";
 import { SourceList } from "@/components/ui/source-badge";
 
 interface ThinkBlock {
@@ -20,7 +19,6 @@ interface ThinkBlock {
 
 function parseThinkBlocks(text: string): ThinkBlock[] {
   const blocks: ThinkBlock[] = [];
-  // Handle both <think>...</think> and <thinking>...</thinking> tags
   const regex = /<(think|thinking)>([\s\S]*?)<\/\1>/gi;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -37,14 +35,12 @@ function parseThinkBlocks(text: string): ThinkBlock[] {
   }
 
   let remaining = text.slice(lastIndex);
-  // Check for unclosed thinking tags
   const openTagMatch = remaining.match(/<(think|thinking)>([\s\S]*)$/i);
   if (openTagMatch) {
     const before = remaining.slice(0, openTagMatch.index);
     if (before.trim()) blocks.push({ type: "text", content: before });
     blocks.push({ type: "thinking", content: openTagMatch[2] });
   } else {
-    // Strip leading colons/whitespace left by some models after </think>
     if (lastWasThink) {
       remaining = remaining.replace(/^[\s:]+/, "");
     }
@@ -90,12 +86,13 @@ function ThinkCollapsible({
 export const ChatMessage = memo(function ChatMessage({
   message,
   showDiagnostics = false,
+  onViewFile,
 }: {
   message: ChatMessageType;
   showDiagnostics?: boolean;
+  onViewFile?: (path: string) => void;
 }) {
   const isUser = message.role === "user";
-  const [viewingFile, setViewingFile] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -126,7 +123,6 @@ export const ChatMessage = memo(function ChatMessage({
             : "w-full bg-muted text-foreground",
         )}
       >
-        {/* Diagnostics: raw content inspector for assistant messages */}
         {showDiagnostics && !isUser && (
           <div className="text-[10px] font-mono bg-black/80 text-green-400 p-2 rounded mb-2 max-h-24 overflow-auto whitespace-pre-wrap break-all">
             <div>
@@ -169,8 +165,8 @@ export const ChatMessage = memo(function ChatMessage({
         )}
         {!isUser && (message.content || (sources && sources.length > 0)) && (
           <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-foreground/10">
-            {sources && sources.length > 0 && (
-              <SourceList sources={sources} onSelect={setViewingFile} />
+            {sources && sources.length > 0 && onViewFile && (
+              <SourceList sources={sources} onSelect={onViewFile} />
             )}
             <div className="flex-1" />
             <Button
@@ -189,7 +185,6 @@ export const ChatMessage = memo(function ChatMessage({
           </div>
         )}
       </div>
-      <FileViewerDialog path={viewingFile} onClose={() => setViewingFile(null)} />
     </div>
   );
 });

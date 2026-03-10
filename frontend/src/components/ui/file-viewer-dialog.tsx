@@ -80,11 +80,8 @@ export function FileViewerDialog({
 
   useEffect(() => {
     if (!path) return
-    // Wrap state updates in Promise.resolve().then() to avoid set-state-in-effect warning
-    Promise.resolve().then(() => {
-      setLoading(true)
-      setRawContent("")
-    })
+    setLoading(true)
+    setRawContent("")
 
     // Load file content
     api
@@ -114,6 +111,31 @@ export function FileViewerDialog({
       })
   }, [path])
 
+  /** Refresh file status from the lightweight status endpoint */
+  const refreshFileStatus = async () => {
+    if (!path) return
+    const statusRes = await api.get<{ status: string; include_rag: number; chunk_count: number }>(
+      `/api/file/status?path=${encodeURIComponent(path)}`
+    )
+    setFileStatus({
+      status: statusRes.status,
+      include_rag: statusRes.include_rag,
+      chunk_count: statusRes.chunk_count,
+    })
+  }
+
+  /** Run a file action with loading state and status refresh */
+  const withAction = async (fn: () => Promise<void>) => {
+    if (!path) return
+    setActionLoading(true)
+    try {
+      await fn()
+      await refreshFileStatus()
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   const handleSaveTags = async (newTags: string[], createBackup: boolean, shouldReindex: boolean) => {
     if (!path) return
 
@@ -131,26 +153,13 @@ export function FileViewerDialog({
       )
       setRawContent(updated.content)
 
-      if (createBackup) {
-        toast.success("Tags updated! Backup created.")
-      } else {
-        toast.success("Tags updated successfully!")
-      }
+      toast.success(createBackup ? "Tags updated! Backup created." : "Tags updated successfully!")
 
-      // Reindex if requested
       if (shouldReindex) {
         try {
           await api.post("/api/files/reindex", { paths: [path] })
           toast.success("File reindexed successfully!")
-          // Refresh file status
-          const statusRes = await api.get<{ status: string; include_rag: number; chunk_count: number }>(
-            `/api/file/status?path=${encodeURIComponent(path)}`
-          )
-          setFileStatus({
-            status: statusRes.status,
-            include_rag: statusRes.include_rag,
-            chunk_count: statusRes.chunk_count,
-          })
+          await refreshFileStatus()
         } catch (err) {
           toast.error(`Failed to reindex: ${(err as Error).message}`)
         }
@@ -162,84 +171,29 @@ export function FileViewerDialog({
   }
 
   const handleToggleRag = async (checked: boolean) => {
-    if (!path) return
-    setActionLoading(true)
-    try {
+    await withAction(async () => {
       await api.post("/api/files/toggle-rag", { path, include_rag: checked })
       setFileStatus((prev) => ({ ...prev, include_rag: checked ? 1 : 0 }))
       toast.success(checked ? "File included in RAG" : "File excluded from RAG")
-    } catch (err) {
-      toast.error(`Failed to toggle RAG: ${(err as Error).message}`)
-    } finally {
-      setActionLoading(false)
-    }
+    })
   }
 
-  const handleIndexFile = async () => {
-    if (!path) return
-    setActionLoading(true)
-    try {
-      await api.post("/api/files/index", { paths: [path] })
-      toast.success("File indexed successfully!")
-      // Refresh file status
-      const statusRes = await api.get<{ status: string; include_rag: number; chunk_count: number }>(
-        `/api/file/status?path=${encodeURIComponent(path)}`
-      )
-      setFileStatus({
-        status: statusRes.status,
-        include_rag: statusRes.include_rag,
-        chunk_count: statusRes.chunk_count,
-      })
-    } catch (err) {
-      toast.error(`Failed to index file: ${(err as Error).message}`)
-    } finally {
-      setActionLoading(false)
-    }
-  }
+  const handleIndexFile = () => withAction(async () => {
+    await api.post("/api/files/index", { paths: [path] })
+    toast.success("File indexed successfully!")
+  })
 
-  const handleReindexFile = async () => {
-    if (!path) return
-    setActionLoading(true)
-    try {
-      await api.post("/api/files/reindex", { paths: [path] })
-      toast.success("File reindexed successfully!")
-      // Refresh file status
-      const statusRes = await api.get<{ status: string; include_rag: number; chunk_count: number }>(
-        `/api/file/status?path=${encodeURIComponent(path)}`
-      )
-      setFileStatus({
-        status: statusRes.status,
-        include_rag: statusRes.include_rag,
-        chunk_count: statusRes.chunk_count,
-      })
-    } catch (err) {
-      toast.error(`Failed to reindex file: ${(err as Error).message}`)
-    } finally {
-      setActionLoading(false)
-    }
-  }
+  const handleReindexFile = () => withAction(async () => {
+    await api.post("/api/files/reindex", { paths: [path] })
+    toast.success("File reindexed successfully!")
+  })
 
   const handleUnindexFile = async () => {
-    if (!path) return
-    setActionLoading(true)
     setPendingUnindex(false)
-    try {
+    await withAction(async () => {
       await api.post("/api/files/unindex", { paths: [path] })
       toast.success("File removed from index")
-      // Refresh file status
-      const statusRes = await api.get<{ status: string; include_rag: number; chunk_count: number }>(
-        `/api/file/status?path=${encodeURIComponent(path)}`
-      )
-      setFileStatus({
-        status: statusRes.status,
-        include_rag: statusRes.include_rag,
-        chunk_count: statusRes.chunk_count,
-      })
-    } catch (err) {
-      toast.error(`Failed to unindex file: ${(err as Error).message}`)
-    } finally {
-      setActionLoading(false)
-    }
+    })
   }
 
   const { tags, content} = parseFrontmatter(rawContent)
@@ -273,6 +227,7 @@ export function FileViewerDialog({
                   size="icon"
                   className="h-5 w-5 shrink-0"
                   onClick={handleCopyPath}
+                  aria-label="Copy file path"
                 >
                   <Copy className="h-3 w-3" />
                 </Button>

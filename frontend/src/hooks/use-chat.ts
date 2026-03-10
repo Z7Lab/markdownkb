@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { api } from "@/lib/api"
 import { streamChat } from "@/lib/sse"
 import { toast } from "sonner"
+import { usePersistedState } from "@/hooks/use-persisted-state"
 import type { ChatMessage, PaginatedResponse, Thread } from "@/lib/types"
 
 function nextId(): string {
@@ -15,59 +16,27 @@ function nextId(): string {
   })
 }
 
-// LocalStorage keys for persistence
-const STORAGE_KEYS = {
-  ACTIVE_THREAD: "mdkb_active_thread",
-  MESSAGES: "mdkb_messages",
-  STREAMING_THREAD: "mdkb_streaming_thread",
-} as const
+// LocalStorage key for streaming thread tracking (transient, not persisted state)
+const STREAMING_THREAD_KEY = "mdkb_streaming_thread"
 
 export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
-  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [messages, setMessages] = usePersistedState<ChatMessage[]>("mdkb_messages", [])
   const [isStreaming, setIsStreaming] = useState(false)
   const [threads, setThreads] = useState<Thread[]>([])
-  const [activeThreadId, setActiveThreadId] = useState<string | null>(null)
+  const [activeThreadId, setActiveThreadId] = usePersistedState<string | null>("mdkb_active_thread", null)
   const controllerRef = useRef<AbortController | null>(null)
   const loadIdRef = useRef(0)
   const streamingThreadIdRef = useRef<string | null>(null) // Track which thread is streaming
-  const hasRestoredRef = useRef(false) // Prevent double restoration
 
-  // Save current state to localStorage for persistence
-  const saveState = useCallback((msgs: ChatMessage[], threadId: string | null) => {
+  // Restore streaming thread state on mount (transient — not managed by usePersistedState)
+  useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(msgs))
-      localStorage.setItem(STORAGE_KEYS.ACTIVE_THREAD, threadId || "")
-    } catch (err) {
-      console.warn("Failed to save chat state:", err)
-    }
-  }, [])
-
-  // Restore state from localStorage
-  const restoreState = useCallback(() => {
-    if (hasRestoredRef.current) return
-    hasRestoredRef.current = true
-
-    try {
-      const savedMessages = localStorage.getItem(STORAGE_KEYS.MESSAGES)
-      const savedThreadId = localStorage.getItem(STORAGE_KEYS.ACTIVE_THREAD)
-      const streamingThreadId = localStorage.getItem(STORAGE_KEYS.STREAMING_THREAD)
-
-      if (savedMessages) {
-        const msgs = JSON.parse(savedMessages) as ChatMessage[]
-        if (msgs.length > 0) {
-          setMessages(msgs)
-        }
-      }
-
-      if (savedThreadId) {
-        setActiveThreadId(savedThreadId || null)
-      }
-
+      const streamingThreadId = localStorage.getItem(STREAMING_THREAD_KEY)
       if (streamingThreadId) {
         streamingThreadIdRef.current = streamingThreadId || null
       }
-    } catch (err) {
-      console.warn("Failed to restore chat state:", err)
+    } catch {
+      // ignore
     }
   }, [])
 
@@ -84,18 +53,14 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
     }
   }, [])
 
-  // Restore state on mount and refresh threads with retry
+  // Load threads on mount with retry
   useEffect(() => {
-    restoreState()
-
     let retryTimer: ReturnType<typeof setTimeout> | null = null
     let retryCount = 0
     const MAX_RETRIES = 10
 
     const loadWithRetry = async () => {
-      const success = await refreshThreads(true) // silent = true
-
-      // If load failed and we haven't exceeded max retries, retry in 2 seconds
+      const success = await refreshThreads(true)
       if (!success && retryCount < MAX_RETRIES) {
         retryCount++
         retryTimer = setTimeout(loadWithRetry, 2000)
@@ -107,16 +72,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
     return () => {
       if (retryTimer) clearTimeout(retryTimer)
     }
-    // Only run on mount - deliberately excluding dependencies to prevent retry loop
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // Only run on mount
-
-  // Auto-save state whenever messages or activeThreadId changes
-  useEffect(() => {
-    if (hasRestoredRef.current) {
-      saveState(messages, activeThreadId)
-    }
-  }, [messages, activeThreadId, saveState])
+  }, [refreshThreads])
 
   const send = useCallback(
     (text: string) => {
@@ -130,7 +86,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
       // Track that this thread is streaming
       streamingThreadIdRef.current = activeThreadId
       try {
-        localStorage.setItem(STORAGE_KEYS.STREAMING_THREAD, activeThreadId || "")
+        localStorage.setItem(STREAMING_THREAD_KEY, activeThreadId || "")
       } catch {
         // ignore
       }
@@ -142,7 +98,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
             setActiveThreadId(threadId)
             streamingThreadIdRef.current = threadId
             try {
-              localStorage.setItem(STORAGE_KEYS.STREAMING_THREAD, threadId)
+              localStorage.setItem(STREAMING_THREAD_KEY, threadId)
             } catch {
               // ignore
             }
@@ -187,7 +143,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
             controllerRef.current = null
             streamingThreadIdRef.current = null
             try {
-              localStorage.removeItem(STORAGE_KEYS.STREAMING_THREAD)
+              localStorage.removeItem(STREAMING_THREAD_KEY)
             } catch {
               // ignore
             }
@@ -209,7 +165,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
             controllerRef.current = null
             streamingThreadIdRef.current = null
             try {
-              localStorage.removeItem(STORAGE_KEYS.STREAMING_THREAD)
+              localStorage.removeItem(STREAMING_THREAD_KEY)
             } catch {
               // ignore
             }
@@ -220,7 +176,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
         adHocTags,
       )
     },
-    [isStreaming, activeThreadId, refreshThreads, scopeIds, adHocTags],
+    [isStreaming, activeThreadId, refreshThreads, scopeIds, adHocTags, setMessages, setActiveThreadId],
   )
 
   const stop = useCallback(() => {
@@ -229,7 +185,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
     controllerRef.current = null
     streamingThreadIdRef.current = null
     try {
-      localStorage.removeItem(STORAGE_KEYS.STREAMING_THREAD)
+      localStorage.removeItem(STREAMING_THREAD_KEY)
     } catch {
       // ignore
     }
@@ -237,44 +193,35 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
 
   const newChat = useCallback(() => {
     // Don't abort background stream if it's for a different thread
-    // Only stop if we're viewing the streaming thread
     if (streamingThreadIdRef.current === activeThreadId || streamingThreadIdRef.current === null) {
       stop()
     } else {
-      // Let background stream continue
       setIsStreaming(false)
     }
     setMessages([])
     setActiveThreadId(null)
-  }, [stop, activeThreadId])
+  }, [stop, activeThreadId, setMessages, setActiveThreadId])
 
   const loadThread = useCallback(
     async (threadId: string) => {
-      // Check if we're switching back to a thread that's currently streaming
       const isStreamingThread = streamingThreadIdRef.current === threadId
 
-      // If we're loading a different thread (not the streaming one), don't stop the stream
-      // Let it complete in the background
       if (!isStreamingThread && isStreaming) {
-        // Stream will continue in background for the other thread
-        setIsStreaming(false) // Hide streaming UI for current view
+        setIsStreaming(false)
       }
 
-      // If loading the actively streaming thread, don't stop it
       if (!isStreamingThread) {
-        // Only stop if we're not going back to the streaming thread
         if (activeThreadId === threadId) {
-          stop() // Only stop if clicking the same thread (refresh)
+          stop()
         }
       }
 
       setActiveThreadId(threadId)
       const currentLoad = ++loadIdRef.current
 
-      // If this is the streaming thread, show streaming state and current messages
       if (isStreamingThread) {
         setIsStreaming(true)
-        return // Keep current messages, don't reload from API
+        return
       }
 
       try {
@@ -296,7 +243,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
         setMessages([])
       }
     },
-    [stop, isStreaming, activeThreadId],
+    [stop, isStreaming, activeThreadId, setMessages, setActiveThreadId],
   )
 
   const renameThread = useCallback(
@@ -317,7 +264,6 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
     async (threadId: string) => {
       try {
         await api.del(`/api/threads/${threadId}`)
-        // If deleting the streaming thread, abort it
         if (streamingThreadIdRef.current === threadId) {
           stop()
         }
@@ -330,18 +276,15 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
         toast.error(`Failed to delete thread: ${(err as Error).message}`)
       }
     },
-    [activeThreadId, refreshThreads, stop],
+    [activeThreadId, refreshThreads, stop, setMessages, setActiveThreadId],
   )
 
   const clear = useCallback(async () => {
     stop()
     setMessages([])
     setActiveThreadId(null)
-    // Clear localStorage
     try {
-      localStorage.removeItem(STORAGE_KEYS.MESSAGES)
-      localStorage.removeItem(STORAGE_KEYS.ACTIVE_THREAD)
-      localStorage.removeItem(STORAGE_KEYS.STREAMING_THREAD)
+      localStorage.removeItem(STREAMING_THREAD_KEY)
     } catch {
       // ignore
     }
@@ -350,7 +293,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
     } catch (err) {
       console.warn("Failed to clear chat history on server:", err)
     }
-  }, [stop])
+  }, [stop, setMessages, setActiveThreadId])
 
   const continueChat = useCallback(() => {
     send("Continue your previous response from where you left off.")

@@ -18,7 +18,7 @@ export function useFiles() {
       return next
     })
 
-  const refresh = useCallback(async (silent = false) => {
+  const refresh = useCallback(async (silent = false): Promise<TrackedFile[] | null> => {
     try {
       setError(null)
       const res = await api.get<PaginatedResponse<TrackedFile>>("/api/files")
@@ -27,11 +27,10 @@ export function useFiles() {
     } catch (err) {
       const msg = (err as Error).message
       setError(msg)
-      // Only show toast if not silent (i.e., not on initial/retry loads)
       if (!silent) {
         toast.error(`Failed to load files: ${msg}`)
       }
-      return []
+      return null // null = error; empty array = success with no files
     }
   }, [])
 
@@ -41,7 +40,7 @@ export function useFiles() {
     if (hasIndexing && !pollRef.current) {
       pollRef.current = setInterval(async () => {
         const updated = await refresh()
-        if (!updated.some((f: TrackedFile) => f.status === "indexing")) {
+        if (!updated?.some((f: TrackedFile) => f.status === "indexing")) {
           if (pollRef.current) clearInterval(pollRef.current)
           pollRef.current = null
         }
@@ -67,8 +66,8 @@ export function useFiles() {
     const loadWithRetry = async () => {
       const result = await refresh(true) // silent = true
 
-      // If load failed (empty result) and haven't exceeded max retries, retry in 2 seconds
-      if (mounted && result.length === 0 && retryCount < MAX_RETRIES) {
+      // Only retry on actual errors (null), not empty results (fresh install)
+      if (mounted && result === null && retryCount < MAX_RETRIES) {
         retryCount++
         retryTimer = setTimeout(loadWithRetry, 2000)
       }
@@ -80,9 +79,7 @@ export function useFiles() {
       mounted = false
       if (retryTimer) clearTimeout(retryTimer)
     }
-    // Only run on mount - deliberately excluding dependencies to prevent retry loop
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // Only run on mount
+  }, [refresh])
 
   const toggleRag = useCallback(async (path: string, include: boolean) => {
     addBusy(path)

@@ -38,21 +38,94 @@ function useIsDark() {
   return isDark
 }
 
-// Cluster color palette — distinct hues
+// Cluster color palette — uses CSS-compatible values that complement Tailwind's default palette
 const CLUSTER_COLORS = [
-  "#6366f1", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6",
-  "#06b6d4", "#f97316", "#84cc16", "#ec4899", "#14b8a6",
-  "#a855f7", "#eab308", "#22c55e", "#e11d48", "#3b82f6",
+  "oklch(0.585 0.233 277)",  // indigo-500
+  "oklch(0.769 0.188 70.1)", // amber-500
+  "oklch(0.765 0.177 163)",  // emerald-500
+  "oklch(0.637 0.237 25.3)", // red-500
+  "oklch(0.606 0.25 292)",   // violet-500
+  "oklch(0.715 0.143 215)",  // cyan-500
+  "oklch(0.702 0.183 55.1)", // orange-500
+  "oklch(0.768 0.233 130)",  // lime-500
+  "oklch(0.656 0.241 354)",  // pink-500
+  "oklch(0.704 0.14 182)",   // teal-500
+  "oklch(0.627 0.265 303)",  // purple-500
+  "oklch(0.795 0.184 86.1)", // yellow-500
+  "oklch(0.723 0.219 149)",  // green-500
+  "oklch(0.598 0.25 360)",   // rose-600
+  "oklch(0.623 0.214 259)",  // blue-500
 ]
 
-const UNCLUSTERED_COLOR = "#6b7280"
-const HIGHLIGHT_COLOR = "#facc15"
+const UNCLUSTERED_COLOR = "oklch(0.551 0.027 264)" // gray-500
+const HIGHLIGHT_COLOR = "oklch(0.852 0.199 91.9)"  // yellow-300
 
-// Theme-aware colors
+// Theme-aware colors — these must remain raw values for WebGL canvas rendering
 const THEME = {
   dark: { bg: "#09090b", dim: "#1f2937", linkBase: "140,180,255", linkDim: "255,255,255" },
   light: { bg: "#f8fafc", dim: "#d1d5db", linkBase: "59,130,246", linkDim: "0,0,0" },
 } as const
+
+/** Force-graph link with weight metadata */
+interface GraphLink {
+  source: string | { id: string }
+  target: string | { id: string }
+  weight: number
+}
+
+/** Extract node ID from a link endpoint (handles both string and object forms) */
+function linkNodeId(endpoint: string | { id: string }): string {
+  return typeof endpoint === "object" ? endpoint.id : endpoint
+}
+
+/** Hook for multi-scope and tag filter selection */
+function useGraphFilters() {
+  const [selectedScopeIds, setSelectedScopeIds] = useState<Set<string>>(new Set())
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
+
+  const scopeIdsParam = useMemo(() => {
+    if (selectedScopeIds.size === 0) return null
+    return Array.from(selectedScopeIds).sort().join(",")
+  }, [selectedScopeIds])
+
+  const adHocTagsParam = useMemo(() => {
+    if (selectedTags.size === 0) return null
+    return Array.from(selectedTags).sort()
+  }, [selectedTags])
+
+  const handleScopeChange = useCallback((ids: Set<string>) => {
+    setSelectedScopeIds(ids)
+  }, [])
+
+  const handleTagChange = useCallback((tags: Set<string>) => {
+    setSelectedTags(tags)
+  }, [])
+
+  return {
+    selectedScopeIds, selectedTags,
+    scopeIdsParam, adHocTagsParam,
+    handleScopeChange, handleTagChange,
+  }
+}
+
+/** Hook for container dimension tracking via ResizeObserver */
+function useContainerDimensions() {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 })
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const observer = new ResizeObserver((entries) => {
+      const { width, height } = entries[0].contentRect
+      setDimensions({ width: Math.floor(width), height: Math.floor(height) })
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  return { containerRef, dimensions }
+}
 
 export function GraphTab() {
   const {
@@ -68,25 +141,19 @@ export function GraphTab() {
   const colors = isDark ? THEME.dark : THEME.light
   const [viewingPath, setViewingPath] = useState<string | null>(null)
   const [selectedEdge, setSelectedEdge] = useState<{ source: string; target: string; weight: number } | null>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const fgRef = useRef<any>(null)
-  const [dimensions, setDimensions] = useState({ width: 800, height: 600 })
+  const { containerRef, dimensions } = useContainerDimensions()
+  const fgRef = useRef<{ d3Force: (name: string) => Record<string, (...args: unknown[]) => unknown> | undefined; d3ReheatSimulation: () => void; zoomToFit: (ms: number, padding: number) => void } | null>(null)
   const [webglSupported] = useState(() => detectWebGL())
   const [spread, setSpread] = useState(100)
   const spreadInitialized = useRef(false)
   const initialFitDone = useRef(false)
 
-  // Multi-scope selection (local to graph tab)
-  const [selectedScopeIds, setSelectedScopeIds] = useState<Set<string>>(new Set())
-  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
-  const scopeIdsParam = useMemo(() => {
-    if (selectedScopeIds.size === 0) return null
-    return Array.from(selectedScopeIds).sort().join(",")
-  }, [selectedScopeIds])
-  const adHocTagsParam = useMemo(() => {
-    if (selectedTags.size === 0) return null
-    return Array.from(selectedTags).sort()
-  }, [selectedTags])
+  const {
+    selectedScopeIds, selectedTags,
+    scopeIdsParam, adHocTagsParam,
+    handleScopeChange, handleTagChange,
+  } = useGraphFilters()
+
   const prevScopeRef = useRef(scopeIdsParam)
   const prevTagsRef = useRef(adHocTagsParam)
 
@@ -100,18 +167,6 @@ export function GraphTab() {
       fetchGraph(scopeIdsParam, true, wordClouds, adHocTagsParam)
     }
   }, [fetchGraph, scopeIdsParam, adHocTagsParam, wordClouds])
-
-  // Track container dimensions
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    const observer = new ResizeObserver((entries) => {
-      const { width, height } = entries[0].contentRect
-      setDimensions({ width: Math.floor(width), height: Math.floor(height) })
-    })
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [])
 
   // Staleness
   const isStale = !!(lastIndexedAt && fetchedAt && lastIndexedAt > fetchedAt)
@@ -134,7 +189,6 @@ export function GraphTab() {
       }
     } else if (selectedNodeId) {
       set.add(selectedNodeId)
-      // Also highlight connected nodes
       for (const edge of graphData.edges) {
         if (edge.weight >= threshold) {
           if (edge.source === selectedNodeId) set.add(edge.target)
@@ -157,7 +211,6 @@ export function GraphTab() {
         target: e.target,
         weight: e.weight,
       }))
-    // Only include nodes that have at least one visible edge
     const connectedIds = new Set<string>()
     for (const link of links) {
       connectedIds.add(link.source)
@@ -171,7 +224,7 @@ export function GraphTab() {
     }
   }, [graphData, threshold])
 
-  // Reset initial fit when graph data changes (new build/scope)
+  // Reset initial fit when graph data changes
   useEffect(() => { initialFitDone.current = false }, [graphData])
 
   // Configure d3 forces — spread slider scales all distances
@@ -179,18 +232,26 @@ export function GraphTab() {
     const fg = fgRef.current
     if (!fg) return
     const s = spread / 100
-    fg.d3Force("charge")?.strength(-1500 * s).distanceMax(2000 * s)
-    fg.d3Force("link")
-      ?.distance((link: any) => {
-        const w = typeof link.weight === "number" ? link.weight : 0.5
+    const charge = fg.d3Force("charge")
+    if (charge) {
+      charge.strength(-1500 * s)
+      charge.distanceMax(2000 * s)
+    }
+    const link = fg.d3Force("link")
+    if (link) {
+      link.distance((l: GraphLink) => {
+        const w = typeof l.weight === "number" ? l.weight : 0.5
         return (200 + (1 - w) * 800) * s
       })
-      .strength((link: any) => {
-        const w = typeof link.weight === "number" ? link.weight : 0.5
+      link.strength((l: GraphLink) => {
+        const w = typeof l.weight === "number" ? l.weight : 0.5
         return w * 0.15
       })
-    fg.d3Force("center")?.strength(0.02)
-    // Only reheat when user changes spread, not on initial mount
+    }
+    const center = fg.d3Force("center")
+    if (center) {
+      center.strength(0.02)
+    }
     if (spreadInitialized.current) {
       fg.d3ReheatSimulation()
     } else {
@@ -213,7 +274,6 @@ export function GraphTab() {
     }
 
     if (searchTerm && highlightedNodes.size > 0) {
-      // Merge word clouds from highlighted nodes
       const merged: Record<string, number> = {}
       for (const node of graphData.nodes) {
         if (highlightedNodes.has(node.id)) {
@@ -261,23 +321,22 @@ export function GraphTab() {
     return `<div style="max-width:350px"><strong>${node.label}</strong><br/><span style="opacity:0.7">${dir}</span><br/>${node.chunk_count} chunks${tags}</div>`
   }, [])
 
-  // Link styling — opacity and width scale with weight for visibility at distance
-  const linkColor = useCallback((link: { source: string; target: string; weight: number }) => {
+  // Link styling
+  const linkColor = useCallback((link: GraphLink) => {
     if (hasHighlight) {
-      const srcId = typeof link.source === "object" ? (link.source as any).id : link.source
-      const tgtId = typeof link.target === "object" ? (link.target as any).id : link.target
+      const srcId = linkNodeId(link.source)
+      const tgtId = linkNodeId(link.target)
       if (highlightedNodes.has(srcId) && highlightedNodes.has(tgtId)) {
         return "rgba(250,204,21,0.8)"
       }
       return `rgba(${colors.linkDim},0.03)`
     }
-    // Stronger connections are brighter
     const w = typeof link.weight === "number" ? link.weight : 0.5
     const alpha = Math.min(0.6, 0.08 + w * 0.5)
     return `rgba(${colors.linkBase},${alpha.toFixed(2)})`
   }, [hasHighlight, highlightedNodes, colors])
 
-  const linkWidth = useCallback((link: { weight: number }) => {
+  const linkWidth = useCallback((link: GraphLink) => {
     const w = typeof link.weight === "number" ? link.weight : 0.5
     return Math.max(0.5, w * w * 8)
   }, [])
@@ -290,9 +349,9 @@ export function GraphTab() {
   }, [selectNode])
 
   // Link click — show edge detail
-  const handleLinkClick = useCallback((link: any) => {
-    const srcId = typeof link.source === "object" ? link.source.id : link.source
-    const tgtId = typeof link.target === "object" ? link.target.id : link.target
+  const handleLinkClick = useCallback((link: GraphLink) => {
+    const srcId = linkNodeId(link.source)
+    const tgtId = linkNodeId(link.target)
     setSelectedEdge({ source: srcId, target: tgtId, weight: link.weight ?? 0 })
   }, [])
 
@@ -308,14 +367,6 @@ export function GraphTab() {
     setSearchTerm(term)
     selectNode(null)
   }, [setSearchTerm, selectNode])
-
-  const handleScopeChange = useCallback((ids: Set<string>) => {
-    setSelectedScopeIds(ids)
-  }, [])
-
-  const handleTagChange = useCallback((tags: Set<string>) => {
-    setSelectedTags(tags)
-  }, [])
 
   return (
     <div className="flex flex-row h-full overflow-hidden">
@@ -429,26 +480,26 @@ export function GraphTab() {
           </div>
         )}
 
-        {/* 3D Force Graph */}
+        {/* 3D Force Graph — force-graph's generic callback types require casting */}
         {webglSupported && graphData && graphData.nodes.length > 0 && (
           <ForceGraph3D
-            ref={fgRef}
+            ref={fgRef as React.RefObject<never>}
             graphData={forceGraphData}
             width={dimensions.width}
             height={dimensions.height}
             backgroundColor={colors.bg}
             nodeId="id"
-            nodeLabel={nodeLabel as any}
-            nodeColor={nodeColor as any}
-            nodeVal={nodeVal as any}
+            nodeLabel={nodeLabel as never}
+            nodeColor={nodeColor as never}
+            nodeVal={nodeVal as never}
             nodeOpacity={0.9}
             nodeResolution={12}
-            linkColor={linkColor as any}
-            linkWidth={linkWidth as any}
+            linkColor={linkColor as never}
+            linkWidth={linkWidth as never}
             linkOpacity={0.6}
             linkDirectionalParticles={0}
-            onNodeClick={handleNodeClick as any}
-            onLinkClick={handleLinkClick}
+            onNodeClick={handleNodeClick as never}
+            onLinkClick={handleLinkClick as never}
             onBackgroundClick={handleBackgroundClick}
             showNavInfo={false}
             enableNodeDrag={true}
@@ -465,7 +516,7 @@ export function GraphTab() {
           />
         )}
 
-        {/* Zoom controls — rendered after canvas so they appear on top */}
+        {/* Zoom controls */}
         {webglSupported && graphData && graphData.nodes.length > 0 && !isLoading && (
           <GraphControls
             fgRef={fgRef}
