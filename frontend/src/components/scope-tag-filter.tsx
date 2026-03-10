@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Layers, Tag, FolderCog, ChevronDown, ChevronRight } from "lucide-react"
 import type { Scope } from "@/lib/types"
 
@@ -20,7 +21,7 @@ export function ScopeTagFilter({
   onTagChange: (tags: Set<string>) => void
 }) {
   const [scopesOpen, setScopesOpen] = useState(true)
-  const [tagsOpen, setTagsOpen] = useState(true)
+  const [tagsOpen, setTagsOpen] = useState(false)
 
   const allScopesSelected = scopes.length > 0 && selectedScopeIds.size === scopes.length
   const noScopesSelected = selectedScopeIds.size === 0
@@ -138,28 +139,33 @@ export function ScopeTagFilter({
           </button>
 
           {tagsOpen && (
-            <div className="space-y-0.5 pl-2">
-              {selectedTags.size > 0 && (
-                <button
-                  className="text-[10px] text-muted-foreground hover:text-foreground px-1 py-0.5"
-                  onClick={clearTags}
-                >
-                  Clear all
-                </button>
-              )}
-              {availableTags.map((tag) => (
-                <label
-                  key={tag}
-                  className="flex items-center gap-2 px-1 py-1 rounded hover:bg-accent cursor-pointer text-xs"
-                >
-                  <Checkbox
-                    checked={selectedTags.has(tag)}
-                    onCheckedChange={() => toggleTag(tag)}
-                  />
-                  <span className="truncate">{tag}</span>
-                </label>
-              ))}
-            </div>
+            <ScrollArea
+              className="pl-2"
+              style={{ height: Math.min(availableTags.length * 28 + (selectedTags.size > 0 ? 24 : 0), 168) }}
+            >
+              <div className="space-y-0.5">
+                {selectedTags.size > 0 && (
+                  <button
+                    className="text-[10px] text-muted-foreground hover:text-foreground px-1 py-0.5"
+                    onClick={clearTags}
+                  >
+                    Clear all
+                  </button>
+                )}
+                {availableTags.map((tag) => (
+                  <label
+                    key={tag}
+                    className="flex items-center gap-2 px-1 py-1 rounded hover:bg-accent cursor-pointer text-xs"
+                  >
+                    <Checkbox
+                      checked={selectedTags.has(tag)}
+                      onCheckedChange={() => toggleTag(tag)}
+                    />
+                    <span className="truncate">{tag}</span>
+                  </label>
+                ))}
+              </div>
+            </ScrollArea>
           )}
         </div>
       )}
