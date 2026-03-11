@@ -35,7 +35,25 @@ Settings changed via the **Settings** tab in the UI are saved back to `settings.
 | Key | Default | Description |
 |-----|---------|-------------|
 | `sources` | `[./docs]` | Directories to scan for markdown files |
+| `project_roots` | `[]` | Auto-discover docs in cloned repos (see below) |
 | `global_ignore` | node_modules, .git, etc. | Glob patterns to skip |
+
+### Project Roots
+
+Point mdkb at a directory containing cloned repositories and it will automatically discover and index documentation matching your patterns:
+
+```yaml
+project_roots:
+  - path: /home/user/projects
+    include:
+      - "*.md"
+      - "docs/**/*.md"
+    exclude:
+      - "CHANGELOG.md"
+      - "LICENSE.md"
+```
+
+Each immediate subdirectory of `path` is treated as a project. If any files match the `include` patterns (minus `exclude`), that project directory is watched and indexed. New repos cloned into the root are picked up automatically (~60s).
 
 ## Embeddings
 

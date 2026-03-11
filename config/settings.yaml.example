@@ -5,6 +5,18 @@
 sources:
 - ./docs
 
+# Project roots — auto-discover docs in cloned repositories
+# Each entry scans immediate subdirectories for files matching include patterns.
+# New repos cloned into the root are picked up automatically (~60s).
+# project_roots:
+# - path: /home/user/projects
+#   include:
+#     - '*.md'              # Root-level markdown (README, etc.)
+#     - 'docs/**/*.md'      # Everything under docs/
+#   exclude:
+#     - 'CHANGELOG.md'
+#     - 'LICENSE.md'
+
 # Glob patterns to skip during file scanning
 global_ignore:
 - '**/node_modules/**'

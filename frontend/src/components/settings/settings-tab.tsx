@@ -60,6 +60,9 @@ export function SettingsTab() {
     removeSource,
     addIgnorePattern,
     removeIgnorePattern,
+    addProjectRoot,
+    removeProjectRoot,
+    updateProjectRoot,
     reindex,
     cancelIndex,
     saveSystemPrompt,
@@ -153,10 +156,14 @@ export function SettingsTab() {
               <SourcesPanel
                 sources={settings.sources}
                 ignorePatterns={settings.global_ignore}
+                projectRoots={settings.project_roots}
                 onAdd={addSource}
                 onRemove={removeSource}
                 onAddIgnore={addIgnorePattern}
                 onRemoveIgnore={removeIgnorePattern}
+                onAddProjectRoot={addProjectRoot}
+                onRemoveProjectRoot={removeProjectRoot}
+                onUpdateProjectRoot={updateProjectRoot}
               />
             )}
             {activeSection === "scopes" && (

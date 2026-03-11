@@ -2,6 +2,7 @@
 
 import fnmatch
 import logging
+import threading
 import time
 from pathlib import Path
 
@@ -241,6 +242,7 @@ class FileWatcher:
         self._settings = settings
         self._store = store
         self._tracking = tracking
+        self._rescan_timer: threading.Timer | None = None
 
     def add_directory(self, path: str) -> bool:
         """Schedule a directory for watching.  Returns True if newly added."""
@@ -263,11 +265,38 @@ class FileWatcher:
         for source in self._settings.sources:
             self.add_directory(source)
         self._observer.start()
+        self._start_project_root_rescan()
 
     def stop(self):
         """Stop the observer and wait for it to finish."""
+        if self._rescan_timer is not None:
+            self._rescan_timer.cancel()
+            self._rescan_timer = None
         self._observer.stop()
         self._observer.join()
+
+    def _start_project_root_rescan(self):
+        """Start periodic rescan for new project directories."""
+        self._rescan_project_roots()
+
+    def _rescan_project_roots(self):
+        """Re-expand project roots and watch any newly discovered directories."""
+        try:
+            for source in self._settings.sources:
+                if source not in self._watched:
+                    if self.add_directory(source):
+                        logger.info("Project root rescan: discovered new directory %s", source)
+                        threading.Thread(
+                            target=self.index_directory,
+                            args=(source,),
+                            daemon=True,
+                        ).start()
+        except Exception:
+            logger.exception("Error during project root rescan")
+        # Schedule next rescan
+        self._rescan_timer = threading.Timer(60.0, self._rescan_project_roots)
+        self._rescan_timer.daemon = True
+        self._rescan_timer.start()
 
     def run_forever(self):
         """Block the current thread until interrupted."""

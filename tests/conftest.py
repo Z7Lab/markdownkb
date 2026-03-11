@@ -48,6 +48,7 @@ class FakeSettings:
     default_score_threshold: float = 0.3
     default_hybrid_search: bool = True
     default_bm25_weight: float = 0.5
+    project_roots: list[dict] = field(default_factory=list)
     log_level: str = "INFO"
     file_list_limit: int = 5000
     llm_num_ctx: int | None = None

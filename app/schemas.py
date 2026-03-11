@@ -143,6 +143,29 @@ class SourceActionRequest(BaseModel):
     source: str
 
 
+class AddProjectRootRequest(BaseModel):
+    """Request model for adding a project root."""
+
+    path: str
+    include: list[str] = Field(default_factory=lambda: ["*.md", "docs/**/*.md"])
+    exclude: list[str] = Field(default_factory=list)
+
+
+class UpdateProjectRootRequest(BaseModel):
+    """Request model for updating a project root's patterns."""
+
+    path: str
+    include: list[str] | None = None
+    exclude: list[str] | None = None
+
+
+class RemoveProjectRootRequest(BaseModel):
+    """Request model for removing a project root."""
+
+    path: str
+    cleanup: bool = False
+
+
 class IgnorePatternRequest(BaseModel):
     """Request model for adding/removing ignore patterns."""
 

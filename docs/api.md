@@ -85,6 +85,10 @@ Supports Google-style quoted phrases: `"exact phrase"` requires literal match in
 | DELETE | `/api/sources` | Remove source directory (with optional `cleanup` to unindex files) |
 | POST | `/api/ignore-patterns` | Add ignore pattern |
 | DELETE | `/api/ignore-patterns` | Remove ignore pattern |
+| GET | `/api/project-roots` | List project root configurations |
+| POST | `/api/project-roots` | Add project root (path + include/exclude patterns) |
+| PUT | `/api/project-roots` | Update project root patterns |
+| DELETE | `/api/project-roots` | Remove project root (with optional `cleanup` to unindex) |
 | PUT | `/api/settings/provider` | Save LLM provider config (name, model, api_base, api_key) |
 | PUT | `/api/settings/llm-params` | Save generation parameters (temperature, max_tokens, num_ctx) |
 | POST | `/api/settings/test-connection` | Test LLM connectivity |

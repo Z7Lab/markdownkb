@@ -106,6 +106,30 @@ function useSettingsInternal() {
     [load],
   )
 
+  const addProjectRoot = useCallback(
+    async (path: string, include: string[], exclude: string[]) => {
+      await api.post("/api/project-roots", { path, include, exclude })
+      await load()
+    },
+    [load],
+  )
+
+  const removeProjectRoot = useCallback(
+    async (path: string, cleanup = false) => {
+      await api.del("/api/project-roots", { path, cleanup })
+      await load()
+    },
+    [load],
+  )
+
+  const updateProjectRoot = useCallback(
+    async (path: string, include: string[], exclude: string[]) => {
+      await api.put("/api/project-roots", { path, include, exclude })
+      await load()
+    },
+    [load],
+  )
+
   const saveSystemPrompt = useCallback(
     async (prompt: string) => {
       await api.put("/api/settings/system-prompt", { prompt })
@@ -154,6 +178,10 @@ function useSettingsInternal() {
     removeSource,
     addIgnorePattern,
     removeIgnorePattern,
+    // Project Roots
+    addProjectRoot,
+    removeProjectRoot,
+    updateProjectRoot,
     // Features & config
     toggleFeature,
     toggleIntelligentSearch,

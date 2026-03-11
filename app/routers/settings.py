@@ -11,6 +11,7 @@ from app.deps import get_cancel_event, get_chatdb, get_searchdb, get_settings, g
 from app.ratelimit import HEAVY, LLM, STANDARD, limiter
 from app.logbuffer import log_buffer
 from app.schemas import (
+    AddProjectRootRequest,
     AddSourceRequest,
     FeatureToggleRequest,
     IgnorePatternRequest,
@@ -20,12 +21,14 @@ from app.schemas import (
     ModelInfoRequest,
     ProviderSettingsRequest,
     RefreshModelsRequest,
+    RemoveProjectRootRequest,
     RemoveSourceRequest,
     RetrievalSettingsRequest,
     SearchSummaryPromptRequest,
     SystemPromptRequest,
     TestConnectionRequest,
     TestPromptRequest,
+    UpdateProjectRootRequest,
 )
 from app.services.llm_service import (
     build_model_list,
@@ -138,6 +141,107 @@ def remove_ignore_pattern(
     return {"global_ignore": settings.global_ignore}
 
 
+# -- Project Roots --
+
+@router.get("/project-roots")
+@limiter.limit(STANDARD)
+def get_project_roots(request: Request, settings: Settings = Depends(get_settings)):
+    """Get list of configured project roots."""
+    return {"project_roots": settings.project_roots}
+
+
+@router.post("/project-roots")
+@limiter.limit(STANDARD)
+def add_project_root(
+    request: Request,
+    req: AddProjectRootRequest,
+    settings: Settings = Depends(get_settings),
+    watcher=Depends(get_watcher),
+):
+    """Add a project root directory.
+
+    The project root is scanned for subdirectories containing files that
+    match the include patterns.  Each matching project is watched and
+    indexed automatically.
+    """
+    settings.add_project_root(req.path, req.include, req.exclude)
+    settings.save()
+
+    # Watch and index newly expanded directories immediately
+    if watcher is not None:
+        for source in settings.sources:
+            resolved = str(Path(source).resolve())
+            if watcher.add_directory(resolved):
+                import threading
+                threading.Thread(
+                    target=watcher.index_directory,
+                    args=(resolved,),
+                    daemon=True,
+                ).start()
+
+    return {"project_roots": settings.project_roots}
+
+
+@router.put("/project-roots")
+@limiter.limit(STANDARD)
+def update_project_root(
+    request: Request,
+    req: UpdateProjectRootRequest,
+    settings: Settings = Depends(get_settings),
+    watcher=Depends(get_watcher),
+):
+    """Update include/exclude patterns for a project root."""
+    try:
+        settings.update_project_root(req.path, req.include, req.exclude)
+    except KeyError:
+        raise HTTPException(404, f"Project root not found: {req.path}")
+    settings.save()
+
+    # Watch any newly matching directories
+    if watcher is not None:
+        for source in settings.sources:
+            resolved = str(Path(source).resolve())
+            if watcher.add_directory(resolved):
+                import threading
+                threading.Thread(
+                    target=watcher.index_directory,
+                    args=(resolved,),
+                    daemon=True,
+                ).start()
+
+    return {"project_roots": settings.project_roots}
+
+
+@router.delete("/project-roots")
+@limiter.limit(STANDARD)
+def remove_project_root(
+    request: Request,
+    req: RemoveProjectRootRequest,
+    settings: Settings = Depends(get_settings),
+    tracking=Depends(get_tracking),
+    store=Depends(get_store),
+):
+    """Remove a project root.
+
+    When cleanup=true, also unindexes all files from the expanded directories.
+    """
+    # Capture expanded dirs before removing so we can clean up
+    removed_count = 0
+    if req.cleanup:
+        resolved_root = str(Path(req.path).resolve())
+        all_files = tracking.get_all_files()
+        for f in all_files:
+            fpath = f["path"]
+            if fpath.startswith(resolved_root + "/"):
+                store.delete_by_source(fpath)
+                tracking.unindex_file(fpath)
+                removed_count += 1
+
+    settings.remove_project_root(req.path)
+    settings.save()
+    return {"project_roots": settings.project_roots, "unindexed_count": removed_count}
+
+
 # -- Settings --
 
 @router.get("/settings")
@@ -163,6 +267,7 @@ def get_settings_endpoint(request: Request, settings: Settings = Depends(get_set
         "features": settings.features,
         "mcp": settings.mcp_config,
         "sources": settings.sources,
+        "project_roots": settings.project_roots,
         "global_ignore": settings.global_ignore,
         "active_model": active_cfg.get("model", ""),
         "active_api_base": active_cfg.get("api_base", ""),

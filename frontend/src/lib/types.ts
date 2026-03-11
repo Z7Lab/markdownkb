@@ -110,12 +110,19 @@ export interface Thread {
   updated_at: string
 }
 
+export interface ProjectRoot {
+  path: string
+  include: string[]
+  exclude: string[]
+}
+
 export interface AppSettings {
   active_provider: string
   providers: Provider[]
   features: Record<string, boolean>
   mcp: Record<string, unknown>
   sources: string[]
+  project_roots: ProjectRoot[]
   global_ignore: string[]
   active_model: string
   active_api_base: string
