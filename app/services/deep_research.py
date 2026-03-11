@@ -43,13 +43,24 @@ DEEP_RESEARCH_USER = (
 )
 
 
+_DEFAULTS = {
+    "iterations": 3,
+    "n_approaches": 3,
+}
+
+
+def get_deep_research_config(settings: Settings) -> dict:
+    """Return deep research config with defaults applied."""
+    return {**_DEFAULTS, **settings.get_plugin_config("deep_research")}
+
+
 def stream_deep_research(
     query: str,
     retriever: Retriever,
     settings: Settings,
     *,
-    iterations: int = 3,
-    n_approaches: int = 3,
+    iterations: int | None = None,
+    n_approaches: int | None = None,
     folders_filter: list[str] | None = None,
     allowed_paths: set[str] | None = None,
     search_id: str | None = None,
@@ -60,14 +71,31 @@ def stream_deep_research(
     (status, sources, token, done) so the frontend can consume it with
     the same callbacks.
     """
-    yield sse("status", {"phase": "research", "message": "Starting deep research..."})
+    # Resolve config defaults
+    cfg = get_deep_research_config(settings)
+    if iterations is None:
+        iterations = cfg["iterations"]
+    if n_approaches is None:
+        n_approaches = cfg["n_approaches"]
+
+    yield sse("status", {
+        "phase": "research",
+        "message": "Starting deep research...",
+        "iteration": 0,
+        "total_iterations": iterations,
+    })
 
     # Phase 1-4: Run MCTS planner
     planner = MCTSPlanner(retriever, settings)
     planner._folders_filter = folders_filter
     planner._allowed_paths = allowed_paths
 
-    yield sse("status", {"phase": "research", "message": "Searching knowledge base..."})
+    yield sse("status", {
+        "phase": "research",
+        "message": "Searching knowledge base...",
+        "iteration": 0,
+        "total_iterations": iterations,
+    })
     planner._exploration_log = []
     planner._user_patterns = []
     planner._research_results = planner._research(query)
@@ -75,6 +103,8 @@ def stream_deep_research(
     yield sse("status", {
         "phase": "expand",
         "message": f"Generating {n_approaches} research angles...",
+        "iteration": 0,
+        "total_iterations": iterations,
     })
 
     from app.planner.nodes import PlanNode
@@ -84,12 +114,16 @@ def stream_deep_research(
     yield sse("status", {
         "phase": "expand",
         "message": f"Evaluating {len(root.children)} angles...",
+        "iteration": 0,
+        "total_iterations": iterations,
     })
 
     for i in range(iterations):
         yield sse("status", {
             "phase": "iterate",
             "message": f"Deepening research ({i + 1}/{iterations})...",
+            "iteration": i + 1,
+            "total_iterations": iterations,
         })
         planner._iterate(root, query)
 
@@ -110,7 +144,12 @@ def stream_deep_research(
     context = format_context(documents, metadatas)
 
     # Phase 6: Stream the synthesis
-    yield sse("status", {"phase": "synthesize", "message": "Synthesizing findings..."})
+    yield sse("status", {
+        "phase": "synthesize",
+        "message": "Synthesizing findings...",
+        "iteration": iterations,
+        "total_iterations": iterations,
+    })
 
     messages = [
         {"role": "system", "content": DEEP_RESEARCH_SYSTEM},

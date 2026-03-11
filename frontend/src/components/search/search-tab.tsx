@@ -57,6 +57,8 @@ export function SearchTab() {
     deleteSearch, loadSearch,
     summary, summarySources, summaryStatus, isSummarizing, stopSummary, generateSummary,
     deepResearch, setDeepResearch,
+    deepResearchIterations, setDeepResearchIterations,
+    summaryIteration, summaryTotalIterations,
     newSearch,
     isHistorical,
     resultsChanged,
@@ -132,6 +134,8 @@ export function SearchTab() {
                 onToggle={setDeepResearch}
                 featureEnabled={settings?.features?.deep_research ?? false}
                 disabled={loading}
+                iterations={deepResearchIterations}
+                onIterationsChange={setDeepResearchIterations}
               />
               <Button onClick={search} disabled={loading || !query.trim()}>
                 <Search className="h-4 w-4 mr-1.5" />
@@ -198,6 +202,8 @@ export function SearchTab() {
                         onToggle={setDeepResearch}
                         featureEnabled={settings?.features?.deep_research ?? false}
                         disabled={isSummarizing}
+                        iterations={deepResearchIterations}
+                        onIterationsChange={setDeepResearchIterations}
                       />
                     </div>
                   )}
@@ -310,6 +316,8 @@ export function SearchTab() {
                 isHistorical={isHistorical}
                 statusMessage={summaryStatus}
                 isDeepResearch={deepResearch}
+                iteration={summaryIteration}
+                totalIterations={summaryTotalIterations}
                 onStop={stopSummary}
                 onGenerate={() => setConfirmGenerateSummaryOpen(true)}
                 onSelectSource={setViewingPath}

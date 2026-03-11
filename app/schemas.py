@@ -30,6 +30,7 @@ class SummarizeRequest(BaseModel):
     ad_hoc_tags: list[str] | None = None
     search_id: str | None = None  # Optional: save summary when provided
     deep_research: bool = False  # Use MCTS deep research instead of single-pass
+    deep_research_iterations: int | None = Field(None, ge=1, le=20)  # Override iteration count
 
 
 # -- Chat --

@@ -56,6 +56,9 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
 
   // Deep research mode
   const [deepResearch, setDeepResearch] = useState(false)
+  const [deepResearchIterations, setDeepResearchIterations] = useState(3)
+  const [summaryIteration, setSummaryIteration] = useState(0)
+  const [summaryTotalIterations, setSummaryTotalIterations] = useState(0)
 
   useEffect(() => {
     let retryTimer: ReturnType<typeof setTimeout> | null = null
@@ -107,6 +110,8 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
     setSummary("")
     setSummarySources([])
     setSummaryStatus(null)
+    setSummaryIteration(0)
+    setSummaryTotalIterations(0)
   }, [])
 
   /** Start streaming an AI summary for the given query */
@@ -116,6 +121,8 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
   ) => {
     setIsSummarizing(true)
     setSummaryStatus(null)
+    setSummaryIteration(0)
+    setSummaryTotalIterations(0)
     summaryControllerRef.current = streamSearchSummary(
       searchQuery,
       {
@@ -124,7 +131,11 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
           setSummary((prev) => prev + delta)
         },
         onSources: (sources) => setSummarySources(sources),
-        onStatus: (_phase, message) => setSummaryStatus(message),
+        onStatus: (_phase, message, iteration, totalIterations) => {
+          setSummaryStatus(message)
+          if (iteration !== undefined) setSummaryIteration(iteration)
+          if (totalIterations !== undefined) setSummaryTotalIterations(totalIterations)
+        },
         onDone: () => {
           setIsSummarizing(false)
           setSummaryStatus(null)
@@ -135,9 +146,15 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
           console.error("Summary error:", err)
         },
       },
-      { ...options, scope_ids: scopeIds, ad_hoc_tags: adHocTags, deep_research: deepResearch },
+      {
+        ...options,
+        scope_ids: scopeIds,
+        ad_hoc_tags: adHocTags,
+        deep_research: deepResearch,
+        deep_research_iterations: deepResearch ? deepResearchIterations : undefined,
+      },
     )
-  }, [scopeIds, adHocTags, deepResearch])
+  }, [scopeIds, adHocTags, deepResearch, deepResearchIterations])
 
   /**
    * Shared logic for search and requery — executes a search POST and starts summary streaming.
@@ -270,6 +287,8 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
     summaryControllerRef.current?.abort()
     setIsSummarizing(false)
     setSummaryStatus(null)
+    setSummaryIteration(0)
+    setSummaryTotalIterations(0)
   }, [])
 
   const generateSummary = useCallback(async () => {
@@ -288,6 +307,8 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
     setSummarySources([])
     setIsSummarizing(false)
     setSummaryStatus(null)
+    setSummaryIteration(0)
+    setSummaryTotalIterations(0)
     setActiveSearchId(null)
     setError(null)
     setHistorical(INITIAL_HISTORICAL)
@@ -299,6 +320,8 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
     searches, activeSearchId, deleteSearch, loadSearch,
     summary, summarySources, summaryStatus, isSummarizing, stopSummary, generateSummary,
     deepResearch, setDeepResearch,
+    deepResearchIterations, setDeepResearchIterations,
+    summaryIteration, summaryTotalIterations,
     newSearch, refreshSearches, requery,
     loadVersion, fetchVersions,
     // Historical search metadata (spread compound state for API compatibility)

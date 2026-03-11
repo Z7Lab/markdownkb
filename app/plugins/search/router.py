@@ -391,12 +391,16 @@ def summarize_search(
         from app.services.deep_research import stream_deep_research
 
         def deep_generate():
+            kwargs = {}
+            if req.deep_research_iterations is not None:
+                kwargs["iterations"] = req.deep_research_iterations
             for event in stream_deep_research(
                 req.query,
                 retriever,
                 settings,
                 folders_filter=scope_folders or None,
                 allowed_paths=allowed,
+                **kwargs,
             ):
                 # Intercept summary_text to persist, then forward as-is
                 if req.search_id and '"summary_text"' in event:

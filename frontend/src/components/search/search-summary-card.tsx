@@ -2,6 +2,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Markdown } from "@/components/ui/markdown"
 import { SourceList } from "@/components/ui/source-badge"
+import { Progress } from "@/components/ui/progress"
 import { Loader2, Microscope, Sparkles, Square } from "lucide-react"
 
 export function SearchSummaryCard({
@@ -11,6 +12,8 @@ export function SearchSummaryCard({
   isHistorical,
   statusMessage,
   isDeepResearch,
+  iteration,
+  totalIterations,
   onStop,
   onGenerate,
   onSelectSource,
@@ -21,12 +24,26 @@ export function SearchSummaryCard({
   isHistorical: boolean
   statusMessage?: string | null
   isDeepResearch?: boolean
+  iteration?: number
+  totalIterations?: number
   onStop: () => void
   onGenerate: () => void
   onSelectSource: (path: string) => void
 }) {
   const label = isDeepResearch ? "Deep Research" : "AI Summary"
   const Icon = isDeepResearch ? Microscope : Sparkles
+
+  // Progress calculation for deep research: iterations are the main work,
+  // then synthesis is the final stretch
+  const showProgress = isDeepResearch && isSummarizing && totalIterations && totalIterations > 0
+  let progressValue = 0
+  if (showProgress) {
+    // Reserve 80% for iterations, 20% for synthesis
+    const iterPortion = Math.min((iteration ?? 0) / totalIterations, 1) * 80
+    // If we're past all iterations (synthesizing), fill toward 100
+    const isSynthesizing = (iteration ?? 0) >= totalIterations && statusMessage?.includes("Synthesiz")
+    progressValue = isSynthesizing ? 85 : iterPortion
+  }
 
   return (
     <Card className="border-primary/30 bg-primary/5">
@@ -63,6 +80,9 @@ export function SearchSummaryCard({
             </Button>
           )}
         </div>
+        {showProgress && (
+          <Progress value={progressValue} className="h-1.5 mb-3" />
+        )}
         {!summary && !isSummarizing ? (
           <p className="text-sm text-muted-foreground italic">
             No AI summary available for this historical search.

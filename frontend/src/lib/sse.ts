@@ -106,7 +106,7 @@ export interface SSECallbacks {
 export interface SummaryCallbacks {
   onToken: (delta: string) => void
   onSources: (sources: string[]) => void
-  onStatus?: (phase: string, message: string) => void
+  onStatus?: (phase: string, message: string, iteration?: number, totalIterations?: number) => void
   onDone: () => void
   onError: (error: Error) => void
 }
@@ -192,7 +192,7 @@ export function streamPlan(
 export function streamSearchSummary(
   query: string,
   callbacks: SummaryCallbacks,
-  options?: { top_k?: number; folder?: string | null; tag?: string | null; search_id?: string | null; scope_ids?: string | null; ad_hoc_tags?: string[] | null; deep_research?: boolean },
+  options?: { top_k?: number; folder?: string | null; tag?: string | null; search_id?: string | null; scope_ids?: string | null; ad_hoc_tags?: string[] | null; deep_research?: boolean; deep_research_iterations?: number },
 ): AbortController {
   const body: Record<string, unknown> = { query }
   if (options?.top_k) body.top_k = options.top_k
@@ -202,6 +202,7 @@ export function streamSearchSummary(
   if (options?.scope_ids) body.scope_ids = options.scope_ids
   if (options?.ad_hoc_tags && options.ad_hoc_tags.length > 0) body.ad_hoc_tags = options.ad_hoc_tags
   if (options?.deep_research) body.deep_research = true
+  if (options?.deep_research_iterations) body.deep_research_iterations = options.deep_research_iterations
 
   return streamSSE(
     "/api/search/summarize",
@@ -212,7 +213,12 @@ export function streamSearchSummary(
       } else if (event === "sources") {
         callbacks.onSources(asStringArray(data.sources))
       } else if (event === "status" && callbacks.onStatus) {
-        callbacks.onStatus(asString(data.phase), asString(data.message))
+        callbacks.onStatus(
+          asString(data.phase),
+          asString(data.message),
+          typeof data.iteration === "number" ? data.iteration : undefined,
+          typeof data.total_iterations === "number" ? data.total_iterations : undefined,
+        )
       }
     },
     callbacks.onDone,

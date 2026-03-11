@@ -129,6 +129,16 @@ features:
   knowledge_graph: false
   rate_limiting: false
 
+# Plugin-specific configuration
+plugins:
+  search:
+    chunk_multiplier: 10            # Chunks fetched per result (higher = more file diversity)
+    exact_phrase_multiplier: 20     # Chunk multiplier when quoted phrases are used
+    exact_phrase_matching: true     # Enable/disable quoted phrase exact matching
+  deep_research:
+    iterations: 3                   # MCTS iterations (more = deeper, slower; 1-20)
+    n_approaches: 3                 # Research angles to explore (more = broader)
+
 # UI defaults
 ui:
   file_list_limit: 5000  # Max files returned in file listings (increase for large knowledge bases)
