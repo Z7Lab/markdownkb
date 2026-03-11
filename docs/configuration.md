@@ -146,6 +146,9 @@ plugins:
     chunk_multiplier: 10        # chunks fetched per result (higher = more diversity)
     exact_phrase_multiplier: 20  # chunk multiplier when quoted phrases are used
     exact_phrase_matching: true   # enable Google-style "quoted phrase" exact matching
+  deep_research:
+    iterations: 3               # MCTS research iterations (1-20, higher = deeper but slower)
+    n_approaches: 3             # number of research angles per iteration
 ```
 
 Plugin config is read/written via the generic API:

@@ -17,7 +17,7 @@ import {
 } from "lucide-react"
 import { LlmConfig } from "./llm-config"
 import { SourcesPanel } from "./sources-panel"
-import { FeaturesPanel } from "./features-panel"
+import { PluginsPanel } from "./plugins-panel"
 import { SystemPromptPanel } from "./system-prompt-panel"
 import { EmbeddingPanel } from "./embedding-panel"
 import { SearchPanel } from "./search-panel"
@@ -32,7 +32,7 @@ const sections = [
   { id: "sources", label: "Sources", icon: FolderCog },
   { id: "scopes", label: "Scopes", icon: Library },
   { id: "embeddings", label: "Embeddings", icon: Layers },
-  { id: "features", label: "Features", icon: ToggleRight },
+  { id: "features", label: "Plugins", icon: ToggleRight },
   { id: "prompt", label: "System Prompt", icon: MessageSquareText },
   { id: "database", label: "Database", icon: Database },
   { id: "logging", label: "Logging", icon: ScrollText },
@@ -175,7 +175,7 @@ export function SettingsTab() {
               />
             )}
             {activeSection === "features" && (
-              <FeaturesPanel
+              <PluginsPanel
                 features={settings.features}
                 mcpConfig={settings.mcp}
                 onToggle={toggleFeature}

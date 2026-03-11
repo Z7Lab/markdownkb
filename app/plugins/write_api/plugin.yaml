@@ -1,0 +1,19 @@
+name: write_api
+display_name: Write API
+description: Create, update, and delete markdown documents in watched source directories via HTTP.
+version: 1.0.0
+author: mdkb
+icon: file-edit
+category: integration
+feature_flag: write_api
+requires: []
+
+endpoints:
+  - method: POST
+    path: /api/documents
+    description: Create or update a markdown document
+  - method: DELETE
+    path: /api/documents
+    description: Delete a markdown document
+
+config: {}

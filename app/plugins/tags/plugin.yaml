@@ -1,0 +1,22 @@
+name: tags
+display_name: AI Tag Generator
+description: Generate and apply AI-powered tags to markdown files using LLM analysis.
+version: 1.0.0
+author: mdkb
+icon: tags
+category: ai
+feature_flag: mcp_tag_generator
+requires: []
+
+endpoints:
+  - method: POST
+    path: /api/tags/generate
+    description: Generate AI tags for a markdown file
+  - method: POST
+    path: /api/tags/apply
+    description: Apply tags to a file's frontmatter
+  - method: POST
+    path: /api/tags/bulk
+    description: Bulk-tag files in a directory
+
+config: {}

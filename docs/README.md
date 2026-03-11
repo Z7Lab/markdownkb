@@ -9,3 +9,4 @@
 | [Embedding Models](embedding-models.md) | Available models, switching, storage |
 | [Ollama Remote Setup](ollama-remote-setup.md) | Running Ollama on a separate machine |
 | [MCP Tools](mcp-tools.md) | File browsing, terminal, AI tag generation |
+| [Plugin Development](plugin-development.md) | Writing custom plugins (manifest, config, installation) |

@@ -28,6 +28,10 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
+# Install git (needed for plugin installation from GitHub)
+RUN apt-get update && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+
 # Create non-root user (UID/GID match typical host user)
 ARG UID=1000
 ARG GID=1000
@@ -47,7 +51,7 @@ COPY config/prompts/ ./config/prompts/
 COPY --from=frontend-builder /app/frontend/dist/ ./frontend/dist/
 
 # Create data directories
-RUN mkdir -p /app/data/chromadb /app/data/plans /app/docs /app/skills \
+RUN mkdir -p /app/data/chromadb /app/data/plans /app/data/plugins /app/docs /app/skills \
     && chown -R mdkb:mdkb /app/data /app/docs /app/skills
 
 ENV PYTHONUNBUFFERED=1

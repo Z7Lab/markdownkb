@@ -104,6 +104,59 @@ Supports Google-style quoted phrases: `"exact phrase"` requires literal match in
 | GET | `/api/settings/logs` | Get log entries (incremental via `?since=`) |
 | DELETE | `/api/settings/logs` | Clear log buffer |
 
+## Plugin Management
+
+Core router (always registered). Manages plugin discovery, installation, and removal.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/plugins` | List all plugins (builtin + external) with manifests, plus core feature flags |
+| GET | `/api/plugins/{name}` | Get details for a specific plugin |
+| POST | `/api/plugins/install` | Install plugin from GitHub URL (`{ url }`) |
+| DELETE | `/api/plugins/{name}` | Uninstall an external plugin (builtin plugins cannot be removed) |
+
+### GET /api/plugins response
+
+```json
+{
+  "plugins": [
+    {
+      "name": "search",
+      "display_name": "Search & Summaries",
+      "description": "...",
+      "version": "1.0.0",
+      "author": "mdkb",
+      "icon": "search",
+      "category": "search",
+      "feature_flag": "search",
+      "enabled": true,
+      "source": "builtin",
+      "endpoints": [...],
+      "config_schema": {...},
+      "config": {...},
+      "has_manifest": true
+    }
+  ],
+  "core_features": [
+    {
+      "name": "rag_chat",
+      "display_name": "RAG Chat",
+      "enabled": true,
+      "category": "core"
+    }
+  ]
+}
+```
+
+### POST /api/plugins/install
+
+Accepts GitHub URLs in several formats:
+- `https://github.com/user/repo`
+- `https://github.com/user/repo/tree/main/path/to/plugin`
+- `user/repo`
+
+The plugin must contain `__init__.py` with `FEATURE_FLAG` and `router` exports. A `plugin.yaml` manifest is recommended. If `requirements.txt` is present, dependencies are installed automatically.
+
 ## MCP Settings
 
 | Method | Path | Description |

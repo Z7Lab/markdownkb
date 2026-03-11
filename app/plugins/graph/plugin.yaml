@@ -1,0 +1,28 @@
+name: graph
+display_name: Knowledge Graph
+description: Interactive 3D document similarity graph with clustering and word clouds.
+version: 1.0.0
+author: mdkb
+icon: network
+category: visualization
+feature_flag: knowledge_graph
+requires: []
+
+endpoints:
+  - method: GET
+    path: /api/graph/data
+    description: Compute similarity graph (nodes, edges, clusters, word clouds)
+  - method: GET
+    path: /api/graph/stats
+    description: Graph statistics (doc count, chunk count)
+  - method: GET
+    path: /api/graph/status
+    description: Check if cached graph data is available
+  - method: GET
+    path: /api/graph/edge-detail
+    description: Chunk-level similarity detail for a document pair
+  - method: GET
+    path: /api/graph/progress
+    description: Current graph computation progress
+
+config: {}

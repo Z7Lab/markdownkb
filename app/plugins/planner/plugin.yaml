@@ -1,0 +1,34 @@
+name: planner
+display_name: MCTS Planner
+description: Generate implementation plans using Monte Carlo Tree Search with multi-angle exploration.
+version: 1.0.0
+author: mdkb
+icon: brain
+category: ai
+feature_flag: mcts_planner
+requires: []
+
+endpoints:
+  - method: POST
+    path: /api/planner/plan
+    description: Generate an implementation plan using MCTS
+  - method: POST
+    path: /api/planner/plan/stream
+    description: Stream plan generation progress as SSE
+  - method: GET
+    path: /api/planner/plans
+    description: List saved plans
+  - method: POST
+    path: /api/planner/plans
+    description: Save a plan
+  - method: GET
+    path: /api/planner/plans/{id}
+    description: Load a saved plan
+  - method: DELETE
+    path: /api/planner/plans/{id}
+    description: Delete a saved plan
+  - method: GET
+    path: /api/planner/skills
+    description: List available agent skills
+
+config: {}

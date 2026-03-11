@@ -1,0 +1,56 @@
+name: search
+display_name: Search & Summaries
+description: Semantic search with history, AI summaries, query enhancement, and exact phrase matching.
+version: 1.0.0
+author: mdkb
+icon: search
+category: search
+feature_flag: search
+requires: []
+
+endpoints:
+  - method: POST
+    path: /api/search
+    description: Semantic search with optional query enhancement
+  - method: GET
+    path: /api/searches
+    description: List search history (paginated)
+  - method: GET
+    path: /api/searches/{id}/load
+    description: Load historical search with preserved results
+  - method: GET
+    path: /api/searches/{id}/versions
+    description: Get all versions of a search
+  - method: GET
+    path: /api/searches/{id}/compare
+    description: Compare historical search against current KB state
+  - method: DELETE
+    path: /api/searches/{id}
+    description: Delete a search from history
+  - method: POST
+    path: /api/search/summarize
+    description: AI summary of search results (streaming SSE)
+  - method: POST
+    path: /api/search/enhance-query
+    description: LLM query enhancement (keywords, acronyms)
+
+config:
+  chunk_multiplier:
+    type: integer
+    default: 10
+    min: 1
+    max: 100
+    label: Chunk multiplier
+    description: Chunks fetched per result (higher = more file diversity)
+  exact_phrase_multiplier:
+    type: integer
+    default: 20
+    min: 1
+    max: 100
+    label: Exact phrase multiplier
+    description: Chunk multiplier when quoted phrases are used
+  exact_phrase_matching:
+    type: boolean
+    default: true
+    label: Exact phrase matching
+    description: Enable Google-style quoted phrase exact matching

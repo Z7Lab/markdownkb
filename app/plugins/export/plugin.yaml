@@ -1,0 +1,16 @@
+name: export
+display_name: Export
+description: Export conversation history as markdown or JSON.
+version: 1.0.0
+author: mdkb
+icon: download
+category: export
+feature_flag: export
+requires: []
+
+endpoints:
+  - method: POST
+    path: /api/export
+    description: Export conversations as markdown or JSON
+
+config: {}

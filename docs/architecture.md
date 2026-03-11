@@ -13,9 +13,9 @@ mdkb is a chat-with-your-docs tool with a Python backend and React frontend. The
 ┌────────────────────────▼────────────────────────────────┐
 │  FastAPI Backend                                        │
 │  ┌──────────────────────────────────────────────────┐   │
-│  │  Core Routers (7 modules)                        │   │
+│  │  Core Routers (8 modules)                        │   │
 │  │  health │ chat │ threads │ files                 │   │
-│  │  settings │ embeddings │ scopes                  │   │
+│  │  settings │ embeddings │ scopes │ plugins         │   │
 │  ├──────────────────────────────────────────────────┤   │
 │  │  Plugins (auto-discovered, feature-gated)        │   │
 │  │  search │ export │ graph │ planner │ tags │ ...  │   │
@@ -65,7 +65,7 @@ mdkb is a chat-with-your-docs tool with a Python backend and React frontend. The
 ## Request Lifecycle
 
 1. **Frontend** makes HTTP requests to `/api/*`. Streaming responses (chat, summaries) use POST-based SSE via `fetch` + `ReadableStream`.
-2. **Routers** handle request validation and call into services. Core routers (health, chat, threads, files, settings, embeddings, scopes) are always registered. **Plugins** (`app/plugins/`) are auto-discovered at startup — each plugin exposes a feature flag and a router; only enabled plugins are registered.
+2. **Routers** handle request validation and call into services. Core routers (health, chat, threads, files, settings, embeddings, scopes, plugins) are always registered. **Plugins** (`app/plugins/` and `data/plugins/`) are auto-discovered at startup — each plugin exposes a feature flag and a router; only enabled plugins are registered.
 3. **Auth middleware** (`app/auth.py`) checks the `X-MDKB-Key` header on all `/api/*` paths (except `/api/health`) when an API key is configured via Docker secret or env var. Uses `hmac.compare_digest()` for timing-safe comparison. Disabled when no key is set.
 4. **Dependency injection** (`app/deps.py`) provides services via FastAPI's `Depends()`. All shared state lives on `app.state`, initialized in the async lifespan context manager (`app/main.py`).
 5. **Services** contain business logic — conversation management, LLM health checks, query enhancement.
@@ -123,12 +123,65 @@ Connection testing and model discovery for Ollama use `httpx` directly (`app/ser
 
 ## Plugin System
 
-Optional routers live under `app/plugins/`. Each plugin is a directory with an `__init__.py` that exposes:
+Plugins live in two locations:
+
+- **Builtin** — `app/plugins/<name>/` — shipped with the application
+- **External** — `data/plugins/<name>/` — user-installed (persisted via Docker volume mount)
+
+Each plugin is a directory with an `__init__.py` that exposes:
 
 - `FEATURE_FLAG: str` — the feature flag name in `settings.yaml`
 - `router: APIRouter` — the FastAPI router to register
 
-At startup, `app/plugins/__init__.py` scans the directory, imports each plugin, checks its feature flag, and registers the router if enabled. Adding a new plugin requires no changes to core files — just create a new folder in `app/plugins/`.
+At startup, `app/plugins/__init__.py` scans both directories, imports each plugin, checks its feature flag, and registers the router if enabled. External plugins get their parent directory added to `sys.path` for import resolution. Adding a new plugin requires no changes to core files.
+
+### Plugin Manifests
+
+Plugins may include a `plugin.yaml` manifest providing display metadata, endpoint declarations, and config schemas. The UI uses this to render the plugin management page with auto-generated configuration forms. Example:
+
+```yaml
+name: search
+display_name: Search & Summaries
+description: Semantic search with history and AI summaries.
+version: 1.0.0
+author: mdkb
+icon: search
+category: search
+feature_flag: search
+requires: []
+
+endpoints:
+  - method: POST
+    path: /api/search
+    description: Semantic search
+
+config:
+  chunk_multiplier:
+    type: integer
+    default: 10
+    min: 1
+    max: 100
+    label: Chunk multiplier
+    description: Chunks fetched per result
+```
+
+Config schema types: `boolean` (toggle), `integer` (number input with optional min/max), `string` (text input).
+
+### Plugin Installation & Removal
+
+External plugins can be installed from GitHub via `POST /api/plugins/install`. The flow:
+
+1. Clone the repo (shallow, `--depth 1`) to a temp directory
+2. If the URL includes a subdirectory (e.g. `/tree/main/plugins/my-plugin`), extract that directory
+3. Validate: must have `__init__.py` with `FEATURE_FLAG` and `router`
+4. Install `requirements.txt` if present
+5. Copy to `data/plugins/<name>/`
+6. Add the feature flag to settings (disabled by default)
+7. Requires a container restart to activate
+
+Builtin plugins cannot be uninstalled — only disabled via feature flags. External plugins can be fully removed via `DELETE /api/plugins/{name}`.
+
+URL formats accepted: `https://github.com/user/repo`, `https://github.com/user/repo/tree/main/path/to/plugin`, `user/repo`.
 
 ### Plugin Configuration
 
@@ -145,7 +198,7 @@ plugins:
 
 Plugins read their config via `Settings.get_plugin_config("name")` and define their own defaults internally. A generic API (`GET/PUT /api/settings/plugins/{name}`) allows reading and updating any plugin's config without changes to core code.
 
-Current plugins: `search` (search with history and AI summaries), `export` (conversation export), `graph` (knowledge graph visualization), `planner` (MCTS plan generation), `tags` (AI tag generation), `write_api` (document creation via HTTP).
+Current builtin plugins: `search` (search with history and AI summaries), `export` (conversation export), `graph` (knowledge graph visualization), `planner` (MCTS plan generation), `tags` (AI tag generation), `write_api` (document creation via HTTP).
 
 **Deep Research** is not a plugin with its own routes — it's a shared service (`app/services/deep_research.py`) that uses the MCTS engine (`app/planner/`) to run multi-angle research synthesis. It is consumed by the search plugin (via the `deep_research` flag on the summarize endpoint) and can be used by any other plugin. Gated by the `deep_research` feature flag.
 
