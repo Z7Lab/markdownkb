@@ -450,21 +450,21 @@ function InstallPluginDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Install Plugin from GitHub</DialogTitle>
+          <DialogTitle>Install Plugin</DialogTitle>
           <DialogDescription>
-            Point to a GitHub repository containing an mdkb plugin.
+            Point to a GitHub repository or a local directory containing an mdkb plugin.
             The plugin must have an __init__.py with FEATURE_FLAG and router exports.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="plugin-url">GitHub URL</Label>
+            <Label htmlFor="plugin-url">GitHub URL or local path</Label>
             <Input
               id="plugin-url"
               value={url}
               onChange={(e) => { setUrl(e.target.value); setError(null) }}
-              placeholder="https://github.com/user/repo or user/repo/tree/main/path"
+              placeholder="https://github.com/user/repo or /path/to/plugin"
               onKeyDown={(e) => e.key === "Enter" && handleInstall()}
             />
             {error && (
@@ -475,11 +475,12 @@ function InstallPluginDialog({
             )}
           </div>
           <div className="text-xs text-muted-foreground space-y-1">
-            <p className="font-medium">Supported URL formats:</p>
+            <p className="font-medium">Supported formats:</p>
             <ul className="list-disc list-inside space-y-0.5 ml-1">
               <li><code className="text-xs">https://github.com/user/repo</code> — entire repo as plugin</li>
               <li><code className="text-xs">https://github.com/user/repo/tree/main/path/to/plugin</code> — subdirectory</li>
               <li><code className="text-xs">user/repo</code> — shorthand for github.com</li>
+              <li><code className="text-xs">/path/to/plugin</code> — local directory (absolute or relative)</li>
             </ul>
           </div>
           <div className="bg-muted/50 rounded-md p-3 text-xs text-muted-foreground space-y-1.5">
@@ -682,7 +683,7 @@ export function PluginsPanel({
             Install Plugin
           </CardTitle>
           <CardDescription>
-            Add plugins from GitHub repositories to extend mdkb
+            Add plugins from GitHub repositories or local directories
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -692,7 +693,7 @@ export function PluginsPanel({
             className="w-full"
           >
             <Download className="h-4 w-4 mr-2" />
-            Install from GitHub
+            Install Plugin
           </Button>
         </CardContent>
       </Card>

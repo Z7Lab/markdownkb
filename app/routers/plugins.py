@@ -25,7 +25,7 @@ _EXTERNAL_DIR = Path("data/plugins")
 
 
 class InstallPluginRequest(BaseModel):
-    """Request to install a plugin from a GitHub URL."""
+    """Request to install a plugin from a GitHub URL or local directory path."""
 
     url: str = Field(..., min_length=1, max_length=500)
 
@@ -161,6 +161,83 @@ def get_plugin(
     return _build_plugin_response(entry, settings)
 
 
+def _install_from_source(source_dir: Path, settings: Settings) -> dict:
+    """Validate, copy, and register a plugin from a source directory.
+
+    Shared by both GitHub and local-path install flows.  Returns the
+    response dict on success; raises HTTPException on failure.
+    """
+    errors = _validate_plugin(source_dir)
+    if errors:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid plugin: {'; '.join(errors)}",
+        )
+
+    manifest = _read_manifest_safe(source_dir)
+    plugin_name = manifest.get("name", source_dir.name) if manifest else source_dir.name
+    plugin_name = plugin_name.replace("-", "_")
+
+    dest = _EXTERNAL_DIR / plugin_name
+    if dest.exists():
+        raise HTTPException(
+            status_code=409,
+            detail=f"Plugin '{plugin_name}' is already installed. "
+                   "Uninstall it first to reinstall.",
+        )
+
+    shutil.copytree(source_dir, dest)
+
+    # Install requirements if present
+    req_file = dest / "requirements.txt"
+    if req_file.exists():
+        try:
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", "-r", str(req_file)],
+                capture_output=True, text=True, check=True, timeout=120,
+            )
+        except subprocess.CalledProcessError as e:
+            shutil.rmtree(dest, ignore_errors=True)
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to install requirements: {e.stderr.strip()[:500]}",
+            )
+
+    # Add feature flag to settings (disabled by default)
+    feature_flag = ""
+    if manifest and manifest.get("feature_flag"):
+        feature_flag = manifest["feature_flag"]
+    elif (dest / "__init__.py").exists():
+        try:
+            content = (dest / "__init__.py").read_text()
+            for line in content.splitlines():
+                if line.strip().startswith("FEATURE_FLAG"):
+                    feature_flag = line.split("=", 1)[1].strip().strip("'\"")
+                    break
+        except Exception:
+            pass
+
+    if feature_flag:
+        features = settings.features
+        if feature_flag not in features:
+            features[feature_flag] = False
+            settings._data["features"] = features
+            settings.save()
+
+    return {
+        "status": "installed",
+        "name": plugin_name,
+        "feature_flag": feature_flag,
+        "manifest": manifest,
+        "message": "Plugin installed. Enable the feature flag and restart to activate.",
+    }
+
+
+def _is_local_path(url: str) -> bool:
+    """Check if the URL looks like a local filesystem path."""
+    return url.startswith("/") or url.startswith("./") or url.startswith("../")
+
+
 @router.post("/plugins/install")
 @limiter.limit(STANDARD)
 def install_plugin(
@@ -168,27 +245,36 @@ def install_plugin(
     req: InstallPluginRequest,
     settings: Settings = Depends(get_settings),
 ):
-    """Install a plugin from a GitHub URL.
+    """Install a plugin from a GitHub URL or local directory path.
 
-    Clones the repo (or subdirectory) into data/plugins/<name>/, validates
-    the plugin structure, installs requirements if present, and adds the
-    feature flag to settings.  Requires a container restart to activate.
+    Accepts GitHub URLs (clones the repo) or local absolute/relative paths
+    (copies the directory).  Validates plugin structure, installs requirements
+    if present, and adds the feature flag to settings.  Requires a container
+    restart to activate.
     """
     url = req.url.strip()
+    _EXTERNAL_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Parse GitHub URL to extract repo and optional subdirectory
+    # --- Local directory path ---
+    if _is_local_path(url):
+        source_dir = Path(url).resolve()
+        if not source_dir.is_dir():
+            raise HTTPException(
+                status_code=400,
+                detail=f"Directory not found: {source_dir}",
+            )
+        return _install_from_source(source_dir, settings)
+
+    # --- GitHub URL ---
     repo_url, subdir = _parse_github_url(url)
     if not repo_url:
         raise HTTPException(
             status_code=400,
-            detail="Invalid URL. Provide a GitHub repository URL, e.g. "
-                   "https://github.com/user/repo or "
-                   "https://github.com/user/repo/tree/main/path/to/plugin",
+            detail="Invalid source. Provide a GitHub URL "
+                   "(e.g. https://github.com/user/repo) or a local directory path "
+                   "(e.g. /path/to/plugin or ./my-plugin).",
         )
 
-    _EXTERNAL_DIR.mkdir(parents=True, exist_ok=True)
-
-    # Clone to temp dir first
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
         try:
@@ -204,7 +290,6 @@ def install_plugin(
         except subprocess.TimeoutExpired:
             raise HTTPException(status_code=408, detail="Clone timed out (60s limit)")
 
-        # Resolve the plugin source directory
         source_dir = tmp_path / "repo"
         if subdir:
             source_dir = source_dir / subdir
@@ -214,76 +299,7 @@ def install_plugin(
                     detail=f"Subdirectory '{subdir}' not found in repository",
                 )
 
-        # Validate plugin structure
-        errors = _validate_plugin(source_dir)
-        if errors:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid plugin: {'; '.join(errors)}",
-            )
-
-        # Read manifest to get the plugin name
-        manifest = _read_manifest_safe(source_dir)
-        plugin_name = manifest.get("name", source_dir.name) if manifest else source_dir.name
-        plugin_name = plugin_name.replace("-", "_")
-
-        # Check if already installed
-        dest = _EXTERNAL_DIR / plugin_name
-        if dest.exists():
-            raise HTTPException(
-                status_code=409,
-                detail=f"Plugin '{plugin_name}' is already installed. "
-                       "Uninstall it first to reinstall.",
-            )
-
-        # Copy plugin to external dir
-        shutil.copytree(source_dir, dest)
-
-        # Install requirements if present
-        req_file = dest / "requirements.txt"
-        if req_file.exists():
-            try:
-                subprocess.run(
-                    [sys.executable, "-m", "pip", "install", "-r", str(req_file)],
-                    capture_output=True, text=True, check=True, timeout=120,
-                )
-            except subprocess.CalledProcessError as e:
-                # Clean up on failure
-                shutil.rmtree(dest, ignore_errors=True)
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Failed to install requirements: {e.stderr.strip()[:500]}",
-                )
-
-        # Add feature flag to settings (disabled by default)
-        feature_flag = ""
-        if manifest and manifest.get("feature_flag"):
-            feature_flag = manifest["feature_flag"]
-        elif (dest / "__init__.py").exists():
-            # Try to read FEATURE_FLAG from the code
-            try:
-                content = (dest / "__init__.py").read_text()
-                for line in content.splitlines():
-                    if line.strip().startswith("FEATURE_FLAG"):
-                        feature_flag = line.split("=", 1)[1].strip().strip("'\"")
-                        break
-            except Exception:
-                pass
-
-        if feature_flag:
-            features = settings.features
-            if feature_flag not in features:
-                features[feature_flag] = False
-                settings._data["features"] = features
-                settings.save()
-
-    return {
-        "status": "installed",
-        "name": plugin_name,
-        "feature_flag": feature_flag,
-        "manifest": manifest,
-        "message": "Plugin installed. Enable the feature flag and restart to activate.",
-    }
+        return _install_from_source(source_dir, settings)
 
 
 @router.delete("/plugins/{name}")
