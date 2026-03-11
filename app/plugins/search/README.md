@@ -15,7 +15,7 @@ Semantic search with history, AI summaries, query enhancement, and Google-style 
 | GET | `/api/searches/{id}/versions` | Get all versions of a search (original + re-queries) |
 | GET | `/api/searches/{id}/compare` | Compare historical search against current KB state |
 | DELETE | `/api/searches/{id}` | Delete a search from history |
-| POST | `/api/search/summarize` | AI summary of search results (streaming SSE) |
+| POST | `/api/search/summarize` | AI summary of search results (streaming SSE). Pass `deep_research: true` for MCTS multi-angle synthesis. |
 | POST | `/api/search/enhance-query` | LLM query enhancement (keyword extraction, acronym expansion) |
 
 ## Exact Phrase Matching
@@ -42,6 +42,10 @@ plugins:
     exact_phrase_matching: true
 ```
 
+## Deep Research
+
+When `deep_research: true` is passed to the summarize endpoint and the `deep_research` feature flag is enabled, the search plugin delegates to `app/services/deep_research.py` instead of generating a single-pass summary. This runs the MCTS engine to explore multiple research angles before synthesizing a comprehensive answer. The toggle is available in the Search tab UI.
+
 ## Dependencies
 
 - `app.rag.retriever` — hybrid vector + BM25 search
@@ -49,3 +53,4 @@ plugins:
 - `app.storage.searchdb` — search history persistence
 - `app.storage.scopedb` — scope resolution
 - `app.services.query_service` — intelligent query enhancement
+- `app.services.deep_research` — MCTS deep research synthesis (optional, feature-gated)

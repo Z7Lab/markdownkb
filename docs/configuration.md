@@ -129,6 +129,7 @@ Feature flags toggle optional modules. All security-sensitive features default t
 | `features.mcp_terminal` | `false` | MCP terminal tool |
 | `features.mcp_tag_generator` | `false` | AI tag generation for markdown files |
 | `features.mcts_planner` | `true` | MCTS plan generation |
+| `features.deep_research` | `false` | MCTS-powered multi-angle research synthesis for search summaries |
 | `features.agent_skills` | `false` | Agent skill system |
 | `features.write_api` | `false` | HTTP endpoint for creating/updating markdown files |
 | `features.diagnostics` | `false` | Diagnostic endpoints |

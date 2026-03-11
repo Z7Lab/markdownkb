@@ -386,6 +386,33 @@ def summarize_search(
     allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags, tracking)
     top_k = req.top_k if req.top_k is not None else settings.top_k
 
+    # Deep research mode — delegate to MCTS pipeline
+    if req.deep_research and settings.feature_enabled("deep_research"):
+        from app.services.deep_research import stream_deep_research
+
+        def deep_generate():
+            for event in stream_deep_research(
+                req.query,
+                retriever,
+                settings,
+                folders_filter=scope_folders or None,
+                allowed_paths=allowed,
+            ):
+                # Intercept summary_text to persist, then forward as-is
+                if req.search_id and '"summary_text"' in event:
+                    import json as _json
+                    try:
+                        line = event.strip().split("data: ", 1)[-1]
+                        text = _json.loads(line).get("text", "")
+                        if text:
+                            searchdb.update_summary(req.search_id, text)
+                            logger.info("Saved deep research summary for search %s", req.search_id)
+                    except (ValueError, IndexError):
+                        pass
+                yield event
+
+        return StreamingResponse(deep_generate(), media_type="text/event-stream")
+
     # Strip quotes for vector search, keep original for LLM prompt
     sum_phrases: list[str] = []
     if cfg["exact_phrase_matching"]:

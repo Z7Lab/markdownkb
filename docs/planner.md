@@ -133,3 +133,7 @@ features:
 ```
 
 The planner also depends on having an active LLM provider and indexed documents in the knowledge base. Planning quality scales with how much relevant content is indexed.
+
+## Deep Research
+
+The MCTS engine is also used by the **Deep Research** feature (`features.deep_research`), which provides multi-angle research synthesis on the Search tab. While the planner generates implementation plans, deep research focuses on comprehensive answers to complex search queries — exploring multiple angles via MCTS before synthesizing a summary. Both use the same core library (`app/planner/`) but serve different purposes. See `app/services/deep_research.py`.

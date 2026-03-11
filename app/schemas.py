@@ -29,6 +29,7 @@ class SummarizeRequest(BaseModel):
     scope_ids: str | None = None
     ad_hoc_tags: list[str] | None = None
     search_id: str | None = None  # Optional: save summary when provided
+    deep_research: bool = False  # Use MCTS deep research instead of single-pass
 
 
 # -- Chat --

@@ -106,6 +106,7 @@ export interface SSECallbacks {
 export interface SummaryCallbacks {
   onToken: (delta: string) => void
   onSources: (sources: string[]) => void
+  onStatus?: (phase: string, message: string) => void
   onDone: () => void
   onError: (error: Error) => void
 }
@@ -191,7 +192,7 @@ export function streamPlan(
 export function streamSearchSummary(
   query: string,
   callbacks: SummaryCallbacks,
-  options?: { top_k?: number; folder?: string | null; tag?: string | null; search_id?: string | null; scope_ids?: string | null; ad_hoc_tags?: string[] | null },
+  options?: { top_k?: number; folder?: string | null; tag?: string | null; search_id?: string | null; scope_ids?: string | null; ad_hoc_tags?: string[] | null; deep_research?: boolean },
 ): AbortController {
   const body: Record<string, unknown> = { query }
   if (options?.top_k) body.top_k = options.top_k
@@ -200,6 +201,7 @@ export function streamSearchSummary(
   if (options?.search_id) body.search_id = options.search_id
   if (options?.scope_ids) body.scope_ids = options.scope_ids
   if (options?.ad_hoc_tags && options.ad_hoc_tags.length > 0) body.ad_hoc_tags = options.ad_hoc_tags
+  if (options?.deep_research) body.deep_research = true
 
   return streamSSE(
     "/api/search/summarize",
@@ -209,6 +211,8 @@ export function streamSearchSummary(
         callbacks.onToken(asString(data.content))
       } else if (event === "sources") {
         callbacks.onSources(asStringArray(data.sources))
+      } else if (event === "status" && callbacks.onStatus) {
+        callbacks.onStatus(asString(data.phase), asString(data.message))
       }
     },
     callbacks.onDone,

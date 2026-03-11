@@ -147,7 +147,8 @@ app/
 │   ├── chat_service.py  # Conversation memory, streaming RAG, think-block stripping
 │   ├── llm_service.py   # Ollama model discovery, connection testing
 │   ├── query_service.py # LLM-powered query enhancement
-│   └── planner_service.py # MCTS planner orchestration + skill reviews
+│   ├── planner_service.py # MCTS planner orchestration + skill reviews
+│   └── deep_research.py # MCTS-powered multi-angle research synthesis
 ├── ingestion/           # File scanning, parsing, watching, indexing
 ├── embeddings/          # ONNX embedding (3 models, no PyTorch)
 ├── storage/             # ChromaDB vector store + SQLite (file tracking, chat, search)

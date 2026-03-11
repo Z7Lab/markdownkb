@@ -50,6 +50,12 @@ const FEATURE_METADATA: Record<string, FeatureInfo> = {
     icon: Brain,
     category: "advanced",
   },
+  deep_research: {
+    label: "Deep Research",
+    description: "MCTS-powered multi-angle research synthesis for search summaries",
+    icon: Brain,
+    category: "advanced",
+  },
   agent_skills: {
     label: "Agent Skills",
     description: "Enable custom skill system for the AI agent",

@@ -27,6 +27,7 @@ mdkb is a chat-with-your-docs tool with a Python backend and React frontend. The
 │  │  llm_service        │  │  llm (LiteLLM)          │   │
 │  │  query_service      │  │  prompts                │   │
 │  │  planner_service    │  │                         │   │
+│  │  deep_research      │  │                         │   │
 │  └──────────┬──────────┘  └─────────────┬───────────┘   │
 │             │                           │               │
 │  ┌──────────▼───────────────────────────▼───────────┐   │
@@ -145,6 +146,8 @@ plugins:
 Plugins read their config via `Settings.get_plugin_config("name")` and define their own defaults internally. A generic API (`GET/PUT /api/settings/plugins/{name}`) allows reading and updating any plugin's config without changes to core code.
 
 Current plugins: `search` (search with history and AI summaries), `export` (conversation export), `graph` (knowledge graph visualization), `planner` (MCTS plan generation), `tags` (AI tag generation), `write_api` (document creation via HTTP).
+
+**Deep Research** is not a plugin with its own routes — it's a shared service (`app/services/deep_research.py`) that uses the MCTS engine (`app/planner/`) to run multi-angle research synthesis. It is consumed by the search plugin (via the `deep_research` flag on the summarize endpoint) and can be used by any other plugin. Gated by the `deep_research` feature flag.
 
 ### Model Catalogs
 

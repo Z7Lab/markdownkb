@@ -1,6 +1,7 @@
 import { useSearch } from "@/hooks/use-search"
 import { useScopes } from "@/hooks/use-scopes"
 import { useTags } from "@/hooks/use-tags"
+import { useSettings } from "@/hooks/use-settings"
 import { useIndexEvents } from "@/hooks/use-index-events"
 import { SearchSidebar } from "./search-sidebar"
 import { SearchSummaryCard } from "./search-summary-card"
@@ -9,6 +10,7 @@ import { ResultsChangedDialog } from "./results-changed-dialog"
 import { SearchHistoryDialog } from "./search-history-dialog"
 import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { DeepResearchToggle } from "@/components/ui/deep-research-toggle"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -30,6 +32,7 @@ const ASCII_BANNER = `
 export function SearchTab() {
   const { scopes } = useScopes()
   const { tags: availableTags } = useTags()
+  const { settings } = useSettings()
 
   const [selectedScopeIds, setSelectedScopeIds] = useState<Set<string>>(new Set())
   const [selectedAdHocTags, setSelectedAdHocTags] = useState<Set<string>>(new Set())
@@ -52,7 +55,8 @@ export function SearchTab() {
     loading, loadingHistorical, error, search,
     searches, activeSearchId,
     deleteSearch, loadSearch,
-    summary, summarySources, isSummarizing, stopSummary, generateSummary,
+    summary, summarySources, summaryStatus, isSummarizing, stopSummary, generateSummary,
+    deepResearch, setDeepResearch,
     newSearch,
     isHistorical,
     resultsChanged,
@@ -115,13 +119,19 @@ export function SearchTab() {
             </pre>
 
             {/* Search bar */}
-            <div className="flex gap-2 w-full max-w-2xl">
+            <div className="flex gap-2 w-full max-w-2xl items-center">
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Search your knowledge base..."
                 className="flex-1"
+              />
+              <DeepResearchToggle
+                enabled={deepResearch}
+                onToggle={setDeepResearch}
+                featureEnabled={settings?.features?.deep_research ?? false}
+                disabled={loading}
               />
               <Button onClick={search} disabled={loading || !query.trim()}>
                 <Search className="h-4 w-4 mr-1.5" />
@@ -177,6 +187,18 @@ export function SearchTab() {
                           🏷️ {tag}
                         </Badge>
                       )}
+                    </div>
+                  )}
+
+                  {/* Deep research toggle */}
+                  {!isHistorical && (
+                    <div className="ml-auto">
+                      <DeepResearchToggle
+                        enabled={deepResearch}
+                        onToggle={setDeepResearch}
+                        featureEnabled={settings?.features?.deep_research ?? false}
+                        disabled={isSummarizing}
+                      />
                     </div>
                   )}
 
@@ -286,6 +308,8 @@ export function SearchTab() {
                 summarySources={summarySources}
                 isSummarizing={isSummarizing}
                 isHistorical={isHistorical}
+                statusMessage={summaryStatus}
+                isDeepResearch={deepResearch}
                 onStop={stopSummary}
                 onGenerate={() => setConfirmGenerateSummaryOpen(true)}
                 onSelectSource={setViewingPath}

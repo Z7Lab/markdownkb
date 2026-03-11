@@ -88,6 +88,8 @@ A generic API is available for reading/writing any plugin's config:
 | [tags](tags/) | `mcp_tag_generator` | AI-powered tag generation for markdown files |
 | [write_api](write_api/) | `write_api` | HTTP endpoint for creating/updating markdown documents |
 
+**Note:** Deep Research (`deep_research` feature flag) is not a plugin — it's a shared service (`app/services/deep_research.py`) that uses the MCTS engine to provide multi-angle research synthesis. Currently consumed by the search plugin's summarize endpoint. See [docs/planner.md](../../docs/planner.md#deep-research).
+
 ## Model Catalogs
 
 A separate plugin type lives under `catalogs/`. Catalogs provide dynamic model lists for LLM providers (populating the Settings UI dropdown). They don't use feature flags — catalogs are always active. See [catalogs/README.md](catalogs/README.md).

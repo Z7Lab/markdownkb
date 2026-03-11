@@ -2,13 +2,15 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Markdown } from "@/components/ui/markdown"
 import { SourceList } from "@/components/ui/source-badge"
-import { Loader2, Sparkles, Square } from "lucide-react"
+import { Loader2, Microscope, Sparkles, Square } from "lucide-react"
 
 export function SearchSummaryCard({
   summary,
   summarySources,
   isSummarizing,
   isHistorical,
+  statusMessage,
+  isDeepResearch,
   onStop,
   onGenerate,
   onSelectSource,
@@ -17,19 +19,27 @@ export function SearchSummaryCard({
   summarySources: string[]
   isSummarizing: boolean
   isHistorical: boolean
+  statusMessage?: string | null
+  isDeepResearch?: boolean
   onStop: () => void
   onGenerate: () => void
   onSelectSource: (path: string) => void
 }) {
+  const label = isDeepResearch ? "Deep Research" : "AI Summary"
+  const Icon = isDeepResearch ? Microscope : Sparkles
+
   return (
     <Card className="border-primary/30 bg-primary/5">
       <CardContent className="pt-4">
         <div className="flex items-center gap-2 mb-3">
-          <Sparkles className="h-4 w-4 text-primary" />
-          <span className="text-sm font-semibold text-primary">AI Summary</span>
+          <Icon className="h-4 w-4 text-primary" />
+          <span className="text-sm font-semibold text-primary">{label}</span>
           {isSummarizing && (
             <>
               <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+              {statusMessage && (
+                <span className="text-xs text-muted-foreground">{statusMessage}</span>
+              )}
               <Button
                 variant="ghost"
                 size="icon"

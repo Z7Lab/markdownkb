@@ -34,7 +34,7 @@ Supports Google-style quoted phrases: `"exact phrase"` requires literal match in
 | GET | `/api/searches/{id}/versions` | Get all versions of a search (original + re-queries) |
 | GET | `/api/searches/{id}/compare` | Compare historical search against current KB state |
 | DELETE | `/api/searches/{id}` | Delete a search from history |
-| POST | `/api/search/summarize` | AI summary of search results (streaming) |
+| POST | `/api/search/summarize` | AI summary of search results (streaming). Pass `deep_research: true` for MCTS-powered multi-angle synthesis (requires `deep_research` feature flag). |
 | POST | `/api/search/enhance-query` | LLM query enhancement (keywords, acronyms) |
 
 ## Chat

@@ -122,6 +122,7 @@ features:
   mcp_terminal: false
   mcp_tag_generator: false
   mcts_planner: false
+  deep_research: false
   agent_skills: false
   write_api: false
   diagnostics: false
