@@ -62,9 +62,16 @@ class ONNXEmbedder:
         ]
 
         onnx_file = _resolve(base, info.onnx_path)
-        self._session = ort.InferenceSession(
-            str(onnx_file), providers=providers, sess_options=so,
-        )
+        try:
+            self._session = ort.InferenceSession(
+                str(onnx_file), providers=providers, sess_options=so,
+            )
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to load ONNX model '{model_id}' from {onnx_file}. "
+                f"The file may be corrupt — try removing and re-downloading "
+                f"from Settings. Original error: {e}"
+            ) from e
 
         # Check if model accepts token_type_ids
         input_names = {inp.name for inp in self._session.get_inputs()}

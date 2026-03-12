@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Download, FolderOpen, Loader2, RefreshCw, Square } from "lucide-react"
+import { Download, FolderOpen, Loader2, RefreshCw, Square, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,6 +12,7 @@ export function EmbeddingPanel({
   status,
   switching,
   onInstall,
+  onUninstall,
   onSwitch,
   onReindex,
   onCancel,
@@ -21,12 +22,14 @@ export function EmbeddingPanel({
   status: string
   switching: boolean
   onInstall: (modelId: string) => Promise<void>
+  onUninstall: (modelId: string) => Promise<void>
   onSwitch: (modelId: string) => Promise<void>
   onReindex: (force?: boolean) => Promise<void>
   onCancel: () => Promise<void>
 }) {
   const [confirmModel, setConfirmModel] = useState<string | null>(null)
   const [confirmReindex, setConfirmReindex] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [installing, setInstalling] = useState<string | null>(null)
 
   async function handleInstall(modelId: string) {
@@ -101,13 +104,24 @@ export function EmbeddingPanel({
                     </Button>
                   )}
                   {m.installed && !isActive && (
-                    <Button
-                      size="sm"
-                      onClick={() => setConfirmModel(m.model_id)}
-                      disabled={switching}
-                    >
-                      Use
-                    </Button>
+                    <>
+                      <Button
+                        size="sm"
+                        onClick={() => setConfirmModel(m.model_id)}
+                        disabled={switching}
+                      >
+                        Use
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setConfirmDelete(m.model_id)}
+                        disabled={switching}
+                        title="Remove downloaded model"
+                      >
+                        <Trash2 className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </>
                   )}
                   {isActive && !switching && (
                     <Button
@@ -170,6 +184,19 @@ export function EmbeddingPanel({
         confirmLabel="Re-index All"
         variant="destructive"
         onConfirm={() => { setConfirmReindex(false); onReindex(true) }}
+      />
+
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        onOpenChange={(open) => { if (!open) setConfirmDelete(null) }}
+        title="Remove Embedding Model?"
+        description={
+          `This will delete the downloaded files for "${confirmDelete}". ` +
+          `You can re-download it later from the Settings UI.`
+        }
+        confirmLabel="Remove"
+        variant="destructive"
+        onConfirm={() => { const id = confirmDelete; setConfirmDelete(null); if (id) onUninstall(id) }}
       />
     </>
   )

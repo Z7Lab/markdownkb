@@ -137,6 +137,19 @@ export function useEmbeddingSettings(reload: () => Promise<boolean>) {
     [loadEmbeddingModels, makeEmbeddingPollCallbacks],
   )
 
+  const uninstallEmbeddingModel = useCallback(
+    async (modelId: string) => {
+      try {
+        await api.post("/api/settings/embedding-models/uninstall", { model_id: modelId })
+        setEmbeddingStatus(`Removed ${modelId}`)
+        await loadEmbeddingModels()
+      } catch (e) {
+        setEmbeddingStatus(`Error: ${e}`)
+      }
+    },
+    [loadEmbeddingModels],
+  )
+
   const switchEmbeddingModel = useCallback(
     async (modelId: string) => {
       setEmbeddingStatus(`Switching to ${modelId}...`)
@@ -167,6 +180,7 @@ export function useEmbeddingSettings(reload: () => Promise<boolean>) {
     reindex,
     cancelIndex,
     installEmbeddingModel,
+    uninstallEmbeddingModel,
     switchEmbeddingModel,
   }
 }

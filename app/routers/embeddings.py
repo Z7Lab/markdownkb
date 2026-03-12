@@ -12,6 +12,7 @@ from app.embeddings.downloader import (
     install_model,
     is_installed,
     list_models_with_status,
+    uninstall_model,
 )
 from app.embeddings.embedder import unload_model
 from app.embeddings.registry import MODELS
@@ -127,6 +128,27 @@ def install_embedding_model_endpoint(request: Request, req: EmbeddingModelReques
 
     threading.Thread(target=_bg_install, args=(req.model_id,), daemon=True).start()
     return {"status": "installing"}
+
+
+@router.post("/settings/embedding-models/uninstall")
+@limiter.limit(STANDARD)
+def uninstall_embedding_model(
+    request: Request,
+    req: EmbeddingModelRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """Remove a downloaded embedding model from disk."""
+    if req.model_id not in MODELS:
+        raise HTTPException(400, f"Unknown model: {req.model_id}")
+    if req.model_id == settings.embedding_model:
+        raise HTTPException(400, "Cannot uninstall the active model")
+    with _switch_lock:
+        if _switch_status["running"]:
+            raise HTTPException(409, "An operation is already in progress")
+    if not is_installed(req.model_id):
+        return {"status": "not_installed"}
+    uninstall_model(req.model_id)
+    return {"status": "removed"}
 
 
 @router.put("/settings/embedding-models/switch")

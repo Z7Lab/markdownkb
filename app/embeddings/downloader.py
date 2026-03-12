@@ -30,8 +30,18 @@ def model_dir(model_id: str) -> Path:
 
 
 def _dir_has_model(d: Path, info) -> bool:
-    """Check if a directory contains all required model files."""
-    return all((d / f).exists() for f in info.files)
+    """Check if a directory contains all required model files.
+
+    Also validates that the ONNX model file is not truncated (> 1 KB).
+    """
+    for f in info.files:
+        fp = d / f
+        if not fp.exists():
+            return False
+        # Reject truncated/empty ONNX files
+        if f.endswith(".onnx") and fp.stat().st_size < 1024:
+            return False
+    return True
 
 
 def _chroma_cache_ok() -> bool:
@@ -160,6 +170,25 @@ def install_model(
     if progress:
         progress(1.0, "Done")
     logger.info("Model %s installed to %s", model_id, dest)
+
+
+def uninstall_model(model_id: str) -> bool:
+    """Remove a downloaded model's files from disk.
+
+    Returns True if files were deleted, False if nothing was found.
+    """
+    primary = model_dir(model_id)
+    removed = False
+    if primary.exists():
+        shutil.rmtree(primary)
+        logger.info("Removed model directory: %s", primary)
+        removed = True
+    legacy = _LEGACY_CACHE / model_id
+    if legacy.exists():
+        shutil.rmtree(legacy)
+        logger.info("Removed legacy model directory: %s", legacy)
+        removed = True
+    return removed
 
 
 def list_models_with_status() -> list[dict]:

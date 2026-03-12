@@ -69,6 +69,7 @@ export function SettingsTab() {
     saveSearchSummaryPrompt,
     saveRetrievalSettings,
     installEmbeddingModel,
+    uninstallEmbeddingModel,
     switchEmbeddingModel,
     toggleIntelligentSearch,
     setLogLevel,
@@ -176,6 +177,7 @@ export function SettingsTab() {
                 status={embeddingStatus}
                 switching={embeddingSwitching}
                 onInstall={installEmbeddingModel}
+                onUninstall={uninstallEmbeddingModel}
                 onSwitch={switchEmbeddingModel}
                 onReindex={reindex}
                 onCancel={cancelIndex}

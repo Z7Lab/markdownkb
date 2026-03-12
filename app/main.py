@@ -71,7 +71,13 @@ async def lifespan(app: FastAPI):
 
     if store.count == 0:
         logger.info("Empty store, running initial index...")
-        run_index(settings, store, tracking)
+        try:
+            run_index(settings, store, tracking)
+        except Exception:
+            logger.exception(
+                "Initial indexing failed (model may be corrupt or missing). "
+                "The app will start anyway — fix the model from Settings."
+            )
 
     retriever = Retriever(store, settings, tracking)
     cancel_event = threading.Event()
