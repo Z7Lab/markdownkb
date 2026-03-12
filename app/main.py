@@ -99,6 +99,10 @@ async def lifespan(app: FastAPI):
     app.state.cancel_event = cancel_event
     app.state.conversation_history = ConversationHistory()
 
+    # Initialize plugin resources (on_startup hooks)
+    from app.plugins import init_plugins
+    init_plugins(app)
+
     # Restore persisted log level
     log_level = getattr(logging, settings.log_level, logging.INFO)
     logging.getLogger().setLevel(log_level)
@@ -122,6 +126,10 @@ async def lifespan(app: FastAPI):
     if app.state.watcher is not None:
         app.state.watcher.stop()
         logger.info("File watcher stopped")
+
+    # Shutdown: plugin cleanup (before core DBs close)
+    from app.plugins import shutdown_plugins
+    shutdown_plugins(app)
 
     # Shutdown: close DB connections
     tracking.close()

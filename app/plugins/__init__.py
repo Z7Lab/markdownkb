@@ -7,6 +7,11 @@ package whose ``__init__.py`` exposes:
     FEATURE_FLAG: str   — name of the feature flag in settings.yaml
     router: APIRouter   — FastAPI router to include when the flag is enabled
 
+Optional lifecycle hooks (called on enabled plugins only):
+
+    on_startup(app)     — called after all core services are on app.state
+    on_shutdown(app)    — called before core DB connections are closed
+
 Plugins may also include a ``plugin.yaml`` manifest providing metadata
 (display name, description, icon, endpoints, config schema) that the UI
 uses to render the plugin management page.
@@ -35,6 +40,7 @@ _EXTERNAL_DIR = _PROJECT_ROOT / "data" / "plugins"
 
 # Module-level cache populated by discover_plugins / register_plugins
 _plugin_registry: list[dict[str, Any]] = []
+_enabled_modules: dict[str, Any] = {}  # name → module for enabled plugins
 
 
 def _read_manifest(plugin_dir: Path) -> dict[str, Any] | None:
@@ -168,6 +174,7 @@ def register_plugins(app: FastAPI, settings: Settings) -> list[str]:
             continue
 
         app.include_router(router)
+        _enabled_modules[info["name"]] = mod
         registered.append(info["name"])
         logger.info("Registered plugin: %s", info["name"])
         registry.append(entry)
@@ -187,3 +194,34 @@ def get_plugin_info(name: str) -> dict[str, Any] | None:
         if entry["name"] == name:
             return dict(entry)
     return None
+
+
+def init_plugins(app: FastAPI) -> None:
+    """Call on_startup(app) on each enabled plugin that defines it.
+
+    Must be called from the lifespan context *after* all core services
+    have been stored on ``app.state``.
+    """
+    for name, mod in _enabled_modules.items():
+        hook = getattr(mod, "on_startup", None)
+        if hook:
+            try:
+                hook(app)
+                logger.info("Plugin '%s' on_startup complete", name)
+            except Exception:
+                logger.exception("Plugin '%s' on_startup failed", name)
+
+
+def shutdown_plugins(app: FastAPI) -> None:
+    """Call on_shutdown(app) on each enabled plugin that defines it.
+
+    Must be called from the lifespan context *before* closing core DBs.
+    """
+    for name, mod in _enabled_modules.items():
+        hook = getattr(mod, "on_shutdown", None)
+        if hook:
+            try:
+                hook(app)
+                logger.info("Plugin '%s' on_shutdown complete", name)
+            except Exception:
+                logger.exception("Plugin '%s' on_shutdown failed", name)
