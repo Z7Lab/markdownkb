@@ -69,6 +69,8 @@ def list_files(
         if tracked:
             merged.append(tracked)
         else:
+            # Check for preserved metadata (survives clear/reindex)
+            meta = tracking.get_metadata(d["path"])
             merged.append({
                 "path": d["path"],
                 "source_root": d["source_root"],
@@ -80,8 +82,8 @@ def list_files(
                 "error_msg": None,
                 "indexed_at": None,
                 "updated_at": None,
-                "include_rag": 1,
-                "tags": "",
+                "include_rag": meta["include_rag"] if meta else 1,
+                "tags": meta["tags"] if meta else "",
             })
 
     # Include tracked files not in discovery — mark missing ones
