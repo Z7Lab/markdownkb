@@ -49,7 +49,7 @@ async function request<T>(
         const text = await res.text()
         throw new Error(`${res.status}: ${text}`)
       }
-      return res.json()
+      return await res.json()
     } catch (error) {
       // If it's a connection error and we have retries left, retry with backoff
       const isConnectionError = error instanceof TypeError &&
@@ -69,6 +69,38 @@ async function request<T>(
   }
 
   throw new Error("Max retries exceeded")
+}
+
+/**
+ * Retry an async operation with fixed-delay backoff.
+ * Returns a cleanup function that cancels pending retries.
+ * Used by hooks for initial data loading (settings, threads, files, etc.).
+ */
+export function retryWithBackoff(
+  fn: () => Promise<boolean>,
+  opts?: { maxRetries?: number; delay?: number },
+): () => void {
+  const maxRetries = opts?.maxRetries ?? 10
+  const delay = opts?.delay ?? 2000
+  let timer: ReturnType<typeof setTimeout> | null = null
+  let cancelled = false
+  let retryCount = 0
+
+  const attempt = async () => {
+    if (cancelled) return
+    const success = await fn()
+    if (!success && !cancelled && retryCount < maxRetries) {
+      retryCount++
+      timer = setTimeout(attempt, delay)
+    }
+  }
+
+  attempt()
+
+  return () => {
+    cancelled = true
+    if (timer) clearTimeout(timer)
+  }
 }
 
 export const api = {

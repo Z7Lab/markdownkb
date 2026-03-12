@@ -242,7 +242,7 @@ export function FilesTab() {
 
   // Fetch sources for auto-tag dialog
   useEffect(() => {
-    api.get<{ sources: string[] }>("/api/sources").then((res) => setSources(res.sources)).catch(() => {})
+    api.get<{ sources: string[] }>("/api/sources").then((res) => setSources(res.sources)).catch(() => { /* sources list for auto-tag is non-critical */ })
   }, [])
 
   const toggleSelect = useCallback((path: string) => {
@@ -400,6 +400,7 @@ export function FilesTab() {
                 <div className="flex items-center h-full">
                   <div className="pl-2 flex items-center" onClick={(e) => e.stopPropagation()}>
                     <Checkbox
+                      aria-label="Select all files"
                       checked={filteredFiles.length > 0 && filteredFiles.every((f) => selected.has(f.path))}
                       onCheckedChange={(checked) => {
                         if (checked) {

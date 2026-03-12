@@ -54,7 +54,7 @@ export function PlannerTab() {
 
   useEffect(() => {
     if (isPlanning) {
-      setElapsed(0) // eslint-disable-line react-hooks/set-state-in-effect -- reset timer on planning state change
+      setElapsed(0)
       timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000)
     } else {
       if (timerRef.current) clearInterval(timerRef.current)

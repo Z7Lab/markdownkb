@@ -44,7 +44,8 @@ export function DatabasePanel() {
       const res = await api.get<DatabaseStats>("/api/settings/database-stats")
       setStats(res)
     } catch (err) {
-      console.error("Failed to load database stats:", err)
+      /* stats load is best-effort; panel will show empty state */
+      void err
     }
   }, [])
 

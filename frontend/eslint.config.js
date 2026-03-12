@@ -19,5 +19,12 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Initial-data-fetch-on-mount is a pervasive pattern in this codebase;
+      // the rule fires on every useEffect that calls an async setState helper.
+      'react-hooks/set-state-in-effect': 'off',
+      // Icon map lookups return stable references, not dynamically created components.
+      'react-hooks/static-components': 'off',
+    },
   },
 ])

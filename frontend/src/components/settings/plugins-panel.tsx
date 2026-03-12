@@ -1,20 +1,10 @@
 import { useCallback, useEffect, useState } from "react"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   AlertCircle,
@@ -43,6 +33,9 @@ import {
 import { api } from "@/lib/api"
 import { toast } from "sonner"
 import { McpSettingsDialog } from "./mcp-settings-dialog"
+import { PluginConfigDialog } from "./plugin-config-dialog"
+import { InstallPluginDialog } from "./install-plugin-dialog"
+import type { PluginInfo, CoreFeature } from "./plugin-types"
 
 // Map icon names from plugin.yaml to lucide components
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -80,175 +73,6 @@ const CATEGORY_LABELS: Record<string, string> = {
   mcp: "MCP Tools",
   advanced: "Advanced",
   other: "Other",
-}
-
-interface PluginEndpoint {
-  method: string
-  path: string
-  description: string
-}
-
-interface ConfigFieldSchema {
-  type: string
-  default: unknown
-  label?: string
-  description?: string
-  min?: number
-  max?: number
-}
-
-interface PluginInfo {
-  name: string
-  display_name: string
-  description: string
-  version: string
-  author: string
-  icon: string
-  category: string
-  feature_flag: string
-  enabled: boolean
-  source: string
-  error: string | null
-  endpoints: PluginEndpoint[]
-  config_schema: Record<string, ConfigFieldSchema>
-  config: Record<string, unknown>
-  requires: string[]
-  has_manifest: boolean
-}
-
-interface CoreFeature {
-  name: string
-  display_name: string
-  description: string
-  icon: string
-  category: string
-  feature_flag: string
-  enabled: boolean
-}
-
-// -- Plugin Config Dialog (auto-generated from schema) --
-
-function PluginConfigDialog({
-  plugin,
-  open,
-  onOpenChange,
-  onSaved,
-}: {
-  plugin: PluginInfo
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSaved: () => void
-}) {
-  const [config, setConfig] = useState<Record<string, unknown>>(plugin.config || {})
-  const [saving, setSaving] = useState(false)
-
-  useEffect(() => {
-    setConfig(plugin.config || {})
-  }, [plugin.config])
-
-  const schema = plugin.config_schema || {}
-  const fields = Object.entries(schema).filter(([, v]) => v && typeof v === "object" && v.type)
-
-  const handleSave = async () => {
-    setSaving(true)
-    try {
-      await api.put(`/api/settings/plugins/${plugin.name}`, config)
-      toast.success(`${plugin.display_name} config saved`)
-      onSaved()
-      onOpenChange(false)
-    } catch (err) {
-      toast.error(`Failed to save: ${(err as Error).message}`)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const updateField = (key: string, value: unknown) => {
-    setConfig((prev) => ({ ...prev, [key]: value }))
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{plugin.display_name} Settings</DialogTitle>
-          {plugin.description && (
-            <DialogDescription>{plugin.description}</DialogDescription>
-          )}
-        </DialogHeader>
-
-        <div className="py-4 space-y-4">
-          {fields.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No configuration options available.
-            </p>
-          ) : (
-            fields.map(([key, field]) => {
-              const value = config[key] ?? field.default
-              if (field.type === "boolean") {
-                return (
-                  <div key={key} className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label htmlFor={key}>{field.label || key}</Label>
-                      {field.description && (
-                        <p className="text-xs text-muted-foreground">{field.description}</p>
-                      )}
-                    </div>
-                    <Switch
-                      id={key}
-                      checked={value as boolean}
-                      onCheckedChange={(checked) => updateField(key, checked)}
-                    />
-                  </div>
-                )
-              }
-              if (field.type === "integer" || field.type === "number") {
-                return (
-                  <div key={key} className="space-y-2">
-                    <Label htmlFor={key}>{field.label || key}</Label>
-                    <Input
-                      id={key}
-                      type="number"
-                      value={value as number}
-                      min={field.min}
-                      max={field.max}
-                      onChange={(e) => updateField(key, parseInt(e.target.value))}
-                    />
-                    {field.description && (
-                      <p className="text-xs text-muted-foreground">{field.description}</p>
-                    )}
-                  </div>
-                )
-              }
-              // Default: string
-              return (
-                <div key={key} className="space-y-2">
-                  <Label htmlFor={key}>{field.label || key}</Label>
-                  <Input
-                    id={key}
-                    value={value as string}
-                    onChange={(e) => updateField(key, e.target.value)}
-                  />
-                  {field.description && (
-                    <p className="text-xs text-muted-foreground">{field.description}</p>
-                  )}
-                </div>
-              )
-            })
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
 }
 
 // -- Plugin Card --
@@ -409,113 +233,6 @@ function CoreFeatureToggle({
         />
       </div>
     </div>
-  )
-}
-
-// -- Install Plugin Dialog --
-
-function InstallPluginDialog({
-  open,
-  onOpenChange,
-  onInstalled,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onInstalled: () => void
-}) {
-  const [url, setUrl] = useState("")
-  const [installing, setInstalling] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const handleInstall = async () => {
-    if (!url.trim()) return
-    setInstalling(true)
-    setError(null)
-    try {
-      const res = await api.post<{ name: string; message: string }>("/api/plugins/install", { url: url.trim() })
-      toast.success(res.message || `Plugin '${res.name}' installed`)
-      setUrl("")
-      onInstalled()
-      onOpenChange(false)
-    } catch (err) {
-      const msg = (err as Error).message
-      setError(msg)
-      toast.error(`Install failed: ${msg}`)
-    } finally {
-      setInstalling(false)
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Install Plugin</DialogTitle>
-          <DialogDescription>
-            Point to a GitHub repository or a local directory containing an mdkb plugin.
-            The plugin must have an __init__.py with FEATURE_FLAG and router exports.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="plugin-url">GitHub URL or local path</Label>
-            <Input
-              id="plugin-url"
-              value={url}
-              onChange={(e) => { setUrl(e.target.value); setError(null) }}
-              placeholder="https://github.com/user/repo or /path/to/plugin"
-              onKeyDown={(e) => e.key === "Enter" && handleInstall()}
-            />
-            {error && (
-              <p className="text-xs text-destructive flex items-center gap-1">
-                <AlertCircle className="h-3 w-3" />
-                {error}
-              </p>
-            )}
-          </div>
-          <div className="text-xs text-muted-foreground space-y-1">
-            <p className="font-medium">Supported formats:</p>
-            <ul className="list-disc list-inside space-y-0.5 ml-1">
-              <li><code className="text-xs">https://github.com/user/repo</code> — entire repo as plugin</li>
-              <li><code className="text-xs">https://github.com/user/repo/tree/main/path/to/plugin</code> — subdirectory</li>
-              <li><code className="text-xs">user/repo</code> — shorthand for github.com</li>
-              <li><code className="text-xs">/path/to/plugin</code> — local directory (absolute or relative)</li>
-            </ul>
-          </div>
-          <div className="bg-muted/50 rounded-md p-3 text-xs text-muted-foreground space-y-1.5">
-            <p className="font-medium text-foreground">Plugin requirements:</p>
-            <ul className="list-disc list-inside space-y-0.5 ml-1">
-              <li>__init__.py with <code>FEATURE_FLAG</code> and <code>router</code></li>
-              <li>plugin.yaml manifest (recommended)</li>
-              <li>requirements.txt for dependencies (optional)</li>
-            </ul>
-            <p className="mt-2">
-              After installing, enable the feature flag and restart the container to activate.
-            </p>
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleInstall} disabled={installing || !url.trim()}>
-            {installing ? (
-              <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-                Installing...
-              </>
-            ) : (
-              <>
-                <Download className="h-3.5 w-3.5 mr-1.5" />
-                Install
-              </>
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   )
 }
 

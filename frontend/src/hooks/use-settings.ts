@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react"
 import { createElement } from "react"
-import { api } from "@/lib/api"
+import { api, retryWithBackoff } from "@/lib/api"
 import type { AppSettings } from "@/lib/types"
 import { useProviderSettings } from "./use-provider-settings"
 import { useEmbeddingSettings } from "./use-embedding-settings"
@@ -28,29 +28,14 @@ function useSettingsInternal() {
       const res = await api.get<AppSettings>("/api/settings")
       setSettings(res)
       return true
-    } catch (err) {
-      console.warn("Failed to load settings:", err)
+    } catch {
       return false
     }
   }, [])
 
   // Initial load with retry
   useEffect(() => {
-    let retryTimer: ReturnType<typeof setTimeout> | null = null
-    let retryCount = 0
-    const MAX_RETRIES = 10
-
-    const loadWithRetry = async () => {
-      const success = await load()
-      if (!success && retryCount < MAX_RETRIES) {
-        retryCount++
-        retryTimer = setTimeout(loadWithRetry, 2000)
-      }
-    }
-
-    loadWithRetry()
-
-    return () => { if (retryTimer) clearTimeout(retryTimer) }
+    return retryWithBackoff(() => load())
   }, [load])
 
   // Domain hooks

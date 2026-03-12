@@ -226,6 +226,14 @@ export interface Scope {
 
 // -- Knowledge Graph --
 
+/** Typed ref for react-force-graph-3d instance methods used in graph controls */
+export interface ForceGraphRef {
+  d3Force: (name: string) => Record<string, (...args: unknown[]) => unknown> | undefined
+  d3ReheatSimulation: () => void
+  zoomToFit: (ms: number, padding: number) => void
+  cameraPosition: (pos?: { x: number; y: number; z: number }, lookAt?: unknown, transitionMs?: number) => { x: number; y: number; z: number }
+}
+
 export interface GraphNode {
   id: string
   label: string

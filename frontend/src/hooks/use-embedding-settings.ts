@@ -60,7 +60,7 @@ export function useEmbeddingSettings(reload: () => Promise<boolean>) {
 
   // Check for background reindex on mount
   useEffect(() => {
-    loadEmbeddingModels() // eslint-disable-line react-hooks/set-state-in-effect -- initial async fetch on mount
+    loadEmbeddingModels()
 
     api.get<PollingStatus>(EMBEDDING_STATUS_ENDPOINT).then((st) => {
       if (st.running) {

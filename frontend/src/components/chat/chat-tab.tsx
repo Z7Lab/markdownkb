@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
 import { useChat } from "@/hooks/use-chat";
 import { useScopes } from "@/hooks/use-scopes";
 import { useTags } from "@/hooks/use-tags";
 import { useSettings } from "@/hooks/use-settings";
+import { useScopeTagFilter } from "@/hooks/use-scope-tag-filter";
 import { ChatControls } from "./chat-controls";
 import { ChatInput } from "./chat-input";
 import { ChatMessageList } from "./chat-message-list";
@@ -11,19 +11,11 @@ import { ThreadSidebar } from "./thread-sidebar";
 export function ChatTab() {
   const { scopes } = useScopes();
   const { tags: availableTags } = useTags();
-
-  const [selectedScopeIds, setSelectedScopeIds] = useState<Set<string>>(new Set());
-  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
-
-  const scopeIdsParam = useMemo(() => {
-    if (selectedScopeIds.size === 0) return null;
-    return Array.from(selectedScopeIds).join(",");
-  }, [selectedScopeIds]);
-
-  const adHocTagsParam = useMemo(() => {
-    if (selectedTags.size === 0) return null;
-    return Array.from(selectedTags);
-  }, [selectedTags]);
+  const {
+    selectedScopeIds, selectedTags,
+    scopeIdsParam, adHocTagsParam,
+    handleScopeChange, handleTagChange,
+  } = useScopeTagFilter();
 
   const {
     messages,
@@ -51,10 +43,10 @@ export function ChatTab() {
         activeThreadId={activeThreadId}
         scopes={scopes}
         selectedScopeIds={selectedScopeIds}
-        onScopeChange={setSelectedScopeIds}
+        onScopeChange={handleScopeChange}
         availableTags={availableTags}
         selectedTags={selectedTags}
-        onTagChange={setSelectedTags}
+        onTagChange={handleTagChange}
         onNewChat={newChat}
         onLoadThread={loadThread}
         onRenameThread={renameThread}

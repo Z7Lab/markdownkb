@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
-import { api, setApiKey, getApiKey } from "../api"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import { api, setApiKey, getApiKey, retryWithBackoff } from "../api"
 
 describe("api", () => {
   const mockFetch = vi.fn()
@@ -89,5 +89,66 @@ describe("api", () => {
       // 1 initial + 3 retries = 4 calls
       expect(mockFetch).toHaveBeenCalledTimes(4)
     })
+  })
+})
+
+describe("retryWithBackoff", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("calls fn immediately and stops on success", async () => {
+    const fn = vi.fn().mockResolvedValue(true)
+    retryWithBackoff(fn, { delay: 100 })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(fn).toHaveBeenCalledTimes(1)
+    // No more retries after success
+    await vi.advanceTimersByTimeAsync(500)
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it("retries on failure up to maxRetries", async () => {
+    const fn = vi.fn().mockResolvedValue(false)
+    retryWithBackoff(fn, { maxRetries: 3, delay: 100 })
+    await vi.advanceTimersByTimeAsync(0) // attempt 1
+    expect(fn).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(100) // attempt 2
+    expect(fn).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(100) // attempt 3
+    expect(fn).toHaveBeenCalledTimes(3)
+    await vi.advanceTimersByTimeAsync(100) // attempt 4 (retryCount=3, hits max)
+    expect(fn).toHaveBeenCalledTimes(4)
+    // No more
+    await vi.advanceTimersByTimeAsync(500)
+    expect(fn).toHaveBeenCalledTimes(4)
+  })
+
+  it("stops retrying when cancelled", async () => {
+    const fn = vi.fn().mockResolvedValue(false)
+    const cancel = retryWithBackoff(fn, { maxRetries: 10, delay: 100 })
+    await vi.advanceTimersByTimeAsync(0) // attempt 1
+    expect(fn).toHaveBeenCalledTimes(1)
+    cancel()
+    await vi.advanceTimersByTimeAsync(500)
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it("retries then succeeds", async () => {
+    const fn = vi.fn()
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true)
+    retryWithBackoff(fn, { maxRetries: 5, delay: 50 })
+    await vi.advanceTimersByTimeAsync(0) // fail 1
+    await vi.advanceTimersByTimeAsync(50) // fail 2
+    await vi.advanceTimersByTimeAsync(50) // success
+    expect(fn).toHaveBeenCalledTimes(3)
+    // No more retries after success
+    await vi.advanceTimersByTimeAsync(200)
+    expect(fn).toHaveBeenCalledTimes(3)
   })
 })

@@ -1,13 +1,13 @@
 import { useCallback } from "react"
 import { Plus, Minus, Maximize, X } from "lucide-react"
+import type { ForceGraphRef } from "@/lib/types"
 
 export function GraphControls({
   fgRef,
   hasSelection,
   onClearSelection,
 }: {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  fgRef: React.RefObject<any>
+  fgRef: React.RefObject<ForceGraphRef | null>
   hasSelection?: boolean
   onClearSelection?: () => void
 }) {
@@ -30,14 +30,14 @@ export function GraphControls({
     <div className="absolute bottom-3 left-3 z-20 flex flex-col gap-0.5 bg-background/80 backdrop-blur-sm border rounded-lg p-0.5">
       <button
         onClick={() => zoom(0.7)}
-        title="Zoom in"
+        aria-label="Zoom in"
         className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
       >
         <Plus className="h-3.5 w-3.5" />
       </button>
       <button
         onClick={() => zoom(1.4)}
-        title="Zoom out"
+        aria-label="Zoom out"
         className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
       >
         <Minus className="h-3.5 w-3.5" />
@@ -45,7 +45,7 @@ export function GraphControls({
       <div className="border-t mx-1" />
       <button
         onClick={zoomToFit}
-        title="Fit to view"
+        aria-label="Fit to view"
         className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
       >
         <Maximize className="h-3.5 w-3.5" />
@@ -55,7 +55,7 @@ export function GraphControls({
           <div className="border-t mx-1" />
           <button
             onClick={onClearSelection}
-            title="Clear selection"
+            aria-label="Clear selection"
             className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
           >
             <X className="h-3.5 w-3.5" />

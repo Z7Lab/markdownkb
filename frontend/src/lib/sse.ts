@@ -47,6 +47,20 @@ function asStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : []
 }
 
+/** Validate that a value looks like a PlanNode (has required fields) */
+function isPlanNode(value: unknown): value is PlanNode {
+  if (!value || typeof value !== "object") return false
+  const obj = value as Record<string, unknown>
+  return typeof obj.content === "string" && typeof obj.type === "string"
+}
+
+/** Validate that a value looks like a SkillReview (has required fields) */
+function isSkillReview(value: unknown): value is SkillReview {
+  if (!value || typeof value !== "object") return false
+  const obj = value as Record<string, unknown>
+  return typeof obj.skill_name === "string" && typeof obj.review === "string"
+}
+
 /**
  * Generic SSE streaming helper — handles fetch, error handling, and abort.
  * All three stream functions share this pattern.
@@ -176,12 +190,14 @@ export function streamPlan(
       } else if (event === "sources") {
         callbacks.onSources(asStringArray(data.sources))
       } else if (event === "tree") {
-        callbacks.onTree(data.tree as PlanNode)
+        if (isPlanNode(data.tree)) {
+          callbacks.onTree(data.tree)
+        }
       } else if (event === "reviews") {
-        callbacks.onReviews(
-          Array.isArray(data.reviews) ? data.reviews as SkillReview[] : [],
-          asString(data.refined_plan),
-        )
+        const reviews = Array.isArray(data.reviews)
+          ? data.reviews.filter(isSkillReview)
+          : []
+        callbacks.onReviews(reviews, asString(data.refined_plan))
       }
     },
     callbacks.onDone,

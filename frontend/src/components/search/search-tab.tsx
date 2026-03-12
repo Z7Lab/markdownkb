@@ -16,8 +16,9 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Loader2, Search, RotateCcw, Clock, AlertCircle, History } from "lucide-react"
-import { useMemo, useState, type KeyboardEvent } from "react"
+import { useState, type KeyboardEvent } from "react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { useScopeTagFilter } from "@/hooks/use-scope-tag-filter"
 
 // ASCII art banner
 const ASCII_BANNER = `
@@ -34,18 +35,11 @@ export function SearchTab() {
   const { tags: availableTags } = useTags()
   const { settings } = useSettings()
 
-  const [selectedScopeIds, setSelectedScopeIds] = useState<Set<string>>(new Set())
-  const [selectedAdHocTags, setSelectedAdHocTags] = useState<Set<string>>(new Set())
-
-  const scopeIdsParam = useMemo(() => {
-    if (selectedScopeIds.size === 0) return null
-    return Array.from(selectedScopeIds).join(",")
-  }, [selectedScopeIds])
-
-  const adHocTagsParam = useMemo(() => {
-    if (selectedAdHocTags.size === 0) return null
-    return Array.from(selectedAdHocTags)
-  }, [selectedAdHocTags])
+  const {
+    selectedScopeIds, selectedTags: selectedAdHocTags,
+    scopeIdsParam, adHocTagsParam,
+    handleScopeChange, handleTagChange: handleAdHocTagChange,
+  } = useScopeTagFilter()
 
   const {
     query, setQuery,
@@ -105,10 +99,10 @@ export function SearchTab() {
         onDeleteSearch={deleteSearch}
         onFolderChange={setFolder}
         onTagChange={setTag}
-        onScopeChange={setSelectedScopeIds}
+        onScopeChange={handleScopeChange}
         availableTags={availableTags}
         selectedAdHocTags={selectedAdHocTags}
-        onAdHocTagChange={setSelectedAdHocTags}
+        onAdHocTagChange={handleAdHocTagChange}
       />
 
       <div className="flex flex-col flex-1 min-w-0 min-h-0">

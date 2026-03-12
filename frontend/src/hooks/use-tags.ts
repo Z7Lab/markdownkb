@@ -15,7 +15,7 @@ export function useTags() {
   }, [])
 
   useEffect(() => {
-    refresh() // eslint-disable-line react-hooks/set-state-in-effect -- initial data fetch on mount
+    refresh()
   }, [refresh])
 
   return { tags, refresh }

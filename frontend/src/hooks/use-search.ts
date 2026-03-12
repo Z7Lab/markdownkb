@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { api } from "@/lib/api"
+import { api, retryWithBackoff } from "@/lib/api"
 import { streamSearchSummary } from "@/lib/sse"
 import { toast } from "sonner"
 import type { PaginatedResponse, SavedSearch, SearchResult, SearchResponse, CompareResponse, SearchVersion, ScoreChange } from "@/lib/types"
@@ -61,11 +61,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
   const [summaryTotalIterations, setSummaryTotalIterations] = useState(0)
 
   useEffect(() => {
-    let retryTimer: ReturnType<typeof setTimeout> | null = null
-    let retryCount = 0
-    const MAX_RETRIES = 10
-
-    const loadWithRetry = async () => {
+    const cancelRetry = retryWithBackoff(async () => {
       try {
         const [foldersRes, tagsRes, searchesRes] = await Promise.all([
           api.get<PaginatedResponse<string>>("/api/folders"),
@@ -75,18 +71,14 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
         setFolders(foldersRes.items)
         setTags(tagsRes.items)
         setSearches(searchesRes.items)
+        return true
       } catch {
-        if (retryCount < MAX_RETRIES) {
-          retryCount++
-          retryTimer = setTimeout(loadWithRetry, 2000)
-        }
+        return false
       }
-    }
-
-    loadWithRetry()
+    })
 
     return () => {
-      if (retryTimer) clearTimeout(retryTimer)
+      cancelRetry()
       summaryControllerRef.current?.abort()
     }
   }, [])
@@ -98,7 +90,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
       return true
     } catch (err) {
       if (!silent) {
-        console.warn("Failed to load searches:", err)
+        toast.error(`Failed to load searches: ${(err as Error).message}`)
       }
       return false
     }
@@ -143,7 +135,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
         onError: (err) => {
           setIsSummarizing(false)
           setSummaryStatus(null)
-          console.error("Summary error:", err)
+          toast.error(`Summary failed: ${err.message}`)
         },
       },
       {
@@ -205,7 +197,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
       setSearches((prev) => prev.filter((s) => s.id !== id))
       if (activeSearchId === id) setActiveSearchId(null)
     } catch (err) {
-      console.warn("Failed to delete search:", err)
+      toast.error(`Failed to delete search: ${(err as Error).message}`)
     }
   }, [activeSearchId])
 
@@ -253,8 +245,8 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
         storedResultCount: cmp.stored_result_count,
         currentResultCount: cmp.current_result_count,
       }))
-    }).catch((err) => {
-      console.warn("Results comparison failed:", err)
+    }).catch(() => {
+      /* comparison is best-effort background check */
     })
   }, [])
 
@@ -277,8 +269,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
     try {
       const res = await api.get<{ versions: SearchVersion[] }>(`/api/searches/${searchId}/versions`)
       return res.versions
-    } catch (err) {
-      console.warn("Failed to fetch search versions:", err)
+    } catch {
       return []
     }
   }, [])

@@ -1,9 +1,16 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { api } from "@/lib/api"
 
 export type LLMStatus = "online" | "offline" | "checking"
 
-/** Minimal settings shape — only the fields we need for status checks */
+/** Lightweight health check response from /api/health/llm */
+interface LLMHealth {
+  provider: string
+  model: string
+  configured: boolean
+}
+
+/** Minimal settings shape — only the fields we need for full status checks */
 interface LLMSettings {
   active_provider: string
   active_model: string
@@ -12,7 +19,6 @@ interface LLMSettings {
 
 /** Parse the test-connection response to extract model names */
 function parseModels(result: string): string[] {
-  // Format: "Connected to http://...\nAvailable models: model1, model2, ..."
   const modelsLine = result.split("\n").find(line => line.includes("Available models:"))
   if (!modelsLine) return []
   const after = modelsLine.split("Available models:")[1]
@@ -30,20 +36,36 @@ export function useLLMStatus() {
   const [lastChecked, setLastChecked] = useState<Date | null>(null)
   const [availableModels, setAvailableModels] = useState<string[]>([])
   const [provider, setProvider] = useState<string>("")
+  const fullCheckDone = useRef(false)
 
+  /** Lightweight poll — checks /api/health/llm (no provider API calls) */
+  const pollStatus = useCallback(async () => {
+    try {
+      const health = await api.get<LLMHealth>("/api/health/llm")
+      setProvider(health.provider)
+      if (!health.configured) {
+        setStatus("offline")
+        setAvailableModels([])
+      }
+      // If configured, keep last known status from the full check
+    } catch {
+      setStatus("offline")
+    }
+  }, [])
+
+  /** Full status check — calls test-connection (heavy, used once on mount + explicit refresh) */
   const checkStatus = useCallback(async () => {
     try {
       const settings = await api.get<LLMSettings>("/api/settings")
-
       setProvider(settings.active_provider)
 
       if (!settings.active_model) {
         setStatus("offline")
         setAvailableModels([])
+        fullCheckDone.current = true
         return
       }
 
-      // Backend resolves API key from env/yaml — no need to send it
       const result = await api.post<{ result: string }>("/api/settings/test-connection", {
         name: settings.active_provider,
         model: settings.active_model,
@@ -55,20 +77,22 @@ export function useLLMStatus() {
       setAvailableModels(connected ? parseModels(result.result) : [])
       setStatus(connected ? "online" : "offline")
       setLastChecked(new Date())
+      fullCheckDone.current = true
     } catch {
       setStatus("offline")
       setAvailableModels([])
       setLastChecked(new Date())
+      fullCheckDone.current = true
     }
   }, [])
 
+  // Lightweight poll every 30s — no heavy API calls to provider
   useEffect(() => {
-    const interval = setInterval(checkStatus, 30000)
+    const interval = setInterval(pollStatus, 30000)
     return () => clearInterval(interval)
-  }, [checkStatus])
+  }, [pollStatus])
 
-  // Initial status check on mount — separate from interval setup
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- initial async fetch on mount
+  // Full status check once on mount
   useEffect(() => { checkStatus() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return { status, lastChecked, availableModels, provider, checkStatus }

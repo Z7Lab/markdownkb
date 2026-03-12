@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { api } from "@/lib/api"
+import { api, retryWithBackoff } from "@/lib/api"
 import { toast } from "sonner"
 import type { PaginatedResponse, TrackedFile } from "@/lib/types"
 
@@ -9,14 +9,20 @@ export function useFiles() {
   const [error, setError] = useState<string | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const addBusy = (path: string) =>
-    setBusyPaths((prev) => new Set([...prev, path]))
-  const removeBusy = (path: string) =>
+  const addBusy = useCallback((path: string) =>
     setBusyPaths((prev) => {
+      if (prev.has(path)) return prev
+      const next = new Set(prev)
+      next.add(path)
+      return next
+    }), [])
+  const removeBusy = useCallback((path: string) =>
+    setBusyPaths((prev) => {
+      if (!prev.has(path)) return prev
       const next = new Set(prev)
       next.delete(path)
       return next
-    })
+    }), [])
 
   const refresh = useCallback(async (silent = false): Promise<TrackedFile[] | null> => {
     try {
@@ -58,27 +64,10 @@ export function useFiles() {
 
   // Initial load with retry on failure
   useEffect(() => {
-    let retryTimer: ReturnType<typeof setTimeout> | null = null
-    let mounted = true
-    let retryCount = 0
-    const MAX_RETRIES = 10
-
-    const loadWithRetry = async () => {
-      const result = await refresh(true) // silent = true
-
-      // Only retry on actual errors (null), not empty results (fresh install)
-      if (mounted && result === null && retryCount < MAX_RETRIES) {
-        retryCount++
-        retryTimer = setTimeout(loadWithRetry, 2000)
-      }
-    }
-
-    loadWithRetry()
-
-    return () => {
-      mounted = false
-      if (retryTimer) clearTimeout(retryTimer)
-    }
+    return retryWithBackoff(async () => {
+      const result = await refresh(true)
+      return result !== null // null = error, retry; array = success
+    })
   }, [refresh])
 
   const toggleRag = useCallback(async (path: string, include: boolean) => {
@@ -91,7 +80,7 @@ export function useFiles() {
     } finally {
       removeBusy(path)
     }
-  }, [refresh])
+  }, [refresh, addBusy, removeBusy])
 
   const unindexFile = useCallback(async (path: string) => {
     addBusy(path)
@@ -103,7 +92,7 @@ export function useFiles() {
     } finally {
       removeBusy(path)
     }
-  }, [refresh])
+  }, [refresh, addBusy, removeBusy])
 
   const indexFile = useCallback(async (path: string) => {
     addBusy(path)
@@ -117,7 +106,7 @@ export function useFiles() {
     } finally {
       removeBusy(path)
     }
-  }, [refresh])
+  }, [refresh, addBusy, removeBusy])
 
   const reindexFile = useCallback(async (path: string) => {
     addBusy(path)
@@ -131,7 +120,7 @@ export function useFiles() {
     } finally {
       removeBusy(path)
     }
-  }, [refresh])
+  }, [refresh, addBusy, removeBusy])
 
   const indexAll = useCallback(async () => {
     try {

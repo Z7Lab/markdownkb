@@ -25,7 +25,7 @@ export function ModelPicker() {
       .then((res) => {
         if (!cancelled && res.models.length > 0) setModels(res.models)
       })
-      .catch(() => {})
+      .catch(() => { /* model list is best-effort; current model still works */ })
       .finally(() => {
         if (!cancelled) setLoading(false)
       })

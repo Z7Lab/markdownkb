@@ -168,7 +168,7 @@ export function SourcesPanel({
       files_complete: number
       files_error: number
       chunks_indexed: number
-    }>("/api/stats").then(setStats).catch(() => {})
+    }>("/api/stats").then(setStats).catch(() => { /* stats are non-critical UI data */ })
   }, [lastIndexedAt])
 
   async function handleAdd() {

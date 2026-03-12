@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { api } from "@/lib/api"
+import { api, retryWithBackoff } from "@/lib/api"
 import { streamChat } from "@/lib/sse"
 import { toast } from "sonner"
 import { usePersistedState } from "@/hooks/use-persisted-state"
@@ -28,6 +28,14 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
   const loadIdRef = useRef(0)
   const streamingThreadIdRef = useRef<string | null>(null) // Track which thread is streaming
 
+  /** Shared cleanup for ending a stream (used by onDone, onError, stop) */
+  const cleanupStream = useCallback(() => {
+    setIsStreaming(false)
+    controllerRef.current = null
+    streamingThreadIdRef.current = null
+    try { localStorage.removeItem(STREAMING_THREAD_KEY) } catch { /* ignore */ }
+  }, [])
+
   // Restore streaming thread state on mount (transient — not managed by usePersistedState)
   useEffect(() => {
     try {
@@ -47,7 +55,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
       return true
     } catch (err) {
       if (!silent) {
-        console.warn("Failed to load threads:", err)
+        toast.error(`Failed to load threads: ${(err as Error).message}`)
       }
       return false
     }
@@ -55,23 +63,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
 
   // Load threads on mount with retry
   useEffect(() => {
-    let retryTimer: ReturnType<typeof setTimeout> | null = null
-    let retryCount = 0
-    const MAX_RETRIES = 10
-
-    const loadWithRetry = async () => {
-      const success = await refreshThreads(true)
-      if (!success && retryCount < MAX_RETRIES) {
-        retryCount++
-        retryTimer = setTimeout(loadWithRetry, 2000)
-      }
-    }
-
-    loadWithRetry()
-
-    return () => {
-      if (retryTimer) clearTimeout(retryTimer)
-    }
+    return retryWithBackoff(() => refreshThreads(true))
   }, [refreshThreads])
 
   const send = useCallback(
@@ -139,14 +131,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
             })
           },
           onDone() {
-            setIsStreaming(false)
-            controllerRef.current = null
-            streamingThreadIdRef.current = null
-            try {
-              localStorage.removeItem(STREAMING_THREAD_KEY)
-            } catch {
-              // ignore
-            }
+            cleanupStream()
             refreshThreads()
           },
           onError(error) {
@@ -161,14 +146,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
               }
               return updated
             })
-            setIsStreaming(false)
-            controllerRef.current = null
-            streamingThreadIdRef.current = null
-            try {
-              localStorage.removeItem(STREAMING_THREAD_KEY)
-            } catch {
-              // ignore
-            }
+            cleanupStream()
           },
         },
         activeThreadId,
@@ -176,20 +154,13 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
         adHocTags,
       )
     },
-    [isStreaming, activeThreadId, refreshThreads, scopeIds, adHocTags, setMessages, setActiveThreadId],
+    [isStreaming, activeThreadId, refreshThreads, scopeIds, adHocTags, setMessages, setActiveThreadId, cleanupStream],
   )
 
   const stop = useCallback(() => {
     controllerRef.current?.abort()
-    setIsStreaming(false)
-    controllerRef.current = null
-    streamingThreadIdRef.current = null
-    try {
-      localStorage.removeItem(STREAMING_THREAD_KEY)
-    } catch {
-      // ignore
-    }
-  }, [])
+    cleanupStream()
+  }, [cleanupStream])
 
   const newChat = useCallback(() => {
     // Don't abort background stream if it's for a different thread
@@ -290,8 +261,8 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
     }
     try {
       await api.del("/api/chat/history")
-    } catch (err) {
-      console.warn("Failed to clear chat history on server:", err)
+    } catch {
+      /* server-side clear is best-effort; local state is already reset */
     }
   }, [stop, setMessages, setActiveThreadId])
 

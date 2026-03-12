@@ -3,6 +3,7 @@ import ForceGraph3D from "react-force-graph-3d"
 import { useGraph } from "@/hooks/use-graph"
 import { useScopes } from "@/hooks/use-scopes"
 import { useTags } from "@/hooks/use-tags"
+import { useScopeTagFilter } from "@/hooks/use-scope-tag-filter"
 import { useIndexEvents } from "@/hooks/use-index-events"
 import { GraphSidebar } from "./graph-sidebar"
 import { EdgeDetailPanel } from "./edge-detail-panel"
@@ -10,7 +11,7 @@ import { GraphControls } from "./graph-controls"
 import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
 import { AlertTriangle, Loader2, MonitorX } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import type { GraphNode } from "@/lib/types"
+import type { ForceGraphRef, GraphNode } from "@/lib/types"
 import { dirname } from "@/lib/utils"
 
 function detectWebGL(): boolean {
@@ -78,36 +79,6 @@ function linkNodeId(endpoint: string | { id: string }): string {
   return typeof endpoint === "object" ? endpoint.id : endpoint
 }
 
-/** Hook for multi-scope and tag filter selection */
-function useGraphFilters() {
-  const [selectedScopeIds, setSelectedScopeIds] = useState<Set<string>>(new Set())
-  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
-
-  const scopeIdsParam = useMemo(() => {
-    if (selectedScopeIds.size === 0) return null
-    return Array.from(selectedScopeIds).sort().join(",")
-  }, [selectedScopeIds])
-
-  const adHocTagsParam = useMemo(() => {
-    if (selectedTags.size === 0) return null
-    return Array.from(selectedTags).sort()
-  }, [selectedTags])
-
-  const handleScopeChange = useCallback((ids: Set<string>) => {
-    setSelectedScopeIds(ids)
-  }, [])
-
-  const handleTagChange = useCallback((tags: Set<string>) => {
-    setSelectedTags(tags)
-  }, [])
-
-  return {
-    selectedScopeIds, selectedTags,
-    scopeIdsParam, adHocTagsParam,
-    handleScopeChange, handleTagChange,
-  }
-}
-
 /** Hook for container dimension tracking via ResizeObserver */
 function useContainerDimensions() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -142,7 +113,7 @@ export function GraphTab() {
   const [viewingPath, setViewingPath] = useState<string | null>(null)
   const [selectedEdge, setSelectedEdge] = useState<{ source: string; target: string; weight: number } | null>(null)
   const { containerRef, dimensions } = useContainerDimensions()
-  const fgRef = useRef<{ d3Force: (name: string) => Record<string, (...args: unknown[]) => unknown> | undefined; d3ReheatSimulation: () => void; zoomToFit: (ms: number, padding: number) => void } | null>(null)
+  const fgRef = useRef<ForceGraphRef | null>(null)
   const [webglSupported] = useState(() => detectWebGL())
   const [spread, setSpread] = useState(100)
   const spreadInitialized = useRef(false)
@@ -152,7 +123,7 @@ export function GraphTab() {
     selectedScopeIds, selectedTags,
     scopeIdsParam, adHocTagsParam,
     handleScopeChange, handleTagChange,
-  } = useGraphFilters()
+  } = useScopeTagFilter()
 
   const prevScopeRef = useRef(scopeIdsParam)
   const prevTagsRef = useRef(adHocTagsParam)
@@ -314,11 +285,12 @@ export function GraphTab() {
     return base
   }, [hasHighlight, highlightedNodes])
 
-  // Node tooltip
+  // Node tooltip — escape user-controlled values to prevent XSS
   const nodeLabel = useCallback((node: GraphNode) => {
+    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
     const dir = dirname(node.id)
-    const tags = node.tags.length > 0 ? `<br/>Tags: ${node.tags.join(", ")}` : ""
-    return `<div style="max-width:350px"><strong>${node.label}</strong><br/><span style="opacity:0.7">${dir}</span><br/>${node.chunk_count} chunks${tags}</div>`
+    const tags = node.tags.length > 0 ? `<br/>Tags: ${esc(node.tags.join(", "))}` : ""
+    return `<div style="max-width:350px"><strong>${esc(node.label)}</strong><br/><span style="opacity:0.7">${esc(dir)}</span><br/>${node.chunk_count} chunks${tags}</div>`
   }, [])
 
   // Link styling
@@ -480,26 +452,30 @@ export function GraphTab() {
           </div>
         )}
 
-        {/* 3D Force Graph — force-graph's generic callback types require casting */}
+        {/* 3D Force Graph — react-force-graph-3d uses NodeObject/LinkObject generics
+            that don't structurally match our domain types. A single cast on the
+            component props is cleaner than per-prop `as never`. */}
         {webglSupported && graphData && graphData.nodes.length > 0 && (
           <ForceGraph3D
-            ref={fgRef as React.RefObject<never>}
+            ref={fgRef as React.RefObject<ForceGraphRef>}
             graphData={forceGraphData}
             width={dimensions.width}
             height={dimensions.height}
             backgroundColor={colors.bg}
             nodeId="id"
-            nodeLabel={nodeLabel as never}
-            nodeColor={nodeColor as never}
-            nodeVal={nodeVal as never}
+            {...{
+              nodeLabel,
+              nodeColor,
+              nodeVal,
+              linkColor,
+              linkWidth,
+              onNodeClick: handleNodeClick,
+              onLinkClick: handleLinkClick,
+            } as Record<string, unknown>}
             nodeOpacity={0.9}
             nodeResolution={12}
-            linkColor={linkColor as never}
-            linkWidth={linkWidth as never}
             linkOpacity={0.6}
             linkDirectionalParticles={0}
-            onNodeClick={handleNodeClick as never}
-            onLinkClick={handleLinkClick as never}
             onBackgroundClick={handleBackgroundClick}
             showNavInfo={false}
             enableNodeDrag={true}

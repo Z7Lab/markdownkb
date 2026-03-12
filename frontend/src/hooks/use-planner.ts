@@ -29,6 +29,28 @@ export function usePlanner() {
 
   const controllerRef = useRef<AbortController | null>(null)
 
+  /** Reset all generation-related state (shared by generatePlan, clear, loadPlan) */
+  const resetGeneration = useCallback(() => {
+    controllerRef.current?.abort()
+    setPlan("")
+    setSources([])
+    setTree(null)
+    setApproaches([])
+    setReviews([])
+    setRefinedPlan("")
+    setStatusMessage("")
+    setPhase("")
+    setIsPlanning(false)
+    setIsRefined(false)
+  }, [])
+
+  /** Stop streaming and clear status (shared by onDone, onError, stop) */
+  const finishStreaming = useCallback(() => {
+    setIsPlanning(false)
+    setStatusMessage("")
+    setPhase("")
+  }, [])
+
   const loadSkills = useCallback(async () => {
     try {
       const res = await api.get<{ skills: SkillInfo[] }>("/api/planner/skills")
@@ -48,7 +70,7 @@ export function usePlanner() {
   }, [])
 
   useEffect(() => {
-    loadSkills() // eslint-disable-line react-hooks/set-state-in-effect -- initial data fetch on mount
+    loadSkills()
     refreshPlans()
     return () => {
       controllerRef.current?.abort()
@@ -61,17 +83,7 @@ export function usePlanner() {
   ) => {
     if (!request.trim()) return
 
-    // Reset state
-    controllerRef.current?.abort()
-    setPlan("")
-    setSources([])
-    setTree(null)
-    setApproaches([])
-    setReviews([])
-    setRefinedPlan("")
-    setStatusMessage("")
-    setPhase("")
-    setIsRefined(false)
+    resetGeneration()
     setIsPlanning(true)
     setActivePlanId(null)
     setQuery(request.trim())
@@ -95,43 +107,27 @@ export function usePlanner() {
           setIsRefined(true)
         },
         onDone: () => {
-          setIsPlanning(false)
-          setStatusMessage("")
-          setPhase("")
+          finishStreaming()
         },
         onError: (err) => {
-          setIsPlanning(false)
-          setStatusMessage("")
-          setPhase("")
+          finishStreaming()
           toast.error(`Plan generation failed: ${err.message}`)
         },
       },
       options,
     )
-  }, [])
+  }, [resetGeneration, finishStreaming])
 
   const stop = useCallback(() => {
     controllerRef.current?.abort()
-    setIsPlanning(false)
-    setStatusMessage("")
-    setPhase("")
-  }, [])
+    finishStreaming()
+  }, [finishStreaming])
 
   const clear = useCallback(() => {
-    controllerRef.current?.abort()
-    setPlan("")
-    setSources([])
-    setTree(null)
-    setApproaches([])
-    setReviews([])
-    setRefinedPlan("")
-    setStatusMessage("")
-    setPhase("")
-    setIsPlanning(false)
-    setIsRefined(false)
+    resetGeneration()
     setActivePlanId(null)
     setQuery("")
-  }, [])
+  }, [resetGeneration])
 
   const savePlan = useCallback(async () => {
     const content = isRefined && refinedPlan ? refinedPlan : plan
@@ -160,23 +156,14 @@ export function usePlanner() {
         `/api/planner/plans/${planId}`,
       )
       // Clear generation state, show saved plan
-      controllerRef.current?.abort()
-      setApproaches([])
-      setReviews([])
-      setRefinedPlan("")
-      setSources([])
-      setTree(null)
-      setStatusMessage("")
-      setPhase("")
-      setIsPlanning(false)
-      setIsRefined(false)
+      resetGeneration()
       setPlan(res.content)
       setQuery(res.query || res.title.replace(/^Plan:\s*/, ""))
       setActivePlanId(planId)
     } catch (err) {
       toast.error(`Failed to load plan: ${(err as Error).message}`)
     }
-  }, [])
+  }, [resetGeneration])
 
   const deletePlan = useCallback(async (planId: string) => {
     try {

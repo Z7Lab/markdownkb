@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react"
+import { lazy, Suspense, useEffect } from "react"
 import { useLocation } from "wouter"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -53,7 +53,14 @@ function GraphTabTrigger() {
 
 export function App() {
   const [location, setLocation] = useLocation()
-  const activeTab = routeToTab[location] || "chat"
+  const activeTab = routeToTab[location] ?? "chat"
+
+  // Redirect unknown routes to chat
+  useEffect(() => {
+    if (!(location in routeToTab)) {
+      setLocation("/")
+    }
+  }, [location, setLocation])
 
   const handleTabChange = (tab: string) => {
     const route = tabToRoute[tab]
