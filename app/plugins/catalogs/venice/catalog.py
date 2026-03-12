@@ -73,6 +73,7 @@ def _parse_model(m: dict) -> dict:
         "function_calling": caps.get("supportsFunctionCalling", False),
         "vision": caps.get("supportsVision", False),
         "response_schema": caps.get("supportsResponseSchema", False),
+        "privacy": spec.get("privacy", "unknown"),
     }
 
 
@@ -88,9 +89,10 @@ def get_model_entries() -> list[dict]:
         p = _parse_model(raw)
         ctx_k = p["context_tokens"] // 1000
         out_k = p["max_output_tokens"] // 1000
+        privacy_icon = "\U0001f512" if p["privacy"] == "private" else "\U0001f464"
         label = (
             f"{p['name']}  —  {ctx_k}K ctx, {out_k}K out, "
-            f"${p['input_cost']:.2f}/M in"
+            f"${p['input_cost']:.2f}/M in  {privacy_icon} {p['privacy']}"
         )
         entries.append({"id": f"openai/{p['id']}", "label": label})
     return entries
@@ -115,6 +117,7 @@ def get_model_info(model_id: str) -> dict | None:
                 "supports_function_calling": p["function_calling"],
                 "supports_response_schema": p["response_schema"],
                 "supports_pdf_input": False,
+                "privacy": p["privacy"],
                 "litellm_provider": "venice",
                 "mode": "chat",
             }
