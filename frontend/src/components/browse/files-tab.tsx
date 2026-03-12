@@ -270,7 +270,7 @@ export function FilesTab() {
       : folderFiltered.filter((f) => filterMatch(f.path, filterText))
     : folderFiltered
 
-  const ragIncluded = files.filter((f) => f.include_rag === 1 && f.status !== "not_indexed").length
+  const ragIncluded = files.filter((f) => f.include_rag === 1 && f.status === "complete").length
   const notIndexed = files.filter((f) => f.status === "not_indexed" || f.status === "pending").length
   const ragExcluded = files.filter((f) => f.include_rag === 0).length
 

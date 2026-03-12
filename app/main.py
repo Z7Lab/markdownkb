@@ -69,18 +69,17 @@ async def lifespan(app: FastAPI):
         except Exception:
             logger.exception("Failed to install embedding model '%s' — indexing will fail until it is installed", model_id)
 
-    if store.count == 0:
-        logger.info("Empty store, running initial index...")
-        try:
-            run_index(settings, store, tracking)
-        except Exception:
-            logger.exception(
-                "Initial indexing failed (model may be corrupt or missing). "
-                "The app will start anyway — fix the model from Settings."
-            )
-
     retriever = Retriever(store, settings, tracking)
     cancel_event = threading.Event()
+
+    if store.count == 0:
+        logger.info("Empty store, starting initial index in background...")
+        threading.Thread(
+            target=run_index,
+            args=(settings, store, tracking),
+            kwargs={"cancel": cancel_event},
+            daemon=True,
+        ).start()
 
     # Store services on app.state for dependency injection
     from app.services.chat_service import ConversationHistory

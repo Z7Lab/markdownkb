@@ -292,12 +292,16 @@ class TrackingDB:
             return {r["path"] for r in rows}
 
     def unindex_file(self, path: str):
-        """Reset a file to un-indexed state (keeps tracking record)."""
+        """Reset a file to un-indexed state (keeps tracking record).
+
+        Preserves include_rag preference — unindexing removes chunks
+        but doesn't change the user's RAG inclusion setting.
+        """
         with self._lock:
             self._conn.execute(
                 """UPDATE indexed_files
                 SET status = 'pending', chunk_count = 0,
-                    content_hash = '', include_rag = 0,
+                    content_hash = '',
                     updated_at = datetime('now')
                 WHERE path = ?""",
                 (path,),
