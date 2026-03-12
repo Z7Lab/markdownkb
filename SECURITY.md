@@ -4,13 +4,13 @@ mdkb handles API keys, accesses the file system, and optionally executes termina
 
 ## Sensitive Data
 
-- **API keys** are stored in `config/settings.yaml` (gitignored) and optionally in `.env` (gitignored). They are never logged or exposed via API responses.
+- **API keys** are stored in Docker secret files (`secrets/`) or environment variables — never in `config/settings.yaml`. They are never logged or exposed via API responses.
 
 ## Authentication
 
 mdkb supports optional API key authentication via the `X-MDKB-Key` header:
 
-- Set `auth.api_key` in `config/settings.yaml` or the `MDKB_API_KEY` environment variable.
+- Set via Docker secret (`secrets/mdkb_api_key`) or the `MDKB_API_KEY` environment variable.
 - When configured, all `/api/*` endpoints (except `/api/health`) require the header. Missing or invalid keys return **401 Unauthorized**.
 - When empty (default), authentication is disabled — suitable for local/single-user use.
 - **If exposing mdkb to a network, always set an API key.** Without it, destructive endpoints (clear databases, change LLM provider, rewrite system prompt) are fully open.

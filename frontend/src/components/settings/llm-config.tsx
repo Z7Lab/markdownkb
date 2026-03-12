@@ -38,7 +38,7 @@ export function LlmConfig({
   onSave: (name: string, model: string, apiBase: string, apiKey: string) => Promise<void>
   onSaveLlmParams: (temperature: number, maxTokens: number, numCtx: number | null) => Promise<void>
   onTestProvider: (name: string, model: string, apiBase: string, apiKey: string) => Promise<void>
-  onPingModel: (model: string, apiBase: string, apiKey: string, signal?: AbortSignal) => Promise<void>
+  onPingModel: (name: string, model: string, apiBase: string, apiKey: string, signal?: AbortSignal) => Promise<void>
   onRefreshModels: (name: string, apiBase: string) => Promise<{ models: ModelEntry[]; status: string }>
   onFetchModelInfo: (model: string, apiBase: string) => Promise<ModelInfo>
 }) {
@@ -142,7 +142,7 @@ export function LlmConfig({
     pingAbortRef.current = controller
     setPingLoading(true)
     try {
-      await onPingModel(model, apiBase, apiKey, controller.signal)
+      await onPingModel(provider, model, apiBase, apiKey, controller.signal)
     } finally {
       setPingLoading(false)
     }
@@ -230,8 +230,8 @@ export function LlmConfig({
           )}
           <p className="text-xs text-muted-foreground mt-1">
             {keyFromEnv
-              ? "Managed via .env file. Edit .env and restart to change."
-              : `Set ${provider.toUpperCase()}_API_KEY in .env to avoid storing keys in settings.yaml.`}
+              ? "Managed via secrets/ file or environment variable. Update and restart to change."
+              : `Set ${provider.toUpperCase()}_API_KEY via secrets/${provider.toLowerCase()}_api_key file or environment variable.`}
           </p>
         </div>
 

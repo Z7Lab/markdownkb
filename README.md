@@ -27,13 +27,18 @@ Creates `.venv`, installs Python and Node dependencies if needed, starts both se
 
 2. **Edit `config/settings.yaml`** — add your source directories under `sources:` and configure your LLM provider. Everything else has sensible defaults.
 
-3. **Edit `.env`** (optional) — defaults work out of the box. Uncomment and set values only if you need to:
+3. **Add API keys** (if using cloud providers) — create secret files:
+   ```bash
+   echo -n "your-key" > secrets/venice_api_key    # or anthropic_api_key, openai_api_key
+   ```
+   See `secrets/README.md` for details.
+
+4. **Edit `.env`** (optional) — defaults work out of the box. Uncomment and set values only if you need to:
    - `OLLAMA_API_BASE` — if Ollama runs on a different machine
-   - `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` — if using cloud LLM providers
    - `MDKB_HOST=0.0.0.0` — to access from other machines via `http://<hostname>.local:9713` (localhost only by default)
    - `MDKB_API_KEY` — set a key to protect the API (recommended if exposing to the network)
 
-4. **Build and start**:
+5. **Build and start**:
    ```bash
    make build && make up
    ```
@@ -87,7 +92,7 @@ Edit `config/settings.yaml` or use the **Settings** tab in the UI. See [docs/con
 
 mdkb calls LLMs over the network — it doesn't run them locally.
 
-**Anthropic / OpenAI:** Set your API key in `config/settings.yaml` or via environment variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`).
+**Anthropic / OpenAI / Venice:** Add your API key to `secrets/<provider>_api_key` (see `secrets/README.md`) or set the `<PROVIDER>_API_KEY` environment variable.
 
 **Ollama on another machine:** See [docs/ollama-remote-setup.md](docs/ollama-remote-setup.md).
 

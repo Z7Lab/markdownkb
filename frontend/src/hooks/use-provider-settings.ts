@@ -43,11 +43,11 @@ export function useProviderSettings(reload: () => Promise<boolean>) {
   }, [])
 
   const pingModel = useCallback(
-    async (model: string, apiBase: string, apiKey: string = "", signal?: AbortSignal) => {
+    async (name: string, model: string, apiBase: string, apiKey: string = "", signal?: AbortSignal) => {
       setModelStatus("Pinging model...")
       try {
         const res = await api.post<{ result: string }>("/api/settings/ping-model", {
-          name: "",
+          name,
           model,
           api_base: apiBase,
           api_key: apiKey,
