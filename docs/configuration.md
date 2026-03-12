@@ -145,7 +145,8 @@ Feature flags toggle optional modules. All security-sensitive features default t
 | `features.export` | `true` | Conversation export (markdown/JSON) |
 | `features.mcp_filesystem` | `false` | MCP file browsing tool |
 | `features.mcp_terminal` | `false` | MCP terminal tool |
-| `features.mcp_tag_generator` | `false` | AI tag generation for markdown files |
+| `features.tags` | `true` | Tag storage, CRUD, auto-tagging (plugin: `app/plugins/tags/`) |
+| `features.mcp_tag_generator` | `false` | AI tag generation for markdown files (requires `tags` to also be enabled) |
 | `features.mcts_planner` | `true` | MCTS plan generation |
 | `features.deep_research` | `false` | MCTS-powered multi-angle research synthesis for search summaries |
 | `features.agent_skills` | `false` | Agent skill system |

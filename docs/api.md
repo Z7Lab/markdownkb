@@ -63,13 +63,8 @@ Supports Google-style quoted phrases: `"exact phrase"` requires literal match in
 | GET | `/api/file` | Read file content |
 | GET | `/api/file/status` | Get status of a single file |
 | GET | `/api/folders` | List unique folders from indexed documents |
-| GET | `/api/tags` | List unique tags (merged from vector store and tracking DB) |
 | PUT | `/api/files/toggle-rag` | Toggle RAG inclusion for a file |
-| PUT | `/api/files/tags` | Update tags on a file (`{ path, tags[] }`) |
-| PUT | `/api/files/bulk-tags` | Bulk update tags on multiple files |
 | POST | `/api/files/search` | Content-based file search (returns file paths). Supports quoted exact phrases. |
-| POST | `/api/files/auto-tag-preview` | Preview auto-tag assignments by folder pattern (dry run) |
-| POST | `/api/files/auto-tag-apply` | Apply auto-tag assignments from preview |
 | POST | `/api/files/unindex` | Remove file chunks from index |
 | POST | `/api/files/index` | Index a single file |
 | POST | `/api/files/reindex` | Re-embed a file's chunks |
@@ -277,7 +272,21 @@ Accepts optional `scope_ids`, `ad_hoc_tags[]`, `word_clouds`, and `min_weight` q
 
 ## Tags
 
-Requires the `mcp_tag_generator` feature flag. Plugin: `app/plugins/tags/`.
+Requires the `tags` feature flag. Plugin: `app/plugins/tags/`.
+
+Tag CRUD, folder-based auto-tagging, and optional AI generation. Tags are stored in a plugin-owned database (`data/tags.db`).
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/tags` | List unique tags (paginated) |
+| PUT | `/api/files/tags` | Update tags on a file (`{ path, tags[] }`) |
+| PUT | `/api/files/bulk-tags` | Bulk update tags on multiple files (add/remove/replace) |
+| POST | `/api/files/auto-tag-preview` | Preview auto-tag assignments by folder pattern (dry run) |
+| POST | `/api/files/auto-tag-apply` | Apply auto-tag assignments from preview |
+
+### AI Tag Generation
+
+These endpoints additionally require the `mcp_tag_generator` feature flag (sub-flag).
 
 | Method | Path | Description |
 |--------|------|-------------|

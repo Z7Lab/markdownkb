@@ -53,6 +53,29 @@ The discovery/registration flow:
 
 No changes to core files are needed — the plugin is picked up automatically on next startup.
 
+## Lifecycle Hooks
+
+Plugins can optionally define `on_startup(app)` and `on_shutdown(app)` functions in their `__init__.py`. These are called after core services (databases, retriever, etc.) are initialized, so plugins can safely access `app.state.*`.
+
+```python
+"""My feature plugin."""
+from app.plugins.my_feature.router import router
+
+FEATURE_FLAG = "my_feature"
+__all__ = ["FEATURE_FLAG", "router", "on_startup", "on_shutdown"]
+
+def on_startup(app) -> None:
+    """Initialize plugin resources (called after core services are ready)."""
+    # Access app.state.settings, app.state.tracking, etc.
+    pass
+
+def on_shutdown(app) -> None:
+    """Clean up plugin resources (called before core DBs close)."""
+    pass
+```
+
+Use cases: creating plugin-owned databases, registering hooks with core dispatchers, running one-time migrations. See the `tags` plugin for a full example.
+
 ## Plugin Configuration
 
 Plugins can have their own configuration under the `plugins:` section in `settings.yaml`:
@@ -85,7 +108,7 @@ A generic API is available for reading/writing any plugin's config:
 | [export](export/) | `export` | Conversation export in markdown or JSON |
 | [graph](graph/) | `knowledge_graph` | 3D document similarity graph visualization |
 | [planner](planner/) | `mcts_planner` | MCTS-based implementation plan generation |
-| [tags](tags/) | `mcp_tag_generator` | AI-powered tag generation for markdown files |
+| [tags](tags/) | `tags` | Tag storage, CRUD, auto-tagging, and optional AI tag generation |
 | [write_api](write_api/) | `write_api` | HTTP endpoint for creating/updating markdown documents |
 
 **Note:** Deep Research (`deep_research` feature flag) is not a plugin — it's a shared service (`app/services/deep_research.py`) that uses the MCTS engine to provide multi-angle research synthesis. Currently consumed by the search plugin's summarize endpoint. See [docs/planner.md](../../docs/planner.md#deep-research).

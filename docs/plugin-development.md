@@ -16,16 +16,27 @@ my_plugin/
 
 ### `__init__.py`
 
-Must export two names:
+Must export two names (and optionally lifecycle hooks):
 
 ```python
 from .router import router
 
 FEATURE_FLAG = "my_plugin"
+__all__ = ["FEATURE_FLAG", "router", "on_startup", "on_shutdown"]
+
+def on_startup(app) -> None:
+    """Optional — called after core services are ready."""
+    pass
+
+def on_shutdown(app) -> None:
+    """Optional — called before core DBs close."""
+    pass
 ```
 
 - `FEATURE_FLAG` — the key under `features:` in `settings.yaml` that enables/disables the plugin
 - `router` — a FastAPI `APIRouter` instance with your endpoints
+- `on_startup(app)` — *(optional)* initialize plugin resources after core services are ready (e.g. create databases, register hooks)
+- `on_shutdown(app)` — *(optional)* clean up plugin resources before shutdown
 
 ### `router.py`
 
@@ -170,6 +181,6 @@ Study the builtin plugins as examples:
 | Plugin | Complexity | Good example of |
 |--------|-----------|-----------------|
 | `export` | Simple | Minimal plugin with one endpoint, no config |
-| `tags` | Medium | Plugin with config schema, LLM integration |
+| `tags` | Medium | Plugin-owned database, lifecycle hooks, core dispatcher integration |
 | `search` | Complex | Multiple endpoints, SSE streaming, deep config |
 | `graph` | Complex | Background computation, caching, progress events |

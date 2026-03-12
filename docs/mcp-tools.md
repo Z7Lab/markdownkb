@@ -31,7 +31,9 @@ features:
   mcp_tag_generator: true
 ```
 
-Restart the server — the tags router is registered automatically when this flag is enabled (see `app/api.py`).
+You also need the `tags` feature flag enabled (it is by default). The `mcp_tag_generator` flag enables the AI generation endpoints within the tags plugin.
+
+Restart the server to activate.
 
 ### API Endpoints
 
@@ -213,7 +215,7 @@ Edit the prompt in `app/mcp/tag_generator/llm.py` to change tag format, count, o
 
 | Problem | Fix |
 |---------|-----|
-| `403: Tag generation feature is disabled` | Set `mcp_tag_generator: true` in `config/settings.yaml` |
+| `403: Tag generation feature is disabled` | Set both `tags: true` and `mcp_tag_generator: true` in `config/settings.yaml` |
 | File not found | Use absolute paths or paths relative to the project root |
 | LLM not responding | Check provider config, API keys, and `curl http://localhost:9713/api/health` |
 

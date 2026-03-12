@@ -32,8 +32,8 @@ mdkb is a chat-with-your-docs tool with a Python backend and React frontend. The
 │             │                           │               │
 │  ┌──────────▼───────────────────────────▼───────────┐   │
 │  │  Storage Layer                                   │   │
-│  │  ChromaDB (vectors) │ SQLite ×5 (tracking,       │   │
-│  │    chat, search, plans, scopes)                  │   │
+│  │  ChromaDB (vectors) │ SQLite ×6 (tracking,       │   │
+│  │    chat, search, plans, scopes, tags)            │   │
 │  └──────────────────────────────────────────────────┘   │
 │                                                         │
 │  ┌──────────────────┐  ┌────────────────────────────┐   │
@@ -69,22 +69,23 @@ mdkb is a chat-with-your-docs tool with a Python backend and React frontend. The
 3. **Auth middleware** (`app/auth.py`) checks the `X-MDKB-Key` header on all `/api/*` paths (except `/api/health`) when an API key is configured via Docker secret or env var. Uses `hmac.compare_digest()` for timing-safe comparison. Disabled when no key is set.
 4. **Dependency injection** (`app/deps.py`) provides services via FastAPI's `Depends()`. All shared state lives on `app.state`, initialized in the async lifespan context manager (`app/main.py`).
 5. **Services** contain business logic — conversation management, LLM health checks, query enhancement.
-6. **Storage layer** persists data across six stores (see below).
+6. **Storage layer** persists data across seven stores (see below).
 
 ## Storage
 
-mdkb uses one vector database and five SQLite databases:
+mdkb uses one vector database and six SQLite databases:
 
 | Database | File | Purpose |
 |----------|------|---------|
 | **ChromaDB** | `data/chromadb/` | Vector embeddings for semantic search |
-| **TrackingDB** | `data/tracking.db` | File index state, hashes, RAG inclusion flags, tags |
+| **TrackingDB** | `data/tracking.db` | File index state, hashes, RAG inclusion flags |
 | **ChatDB** | `data/chat.db` | Chat threads and messages |
 | **SearchDB** | `data/search.db` | Search history, versions, AI summaries |
 | **PlanDB** | `data/plans.db` | Saved planner plans and metadata |
 | **ScopeDB** | `data/scopes.db` | Named scopes (folder + tag filters) |
+| **TagDB** | `data/tags.db` | File-to-tag mappings (owned by tags plugin) |
 
-SQLite databases use `PRAGMA user_version` for schema migrations. Each database class carries a `_MIGRATIONS` list that is applied on open.
+SQLite databases use `PRAGMA user_version` for schema migrations. Each database class carries a `_MIGRATIONS` list that is applied on open. Plugin-owned databases (e.g. TagDB) follow the same patterns but are created by the plugin's `on_startup` hook rather than in core startup.
 
 ## Embedding Pipeline
 
@@ -134,6 +135,8 @@ Each plugin is a directory with an `__init__.py` that exposes:
 - `router: APIRouter` — the FastAPI router to register
 
 At startup, `app/plugins/__init__.py` scans both directories, imports each plugin, checks its feature flag, and registers the router if enabled. External plugins get their parent directory added to `sys.path` for import resolution. Adding a new plugin requires no changes to core files.
+
+Plugins can optionally define `on_startup(app)` and `on_shutdown(app)` hooks in their `__init__.py`. These are called after core services are initialized (startup) and before core databases are closed (shutdown), allowing plugins to create their own databases, register hooks with core dispatchers, or run migrations.
 
 ### Plugin Manifests
 
@@ -198,7 +201,7 @@ plugins:
 
 Plugins read their config via `Settings.get_plugin_config("name")` and define their own defaults internally. A generic API (`GET/PUT /api/settings/plugins/{name}`) allows reading and updating any plugin's config without changes to core code.
 
-Current builtin plugins: `search` (search with history and AI summaries), `export` (conversation export), `graph` (knowledge graph visualization), `planner` (MCTS plan generation), `tags` (AI tag generation), `write_api` (document creation via HTTP).
+Current builtin plugins: `search` (search with history and AI summaries), `export` (conversation export), `graph` (knowledge graph visualization), `planner` (MCTS plan generation), `tags` (tag storage, CRUD, auto-tagging, and optional AI generation), `write_api` (document creation via HTTP).
 
 **Deep Research** is not a plugin with its own routes — it's a shared service (`app/services/deep_research.py`) that uses the MCTS engine (`app/planner/`) to run multi-angle research synthesis. It is consumed by the search plugin (via the `deep_research` flag on the summarize endpoint) and can be used by any other plugin. Gated by the `deep_research` feature flag.
 
