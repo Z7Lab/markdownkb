@@ -137,15 +137,11 @@ class SearchDB:
                         result[field] = json.loads(raw)
                     except json.JSONDecodeError:
                         logger.error(
-                            "Corrupt %s JSON for search %s — clearing column",
+                            "Corrupt %s JSON for search %s — returning empty list "
+                            "(raw data preserved in DB for manual recovery)",
                             field, search_id,
                         )
                         result[field] = []
-                        self._conn.execute(
-                            f"UPDATE searches SET {field} = NULL WHERE id = ?",  # noqa: S608 — field is from a hardcoded list, not user input
-                            (search_id,),
-                        )
-                        self._conn.commit()
                 else:
                     result[field] = []
             return result

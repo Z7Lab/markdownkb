@@ -11,8 +11,8 @@ export function useScopes() {
     try {
       const res = await api.get<{ scopes: Scope[] }>("/api/scopes")
       setScopes(res.scopes)
-    } catch {
-      // Silently fail on load — scopes are optional
+    } catch (err) {
+      console.warn("Failed to load scopes:", (err as Error).message)
     }
   }, [])
 

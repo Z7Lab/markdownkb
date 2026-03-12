@@ -216,6 +216,7 @@ def apply_tags_to_file(
         logger.error("Failed to apply tags to %s: %s", filepath, e)
         return {
             "status": "error",
+            "error": True,
             "backup_path": "",
             "old_tags": [],
             "new_tags": [],

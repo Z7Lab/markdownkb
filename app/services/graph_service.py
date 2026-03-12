@@ -230,8 +230,8 @@ def _cluster_docs(
         labels = clusterer.fit_predict(X)
         return [int(l) for l in labels]
     except (ValueError, RuntimeError, np.linalg.LinAlgError) as e:
-        logger.error("DBSCAN clustering failed, falling back to single cluster: %s", e)
-        return [0] * n
+        logger.error("DBSCAN clustering failed, marking all docs as unclustered: %s", e)
+        return [-1] * n
 
 
 def _extract_word_cloud(texts: list[str], max_terms: int = 30) -> dict[str, float]:

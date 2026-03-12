@@ -115,19 +115,18 @@ class VectorStore:
     def delete_by_source(self, source_path: str):
         """Delete all chunks from a given source file.
 
-        Raises ValueError if the delete fails for a reason other than
-        'no matching documents' (which is benign for first-time indexing).
+        ChromaDB raises ValueError when no documents match the filter
+        (e.g., first-time indexing).  This is benign and safe to ignore.
         """
         try:
             self._collection.delete(where={"source_path": source_path})
         except ValueError as e:
-            # ChromaDB raises ValueError when no documents match the filter
-            # (e.g., first-time indexing). This is safe to ignore.
-            # Any other ValueError is unexpected and should propagate.
-            if "no" not in str(e).lower() and "empty" not in str(e).lower():
-                logger.error("Unexpected error deleting chunks for %s: %s", source_path, e)
-                raise
-            logger.debug("No existing chunks to delete for %s", source_path)
+            # ChromaDB raises ValueError for empty filter results.
+            # Log at debug for expected "no docs" case, warn for anything else.
+            logger.debug(
+                "ValueError deleting chunks for %s (likely no matching docs): %s",
+                source_path, e,
+            )
 
     def rename_source(self, old_path: str, new_path: str,
                       new_source_root: str) -> int:

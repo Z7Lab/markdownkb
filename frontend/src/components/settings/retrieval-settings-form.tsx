@@ -70,8 +70,8 @@ export function RetrievalSettingsForm({
       })
       setStatus("Saved")
       setTimeout(() => setStatus(""), 2000)
-    } catch {
-      setStatus("Error saving")
+    } catch (err) {
+      setStatus(`Error saving: ${(err as Error).message}`)
     } finally {
       setSaving(false)
     }

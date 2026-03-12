@@ -177,14 +177,15 @@ def read_file(
         except ValueError:
             continue
     if not allowed:
+        logger.warning("Access denied: %s is outside configured sources", p)
         raise HTTPException(
             status_code=403,
-            detail="Access denied: path is outside configured sources",
+            detail=f"Access denied: path is outside configured sources",
         )
     if not p.exists():
         raise HTTPException(
             status_code=404,
-            detail="File not found",
+            detail=f"File not found: {path}",
         )
     try:
         content = p.read_text(

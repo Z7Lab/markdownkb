@@ -221,7 +221,10 @@ def _install_from_source(source_dir: Path, settings: Settings) -> dict:
                     feature_flag = line.split("=", 1)[1].strip().strip("'\"")
                     break
         except Exception:
-            pass
+            logger.warning(
+                "Could not extract FEATURE_FLAG from %s — plugin installed without flag",
+                dest / "__init__.py", exc_info=True,
+            )
 
     if feature_flag:
         if feature_flag not in settings.features:
@@ -442,4 +445,5 @@ def _read_manifest_safe(plugin_dir: Path) -> dict | None:
         with open(manifest_path, encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
     except Exception:
+        logger.warning("Failed to read manifest for %s", plugin_dir.name, exc_info=True)
         return None

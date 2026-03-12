@@ -412,7 +412,7 @@ def summarize_search(
                             searchdb.update_summary(req.search_id, text)
                             logger.info("Saved deep research summary for search %s", req.search_id)
                     except (ValueError, IndexError):
-                        pass
+                        logger.debug("Could not extract summary_text from deep research SSE event")
                 yield event
 
         return StreamingResponse(deep_generate(), media_type="text/event-stream")

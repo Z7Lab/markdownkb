@@ -25,7 +25,8 @@ export async function parseSSEStream(
         let data: Record<string, unknown>
         try {
           data = JSON.parse(line.slice(6))
-        } catch {
+        } catch (err) {
+          console.warn("Malformed SSE JSON, skipping event:", (err as Error).message)
           continue
         }
         onEvent(eventType, data)

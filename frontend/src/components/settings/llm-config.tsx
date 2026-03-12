@@ -74,8 +74,8 @@ export function LlmConfig({
           setModels(res.models as ModelEntry[])
           setCustomMode(false)
         }
-      } catch {
-        // silently fail — user can still type custom model
+      } catch (err) {
+        console.warn("Failed to fetch model list:", (err as Error).message)
       } finally {
         if (!cancelled) setLoading(false)
       }

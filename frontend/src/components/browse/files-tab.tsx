@@ -111,8 +111,9 @@ function useContentSearch(filterText: string, searchMode: "path" | "content") {
           top_k: 50,
         })
         setContentMatches(new Set(res.paths))
-      } catch {
-        setContentMatches(null)
+      } catch (err) {
+        console.warn("Content search failed:", (err as Error).message)
+        setContentMatches(new Set<string>())
       } finally {
         setContentSearching(false)
       }

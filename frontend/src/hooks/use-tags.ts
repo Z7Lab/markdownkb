@@ -9,8 +9,8 @@ export function useTags() {
     try {
       const res = await api.get<PaginatedResponse<string>>("/api/tags")
       setTags(res.items)
-    } catch {
-      // Tags are optional
+    } catch (err) {
+      console.warn("Failed to load tags:", (err as Error).message)
     }
   }, [])
 

@@ -33,8 +33,8 @@ export function SearchSummaryPromptForm({
       await onSave(promptValue)
       setStatus("Saved")
       setTimeout(() => setStatus(""), 2000)
-    } catch {
-      setStatus("Error saving")
+    } catch (err) {
+      setStatus(`Error saving: ${(err as Error).message}`)
     } finally {
       setSaving(false)
     }

@@ -106,14 +106,17 @@ def extract_unique_sources(metadatas: list[dict]) -> list[str]:
     return sources
 
 
-def _persist(chatdb, thread_id: str | None, user_msg: str, assistant_msg: str):
+def _persist(chatdb, thread_id: str | None, user_msg: str, assistant_msg: str,
+             conversation_history: ConversationHistory | None = None):
     """Save user + assistant messages to the thread DB."""
     if thread_id and chatdb:
         chatdb.add_message(thread_id, "user", user_msg)
         chatdb.add_message(thread_id, "assistant", assistant_msg)
-    else:
+    elif conversation_history is not None:
         conversation_history.add("user", user_msg)
         conversation_history.add("assistant", assistant_msg)
+    else:
+        logger.debug("No chatdb or conversation_history — messages not persisted")
 
 
 _REWRITE_THRESHOLD = 8  # word count above which we rewrite
@@ -144,7 +147,8 @@ def chat_respond(message: str, retriever: Retriever,
                  folders_filter: list[str] | None = None,
                  scope_tags: list[str] | None = None,
                  allowed_paths: set[str] | None = None,
-                 sources_out: list[str] | None = None) -> Generator:
+                 sources_out: list[str] | None = None,
+                 conversation_history: ConversationHistory | None = None) -> Generator:
     """Generate a streaming RAG response for the given message."""
     if not message.strip():
         yield ""
@@ -160,7 +164,7 @@ def chat_respond(message: str, retriever: Retriever,
         reply = ("I don't have any relevant information in your knowledge base. "
                  "Try indexing some documents first.")
         yield reply
-        _persist(chatdb, thread_id, message, reply)
+        _persist(chatdb, thread_id, message, reply, conversation_history)
         return
 
     documents = [r.document for r in results]
@@ -173,7 +177,7 @@ def chat_respond(message: str, retriever: Retriever,
                    for m in db_msgs]
         history = history[-(MAX_HISTORY * 2):]
     else:
-        history = conversation_history.get_history()
+        history = conversation_history.get_history() if conversation_history else []
 
     messages = build_rag_messages(
         message, documents, metadatas,
@@ -221,7 +225,7 @@ def chat_respond(message: str, retriever: Retriever,
 
     # Persist messages
     store_text = _strip_source_block(cleaned)
-    _persist(chatdb, thread_id, message, store_text)
+    _persist(chatdb, thread_id, message, store_text, conversation_history)
 
 
 def save_last_response_as_plan(history: list, settings: Settings) -> str:

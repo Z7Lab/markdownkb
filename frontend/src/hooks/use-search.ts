@@ -72,7 +72,8 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
         setTags(tagsRes.items)
         setSearches(searchesRes.items)
         return true
-      } catch {
+      } catch (err) {
+        console.warn("Failed to load search panel data:", (err as Error).message)
         return false
       }
     })
@@ -269,7 +270,9 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
     try {
       const res = await api.get<{ versions: SearchVersion[] }>(`/api/searches/${searchId}/versions`)
       return res.versions
-    } catch {
+    } catch (err) {
+      console.warn("Failed to load search versions:", (err as Error).message)
+      toast.error("Failed to load search versions")
       return []
     }
   }, [])

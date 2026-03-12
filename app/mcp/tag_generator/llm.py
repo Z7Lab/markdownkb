@@ -126,6 +126,7 @@ def generate_tags_with_llm(
         logger.error("Tag generation failed for %s: %s", filepath, e)
         return {
             "status": "error",
+            "error": True,
             "suggested_tags": [],
             "existing_tags": [],
             "similar_tags": [],

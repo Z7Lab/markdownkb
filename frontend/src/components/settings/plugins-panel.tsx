@@ -261,7 +261,9 @@ export function PluginsPanel({
       const res = await api.get<{ plugins: PluginInfo[]; core_features: CoreFeature[] }>("/api/plugins")
       setPlugins(res.plugins)
       setCoreFeatures(res.core_features)
-    } catch {
+    } catch (err) {
+      console.warn("Failed to load plugins:", (err as Error).message)
+      toast.warning("Could not load plugin details — showing basic feature toggles")
       // Fallback: show features as flat toggles
       setCoreFeatures(
         Object.entries(features).map(([name, enabled]) => ({

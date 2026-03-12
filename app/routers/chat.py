@@ -82,6 +82,7 @@ def chat_stream(
     chatdb: ChatDB = Depends(get_chatdb),
     scopedb: ScopeDB = Depends(get_scopedb),
     tracking: TrackingDB = Depends(get_tracking),
+    conv_history=Depends(get_conversation_history),
 ):
     # Multi-scope: prefer scope_ids, fall back to single scope_id
     ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
@@ -110,6 +111,7 @@ def chat_stream(
                 folders_filter=scope_folders or None,
                 allowed_paths=allowed,
                 sources_out=sources,
+                conversation_history=conv_history,
             ):
                 new_text = partial[len(last_yielded):]
                 if new_text:
