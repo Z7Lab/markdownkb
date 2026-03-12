@@ -9,7 +9,7 @@ interface GraphProgress {
 }
 
 /** Server-side minimum edge weight — edges below this are never sent. */
-const MIN_WEIGHT = 0.5
+const MIN_WEIGHT = 0.6
 
 function buildQs(scopeIds?: string | null, wordClouds = true, adHocTags?: string[] | null): string {
   const params = new URLSearchParams()
@@ -29,7 +29,7 @@ export function useGraph() {
   const [isComputing, setIsComputing] = useState(false)
   const [checkingCache, setCheckingCache] = useState(true)
   const [fetchedAt, setFetchedAt] = useState<number | null>(null)
-  const [threshold, setThreshold] = useState(0.65)
+  const [threshold, setThreshold] = useState(0.75)
   const [wordClouds, setWordClouds] = useState(true)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")

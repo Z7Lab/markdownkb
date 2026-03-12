@@ -71,8 +71,8 @@ export function GraphSidebar({
             <Slider
               value={[threshold]}
               onValueChange={([v]) => onThresholdChange(v)}
-              min={0.5}
-              max={1}
+              min={0.6}
+              max={0.95}
               step={0.05}
               className="w-full"
             />

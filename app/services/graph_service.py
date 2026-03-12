@@ -114,7 +114,7 @@ def compute_graph(
     # Pairwise doc similarity using top-K mean of chunk pairs
     n_pairs = n_docs * (n_docs - 1) // 2
     progress(0.15, f"Computing {n_pairs:,} pairwise similarities...")
-    edges = []
+    all_weights: list[tuple[str, str, float]] = []
     pair_count = 0
     if n_docs >= 2:
         for path_a, path_b in combinations(doc_paths, 2):
@@ -129,15 +129,24 @@ def compute_graph(
             weight = float(flat[top_indices].mean())
 
             if weight >= min_weight:
-                edges.append({
-                    "source": path_a,
-                    "target": path_b,
-                    "weight": round(weight, 4),
-                })
+                all_weights.append((path_a, path_b, weight))
             pair_count += 1
             if pair_count % 500 == 0:
                 frac = 0.15 + 0.55 * (pair_count / max(n_pairs, 1))
                 progress(frac, f"Similarities: {pair_count:,}/{n_pairs:,} pairs...")
+
+    # Adaptive filtering: if too many edges, raise the effective threshold
+    # to keep at most ~max_edges (roughly 10 per doc).  This prevents the
+    # graph from becoming an unreadable blob with dense embedding models.
+    max_edges = max(n_docs * 10, 2000)
+    if len(all_weights) > max_edges:
+        all_weights.sort(key=lambda t: t[2], reverse=True)
+        all_weights = all_weights[:max_edges]
+
+    edges = [
+        {"source": s, "target": t, "weight": round(w, 4)}
+        for s, t, w in all_weights
+    ]
 
     progress(0.7, "Clustering documents...")
     # DBSCAN clustering on mean doc embeddings
@@ -218,7 +227,12 @@ def _cluster_docs(
     doc_paths: list[str],
     doc_mean_embeddings: dict[str, np.ndarray],
 ) -> list[int]:
-    """Run DBSCAN clustering on mean doc embeddings."""
+    """Run DBSCAN clustering on mean doc embeddings.
+
+    Automatically selects an eps value based on the pairwise cosine distance
+    distribution so that clustering works across different embedding models
+    (some produce tighter clusters than others).
+    """
     n = len(doc_paths)
     if n < 3 or DBSCAN is None:
         # Fallback: all in cluster 0
@@ -226,7 +240,18 @@ def _cluster_docs(
 
     X = np.array([doc_mean_embeddings[p] for p in doc_paths], dtype=np.float32)
     try:
-        clusterer = DBSCAN(eps=0.5, min_samples=2, metric="cosine")
+        # Compute pairwise cosine distances and pick eps at the 15th percentile
+        # so only genuinely close documents cluster together.
+        from sklearn.metrics.pairwise import cosine_distances
+        dists = cosine_distances(X)
+        # Upper triangle only (exclude self-distances on diagonal)
+        triu = dists[np.triu_indices(n, k=1)]
+        eps = float(np.percentile(triu, 15))
+        # Clamp to a reasonable range
+        eps = max(0.05, min(eps, 0.5))
+        logger.debug("DBSCAN auto-eps: %.4f (from %d pairwise distances)", eps, len(triu))
+
+        clusterer = DBSCAN(eps=eps, min_samples=2, metric="cosine")
         labels = clusterer.fit_predict(X)
         return [int(l) for l in labels]
     except (ValueError, RuntimeError, np.linalg.LinAlgError) as e:
@@ -244,11 +269,13 @@ def _extract_word_cloud(texts: list[str], max_terms: int = 30) -> dict[str, floa
         return {}
 
     try:
+        # When only 1 document, max_df must be 1.0 (not 0.9 which rounds to 0)
+        effective_max_df: float | int = 0.9 if len(joined) > 1 else 1.0
         vectorizer = TfidfVectorizer(
             max_features=max_terms * 3,
             stop_words="english",
             token_pattern=r"(?u)\b[a-zA-Z]{3,}\b",
-            max_df=0.9,
+            max_df=effective_max_df,
             min_df=1,
         )
         tfidf_matrix = vectorizer.fit_transform(joined)
