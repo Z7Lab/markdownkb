@@ -457,7 +457,7 @@ export function GraphTab() {
             component props is cleaner than per-prop `as never`. */}
         {webglSupported && graphData && graphData.nodes.length > 0 && (
           <ForceGraph3D
-            ref={fgRef as React.RefObject<ForceGraphRef>}
+            ref={fgRef as never}
             graphData={forceGraphData}
             width={dimensions.width}
             height={dimensions.height}
