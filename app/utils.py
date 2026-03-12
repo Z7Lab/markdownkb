@@ -1,6 +1,7 @@
 """Shared utility functions for the mdkb API."""
 
 import json
+from pathlib import Path
 
 
 def sse(event: str, data: dict) -> str:
@@ -23,3 +24,23 @@ def short_title(message: str, limit: int = 80) -> str:
     if cut > 20:
         return text[:cut] + "..."
     return text[:limit] + "..."
+
+
+def get_path_size(path: Path) -> int:
+    """Get total size of a file or directory in bytes.
+
+    For SQLite database files, includes WAL and SHM files in the total.
+    """
+    if path.is_file():
+        total = path.stat().st_size
+        if path.suffix == '.db':
+            wal_file = path.parent / f"{path.name}-wal"
+            shm_file = path.parent / f"{path.name}-shm"
+            if wal_file.exists():
+                total += wal_file.stat().st_size
+            if shm_file.exists():
+                total += shm_file.stat().st_size
+        return total
+    if path.is_dir():
+        return sum(f.stat().st_size for f in path.rglob('*') if f.is_file())
+    return 0

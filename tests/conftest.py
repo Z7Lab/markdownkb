@@ -217,6 +217,9 @@ def app():
 
     application.state.cancel_event = threading.Event()
 
+    from app.services.chat_service import ConversationHistory
+    application.state.conversation_history = ConversationHistory()
+
     return application
 
 

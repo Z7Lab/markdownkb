@@ -56,6 +56,7 @@ def stats(
 
 
 @router.get("/index/events")
+@limiter.limit(STANDARD)
 def index_events(request: Request):
     """SSE stream of real-time index events (file indexed/deleted/error)."""
     try:

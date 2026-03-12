@@ -65,5 +65,14 @@ def create_app(lifespan=None, settings_override=None) -> FastAPI:
     if api_key:
         from app.auth import ApiKeyMiddleware
         app.add_middleware(ApiKeyMiddleware, api_key=api_key)
+    else:
+        import logging
+        bind_host = os.environ.get("HOST", os.environ.get("UVICORN_HOST", "127.0.0.1"))
+        if bind_host in ("0.0.0.0", "::"):
+            logging.getLogger(__name__).warning(
+                "Server binding to %s without API key authentication. "
+                "Set auth.api_key in settings or MDKB_API_KEY env var to secure the API.",
+                bind_host,
+            )
 
     return app

@@ -142,7 +142,7 @@ class SearchDB:
                         )
                         result[field] = []
                         self._conn.execute(
-                            f"UPDATE searches SET {field} = NULL WHERE id = ?",  # noqa: S608
+                            f"UPDATE searches SET {field} = NULL WHERE id = ?",  # noqa: S608 — field is from a hardcoded list, not user input
                             (search_id,),
                         )
                         self._conn.commit()

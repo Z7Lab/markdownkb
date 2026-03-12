@@ -26,8 +26,7 @@ async def test_chat_empty_message_rejected(client):
 
 @pytest.mark.asyncio
 async def test_clear_history(client):
-    with patch("app.routers.chat.conversation_history") as mock_history:
-        resp = await client.delete("/api/chat/history")
+    resp = await client.delete("/api/chat/history")
     assert resp.status_code == 200
     assert resp.json()["status"] == "cleared"
 

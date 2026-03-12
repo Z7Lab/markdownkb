@@ -226,3 +226,34 @@ def reindex_file(
     except (OSError, ValueError, RuntimeError) as exc:
         tracking.mark_error(str(p), str(exc))
         raise ReindexError(f"Error indexing {p.name}: {exc}") from exc
+
+
+def index_directory(
+    path: str,
+    settings: Settings,
+    store: VectorStore,
+    tracking: TrackingDB,
+) -> str:
+    """Index only files in a single directory (not all sources)."""
+    files = scan_sources([path], settings.global_ignore)
+    to_index, skipped = _classify_files(files, tracking, set())
+
+    if not to_index:
+        return f"All {len(files)} files in {path} up to date"
+
+    total_chunks = 0
+    errors = 0
+    for fi in to_index:
+        try:
+            total_chunks += _index_file(fi, settings, store, tracking)
+            event_bus.publish(IndexEvent(
+                type="indexed", path=fi.path,
+                filename=fi.relative_path, chunks=total_chunks,
+            ))
+        except (OSError, ValueError, RuntimeError) as exc:
+            tracking.mark_error(fi.path, str(exc))
+            logger.error("Failed to index %s: %s", fi.path, exc)
+            errors += 1
+        time.sleep(0.02)
+
+    return f"Indexed {len(to_index)} files ({total_chunks} chunks, {errors} errors) in {path}"

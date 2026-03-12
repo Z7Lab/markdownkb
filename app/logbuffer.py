@@ -62,7 +62,8 @@ class RingBufferHandler(logging.Handler):
             self._seq = 0
 
 
-# Module-level singleton
+# Process-scoped singleton — attached to the root logger in main.py.
+# Must be module-level because the logging framework holds a reference.
 log_buffer = RingBufferHandler(capacity=500)
 log_buffer.setFormatter(
     logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"),

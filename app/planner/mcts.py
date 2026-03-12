@@ -47,15 +47,17 @@ class MCTSPlanner:
     """MCTS planner that generates and evaluates implementation plans."""
 
     def __init__(self, retriever: Retriever,
-                 settings: Settings | None = None):
+                 settings: Settings | None = None,
+                 folders_filter: list[str] | None = None,
+                 allowed_paths: set[str] | None = None):
         self._retriever = retriever
         self._settings = settings or Settings.get()
         self._user_patterns: list[str] = []
         self._exploration_log: list[str] = []
         self._exploration_context = ""
         self._research_results: list[dict] = []
-        self._folders_filter: list[str] | None = None
-        self._allowed_paths: set[str] | None = None
+        self._folders_filter = folders_filter
+        self._allowed_paths = allowed_paths
 
     def plan(self, request: str, iterations: int = 3,
              n_approaches: int = 3) -> dict[str, Any]:

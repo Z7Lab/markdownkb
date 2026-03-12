@@ -22,12 +22,7 @@ def resolve_tag_paths(
     if not all_tags:
         return None
 
-    paths: set[str] = set()
-    for f in tracking.get_all_files():
-        file_tags = {t.strip() for t in f.get("tags", "").split(",") if t.strip()}
-        if all_tags.intersection(file_tags):
-            paths.add(f["path"])
-    return paths
+    return tracking.get_paths_for_tags(all_tags)
 
 
 def get_all_tags(tracking: TrackingDB) -> list[str]:

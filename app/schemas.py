@@ -63,7 +63,7 @@ class SavePlanRequest(BaseModel):
 class RenameThreadRequest(BaseModel):
     """Request model for renaming conversation thread."""
 
-    title: str
+    title: str = Field(..., min_length=1, max_length=500)
 
 
 # -- Files / Sources --
@@ -71,26 +71,26 @@ class RenameThreadRequest(BaseModel):
 class FilePathRequest(BaseModel):
     """Request model for file path operations."""
 
-    path: str
+    path: str = Field(..., min_length=1, max_length=4096)
 
 
 class ToggleRagRequest(BaseModel):
     """Request model for toggling RAG inclusion."""
 
-    path: str
+    path: str = Field(..., min_length=1, max_length=4096)
     include: bool
 
 
 class FileActionRequest(BaseModel):
     """Request model for single-file index/unindex/reindex."""
 
-    path: str
+    path: str = Field(..., min_length=1, max_length=4096)
 
 
 class UpdateTagsRequest(BaseModel):
     """Request model for updating file tags."""
 
-    path: str
+    path: str = Field(..., min_length=1, max_length=4096)
     tags: list[str]
 
 
@@ -127,26 +127,26 @@ class AutoTagApplyRequest(BaseModel):
 class AddSourceRequest(BaseModel):
     """Request model for adding a source."""
 
-    path: str
+    path: str = Field(..., min_length=1, max_length=4096)
 
 
 class RemoveSourceRequest(BaseModel):
     """Request model for removing a source."""
 
-    path: str
+    path: str = Field(..., min_length=1, max_length=4096)
     cleanup: bool = False  # Also unindex all files from this source
 
 
 class SourceActionRequest(BaseModel):
     """Request model for bulk source operations (index/unindex all)."""
 
-    source: str
+    source: str = Field(..., min_length=1, max_length=4096)
 
 
 class AddProjectRootRequest(BaseModel):
     """Request model for adding a project root."""
 
-    path: str
+    path: str = Field(..., min_length=1, max_length=4096)
     include: list[str] = Field(default_factory=lambda: ["*.md", "docs/**/*.md"])
     exclude: list[str] = Field(default_factory=list)
 
@@ -154,7 +154,7 @@ class AddProjectRootRequest(BaseModel):
 class UpdateProjectRootRequest(BaseModel):
     """Request model for updating a project root's patterns."""
 
-    path: str
+    path: str = Field(..., min_length=1, max_length=4096)
     include: list[str] | None = None
     exclude: list[str] | None = None
 

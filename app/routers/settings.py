@@ -37,11 +37,25 @@ from app.services.llm_service import (
     stream_test_prompt,
     test_llm_connection,
 )
-from app.utils import sse
+from app.utils import get_path_size, sse
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["settings"])
+
+
+def _watch_and_index(watcher, path: str):
+    """If the watcher is active, add a directory and index in background."""
+    if watcher is None:
+        return
+    resolved = str(Path(path).resolve())
+    if watcher.add_directory(resolved):
+        import threading
+        threading.Thread(
+            target=watcher.index_directory,
+            args=(resolved,),
+            daemon=True,
+        ).start()
 
 
 # -- Sources --
@@ -68,18 +82,7 @@ def add_source(
     """
     settings.add_source(req.path)
     settings.save()
-
-    # Start watching and index immediately if watcher is active
-    if watcher is not None:
-        resolved = str(Path(req.path).resolve())
-        if watcher.add_directory(resolved):
-            import threading
-            threading.Thread(
-                target=watcher.index_directory,
-                args=(resolved,),
-                daemon=True,
-            ).start()
-
+    _watch_and_index(watcher, req.path)
     return {"sources": settings.sources}
 
 
@@ -166,19 +169,8 @@ def add_project_root(
     """
     settings.add_project_root(req.path, req.include, req.exclude)
     settings.save()
-
-    # Watch and index newly expanded directories immediately
-    if watcher is not None:
-        for source in settings.sources:
-            resolved = str(Path(source).resolve())
-            if watcher.add_directory(resolved):
-                import threading
-                threading.Thread(
-                    target=watcher.index_directory,
-                    args=(resolved,),
-                    daemon=True,
-                ).start()
-
+    for source in settings.sources:
+        _watch_and_index(watcher, source)
     return {"project_roots": settings.project_roots}
 
 
@@ -196,19 +188,8 @@ def update_project_root(
     except KeyError:
         raise HTTPException(404, f"Project root not found: {req.path}")
     settings.save()
-
-    # Watch any newly matching directories
-    if watcher is not None:
-        for source in settings.sources:
-            resolved = str(Path(source).resolve())
-            if watcher.add_directory(resolved):
-                import threading
-                threading.Thread(
-                    target=watcher.index_directory,
-                    args=(resolved,),
-                    daemon=True,
-                ).start()
-
+    for source in settings.sources:
+        _watch_and_index(watcher, source)
     return {"project_roots": settings.project_roots}
 
 
@@ -515,6 +496,8 @@ def update_plugin_settings(
     settings: Settings = Depends(get_settings),
 ):
     """Update configuration for a specific plugin (shallow merge)."""
+    if not all(isinstance(k, str) for k in config):
+        raise HTTPException(400, "Plugin config keys must be strings")
     settings.set_plugin_config(plugin_name, config)
     settings.save()
     return {"status": "saved", "plugin": plugin_name, "config": settings.get_plugin_config(plugin_name)}
@@ -599,27 +582,6 @@ def clear_logs(request: Request):
 
 
 # -- Database Maintenance --
-
-def get_path_size(path: Path) -> int:
-    """Get total size of a file or directory in bytes.
-
-    For SQLite database files, includes WAL and SHM files in the total.
-    """
-    if path.is_file():
-        total = path.stat().st_size
-        # Include SQLite WAL and SHM files if this is a .db file
-        if path.suffix == '.db':
-            wal_file = path.parent / f"{path.name}-wal"
-            shm_file = path.parent / f"{path.name}-shm"
-            if wal_file.exists():
-                total += wal_file.stat().st_size
-            if shm_file.exists():
-                total += shm_file.stat().st_size
-        return total
-    if path.is_dir():
-        return sum(f.stat().st_size for f in path.rglob('*') if f.is_file())
-    return 0
-
 
 @router.get("/settings/database-stats")
 @limiter.limit(STANDARD)

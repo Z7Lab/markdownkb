@@ -78,6 +78,7 @@ class Settings:
         self._project_root = path.resolve().parent.parent
         self._lock = threading.Lock()
         self._mcp_cache: dict[str, dict] = {}
+        self._prompt_cache: dict[str, str] = {}
         self._mcp_dir = self._path.parent / "mcp"
 
     @classmethod
@@ -565,6 +566,11 @@ class Settings:
         """Check whether a named feature is enabled."""
         return self.features.get(name, False)
 
+    def set_feature(self, name: str, enabled: bool) -> None:
+        """Set a feature flag value."""
+        features = self._data.setdefault("features", {})
+        features[name] = enabled
+
     # --- Plugin Configuration ---
 
     def get_plugin_config(self, plugin_name: str) -> dict:
@@ -699,7 +705,6 @@ class Settings:
         return self._resolve_path(raw)
 
     # --- Prompts ---
-    _prompt_cache: dict[str, str] = {}
 
     def get_prompt(self, name: str) -> str:
         """Load a prompt template from config/prompts/{name}.md.

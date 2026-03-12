@@ -209,7 +209,7 @@ def get_model_capabilities(model: str, api_base: str = "") -> dict:
             "litellm_provider": info.get("litellm_provider", ""),
             "mode": info.get("mode", ""),
         }
-    except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught
+    except Exception as e:  # noqa: BLE001  # pylint: disable=broad-exception-caught — litellm raises various errors; best-effort lookup should never crash
         logger.info("Could not fetch model info for %s: %s", model, e)
 
     if not result:
@@ -253,7 +253,8 @@ def stream_test_prompt(
         litellm.Timeout, litellm.AuthenticationError,
         RuntimeError, OSError, ValueError,
     ) as e:
-        yield "error", {"message": str(e)}
+        logger.error("LLM provider error: %s", e)
+        yield "error", {"message": "LLM request failed. Check server logs for details."}
         return
 
     for chunk in response:

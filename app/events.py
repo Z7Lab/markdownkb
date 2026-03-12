@@ -73,5 +73,7 @@ class IndexEventBus:
                 pass
 
 
-# Global singleton
+# Process-scoped singleton — used by the file watcher (publisher) and
+# SSE /index/events endpoint (subscribers).  Intentionally outside DI
+# because it must be shared between the watcher threads and request handlers.
 event_bus = IndexEventBus()

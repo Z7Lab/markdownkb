@@ -53,3 +53,8 @@ def get_cancel_event(request: Request) -> threading.Event:
 def get_watcher(request: Request):
     """Return the FileWatcher instance (or None if file watching is off)."""
     return getattr(request.app.state, "watcher", None)
+
+
+def get_conversation_history(request: Request):
+    """Return the in-memory ConversationHistory fallback instance."""
+    return request.app.state.conversation_history

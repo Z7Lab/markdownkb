@@ -24,7 +24,13 @@ _THINK_OPEN_RE = re.compile(r"<think>[\s\S]*$", re.IGNORECASE)
 
 
 class ConversationHistory:
-    """Thread-safe conversation memory for chat context."""
+    """Thread-safe in-memory conversation memory (fallback for non-threaded chat).
+
+    Prefer ChatDB thread-based storage.  This is only used when no
+    ``thread_id`` is provided and exists as a lightweight fallback.
+    It is stored on ``app.state.conversation_history`` so its lifetime
+    is tied to the application instance — not the module.
+    """
 
     def __init__(self):
         self._history: list[dict] = []
@@ -46,9 +52,6 @@ class ConversationHistory:
         """Clear all conversation history."""
         with self._lock:
             self._history = []
-
-
-conversation_history = ConversationHistory()
 
 
 def _is_repeating(text: str) -> bool:

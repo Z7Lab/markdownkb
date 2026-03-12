@@ -77,6 +77,7 @@ async def lifespan(app: FastAPI):
     cancel_event = threading.Event()
 
     # Store services on app.state for dependency injection
+    from app.services.chat_service import ConversationHistory
     app.state.settings = settings
     app.state.store = store
     app.state.retriever = retriever
@@ -86,6 +87,7 @@ async def lifespan(app: FastAPI):
     app.state.plandb = plandb
     app.state.scopedb = scopedb
     app.state.cancel_event = cancel_event
+    app.state.conversation_history = ConversationHistory()
 
     # Restore persisted log level
     log_level = getattr(logging, settings.log_level, logging.INFO)
@@ -102,11 +104,6 @@ async def lifespan(app: FastAPI):
         watcher = FileWatcher(settings, store, tracking)
         watcher.start()
         app.state.watcher = watcher
-        thread = threading.Thread(
-            target=watcher.run_forever,
-            daemon=True,
-        )
-        thread.start()
         logger.info("File watcher started")
 
     yield

@@ -93,20 +93,19 @@ class Retriever:
         if self._settings.hybrid_search:
             results = self._apply_bm25_rerank(query, results)
 
-        # Apply tag filter (user-selected single tag)
+        # Apply tag filter (user-selected single tag) — exact match
         if tag_filter:
             results = [
                 r for r in results
-                if tag_filter in r.metadata.get("tags", "")
+                if tag_filter in {t.strip() for t in r.metadata.get("tags", "").split(",") if t.strip()}
             ]
 
-        # Apply scope tags filter (match any scope tag — OR logic)
+        # Apply scope tags filter (match any scope tag — OR logic, exact match)
         if scope_tags:
+            scope_tag_set = set(scope_tags)
             def _has_scope_tag(meta_tags: str) -> bool:
-                for st in scope_tags:
-                    if st in meta_tags:
-                        return True
-                return False
+                file_tags = {t.strip() for t in meta_tags.split(",") if t.strip()}
+                return bool(scope_tag_set & file_tags)
             results = [r for r in results if _has_scope_tag(r.metadata.get("tags", ""))]
 
         # Apply allowed_paths filter (from tracking DB tag resolution)

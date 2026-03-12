@@ -146,6 +146,26 @@ class TrackingDB:
             rows = self._conn.execute(sql, params).fetchall()
             return [dict(r) for r in rows]
 
+    def get_paths_for_tags(self, tags: set[str]) -> set[str]:
+        """Return file paths that have any of the given tags (SQL-level filter).
+
+        Uses LIKE queries per tag to avoid full-table Python iteration.
+        """
+        if not tags:
+            return set()
+        with self._lock:
+            paths: set[str] = set()
+            for tag in tags:
+                # Match exact tag in comma-separated list
+                rows = self._conn.execute(
+                    "SELECT path FROM indexed_files "
+                    "WHERE tags = ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ?",
+                    (tag, f"{tag},%", f"%, {tag},%", f"%, {tag}"),
+                ).fetchall()
+                for r in rows:
+                    paths.add(r["path"])
+            return paths
+
     def get_hash_map(self) -> dict[str, str]:
         """Return {path: content_hash} for all tracked files."""
         with self._lock:

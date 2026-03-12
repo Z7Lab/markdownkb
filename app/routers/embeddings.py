@@ -25,8 +25,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["embeddings"])
 
-# Background reindex state (shared by model switch and force reindex)
-_switch_status = {
+# Background reindex state — module-level because only one reindex can
+# run at a time across the process.  Guarded by _switch_lock.
+_switch_status: dict = {
     "running": False,
     "progress": 0.0,
     "message": "",

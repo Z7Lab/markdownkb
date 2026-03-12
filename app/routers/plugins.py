@@ -188,12 +188,18 @@ def _install_from_source(source_dir: Path, settings: Settings) -> dict:
 
     shutil.copytree(source_dir, dest)
 
-    # Install requirements if present
+    # Install requirements if present.
+    # Use --only-binary :all: to prevent execution of untrusted setup.py
+    # scripts from source distributions.
     req_file = dest / "requirements.txt"
     if req_file.exists():
         try:
             subprocess.run(
-                [sys.executable, "-m", "pip", "install", "-r", str(req_file)],
+                [
+                    sys.executable, "-m", "pip", "install",
+                    "-r", str(req_file),
+                    "--only-binary", ":all:",
+                ],
                 capture_output=True, text=True, check=True, timeout=120,
             )
         except subprocess.CalledProcessError as e:
@@ -218,10 +224,8 @@ def _install_from_source(source_dir: Path, settings: Settings) -> dict:
             pass
 
     if feature_flag:
-        features = settings.features
-        if feature_flag not in features:
-            features[feature_flag] = False
-            settings._data["features"] = features
+        if feature_flag not in settings.features:
+            settings.set_feature(feature_flag, False)
             settings.save()
 
     return {

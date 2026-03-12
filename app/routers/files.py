@@ -11,7 +11,7 @@ from app.deps import get_retriever, get_settings, get_store, get_tracking
 from app.ingestion.indexer import ReindexError, reindex_file
 from app.ingestion.scanner import discover_sources
 from app.rag.retriever import Retriever
-from app.ratelimit import STANDARD, limiter
+from app.ratelimit import HEAVY, STANDARD, limiter
 from app.schemas import AutoTagApplyRequest, AutoTagPreviewRequest, BulkUpdateTagsRequest, FileActionRequest, FileSearchRequest, SourceActionRequest, ToggleRagRequest, UpdateTagsRequest
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
@@ -41,7 +41,7 @@ def get_file_status(
 
 
 @router.get("/files")
-@limiter.limit(STANDARD)
+@limiter.limit(HEAVY)
 def list_files(
     request: Request,
     offset: int = Query(0, ge=0),

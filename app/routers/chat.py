@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from app.config import Settings
-from app.deps import get_chatdb, get_retriever, get_scopedb, get_settings, get_tracking
+from app.deps import get_chatdb, get_conversation_history, get_retriever, get_scopedb, get_settings, get_tracking
 from app.rag.llm import get_completion
 from app.rag.prompts import build_rag_messages
 from app.rag.retriever import Retriever
@@ -16,7 +16,6 @@ from app.scope_utils import parse_scope_ids, resolve_scopes
 from app.tag_utils import resolve_tag_paths
 from app.services.chat_service import (
     chat_respond,
-    conversation_history,
     rewrite_query,
     save_last_response_as_plan,
 )
@@ -120,9 +119,12 @@ def chat_stream(
             if sources:
                 chatdb.set_sources(thread_id, "assistant", sources)
                 yield sse("sources", {"sources": sources})
-        except Exception:
-            logger.exception("Error during chat stream")
+        except (RuntimeError, OSError, ValueError) as e:
+            logger.error("LLM/retrieval error during chat stream: %s", e)
             yield sse("error", {"message": "LLM request failed. Check server logs for details."})
+        except Exception:
+            logger.exception("Unexpected error during chat stream")
+            yield sse("error", {"message": "An unexpected error occurred. Check server logs for details."})
 
         yield sse("done", {})
 
@@ -134,8 +136,13 @@ def chat_stream(
 
 @router.delete("/chat/history")
 @limiter.limit(STANDARD)
-def clear_history(request: Request):
-    conversation_history.clear()
+def clear_history(
+    request: Request,
+    chatdb: ChatDB = Depends(get_chatdb),
+    conv_history=Depends(get_conversation_history),
+):
+    conv_history.clear()
+    chatdb.clear_all()
     return {"status": "cleared"}
 
 

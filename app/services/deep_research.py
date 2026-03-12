@@ -86,9 +86,11 @@ def stream_deep_research(
     })
 
     # Phase 1-4: Run MCTS planner
-    planner = MCTSPlanner(retriever, settings)
-    planner._folders_filter = folders_filter
-    planner._allowed_paths = allowed_paths
+    planner = MCTSPlanner(
+        retriever, settings,
+        folders_filter=folders_filter,
+        allowed_paths=allowed_paths,
+    )
 
     yield sse("status", {
         "phase": "research",
@@ -96,8 +98,6 @@ def stream_deep_research(
         "iteration": 0,
         "total_iterations": iterations,
     })
-    planner._exploration_log = []
-    planner._user_patterns = []
     planner._research_results = planner._research(query)
 
     yield sse("status", {

@@ -308,8 +308,8 @@ class FileWatcher:
 
     def index_directory(self, path: str):
         """Trigger an initial index for files in a newly added directory."""
-        from app.ingestion.indexer import run_index
-        run_index(self._settings, self._store, self._tracking)
+        from app.ingestion.indexer import index_directory
+        index_directory(path, self._settings, self._store, self._tracking)
 
 
 def start_watching(

@@ -182,7 +182,8 @@ def index_file(path: str) -> dict:
         raise ValueError("Only .md files can be indexed")
 
     in_source = any(
-        resolved.startswith(str(P(s).resolve()))
+        resolved == str(P(s).resolve())
+        or resolved.startswith(str(P(s).resolve()) + "/")
         for s in settings.sources
     )
     if not in_source:
