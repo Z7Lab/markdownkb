@@ -34,7 +34,7 @@ export function ChatInput({
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="Ask your knowledge base..."
-        className="min-h-[44px] max-h-[120px] resize-none"
+        className="min-h-[44px] max-h-64 resize-none"
         rows={1}
         aria-label="Chat message input"
       />

@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 class SearchRequest(BaseModel):
     """Request model for search API endpoint."""
 
-    query: str = Field(..., min_length=1, max_length=10000)
+    query: str = Field(..., min_length=1, max_length=500)
     top_k: int | None = Field(None, ge=1, le=50)
     folder: str | None = None
     tag: str | None = None
@@ -21,7 +21,7 @@ class SearchRequest(BaseModel):
 class SummarizeRequest(BaseModel):
     """Request model for search summary (AI overview)."""
 
-    query: str = Field(..., min_length=1, max_length=10000)
+    query: str = Field(..., min_length=1, max_length=500)
     top_k: int | None = Field(None, ge=1, le=50)
     folder: str | None = None
     tag: str | None = None
@@ -105,7 +105,7 @@ class BulkUpdateTagsRequest(BaseModel):
 class FileSearchRequest(BaseModel):
     """Request model for content-based file search (lightweight, no history)."""
 
-    query: str = Field(..., min_length=1, max_length=10000)
+    query: str = Field(..., min_length=1, max_length=500)
     top_k: int = Field(50, ge=1, le=200)
 
 

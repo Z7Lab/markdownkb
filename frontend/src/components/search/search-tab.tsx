@@ -12,11 +12,11 @@ import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { DeepResearchToggle } from "@/components/ui/deep-research-toggle"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Loader2, Search, RotateCcw, Clock, AlertCircle, History } from "lucide-react"
-import { useState, type KeyboardEvent } from "react"
+import { useState, type KeyboardEvent as ReactKeyboardEvent } from "react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useScopeTagFilter } from "@/hooks/use-scope-tag-filter"
 
@@ -74,8 +74,13 @@ export function SearchTab() {
   const [confirmGenerateSummaryOpen, setConfirmGenerateSummaryOpen] = useState(false)
   const [expandedResults, setExpandedResults] = useState<Set<number>>(new Set())
 
-  function handleKeyDown(e: KeyboardEvent) {
-    if (e.key === "Enter") search()
+  const QUERY_MAX = 500
+
+  function handleKeyDown(e: ReactKeyboardEvent) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      search()
+    }
   }
 
   function handleConfirmGenerateSummary() {
@@ -115,26 +120,35 @@ export function SearchTab() {
             </pre>
 
             {/* Search bar */}
-            <div className="flex gap-2 w-full max-w-2xl items-center">
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Search your knowledge base..."
-                className="flex-1"
-              />
-              <DeepResearchToggle
-                enabled={deepResearch}
-                onToggle={setDeepResearch}
-                featureEnabled={settings?.features?.deep_research ?? false}
-                disabled={loading}
-                iterations={deepResearchIterations}
-                onIterationsChange={setDeepResearchIterations}
-              />
-              <Button onClick={search} disabled={loading || !query.trim()}>
-                <Search className="h-4 w-4 mr-1.5" />
-                Search
-              </Button>
+            <div className="flex flex-col gap-1.5 w-full max-w-2xl">
+              <div className="flex gap-2 items-end">
+                <Textarea
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Search your knowledge base..."
+                  maxLength={QUERY_MAX}
+                  className="flex-1 min-h-10 max-h-32 resize-none"
+                  rows={1}
+                />
+                <DeepResearchToggle
+                  enabled={deepResearch}
+                  onToggle={setDeepResearch}
+                  featureEnabled={settings?.features?.deep_research ?? false}
+                  disabled={loading}
+                  iterations={deepResearchIterations}
+                  onIterationsChange={setDeepResearchIterations}
+                />
+                <Button onClick={search} disabled={loading || !query.trim()}>
+                  <Search className="h-4 w-4 mr-1.5" />
+                  Search
+                </Button>
+              </div>
+              {query.length > QUERY_MAX * 0.8 && (
+                <p className={`text-xs text-right ${query.length >= QUERY_MAX ? "text-destructive" : "text-muted-foreground"}`}>
+                  {query.length.toLocaleString()} / {QUERY_MAX.toLocaleString()}
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -148,8 +162,8 @@ export function SearchTab() {
               <div className="flex flex-col gap-2 pb-2 border-b">
                 <div className="flex items-center gap-2">
                   <Search className="h-4 w-4 text-muted-foreground" />
-                  <h2 className="text-base font-semibold text-foreground">
-                    {query}
+                  <h2 className="text-base font-semibold text-foreground truncate max-w-[60ch]" title={query}>
+                    {query.length > 200 ? `${query.slice(0, 200)}…` : query}
                   </h2>
 
                   {/* Historical vs Live badge */}
