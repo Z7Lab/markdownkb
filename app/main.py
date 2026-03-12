@@ -69,6 +69,11 @@ async def lifespan(app: FastAPI):
         except Exception:
             logger.exception("Failed to install embedding model '%s' — indexing will fail until it is installed", model_id)
 
+    # Reset files stuck in "indexing" from a previous interrupted run
+    reset_count = tracking.reset_incomplete()
+    if reset_count:
+        logger.info("Reset %d files stuck in 'indexing' from interrupted run", reset_count)
+
     retriever = Retriever(store, settings, tracking)
     cancel_event = threading.Event()
 

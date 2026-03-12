@@ -75,7 +75,7 @@ function SortHeader({
       type="button"
       onClick={() => onSort(sortKey)}
       className={cn(
-        "flex items-center gap-1 px-2 h-full text-sm font-medium text-foreground cursor-pointer select-none whitespace-nowrap",
+        "flex items-center gap-1 px-2 h-full text-sm font-medium text-foreground cursor-pointer select-none whitespace-nowrap overflow-hidden",
         className,
       )}
       aria-sort={active ? (sortDir === "asc" ? "ascending" : "descending") : undefined}
@@ -217,6 +217,13 @@ export function FilesTab() {
   const { files, busyPaths, refresh, toggleRag, unindexFile, indexFile, reindexFile, indexAll, unindexSource, updateTags, bulkUpdateTags } = useFiles()
   const { isIndexing, lastIndexedAt } = useIndexEvents()
   const [filterText, setFilterText] = useState("")
+  const [refreshing, setRefreshing] = useState(false)
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true)
+    await refresh()
+    setRefreshing(false)
+  }, [refresh])
 
   // Auto-refresh file list when indexing events arrive
   useEffect(() => {
@@ -356,9 +363,12 @@ export function FilesTab() {
                 <Wand2 className="h-3.5 w-3.5 mr-1.5" />
                 Auto-Tag
               </Button>
-              <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => refresh()}>
-                <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                Refresh
+              <Button variant="outline" size="sm" className="cursor-pointer" onClick={handleRefresh} disabled={refreshing}>
+                {refreshing
+                  ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                }
+                {refreshing ? "Refreshing..." : "Refresh"}
               </Button>
             </div>
             <p className="text-sm text-muted-foreground">

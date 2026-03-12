@@ -191,6 +191,21 @@ class TrackingDB:
             ).fetchall()
             return [r["path"] for r in rows]
 
+    def reset_incomplete(self) -> int:
+        """Reset files stuck in 'indexing' to 'pending' (e.g. after a crash).
+
+        Returns the number of files reset.
+        """
+        with self._lock:
+            cursor = self._conn.execute(
+                """UPDATE indexed_files
+                SET status = 'pending', chunk_count = 0,
+                    content_hash = '', updated_at = datetime('now')
+                WHERE status = 'indexing'"""
+            )
+            self._conn.commit()
+            return cursor.rowcount
+
     # --- Mutations ---
 
     def upsert_file(
