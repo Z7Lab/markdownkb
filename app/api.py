@@ -14,9 +14,12 @@ from app.routers import (
     embeddings,
     files,
     health,
+    llm,
+    maintenance,
     plugins,
     scopes,
     settings,
+    sources,
     threads,
 )
 
@@ -52,7 +55,8 @@ def create_app(lifespan=None, settings_override=None) -> FastAPI:
     # Core routers (always registered)
     for router_module in (
         health, chat, threads, files,
-        settings, embeddings, scopes, plugins,
+        settings, sources, llm, maintenance,
+        embeddings, scopes, plugins,
     ):
         app.include_router(router_module.router)
 

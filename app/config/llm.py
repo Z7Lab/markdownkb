@@ -1,0 +1,149 @@
+"""LLM provider configuration mixin."""
+
+import logging
+import os
+
+logger = logging.getLogger(__name__)
+
+
+def _read_secret(name: str) -> str:
+    """Read a Docker secret by name (imported from package root at runtime)."""
+    from app.config import _read_secret as _rs
+    return _rs(name)
+
+
+class LLMMixin:
+    """Mixin providing LLM provider, temperature, max_tokens, and key resolution."""
+
+    @property
+    def llm_providers(self) -> list[dict]:
+        """Return the list of LLM provider configurations."""
+        return self._data.get("llm", {}).get("providers", [])
+
+    @property
+    def active_provider(self) -> str:
+        """Return the currently active LLM provider name."""
+        return self._data.get("llm", {}).get(
+            "active_provider", "anthropic"
+        )
+
+    @active_provider.setter
+    def active_provider(self, value: str):
+        """Set the active LLM provider by name."""
+        self._data.setdefault("llm", {})["active_provider"] = value
+
+    def get_active_llm_config(self) -> dict:
+        """Return the config dict for the active provider.
+
+        For ollama, the OLLAMA_API_BASE env var overrides api_base from YAML
+        so Docker/remote setups work without editing settings.yaml.
+        """
+        config: dict = {}
+        for p in self.llm_providers:
+            if p.get("name") == self.active_provider:
+                config = p
+                break
+        if not config:
+            if self.llm_providers:
+                logger.warning(
+                    "Active provider '%s' not found in configured providers %s — "
+                    "falling back to '%s'",
+                    self.active_provider,
+                    [p.get("name") for p in self.llm_providers],
+                    self.llm_providers[0].get("name"),
+                )
+                config = self.llm_providers[0]
+            else:
+                logger.warning("No LLM providers configured — LLM features will be unavailable")
+                return {}
+
+        # Allow OLLAMA_API_BASE env var to override yaml for ollama provider
+        if config.get("name") == "ollama" and os.environ.get("OLLAMA_API_BASE"):
+            config = {**config, "api_base": os.environ["OLLAMA_API_BASE"]}
+
+        # Resolve API key: Docker secret > env var (never from YAML)
+        name = config.get("name", "")
+        resolved_key = (
+            _read_secret(f"{name.lower()}_api_key")
+            or os.environ.get(f"{name.upper()}_API_KEY", "")
+        )
+        config = {**config, "api_key": resolved_key}
+
+        return config
+
+    def resolve_provider_key(self, provider_name: str) -> str:
+        """Return the effective API key for a provider.
+
+        Priority: Docker secret > env var.  YAML api_key fields are
+        intentionally ignored — secrets should never live in config files.
+        """
+        return (
+            _read_secret(f"{provider_name.lower()}_api_key")
+            or os.environ.get(f"{provider_name.upper()}_API_KEY", "")
+        )
+
+    @staticmethod
+    def key_is_from_env(provider_name: str) -> bool:
+        """Return True if the provider's API key comes from a secret or env var."""
+        return bool(
+            _read_secret(f"{provider_name.lower()}_api_key")
+            or os.environ.get(f"{provider_name.upper()}_API_KEY", "")
+        )
+
+    @property
+    def llm_temperature(self) -> float:
+        """Return temperature for the active provider, falling back to global default."""
+        active = self.get_active_llm_config()
+        if "temperature" in active:
+            return active["temperature"]
+        return self._data.get("llm", {}).get("temperature", 0.3)
+
+    @llm_temperature.setter
+    def llm_temperature(self, value: float):
+        """Set temperature on the active provider entry."""
+        for p in self.llm_providers:
+            if p.get("name") == self.active_provider:
+                p["temperature"] = value
+                return
+        # Fallback: set global default
+        self._data.setdefault("llm", {})["temperature"] = value
+
+    @property
+    def llm_max_tokens(self) -> int:
+        """Return max_tokens for the active provider, falling back to global default."""
+        active = self.get_active_llm_config()
+        if "max_tokens" in active:
+            return active["max_tokens"]
+        return self._data.get("llm", {}).get("max_tokens", 2048)
+
+    @llm_max_tokens.setter
+    def llm_max_tokens(self, value: int):
+        """Set max_tokens on the active provider entry."""
+        for p in self.llm_providers:
+            if p.get("name") == self.active_provider:
+                p["max_tokens"] = value
+                return
+        self._data.setdefault("llm", {})["max_tokens"] = value
+
+    @property
+    def llm_num_ctx(self) -> int | None:
+        """Return Ollama context window override from active provider (None = model default)."""
+        active = self.get_active_llm_config()
+        if "num_ctx" in active:
+            return active["num_ctx"]
+        return self._data.get("llm", {}).get("num_ctx")
+
+    @llm_num_ctx.setter
+    def llm_num_ctx(self, value: int | None):
+        """Set Ollama context window on the active provider entry."""
+        for p in self.llm_providers:
+            if p.get("name") == self.active_provider:
+                if value is None:
+                    p.pop("num_ctx", None)
+                else:
+                    p["num_ctx"] = value
+                return
+        if value is None:
+            self._data.get("llm", {}).pop("num_ctx", None)
+        else:
+            self._data.setdefault("llm", {})["num_ctx"] = value
