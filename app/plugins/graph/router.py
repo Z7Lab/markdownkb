@@ -57,7 +57,7 @@ def graph_data(
     """Return the full knowledge graph (nodes, edges, clusters, word clouds)."""
     ids = parse_scope_ids(scope_ids) or ([scope_id] if scope_id else None)
     scope_folders, scope_tags = resolve_scopes(ids, scopedb)
-    allowed = resolve_tag_paths(scope_tags, ad_hoc_tags, tracking)
+    allowed = resolve_tag_paths(scope_tags, ad_hoc_tags)
     key = _cache_key(scope_folders, scope_tags, ad_hoc_tags, top_k, word_clouds, min_weight)
 
     with _cache_lock:
@@ -97,7 +97,7 @@ def graph_stats(
         all_meta = retriever.store.get_all_metadatas()
 
     # Apply tag filtering via tracking DB paths
-    allowed = resolve_tag_paths(scope_tags, None, tracking)
+    allowed = resolve_tag_paths(scope_tags, None)
     if allowed is not None:
         all_meta = [
             m for m in all_meta

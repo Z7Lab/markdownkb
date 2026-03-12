@@ -159,14 +159,12 @@ class TrackingDB:
     def get_file(self, path: str) -> dict | None:
         """Return the tracked state for a single file, or None.
 
-        Merges user metadata (tags, include_rag) from file_metadata table,
-        falling back to indexed_files values for rows not yet migrated.
+        Merges include_rag from file_metadata table (authoritative for RAG prefs).
         """
         with self._lock:
             row = self._conn.execute(
                 """SELECT f.*,
-                    COALESCE(m.include_rag, f.include_rag) AS include_rag,
-                    COALESCE(m.tags, f.tags) AS tags
+                    COALESCE(m.include_rag, f.include_rag) AS include_rag
                 FROM indexed_files f
                 LEFT JOIN file_metadata m ON m.path = f.path
                 WHERE f.path = ?""",
@@ -190,12 +188,11 @@ class TrackingDB:
     ) -> list[dict]:
         """Return tracked files ordered by path, with optional pagination.
 
-        Merges user metadata from file_metadata table.
+        Merges include_rag from file_metadata table.
         """
         with self._lock:
             sql = """SELECT f.*,
-                COALESCE(m.include_rag, f.include_rag) AS include_rag,
-                COALESCE(m.tags, f.tags) AS tags
+                COALESCE(m.include_rag, f.include_rag) AS include_rag
             FROM indexed_files f
             LEFT JOIN file_metadata m ON m.path = f.path
             ORDER BY f.path"""
@@ -205,28 +202,6 @@ class TrackingDB:
                 params = [limit, offset]
             rows = self._conn.execute(sql, params).fetchall()
             return [dict(r) for r in rows]
-
-    def get_paths_for_tags(self, tags: set[str]) -> set[str]:
-        """Return file paths that have any of the given tags.
-
-        Checks file_metadata first (authoritative), falls back to indexed_files
-        for rows not yet in file_metadata.
-        """
-        if not tags:
-            return set()
-        with self._lock:
-            paths: set[str] = set()
-            for tag in tags:
-                # Check both tables; file_metadata is authoritative
-                for table in ("file_metadata", "indexed_files"):
-                    rows = self._conn.execute(
-                        f"SELECT path FROM {table} "
-                        "WHERE tags = ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ?",
-                        (tag, f"{tag},%", f"%, {tag},%", f"%, {tag}"),
-                    ).fetchall()
-                    for r in rows:
-                        paths.add(r["path"])
-            return paths
 
     def get_hash_map(self) -> dict[str, str]:
         """Return {path: content_hash} for all tracked files."""
@@ -274,7 +249,6 @@ class TrackingDB:
         self, path: str, source_root: str,
         content_hash: str, file_size: int, mtime: float, *,
         status: str = "pending", chunk_count: int = 0,
-        tags: str = "",
     ):
         """Insert or update a file's tracking record.
 
@@ -284,19 +258,16 @@ class TrackingDB:
         with self._lock:
             # Restore include_rag from metadata if this is a re-insert after clear()
             meta = self._conn.execute(
-                "SELECT include_rag, tags FROM file_metadata WHERE path = ?",
+                "SELECT include_rag FROM file_metadata WHERE path = ?",
                 (path,),
             ).fetchone()
             include_rag = meta["include_rag"] if meta else 1
-            # Use metadata tags if available and no new tags provided
-            if not tags and meta and meta["tags"]:
-                tags = meta["tags"]
 
             self._conn.execute(
                 """INSERT INTO indexed_files
                     (path, source_root, content_hash, file_size, mtime,
-                     chunk_count, status, tags, include_rag, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                     chunk_count, status, include_rag, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                 ON CONFLICT(path) DO UPDATE SET
                     source_root = excluded.source_root,
                     content_hash = excluded.content_hash,
@@ -304,7 +275,6 @@ class TrackingDB:
                     mtime = excluded.mtime,
                     chunk_count = excluded.chunk_count,
                     status = excluded.status,
-                    tags = excluded.tags,
                     error_msg = NULL,
                     indexed_at = CASE
                         WHEN excluded.status = 'complete'
@@ -314,25 +284,7 @@ class TrackingDB:
                     updated_at = datetime('now')
                 """,
                 (path, source_root, content_hash, file_size, mtime,
-                 chunk_count, status, tags, include_rag),
-            )
-            self._conn.commit()
-
-    def update_tags(self, path: str, tags: str):
-        """Update the tags field for a file in the metadata table."""
-        with self._lock:
-            self._conn.execute(
-                """INSERT INTO file_metadata (path, tags, updated_at)
-                VALUES (?, ?, datetime('now'))
-                ON CONFLICT(path) DO UPDATE SET
-                    tags = excluded.tags,
-                    updated_at = excluded.updated_at""",
-                (tags, path),
-            )
-            # Keep indexed_files in sync for backward compat
-            self._conn.execute(
-                "UPDATE indexed_files SET tags = ? WHERE path = ?",
-                (tags, path),
+                 chunk_count, status, include_rag),
             )
             self._conn.commit()
 
@@ -382,9 +334,9 @@ class TrackingDB:
                 ON CONFLICT(path) DO UPDATE SET
                     include_rag = excluded.include_rag,
                     updated_at = excluded.updated_at""",
-                (val, path),
+                (path, val),
             )
-            # Keep indexed_files in sync for backward compat
+            # Keep indexed_files in sync
             self._conn.execute(
                 "UPDATE indexed_files SET include_rag = ? WHERE path = ?",
                 (val, path),
@@ -427,7 +379,7 @@ class TrackingDB:
                     new_source_root: str) -> bool:
         """Move a tracking record to a new path, preserving all state.
 
-        Also updates file_metadata if present.
+        Also updates file_metadata (include_rag) if present.
         Returns True if the old record was found and moved.
         """
         with self._lock:
@@ -451,19 +403,18 @@ class TrackingDB:
                  rec["status"], rec["error_msg"], rec["indexed_at"],
                  rec["include_rag"]),
             )
-            # Move metadata if present
+            # Move include_rag metadata if present
             meta = self._conn.execute(
                 "SELECT * FROM file_metadata WHERE path = ?", (old_path,),
             ).fetchone()
             if meta:
-                meta_d = dict(meta)
                 self._conn.execute(
                     "DELETE FROM file_metadata WHERE path = ?", (old_path,),
                 )
                 self._conn.execute(
-                    """INSERT INTO file_metadata (path, include_rag, tags, updated_at)
-                    VALUES (?, ?, ?, datetime('now'))""",
-                    (new_path, meta_d["include_rag"], meta_d["tags"]),
+                    """INSERT INTO file_metadata (path, include_rag, updated_at)
+                    VALUES (?, ?, datetime('now'))""",
+                    (new_path, meta["include_rag"]),
                 )
             self._conn.commit()
             return True
@@ -550,14 +501,6 @@ class TrackingDB:
             self._conn.execute("DELETE FROM indexed_files")
             self._conn.commit()
             logger.info("Tracking database cleared (file_metadata preserved)")
-
-    def get_metadata(self, path: str) -> dict | None:
-        """Return user metadata for a file, or None if not set."""
-        with self._lock:
-            row = self._conn.execute(
-                "SELECT * FROM file_metadata WHERE path = ?", (path,),
-            ).fetchone()
-            return dict(row) if row else None
 
     def file_count(self) -> int:
         """Return the total number of tracked files."""

@@ -132,7 +132,8 @@ features:
   file_watcher: true
   mcp_filesystem: false
   mcp_terminal: false
-  mcp_tag_generator: false
+  tags: true                # Tag storage, CRUD, auto-tag, scope filtering
+  mcp_tag_generator: false  # AI-powered tag generation (requires tags: true)
   mcts_planner: false
   deep_research: false
   agent_skills: false

@@ -33,6 +33,7 @@ class FakeSettings:
         "mcts_planner": True,
         "search": True,
         "export": True,
+        "tags": True,
     })
     llm_temperature: float = 0.3
     llm_max_tokens: int = 2048
@@ -216,6 +217,15 @@ def app():
     application.state.scopedb = scopedb
 
     application.state.cancel_event = threading.Event()
+
+    # Tags plugin: mock TagDB
+    tagdb = MagicMock()
+    tagdb.get_all_tags.return_value = ["tag1", "tag2"]
+    tagdb.get_all_file_tags.return_value = []
+    tagdb.get_tags.return_value = ""
+    tagdb.get_paths_for_tags.return_value = set()
+    tagdb.is_empty.return_value = True
+    application.state.tagdb = tagdb
 
     from app.services.chat_service import ConversationHistory
     application.state.conversation_history = ConversationHistory()

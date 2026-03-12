@@ -35,7 +35,7 @@ def plan(
     """Generate an implementation plan using MCTS."""
     ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
     scope_folders, scope_tags = resolve_scopes(ids, scopedb)
-    allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags, tracking)
+    allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
 
     try:
         result = run_planner(
@@ -67,7 +67,7 @@ def plan_stream(
     """Stream plan generation progress as SSE events."""
     ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
     scope_folders, scope_tags = resolve_scopes(ids, scopedb)
-    allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags, tracking)
+    allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
 
     def generate():
         try:

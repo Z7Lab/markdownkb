@@ -7,12 +7,12 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.config import Settings
-from app.deps import get_retriever, get_settings, get_store, get_tracking
+from app.deps import get_retriever, get_settings, get_store, get_tagdb, get_tracking
 from app.ingestion.indexer import ReindexError, reindex_file
 from app.ingestion.scanner import discover_sources
 from app.rag.retriever import Retriever
 from app.ratelimit import HEAVY, STANDARD, limiter
-from app.schemas import AutoTagApplyRequest, AutoTagPreviewRequest, BulkUpdateTagsRequest, FileActionRequest, FileSearchRequest, SourceActionRequest, ToggleRagRequest, UpdateTagsRequest
+from app.schemas import FileActionRequest, FileSearchRequest, SourceActionRequest, ToggleRagRequest
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 
@@ -48,6 +48,7 @@ def list_files(
     limit: int | None = Query(None, ge=1, le=100000),
     settings: Settings = Depends(get_settings),
     tracking: TrackingDB = Depends(get_tracking),
+    tagdb=Depends(get_tagdb),
 ):
     """List all discovered files, merging tracking DB info when available.
 
@@ -56,6 +57,10 @@ def list_files(
     """
     # Build lookup of tracked files
     tracked_map = {f["path"]: f for f in tracking.get_all_files()}
+
+    # Build tag lookup from TagDB (if tags plugin is active)
+    from app.tag_utils import get_all_file_tags
+    tag_map = {ft["path"]: ft["tags"] for ft in get_all_file_tags()}
 
     # Discover all files across watch directories (lightweight, no hashing)
     discovered = discover_sources(settings.sources, settings.global_ignore)
@@ -67,10 +72,10 @@ def list_files(
         discovered_paths.add(d["path"])
         tracked = tracked_map.pop(d["path"], None)
         if tracked:
+            tracked = dict(tracked)
+            tracked["tags"] = tag_map.get(d["path"], tracked.get("tags", ""))
             merged.append(tracked)
         else:
-            # Check for preserved metadata (survives clear/reindex)
-            meta = tracking.get_metadata(d["path"])
             merged.append({
                 "path": d["path"],
                 "source_root": d["source_root"],
@@ -82,14 +87,15 @@ def list_files(
                 "error_msg": None,
                 "indexed_at": None,
                 "updated_at": None,
-                "include_rag": meta["include_rag"] if meta else 1,
-                "tags": meta["tags"] if meta else "",
+                "include_rag": 1,
+                "tags": tag_map.get(d["path"], ""),
             })
 
     # Include tracked files not in discovery — mark missing ones
     for leftover in tracked_map.values():
+        leftover = dict(leftover)
+        leftover["tags"] = tag_map.get(leftover["path"], leftover.get("tags", ""))
         if not Path(leftover["path"]).exists():
-            leftover = dict(leftover)
             leftover["status"] = "missing"
         merged.append(leftover)
 
@@ -218,133 +224,6 @@ def toggle_rag(
     return {"status": "ok", "include_rag": req.include}
 
 
-@router.put("/files/tags")
-@limiter.limit(STANDARD)
-def update_file_tags(
-    request: Request,
-    req: UpdateTagsRequest,
-    tracking: TrackingDB = Depends(get_tracking),
-    settings: Settings = Depends(get_settings),
-):
-    """Update tags on a file — writes to both tracking DB and markdown frontmatter."""
-    record = tracking.get_file(req.path)
-    if not record:
-        raise HTTPException(status_code=404, detail="File not tracked")
-
-    tags_str = ", ".join(req.tags)
-    tracking.update_tags(req.path, tags_str)
-
-    return {"status": "ok", "tags": tags_str}
-
-
-@router.put("/files/bulk-tags")
-@limiter.limit(STANDARD)
-def bulk_update_tags(
-    request: Request,
-    req: BulkUpdateTagsRequest,
-    tracking: TrackingDB = Depends(get_tracking),
-):
-    """Update tags on multiple files at once.
-
-    mode=add: merge new tags with existing
-    mode=remove: remove specified tags from each file
-    mode=replace: overwrite all tags on each file
-    """
-    updated = 0
-    for path in req.paths:
-        record = tracking.get_file(path)
-        if not record:
-            continue
-        existing = {t.strip() for t in (record.get("tags") or "").split(",") if t.strip()}
-        if req.mode == "add":
-            merged = existing | set(req.tags)
-        elif req.mode == "remove":
-            merged = existing - set(req.tags)
-        else:  # replace
-            merged = set(req.tags)
-        tracking.update_tags(path, ", ".join(sorted(merged)))
-        updated += 1
-    return {"status": "ok", "updated": updated}
-
-
-@router.post("/files/auto-tag-preview")
-@limiter.limit(STANDARD)
-def auto_tag_preview(
-    request: Request,
-    req: AutoTagPreviewRequest,
-    tracking: TrackingDB = Depends(get_tracking),
-):
-    """Dry-run auto-tagging: returns a plan mapping tags to file paths.
-
-    strategy=subfolder: extract folder name at `depth` below base_path as tag.
-    strategy=doc_type: extract the immediate parent folder name (e.g. implementation_docs).
-    """
-    base = req.base_path.rstrip("/")
-    all_files = tracking.get_all_files()
-    plan: dict[str, list[str]] = {}
-
-    for f in all_files:
-        path = f["path"]
-        if not path.startswith(base + "/"):
-            continue
-        rest = path[len(base) + 1:]
-        parts = rest.split("/")
-
-        if req.strategy == "subfolder":
-            if len(parts) <= req.depth:
-                continue  # file is at or above the target depth
-            tag = parts[req.depth - 1]
-        else:  # doc_type
-            if len(parts) < 2:
-                continue
-            tag = parts[-2]  # immediate parent folder
-
-        if req.tag_prefix:
-            tag = f"{req.tag_prefix}{tag}"
-        plan.setdefault(tag, []).append(path)
-
-    # Sort for stable output
-    summary = []
-    for tag in sorted(plan):
-        summary.append({
-            "tag": tag,
-            "count": len(plan[tag]),
-            "paths": sorted(plan[tag]),
-        })
-
-    return {
-        "strategy": req.strategy,
-        "base_path": base,
-        "depth": req.depth,
-        "tag_prefix": req.tag_prefix,
-        "rules": summary,
-        "total_files": sum(r["count"] for r in summary),
-        "total_tags": len(summary),
-    }
-
-
-@router.post("/files/auto-tag-apply")
-@limiter.limit(STANDARD)
-def auto_tag_apply(
-    request: Request,
-    req: AutoTagApplyRequest,
-    tracking: TrackingDB = Depends(get_tracking),
-):
-    """Apply an auto-tag plan (from preview). Adds tags without replacing existing ones."""
-    total = 0
-    for tag, paths in req.plan.items():
-        for path in paths:
-            record = tracking.get_file(path)
-            if not record:
-                continue
-            existing = {t.strip() for t in (record.get("tags") or "").split(",") if t.strip()}
-            if tag not in existing:
-                merged = existing | {tag}
-                tracking.update_tags(path, ", ".join(sorted(merged)))
-                total += 1
-    return {"status": "ok", "updated": total}
-
-
 @router.post("/files/unindex")
 @limiter.limit(STANDARD)
 def unindex_file(
@@ -433,27 +312,4 @@ def get_folders(
     all_folders = retriever.get_unique_folders()
     total = len(all_folders)
     items = all_folders[offset:offset + limit]
-    return {"items": items, "total": total, "offset": offset, "limit": limit}
-
-
-@router.get("/tags")
-@limiter.limit(STANDARD)
-def get_tags(
-    request: Request,
-    offset: int = Query(0, ge=0),
-    limit: int = Query(200, ge=1, le=1000),
-    retriever: Retriever = Depends(get_retriever),
-    tracking: TrackingDB = Depends(get_tracking),
-):
-    """Get unique tags from indexed documents and tracking DB."""
-    tags = set(retriever.get_unique_tags())
-    for f in tracking.get_all_files():
-        tag_str = f.get("tags", "")
-        if tag_str:
-            for t in tag_str.split(", "):
-                if t.strip():
-                    tags.add(t.strip())
-    all_tags = sorted(tags)
-    total = len(all_tags)
-    items = all_tags[offset:offset + limit]
     return {"items": items, "total": total, "offset": offset, "limit": limit}

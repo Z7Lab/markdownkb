@@ -79,7 +79,8 @@ def _index_file(fi: FileInfo, settings: Settings,
 
     tracking.mark_complete(fi.path, len(chunks))
     if file_tags:
-        tracking.update_tags(fi.path, file_tags)
+        from app.tag_utils import notify_tags_extracted
+        notify_tags_extracted(fi.path, file_tags)
     return len(chunks)
 
 

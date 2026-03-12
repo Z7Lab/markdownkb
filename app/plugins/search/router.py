@@ -115,7 +115,7 @@ def search(
     cfg = _cfg(settings)
     ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
     scope_folders, scope_tags = resolve_scopes(ids, scopedb)
-    allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags, tracking)
+    allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
     # Extract "quoted phrases" for exact post-filtering when enabled
     exact_phrases: list[str] = []
     if cfg["exact_phrase_matching"]:
@@ -383,7 +383,7 @@ def summarize_search(
     cfg = _cfg(settings)
     ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
     scope_folders, scope_tags = resolve_scopes(ids, scopedb)
-    allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags, tracking)
+    allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
     top_k = req.top_k if req.top_k is not None else settings.top_k
 
     # Deep research mode — delegate to MCTS pipeline

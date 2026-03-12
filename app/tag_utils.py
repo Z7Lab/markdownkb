@@ -1,17 +1,56 @@
-"""Tag resolution utilities — maps tags to file paths via tracking DB."""
+"""Tag resolution utilities — dispatcher pattern for plugin-provided tag services.
 
-from app.storage.trackingdb import TrackingDB
+Core provides the interface; the tags plugin registers its implementation
+at startup.  If no plugin registers, all functions degrade gracefully
+(no filtering, empty tag lists, no-op hooks).
+"""
 
+from typing import Callable
+
+
+# -- Plugin-registerable callbacks -------------------------------------------
+
+_resolver: Callable[[set[str]], set[str]] | None = None
+_tag_lister: Callable[[], list[str]] | None = None
+_tags_hook: Callable[[str, str], None] | None = None
+_file_tags_lister: Callable[[], list[dict]] | None = None
+
+
+def register_resolver(fn: Callable[[set[str]], set[str]]) -> None:
+    """Register the function that maps a set of tags to matching file paths."""
+    global _resolver
+    _resolver = fn
+
+
+def register_tag_lister(fn: Callable[[], list[str]]) -> None:
+    """Register the function that returns all unique tags."""
+    global _tag_lister
+    _tag_lister = fn
+
+
+def register_file_tags_lister(fn: Callable[[], list[dict]]) -> None:
+    """Register the function that returns all (path, tags) rows."""
+    global _file_tags_lister
+    _file_tags_lister = fn
+
+
+def register_tags_hook(fn: Callable[[str, str], None]) -> None:
+    """Register the callback invoked when the indexer extracts tags from frontmatter."""
+    global _tags_hook
+    _tags_hook = fn
+
+
+# -- Public API (called by core routers / indexer) ---------------------------
 
 def resolve_tag_paths(
     scope_tags: list[str] | None,
     ad_hoc_tags: list[str] | None,
-    tracking: TrackingDB,
 ) -> set[str] | None:
     """Resolve scope tags + ad-hoc tags to a set of allowed file paths.
 
     Merges both tag sources with OR logic: a file matches if it has
-    any of the specified tags.  Returns None if no tags are active.
+    any of the specified tags.  Returns None if no tags are active
+    or no resolver is registered (no-op = all files pass).
     """
     all_tags: set[str] = set()
     if scope_tags:
@@ -22,27 +61,31 @@ def resolve_tag_paths(
     if not all_tags:
         return None
 
-    return tracking.get_paths_for_tags(all_tags)
+    if _resolver is None:
+        return None
+
+    return _resolver(all_tags)
 
 
-def get_all_tags(tracking: TrackingDB) -> list[str]:
-    """Return sorted list of all unique tags from the tracking DB."""
-    tags: set[str] = set()
-    for f in tracking.get_all_files():
-        tag_str = f.get("tags", "")
-        if tag_str:
-            for t in tag_str.split(","):
-                t = t.strip()
-                if t:
-                    tags.add(t)
-    return sorted(tags)
+def get_all_tags() -> list[str]:
+    """Return sorted list of all unique tags.  Empty if no plugin registered."""
+    if _tag_lister is None:
+        return []
+    return _tag_lister()
 
 
-def get_files_for_tag(tag: str, tracking: TrackingDB) -> list[str]:
-    """Return list of file paths that have the given tag."""
-    paths: list[str] = []
-    for f in tracking.get_all_files():
-        file_tags = {t.strip() for t in f.get("tags", "").split(",") if t.strip()}
-        if tag in file_tags:
-            paths.append(f["path"])
-    return paths
+def get_all_file_tags() -> list[dict]:
+    """Return all (path, tags) rows.  Empty if no plugin registered."""
+    if _file_tags_lister is None:
+        return []
+    return _file_tags_lister()
+
+
+def notify_tags_extracted(path: str, tags: str) -> None:
+    """Called by the indexer when tags are parsed from frontmatter.
+
+    Delegates to the registered hook (TagDB.update_tags) if present.
+    No-op if no tags plugin is active.
+    """
+    if _tags_hook and tags:
+        _tags_hook(path, tags)

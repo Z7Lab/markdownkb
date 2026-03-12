@@ -1,22 +1,37 @@
 name: tags
-display_name: AI Tag Generator
-description: Generate and apply AI-powered tags to markdown files using LLM analysis.
-version: 1.0.0
+display_name: Tags
+description: Tag storage, CRUD, folder-based auto-tagging, and optional AI-powered tag generation.
+version: 2.0.0
 author: mdkb
 icon: tags
 category: ai
-feature_flag: mcp_tag_generator
+feature_flag: tags
 requires: []
 
 endpoints:
+  - method: GET
+    path: /api/tags
+    description: List unique tags (paginated)
+  - method: PUT
+    path: /api/files/tags
+    description: Update tags on a file
+  - method: PUT
+    path: /api/files/bulk-tags
+    description: Bulk update tags (add/remove/replace)
+  - method: POST
+    path: /api/files/auto-tag-preview
+    description: Preview auto-tag assignments by folder pattern
+  - method: POST
+    path: /api/files/auto-tag-apply
+    description: Apply auto-tag assignments from preview
   - method: POST
     path: /api/tags/generate
-    description: Generate AI tags for a markdown file
+    description: Generate AI tags for a markdown file (requires mcp_tag_generator)
   - method: POST
     path: /api/tags/apply
-    description: Apply tags to a file's frontmatter
+    description: Apply tags to a file's frontmatter (requires mcp_tag_generator)
   - method: POST
     path: /api/tags/bulk
-    description: Bulk-tag files in a directory
+    description: Bulk-tag files in a directory (requires mcp_tag_generator)
 
 config: {}

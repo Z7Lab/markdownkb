@@ -87,7 +87,7 @@ def chat_stream(
     # Multi-scope: prefer scope_ids, fall back to single scope_id
     ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
     scope_folders, scope_tags = resolve_scopes(ids, scopedb)
-    allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags, tracking)
+    allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
 
     if req.thread_id:
         thread_id = req.thread_id
