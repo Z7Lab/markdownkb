@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Pencil, Copy } from "lucide-react"
 import { toast } from "sonner"
-import { TagEditDialog } from "./tag-edit-dialog"
+import { TagEditDialog } from "@/components/tags/tag-edit-dialog"
 import { FileActions } from "@/components/browse/file-actions"
 import { ConfirmDialog } from "./confirm-dialog"
 
