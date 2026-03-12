@@ -1,20 +1,20 @@
 # Plugins
 
-Optional modules that extend mdkb beyond its core "chat with your docs" functionality. Each plugin is auto-discovered at startup and gated behind a feature flag — disabled plugins are never imported.
+Optional modules that extend mdkb beyond its core "chat with your docs" functionality. Each plugin is auto-discovered at startup and gated by `plugins.<name>.enabled` in settings — disabled plugins are never imported.
 
 ## How It Works
 
 At startup, `app/plugins/__init__.py` scans this directory for subdirectories containing an `__init__.py`. Each valid plugin package must expose:
 
 ```python
-FEATURE_FLAG: str    # Name of the feature flag in settings.yaml (e.g. "search")
-router: APIRouter    # FastAPI router to register when the flag is enabled
+FEATURE_FLAG: str    # Metadata identifier for the plugin
+router: APIRouter    # FastAPI router to register when enabled
 ```
 
 The discovery/registration flow:
 
 1. `discover_plugins()` scans `app/plugins/` for valid packages (skips `_`-prefixed dirs and `catalogs/`)
-2. `register_plugins(app, settings)` imports each plugin, checks its feature flag via `settings.feature_enabled()`, and calls `app.include_router(router)` for enabled plugins
+2. `register_plugins(app, settings)` imports each plugin, checks `settings.plugin_enabled(name)`, and calls `app.include_router(router)` for enabled plugins
 3. If a plugin fails to import (missing dependency, syntax error), it logs a warning and skips — other plugins and the core app are unaffected
 
 ## Creating a New Plugin
@@ -45,10 +45,11 @@ The discovery/registration flow:
        return {"hello": "world"}
    ```
 
-4. Add the feature flag to `config/settings.yaml`:
+4. Enable the plugin in `config/settings.yaml`:
    ```yaml
-   features:
-     my_feature: true
+   plugins:
+     my_feature:
+       enabled: true
    ```
 
 No changes to core files are needed — the plugin is picked up automatically on next startup.
@@ -78,16 +79,17 @@ Use cases: creating plugin-owned databases, registering hooks with core dispatch
 
 ## Plugin Configuration
 
-Plugins can have their own configuration under the `plugins:` section in `settings.yaml`:
+Each plugin's `enabled` flag and config live together under `plugins.<name>` in `settings.yaml`:
 
 ```yaml
 plugins:
   search:
+    enabled: true
     chunk_multiplier: 10
     exact_phrase_matching: true
 ```
 
-Access config in your plugin via `Settings.get_plugin_config("name")`. Define defaults inside your plugin:
+`get_plugin_config()` filters out the `enabled` key, so the standard `_cfg()` pattern works cleanly:
 
 ```python
 _DEFAULTS = {"chunk_multiplier": 10, "exact_phrase_matching": True}
@@ -102,21 +104,21 @@ A generic API is available for reading/writing any plugin's config:
 
 ## Available Plugins
 
-| Plugin | Feature Flag | Description |
-|--------|-------------|-------------|
+| Plugin | Directory | Description |
+|--------|-----------|-------------|
 | [search](search/) | `search` | Search with history, AI summaries, query enhancement, exact phrase matching |
 | [export](export/) | `export` | Conversation export in markdown or JSON |
-| [graph](graph/) | `knowledge_graph` | 3D document similarity graph visualization |
-| [planner](planner/) | `mcts_planner` | MCTS-based implementation plan generation |
+| [graph](graph/) | `graph` | 3D document similarity graph visualization |
+| [planner](planner/) | `planner` | MCTS-based implementation plan generation |
 | [tags](tags/) | `tags` | Tag storage, CRUD, auto-tagging, and optional AI tag generation |
 | [write_api](write_api/) | `write_api` | HTTP endpoint for creating/updating markdown documents |
 
-**Note:** Deep Research (`deep_research` feature flag) is not a plugin — it's a shared service (`app/services/deep_research.py`) that uses the MCTS engine to provide multi-angle research synthesis. Currently consumed by the search plugin's summarize endpoint. See [docs/planner.md](../../docs/planner.md#deep-research).
+**Note:** Deep Research (`core.deep_research`) is not a plugin — it's a shared service (`app/services/deep_research.py`) that uses the MCTS engine to provide multi-angle research synthesis. Its config lives under `services.deep_research`. Currently consumed by the search plugin's summarize endpoint.
 
 ## Model Catalogs
 
-A separate plugin type lives under `catalogs/`. Catalogs provide dynamic model lists for LLM providers (populating the Settings UI dropdown). They don't use feature flags — catalogs are always active. See [catalogs/README.md](catalogs/README.md).
+A separate plugin type lives under `catalogs/`. Catalogs provide dynamic model lists for LLM providers (populating the Settings UI dropdown). They are always active. See [catalogs/README.md](catalogs/README.md).
 
 ## Core vs Plugin Boundary
 
-The core app provides: health, chat, threads, files, settings, embeddings, and scopes. Everything else is a plugin. Core routers are always registered in `app/api.py`. Plugins are only registered when their feature flag is enabled.
+The core app provides: health, chat, threads, files, settings, embeddings, and scopes. Everything else is a plugin. Core routers are always registered in `app/api.py`. Plugins are only registered when `plugins.<name>.enabled` is true.

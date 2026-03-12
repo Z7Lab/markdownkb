@@ -131,10 +131,10 @@ Plugins live in two locations:
 
 Each plugin is a directory with an `__init__.py` that exposes:
 
-- `FEATURE_FLAG: str` — the feature flag name in `settings.yaml`
+- `FEATURE_FLAG: str` — metadata identifier for the plugin
 - `router: APIRouter` — the FastAPI router to register
 
-At startup, `app/plugins/__init__.py` scans both directories, imports each plugin, checks its feature flag, and registers the router if enabled. External plugins get their parent directory added to `sys.path` for import resolution. Adding a new plugin requires no changes to core files.
+At startup, `app/plugins/__init__.py` scans both directories, imports each plugin, checks `plugins.<name>.enabled` in settings, and registers the router if enabled. External plugins get their parent directory added to `sys.path` for import resolution. Adding a new plugin requires no changes to core files.
 
 Plugins can optionally define `on_startup(app)` and `on_shutdown(app)` hooks in their `__init__.py`. These are called after core services are initialized (startup) and before core databases are closed (shutdown), allowing plugins to create their own databases, register hooks with core dispatchers, or run migrations.
 
@@ -179,31 +179,32 @@ External plugins can be installed from GitHub via `POST /api/plugins/install`. T
 3. Validate: must have `__init__.py` with `FEATURE_FLAG` and `router`
 4. Install `requirements.txt` if present
 5. Copy to `data/plugins/<name>/`
-6. Add the feature flag to settings (disabled by default)
+6. Add `plugins.<name>.enabled: false` to settings
 7. Requires a container restart to activate
 
-Builtin plugins cannot be uninstalled — only disabled via feature flags. External plugins can be fully removed via `DELETE /api/plugins/{name}`.
+Builtin plugins cannot be uninstalled — only disabled via `plugins.<name>.enabled`. External plugins can be fully removed via `DELETE /api/plugins/{name}`.
 
 URL formats accepted: `https://github.com/user/repo`, `https://github.com/user/repo/tree/main/path/to/plugin`, `user/repo`.
 
 ### Plugin Configuration
 
-Each plugin can have its own configuration in `config/settings.yaml` under the `plugins:` section:
+Each plugin's `enabled` flag and config live together under `plugins.<name>` in `config/settings.yaml`:
 
 ```yaml
 plugins:
   search:
+    enabled: true
     chunk_multiplier: 10
     exact_phrase_matching: true
   graph:
-    min_weight: 0.5
+    enabled: true
 ```
 
-Plugins read their config via `Settings.get_plugin_config("name")` and define their own defaults internally. A generic API (`GET/PUT /api/settings/plugins/{name}`) allows reading and updating any plugin's config without changes to core code.
+Plugins read their config via `Settings.get_plugin_config("name")` (which filters out the `enabled` key) and define their own defaults internally. A generic API (`GET/PUT /api/settings/plugins/{name}`) allows reading and updating any plugin's config without changes to core code.
 
 Current builtin plugins: `search` (search with history and AI summaries), `export` (conversation export), `graph` (knowledge graph visualization), `planner` (MCTS plan generation), `tags` (tag storage, CRUD, auto-tagging, and optional AI generation), `write_api` (document creation via HTTP).
 
-**Deep Research** is not a plugin with its own routes — it's a shared service (`app/services/deep_research.py`) that uses the MCTS engine (`app/planner/`) to run multi-angle research synthesis. It is consumed by the search plugin (via the `deep_research` flag on the summarize endpoint) and can be used by any other plugin. Gated by the `deep_research` feature flag.
+**Deep Research** is not a plugin with its own routes — it's a shared service (`app/services/deep_research.py`) that uses the MCTS engine (`app/planner/`) to run multi-angle research synthesis. It is consumed by the search plugin (via the `deep_research` flag on the summarize endpoint) and can be used by any other plugin. Gated by `core.deep_research`. Its config lives under `services.deep_research`.
 
 ### Model Catalogs
 
@@ -211,9 +212,16 @@ A separate plugin type lives under `app/plugins/catalogs/`. Each subdirectory pr
 
 Current catalogs: `venice` (Venice.ai — 21 privacy-preserving chat models).
 
-## Feature Flags
+## Settings Structure
 
-Optional modules are controlled by feature flags in `config/settings.yaml` under `features.*`. The flags are checked at startup (for plugin registration) and at runtime (for conditional behavior). Security-sensitive features (MCP tools) default to off — see [SECURITY.md](../SECURITY.md).
+Configuration is split into four sections in `config/settings.yaml`:
+
+- **`core:`** — behaviour toggles for built-in features (rag_chat, file_watcher, etc.)
+- **`mcp:`** — MCP tool enable flags (filesystem, terminal)
+- **`plugins:`** — each plugin has `enabled` + config together (`plugins.<name>.enabled`)
+- **`services:`** — shared service config (deep_research iterations, etc.)
+
+Legacy `features:` layouts are auto-migrated on first startup. The `Settings.features` property computes a flat dict for backwards compatibility with the frontend. Security-sensitive features (MCP tools) default to off — see [SECURITY.md](../SECURITY.md).
 
 ## MCP Server
 

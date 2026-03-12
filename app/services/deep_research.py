@@ -51,7 +51,7 @@ _DEFAULTS = {
 
 def get_deep_research_config(settings: Settings) -> dict:
     """Return deep research config with defaults applied."""
-    return {**_DEFAULTS, **settings.get_plugin_config("deep_research")}
+    return {**_DEFAULTS, **settings.get_service_config("deep_research")}
 
 
 def stream_deep_research(

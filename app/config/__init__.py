@@ -6,6 +6,19 @@ The Settings class is composed from domain-specific mixins:
 - RetrievalMixin: top_k, thresholds, hybrid search, BM25
 - PromptsMixin: prompt template loading, caching, overrides
 - MCPMixin: MCP tool configuration CRUD
+
+Settings layout (post-migration)::
+
+    core:        # behaviour toggles that aren't plugins
+    mcp:         # MCP tool enable flags (filesystem, terminal)
+    plugins:     # each plugin: enabled + its config together
+      search:
+        enabled: true
+        chunk_multiplier: 10
+    services:    # shared service config (deep_research, etc.)
+
+Legacy ``features:`` / flat ``plugins:`` layouts are auto-migrated on
+first load and persisted back to disk.
 """
 
 import logging
@@ -23,6 +36,85 @@ from app.config.retrieval import RetrievalMixin
 from app.config.sources import SourcesMixin
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Settings migration: old flat ``features:`` → new structured layout
+# ---------------------------------------------------------------------------
+
+_CORE_FLAGS = frozenset({
+    "rag_chat", "file_watcher", "rate_limiting",
+    "deep_research", "agent_skills", "diagnostics",
+})
+
+_MCP_FLAGS = {
+    "mcp_filesystem": "filesystem",
+    "mcp_terminal": "terminal",
+}
+
+# Old feature-flag name → plugin directory name
+_PLUGIN_FLAG_MAP = {
+    "search": "search",
+    "export": "export",
+    "tags": "tags",
+    "knowledge_graph": "graph",
+    "mcts_planner": "planner",
+    "write_api": "write_api",
+}
+
+# Reverse: plugin name → old feature-flag name
+_PLUGIN_NAME_TO_FLAG = {v: k for k, v in _PLUGIN_FLAG_MAP.items()}
+
+
+def _migrate_settings(data: dict) -> bool:
+    """Migrate legacy ``features:``/``plugins:`` layout to the new structure.
+
+    Returns True if migration was performed (caller should save).
+    """
+    if "features" not in data or "core" in data:
+        return False  # already migrated or fresh install
+
+    old_features = data.pop("features")
+    old_plugins = data.pop("plugins", {})
+
+    # --- core ---
+    core: dict[str, bool] = {}
+    for flag in sorted(_CORE_FLAGS):
+        if flag in old_features:
+            core[flag] = old_features[flag]
+    data["core"] = core
+
+    # --- mcp ---
+    mcp: dict[str, bool] = {}
+    for old_key, new_key in _MCP_FLAGS.items():
+        if old_key in old_features:
+            mcp[new_key] = old_features[old_key]
+    data["mcp"] = mcp
+
+    # --- plugins (merge enabled flag into existing plugin config) ---
+    plugins: dict[str, dict] = {}
+    for old_flag, plugin_name in _PLUGIN_FLAG_MAP.items():
+        cfg = dict(old_plugins.pop(plugin_name, {}))
+        if old_flag in old_features:
+            cfg["enabled"] = old_features[old_flag]
+        plugins[plugin_name] = cfg
+    # Handle mcp_tag_generator → plugins.tags.ai_generation
+    if "mcp_tag_generator" in old_features:
+        plugins.setdefault("tags", {})["ai_generation"] = old_features["mcp_tag_generator"]
+    # Carry over any remaining old plugin configs (external plugins, etc.)
+    for name, cfg in old_plugins.items():
+        if name == "deep_research":
+            continue  # handled below as a service
+        plugins.setdefault(name, {}).update(cfg)
+    data["plugins"] = plugins
+
+    # --- services (deep_research config) ---
+    services: dict[str, dict] = {}
+    if "deep_research" in old_plugins:
+        services["deep_research"] = dict(old_plugins["deep_research"])
+    data["services"] = services
+
+    logger.info("Migrated settings from legacy features: layout to core/mcp/plugins/services")
+    return True
 
 _DEFAULT_CONFIG_PATH = (
     Path(__file__).resolve().parent.parent.parent / "config" / "settings.yaml"
@@ -94,6 +186,10 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
         self._mcp_cache: dict[str, dict] = {}
         self._prompt_cache: dict[str, str] = {}
         self._mcp_dir = self._path.parent / "mcp"
+
+        # Auto-migrate legacy settings layout
+        if _migrate_settings(self._data):
+            self.save()
 
     @classmethod
     def get(cls, config_path: str | Path | None = None) -> "Settings":
@@ -204,31 +300,110 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
             "collection_name", "mdkb"
         )
 
-    # --- Features ---
+    # --- Features (computed flat dict for backwards compat) ---
+
     @property
     def features(self) -> dict[str, bool]:
-        """Return the feature flags dictionary."""
-        return self._data.get("features", {})
+        """Computed flat dict assembling all enable flags.
+
+        Provides the same shape as the old ``features:`` section so that
+        the frontend and ``feature_enabled()`` callers keep working
+        without changes.
+        """
+        result: dict[str, bool] = {}
+        # Core flags
+        for flag, enabled in self._data.get("core", {}).items():
+            result[flag] = enabled
+        # MCP flags (re-add prefix)
+        for old_key, new_key in _MCP_FLAGS.items():
+            if new_key in self._data.get("mcp", {}):
+                result[old_key] = self._data["mcp"][new_key]
+        # Plugin enabled flags (map back to old flag names)
+        for plugin_name, cfg in self._data.get("plugins", {}).items():
+            if "enabled" in cfg:
+                old_flag = _PLUGIN_NAME_TO_FLAG.get(plugin_name, plugin_name)
+                result[old_flag] = cfg["enabled"]
+        # Sub-flags: tags.ai_generation → mcp_tag_generator
+        tags_cfg = self._data.get("plugins", {}).get("tags", {})
+        if "ai_generation" in tags_cfg:
+            result["mcp_tag_generator"] = tags_cfg["ai_generation"]
+        return result
 
     def feature_enabled(self, name: str) -> bool:
         """Check whether a named feature is enabled."""
         return self.features.get(name, False)
 
     def set_feature(self, name: str, enabled: bool) -> None:
-        """Set a feature flag value."""
-        features = self._data.setdefault("features", {})
-        features[name] = enabled
+        """Route a feature toggle to the correct section.
+
+        Handles old flag names from the frontend (which still sends
+        ``mcp_filesystem``, ``knowledge_graph``, etc.).
+        """
+        # Core flags
+        if name in _CORE_FLAGS:
+            self._data.setdefault("core", {})[name] = enabled
+            return
+        # MCP flags
+        if name in _MCP_FLAGS:
+            self._data.setdefault("mcp", {})[_MCP_FLAGS[name]] = enabled
+            return
+        # Plugin enable flags (by old flag name)
+        if name in _PLUGIN_FLAG_MAP:
+            plugin_name = _PLUGIN_FLAG_MAP[name]
+            self._data.setdefault("plugins", {}).setdefault(plugin_name, {})["enabled"] = enabled
+            return
+        # Sub-flags
+        if name == "mcp_tag_generator":
+            self._data.setdefault("plugins", {}).setdefault("tags", {})["ai_generation"] = enabled
+            return
+        # Unknown flag — could be an external plugin's flag; route to plugins
+        self._data.setdefault("plugins", {}).setdefault(name, {})["enabled"] = enabled
+
+    # --- Core / MCP accessors ---
+
+    @property
+    def core_features(self) -> dict[str, bool]:
+        """Return the core behaviour flags."""
+        return dict(self._data.get("core", {}))
+
+    @property
+    def mcp_features(self) -> dict[str, bool]:
+        """Return the MCP tool enable flags."""
+        return dict(self._data.get("mcp", {}))
 
     # --- Plugin Configuration ---
 
+    def plugin_enabled(self, name: str) -> bool:
+        """Check whether plugin *name* is enabled via ``plugins.<name>.enabled``."""
+        cfg = self._data.get("plugins", {}).get(name, {})
+        return cfg.get("enabled", False)
+
+    def set_plugin_enabled(self, name: str, enabled: bool) -> None:
+        """Set ``plugins.<name>.enabled``."""
+        self._data.setdefault("plugins", {}).setdefault(name, {})["enabled"] = enabled
+
     def get_plugin_config(self, plugin_name: str) -> dict:
-        """Return the config dict for a plugin from ``plugins.<name>``."""
-        return dict(self._data.get("plugins", {}).get(plugin_name, {}))
+        """Return the config dict for a plugin, excluding ``enabled``."""
+        cfg = dict(self._data.get("plugins", {}).get(plugin_name, {}))
+        cfg.pop("enabled", None)
+        return cfg
 
     def set_plugin_config(self, plugin_name: str, config: dict) -> None:
         """Merge *config* into ``plugins.<name>`` (shallow update)."""
         plugins = self._data.setdefault("plugins", {})
         existing = plugins.setdefault(plugin_name, {})
+        existing.update(config)
+
+    # --- Service Configuration ---
+
+    def get_service_config(self, service_name: str) -> dict:
+        """Return config for a shared service from ``services.<name>``."""
+        return dict(self._data.get("services", {}).get(service_name, {}))
+
+    def set_service_config(self, service_name: str, config: dict) -> None:
+        """Merge *config* into ``services.<name>``."""
+        services = self._data.setdefault("services", {})
+        existing = services.setdefault(service_name, {})
         existing.update(config)
 
     # --- Auth ---

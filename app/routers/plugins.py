@@ -226,17 +226,17 @@ def _install_from_source(source_dir: Path, settings: Settings) -> dict:
                 dest / "__init__.py", exc_info=True,
             )
 
-    if feature_flag:
-        if feature_flag not in settings.features:
-            settings.set_feature(feature_flag, False)
-            settings.save()
+    # Register the plugin as disabled in plugins.<name>.enabled
+    if not settings.plugin_enabled(plugin_name):
+        settings.set_plugin_enabled(plugin_name, False)
+        settings.save()
 
     return {
         "status": "installed",
         "name": plugin_name,
         "feature_flag": feature_flag,
         "manifest": manifest,
-        "message": "Plugin installed. Enable the feature flag and restart to activate.",
+        "message": "Plugin installed. Enable it in settings and restart to activate.",
     }
 
 
@@ -343,11 +343,10 @@ def uninstall_plugin(
         if manifest:
             feature_flag = manifest.get("feature_flag", "")
 
-    if feature_flag:
-        features = settings.features
-        features.pop(feature_flag, None)
-        settings._data["features"] = features
-        settings.save()
+    # Remove the plugin's config section entirely
+    plugins = settings._data.get("plugins", {})
+    plugins.pop(name, None)
+    settings.save()
 
     # Remove the plugin directory
     shutil.rmtree(plugin_dir)

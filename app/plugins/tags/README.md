@@ -33,7 +33,7 @@ When disabled, tag filtering becomes a no-op — chat, search, graph, and planne
 | POST | `/api/files/auto-tag-preview` | Preview auto-tag assignments by folder pattern (dry run) |
 | POST | `/api/files/auto-tag-apply` | Apply auto-tag assignments from preview |
 
-### AI Tag Generation (requires `mcp_tag_generator` sub-flag)
+### AI Tag Generation (requires `plugins.tags.ai_generation`)
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -41,7 +41,7 @@ When disabled, tag filtering becomes a no-op — chat, search, graph, and planne
 | POST | `/api/tags/apply` | Apply tags to a file's frontmatter |
 | POST | `/api/tags/bulk` | Bulk-tag files in a directory |
 
-AI endpoints require the `mcp_tag_generator` feature flag to be enabled in addition to `tags`. This allows basic tagging to work without enabling AI generation.
+AI endpoints require `plugins.tags.ai_generation: true` in settings. This allows basic tagging to work without enabling AI generation.
 
 ## Lifecycle
 

@@ -133,46 +133,70 @@ When no key is configured, authentication is disabled.
 | `server.cors_origins` | `[http://localhost:9714]` | Allowed CORS origins (list). Override with `CORS_ORIGINS` env var (comma-separated). |
 | `plans.save_directory` | `./data/plans` | Where saved plans are written |
 
-## Features
+## Core
 
-Feature flags toggle optional modules. All security-sensitive features default to off.
+Behaviour toggles for built-in features (not plugins).
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `features.rag_chat` | `true` | Chat with RAG |
-| `features.file_watcher` | `true` | Auto-reindex on file changes |
-| `features.search` | `true` | Search tab with history, summaries, and query enhancement |
-| `features.export` | `true` | Conversation export (markdown/JSON) |
-| `features.mcp_filesystem` | `false` | MCP file browsing tool |
-| `features.mcp_terminal` | `false` | MCP terminal tool |
-| `features.tags` | `true` | Tag storage, CRUD, auto-tagging (plugin: `app/plugins/tags/`) |
-| `features.mcp_tag_generator` | `false` | AI tag generation for markdown files (requires `tags` to also be enabled) |
-| `features.mcts_planner` | `true` | MCTS plan generation |
-| `features.deep_research` | `false` | MCTS-powered multi-angle research synthesis for search summaries |
-| `features.agent_skills` | `false` | Agent skill system |
-| `features.write_api` | `false` | HTTP endpoint for creating/updating markdown files |
-| `features.diagnostics` | `false` | Diagnostic endpoints |
-| `features.knowledge_graph` | `true` | 3D document similarity graph visualization |
-| `features.rate_limiting` | `false` | API rate limiting (slowapi) |
+| `core.rag_chat` | `true` | Chat with RAG |
+| `core.file_watcher` | `true` | Auto-reindex on file changes |
+| `core.deep_research` | `false` | MCTS-powered multi-angle research synthesis |
+| `core.agent_skills` | `false` | Agent skill system |
+| `core.diagnostics` | `false` | Diagnostic endpoints |
+| `core.rate_limiting` | `false` | API rate limiting (slowapi) |
 
-## Plugin Configuration
+## MCP
 
-Plugins can have their own configuration under the `plugins:` section. Each plugin defines its own defaults internally — you only need to add entries here to override them.
+MCP tool enable flags.
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `mcp.filesystem` | `false` | MCP file browsing tool |
+| `mcp.terminal` | `false` | MCP terminal tool |
+
+## Plugins
+
+Each plugin has `enabled` plus its own config together in one section under `plugins:`. Builtin plugins live in `app/plugins/<name>/`; external plugins are installed to `data/plugins/<name>/`.
 
 ```yaml
 plugins:
   search:
-    chunk_multiplier: 10        # chunks fetched per result (higher = more diversity)
-    exact_phrase_multiplier: 20  # chunk multiplier when quoted phrases are used
-    exact_phrase_matching: true   # enable Google-style "quoted phrase" exact matching
-  deep_research:
-    iterations: 3               # MCTS research iterations (1-20, higher = deeper but slower)
-    n_approaches: 3             # number of research angles per iteration
+    enabled: true
+    chunk_multiplier: 10
+    exact_phrase_multiplier: 20
+    exact_phrase_matching: true
+  export:
+    enabled: true
+  tags:
+    enabled: true
+    ai_generation: false        # AI-powered tag generation (LLM-based)
+  graph:
+    enabled: true
+  planner:
+    enabled: false
+  write_api:
+    enabled: false
 ```
 
-Plugin config is read/written via the generic API:
+Plugin config (excluding `enabled`) is read/written via the generic API:
 - `GET /api/settings/plugins/{name}` — read config
 - `PUT /api/settings/plugins/{name}` — update config (shallow merge)
+
+### Migration from legacy format
+
+If your `settings.yaml` still uses the old `features:` section, it is automatically migrated on startup to the new `core:`/`mcp:`/`plugins:`/`services:` layout. The migrated file is saved back to disk. No manual intervention needed.
+
+## Services
+
+Shared service configuration used by multiple features. Not plugins — these configure behaviour of core services.
+
+```yaml
+services:
+  deep_research:
+    iterations: 3       # MCTS iterations (1-20)
+    n_approaches: 3     # Research angles per iteration
+```
 
 ## UI
 

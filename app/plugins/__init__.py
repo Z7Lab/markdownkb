@@ -162,13 +162,13 @@ def register_plugins(app: FastAPI, settings: Settings) -> list[str]:
             registry.append(entry)
             continue
 
-        enabled = feature_flag and settings.feature_enabled(feature_flag)
+        enabled = settings.plugin_enabled(info["name"])
         entry["enabled"] = bool(enabled)
 
         if not enabled:
             logger.debug(
-                "Plugin '%s' disabled (flag '%s' is off)",
-                info["name"], feature_flag,
+                "Plugin '%s' disabled (plugins.%s.enabled is off)",
+                info["name"], info["name"],
             )
             registry.append(entry)
             continue

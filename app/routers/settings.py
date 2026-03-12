@@ -76,7 +76,7 @@ def toggle_feature(
     settings: Settings = Depends(get_settings),
 ):
     """Toggle a feature flag on or off."""
-    settings.features[req.name] = req.enabled
+    settings.set_feature(req.name, req.enabled)
     settings.save()
     return {"status": "saved"}
 

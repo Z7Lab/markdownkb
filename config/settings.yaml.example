@@ -126,28 +126,45 @@ storage:
   persist_directory: ./data/chromadb
   collection_name: mdkb
 
-# Feature flags — toggle optional modules on/off
-features:
+# Core behaviour toggles (not plugins — these control built-in behaviour)
+core:
   rag_chat: true
   file_watcher: true
-  mcp_filesystem: false
-  mcp_terminal: false
-  tags: true                # Tag storage, CRUD, auto-tag, scope filtering
-  mcp_tag_generator: false  # AI-powered tag generation (requires tags: true)
-  mcts_planner: false
+  rate_limiting: false
   deep_research: false
   agent_skills: false
-  write_api: false
   diagnostics: false
-  knowledge_graph: false
-  rate_limiting: false
 
-# Plugin-specific configuration
+# MCP tool enable flags
+mcp:
+  filesystem: false
+  terminal: false
+
+# Plugins — each plugin has `enabled` plus its own config in one place.
+# Builtin plugins live in app/plugins/<name>/; external plugins in data/plugins/<name>/.
+# Install external plugins via POST /api/plugins/install or the Settings UI.
 plugins:
   search:
+    enabled: true
     chunk_multiplier: 10            # Chunks fetched per result (higher = more file diversity)
     exact_phrase_multiplier: 20     # Chunk multiplier when quoted phrases are used
     exact_phrase_matching: true     # Enable/disable quoted phrase exact matching
+  export:
+    enabled: true
+  tags:
+    enabled: true
+    ai_generation: false            # AI-powered tag generation (LLM-based)
+  graph:
+    enabled: true
+  planner:
+    enabled: false
+  write_api:
+    enabled: false
+  catalogs:
+    enabled: true
+
+# Shared service configuration (used by multiple plugins/features)
+services:
   deep_research:
     iterations: 3                   # MCTS iterations (more = deeper, slower; 1-20)
     n_approaches: 3                 # Research angles to explore (more = broader)

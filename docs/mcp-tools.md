@@ -24,14 +24,16 @@ Uses LLM + RAG to automatically suggest and apply tags to your markdown files.
 
 ### Setup
 
-Enable the feature flag in `config/settings.yaml`:
+Enable AI tag generation in `config/settings.yaml`:
 
 ```yaml
-features:
-  mcp_tag_generator: true
+plugins:
+  tags:
+    enabled: true
+    ai_generation: true
 ```
 
-You also need the `tags` feature flag enabled (it is by default). The `mcp_tag_generator` flag enables the AI generation endpoints within the tags plugin.
+The tags plugin must be enabled. The `ai_generation` sub-flag enables the AI generation endpoints within the tags plugin.
 
 Restart the server to activate.
 
@@ -215,7 +217,7 @@ Edit the prompt in `app/mcp/tag_generator/llm.py` to change tag format, count, o
 
 | Problem | Fix |
 |---------|-----|
-| `403: Tag generation feature is disabled` | Set both `tags: true` and `mcp_tag_generator: true` in `config/settings.yaml` |
+| `403: AI tag generation is disabled` | Set `plugins.tags.enabled: true` and `plugins.tags.ai_generation: true` in `config/settings.yaml` |
 | File not found | Use absolute paths or paths relative to the project root |
 | LLM not responding | Check provider config, API keys, and `curl http://localhost:9713/api/health` |
 

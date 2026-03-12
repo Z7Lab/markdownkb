@@ -71,10 +71,10 @@ def _require_tagdb(tagdb: TagDB | None) -> TagDB:
 
 def _check_ai_enabled(settings: Settings = Depends(get_settings)):
     """Guard for AI tag generation endpoints (sub-flag)."""
-    if not settings.features.get("mcp_tag_generator", False):
+    if not settings.get_plugin_config("tags").get("ai_generation", False):
         raise HTTPException(
             status_code=403,
-            detail="AI tag generation is disabled. Enable 'mcp_tag_generator' in settings.",
+            detail="AI tag generation is disabled. Set plugins.tags.ai_generation: true in settings.",
         )
 
 

@@ -101,16 +101,17 @@ Without a manifest, the plugin still works but appears in the UI with limited me
 
 ## Plugin Configuration
 
-Plugins read their config from `config/settings.yaml` under the `plugins:` section:
+Each plugin's `enabled` flag and config live together under `plugins.<name>` in `config/settings.yaml`:
 
 ```yaml
 plugins:
   my_plugin:
+    enabled: true
     max_items: 100
     verbose: true
 ```
 
-Access config in your router with the standard pattern:
+`get_plugin_config()` automatically filters out the `enabled` key, so the standard `_cfg()` pattern works without change:
 
 ```python
 _DEFAULTS = {"max_items": 50, "verbose": False}
@@ -132,11 +133,12 @@ Config is also readable/writable via the generic API:
 
 ### Builtin plugins
 
-Place the directory in `app/plugins/` and add the feature flag to `config/settings.yaml`:
+Place the directory in `app/plugins/` and enable it in `config/settings.yaml`:
 
 ```yaml
-features:
-  my_plugin: true
+plugins:
+  my_plugin:
+    enabled: true
 ```
 
 ### External plugins (from GitHub)
@@ -159,7 +161,7 @@ The install process:
 2. Validates `__init__.py` (must have `FEATURE_FLAG` + `router`)
 3. Installs `requirements.txt` if present
 4. Copies to `data/plugins/<name>/`
-5. Adds the feature flag to settings (disabled by default)
+5. Adds `plugins.<name>.enabled: false` to settings
 6. **Requires a container restart** to activate
 
 External plugins persist across container rebuilds via the `./data:/app/data` volume mount.

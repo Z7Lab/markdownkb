@@ -9,11 +9,15 @@ import yaml
 
 @pytest.fixture
 def config_dir(tmp_path):
-    """Create a temp config directory with a settings.yaml."""
+    """Create a temp config directory with a settings.yaml (new format)."""
     config = {
         "sources": ["/tmp/docs"],
-        "features": {"rag_chat": True, "search": False},
-        "plugins": {"search": {"top_k": 10}},
+        "core": {"rag_chat": True},
+        "mcp": {},
+        "plugins": {
+            "search": {"enabled": False, "top_k": 10},
+        },
+        "services": {},
     }
     config_file = tmp_path / "config" / "settings.yaml"
     config_file.parent.mkdir(parents=True)
@@ -42,10 +46,10 @@ def test_feature_enabled(config_dir):
 def test_set_feature(config_dir):
     from app.config import Settings
     s = Settings(config_dir)
-    s.set_feature("new_flag", True)
-    assert s.feature_enabled("new_flag") is True
-    s.set_feature("new_flag", False)
-    assert s.feature_enabled("new_flag") is False
+    s.set_feature("rag_chat", False)
+    assert s.feature_enabled("rag_chat") is False
+    s.set_feature("rag_chat", True)
+    assert s.feature_enabled("rag_chat") is True
 
 
 def test_plugin_config(config_dir):
@@ -53,6 +57,7 @@ def test_plugin_config(config_dir):
     s = Settings(config_dir)
     cfg = s.get_plugin_config("search")
     assert cfg["top_k"] == 10
+    assert "enabled" not in cfg  # filtered out
     s.set_plugin_config("search", {"top_k": 20})
     assert s.get_plugin_config("search")["top_k"] == 20
 

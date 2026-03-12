@@ -12,7 +12,12 @@ from app.api import create_app
 
 @dataclass
 class FakeSettings:
-    """Minimal settings stub for testing."""
+    """Minimal settings stub for testing.
+
+    Mirrors the real Settings structure: core/mcp/plugins/services.
+    The ``features`` property computes a flat dict for backwards compat,
+    exactly like the real Settings class.
+    """
 
     sources: list[str] = field(default_factory=lambda: ["/tmp/test-source"])
     global_ignore: list[str] = field(default_factory=lambda: ["**/node_modules/**", "**/.git/**"])
@@ -26,15 +31,20 @@ class FakeSettings:
     llm_providers: list[dict] = field(default_factory=lambda: [
         {"name": "test", "model": "test/model", "api_base": ""},
     ])
-    features: dict = field(default_factory=lambda: {
+    # New structured layout
+    _core: dict = field(default_factory=lambda: {
         "rag_chat": True,
         "file_watcher": False,
         "rate_limiting": False,
-        "mcts_planner": True,
-        "search": True,
-        "export": True,
-        "tags": True,
     })
+    _mcp: dict = field(default_factory=lambda: {})
+    _plugins: dict = field(default_factory=lambda: {
+        "search": {"enabled": True},
+        "export": {"enabled": True},
+        "tags": {"enabled": True},
+        "planner": {"enabled": True},
+    })
+    _services: dict = field(default_factory=lambda: {})
     llm_temperature: float = 0.3
     llm_max_tokens: int = 2048
     persist_directory: str = "./data/chromadb"
@@ -75,16 +85,61 @@ class FakeSettings:
         import os
         return bool(os.environ.get(f"{provider_name.upper()}_API_KEY", ""))
 
-    _plugin_configs: dict = field(default_factory=dict)
+    # --- Computed features (backwards compat) ---
+
+    @property
+    def features(self) -> dict:
+        from app.config import _MCP_FLAGS, _PLUGIN_NAME_TO_FLAG
+        result: dict[str, bool] = {}
+        result.update(self._core)
+        for old_key, new_key in _MCP_FLAGS.items():
+            if new_key in self._mcp:
+                result[old_key] = self._mcp[new_key]
+        for plugin_name, cfg in self._plugins.items():
+            if "enabled" in cfg:
+                old_flag = _PLUGIN_NAME_TO_FLAG.get(plugin_name, plugin_name)
+                result[old_flag] = cfg["enabled"]
+        tags_cfg = self._plugins.get("tags", {})
+        if "ai_generation" in tags_cfg:
+            result["mcp_tag_generator"] = tags_cfg["ai_generation"]
+        return result
 
     def feature_enabled(self, name):
         return self.features.get(name, False)
 
+    def set_feature(self, name, enabled):
+        from app.config import _CORE_FLAGS, _MCP_FLAGS, _PLUGIN_FLAG_MAP
+        if name in _CORE_FLAGS:
+            self._core[name] = enabled
+        elif name in _MCP_FLAGS:
+            self._mcp[_MCP_FLAGS[name]] = enabled
+        elif name in _PLUGIN_FLAG_MAP:
+            self._plugins.setdefault(_PLUGIN_FLAG_MAP[name], {})["enabled"] = enabled
+        elif name == "mcp_tag_generator":
+            self._plugins.setdefault("tags", {})["ai_generation"] = enabled
+        else:
+            self._plugins.setdefault(name, {})["enabled"] = enabled
+
+    def plugin_enabled(self, name):
+        return self._plugins.get(name, {}).get("enabled", False)
+
+    def set_plugin_enabled(self, name, enabled):
+        self._plugins.setdefault(name, {})["enabled"] = enabled
+
     def get_plugin_config(self, plugin_name):
-        return dict(self._plugin_configs.get(plugin_name, {}))
+        cfg = dict(self._plugins.get(plugin_name, {}))
+        cfg.pop("enabled", None)
+        return cfg
 
     def set_plugin_config(self, plugin_name, config):
-        existing = self._plugin_configs.setdefault(plugin_name, {})
+        existing = self._plugins.setdefault(plugin_name, {})
+        existing.update(config)
+
+    def get_service_config(self, service_name):
+        return dict(self._services.get(service_name, {}))
+
+    def set_service_config(self, service_name, config):
+        existing = self._services.setdefault(service_name, {})
         existing.update(config)
 
     def add_source(self, path):
