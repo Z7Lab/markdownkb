@@ -132,6 +132,7 @@ def rewrite_query(message: str, settings: Settings) -> str:
             {"role": "user", "content": message},
         ]
         rewritten = get_completion(messages, settings)
+        rewritten = strip_thinking(rewritten)
         rewritten = rewritten.strip().strip('"').strip("'")
         if rewritten:
             logger.info("Query rewrite: %r -> %r", message[:80], rewritten)
@@ -148,6 +149,7 @@ def chat_respond(message: str, retriever: Retriever,
                  scope_tags: list[str] | None = None,
                  allowed_paths: set[str] | None = None,
                  sources_out: list[str] | None = None,
+                 source_map_out: dict[str, str] | None = None,
                  conversation_history: ConversationHistory | None = None) -> Generator:
     """Generate a streaming RAG response for the given message."""
     if not message.strip():
@@ -179,7 +181,7 @@ def chat_respond(message: str, retriever: Retriever,
     else:
         history = conversation_history.get_history() if conversation_history else []
 
-    messages = build_rag_messages(
+    messages, source_map = build_rag_messages(
         message, documents, metadatas,
         conversation_history=history,
         system_prompt=settings.system_prompt,
@@ -216,12 +218,8 @@ def chat_respond(message: str, retriever: Retriever,
     sources = extract_unique_sources(metadatas)
     if sources_out is not None:
         sources_out.extend(sources)
-    if sources and "Source:" not in cleaned:
-        source_block = "\n\n---\n**Sources:**\n" + "\n".join(
-            f"- `{s}`" for s in sources
-        )
-        raw_response += source_block
-        yield raw_response
+    if source_map_out is not None:
+        source_map_out.update(source_map)
 
     # Persist messages
     store_text = _strip_source_block(cleaned)

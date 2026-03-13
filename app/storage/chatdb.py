@@ -18,12 +18,13 @@ CREATE TABLE IF NOT EXISTS threads (
 );
 
 CREATE TABLE IF NOT EXISTS messages (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    thread_id  TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
-    role       TEXT NOT NULL,
-    content    TEXT NOT NULL,
-    sources    TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    thread_id   TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+    role        TEXT NOT NULL,
+    content     TEXT NOT NULL,
+    sources     TEXT,
+    source_map  TEXT,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(thread_id);
@@ -35,6 +36,7 @@ CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(thread_id);
 # the migration here is only for upgrading existing databases.
 _MIGRATIONS: list[tuple[int, str, str]] = [
     (1, "add sources column to messages", "ALTER TABLE messages ADD COLUMN sources TEXT"),
+    (2, "add source_map column to messages", "ALTER TABLE messages ADD COLUMN source_map TEXT"),
 ]
 
 
@@ -150,6 +152,8 @@ class ChatDB:
                 d = dict(r)
                 raw = d.get("sources")
                 d["sources"] = json.loads(raw) if raw else None
+                raw_map = d.get("source_map")
+                d["source_map"] = json.loads(raw_map) if raw_map else None
                 out.append(d)
             return out
 
@@ -169,17 +173,22 @@ class ChatDB:
             )
             self._conn.commit()
 
-    def set_sources(self, thread_id: str, message_role: str, sources: list[str]):
-        """Update sources on the most recent message of the given role in a thread."""
+    def set_sources(
+        self, thread_id: str, message_role: str, sources: list[str],
+        source_map: dict[str, str] | None = None,
+    ):
+        """Update sources (and optional source map) on the most recent message."""
         with self._lock:
             self._conn.execute(
-                """UPDATE messages SET sources = ?
+                """UPDATE messages SET sources = ?, source_map = ?
                    WHERE id = (
                        SELECT id FROM messages
                        WHERE thread_id = ? AND role = ?
                        ORDER BY id DESC LIMIT 1
                    )""",
-                (json.dumps(sources), thread_id, message_role),
+                (json.dumps(sources),
+                 json.dumps(source_map) if source_map else None,
+                 thread_id, message_role),
             )
             self._conn.commit()
 

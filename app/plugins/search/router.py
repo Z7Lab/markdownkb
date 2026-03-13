@@ -444,7 +444,7 @@ def summarize_search(
 
     documents = [r.document for r in results]
     metadatas = [r.metadata for r in results]
-    context = format_context(documents, metadatas)
+    context, _ = format_context(documents, metadatas)
     sources = extract_unique_sources(metadatas)
 
     messages = [

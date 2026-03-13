@@ -120,12 +120,16 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
               return updated
             })
           },
-          onSources(sources) {
+          onSources(sources, sourceMap) {
             setMessages((prev) => {
               const updated = [...prev]
               const last = updated[updated.length - 1]
               if (last?.role === "assistant") {
-                updated[updated.length - 1] = { ...last, sources }
+                updated[updated.length - 1] = {
+                  ...last,
+                  sources,
+                  ...(sourceMap ? { sourceMap } : {}),
+                }
               }
               return updated
             })
@@ -197,7 +201,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
 
       try {
         const res = await api.get<{
-          messages: Array<{ role: string; content: string; sources?: string[] | null }>
+          messages: Array<{ role: string; content: string; sources?: string[] | null; source_map?: Record<string, string> | null }>
         }>(`/api/threads/${threadId}/messages`)
         if (currentLoad !== loadIdRef.current) return
         setMessages(
@@ -206,6 +210,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
             role: m.role as "user" | "assistant",
             content: m.content,
             ...(m.sources ? { sources: m.sources } : {}),
+            ...(m.source_map ? { sourceMap: m.source_map } : {}),
           })),
         )
       } catch (err) {

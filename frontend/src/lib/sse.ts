@@ -113,7 +113,7 @@ function streamSSE(
 export interface SSECallbacks {
   onThread: (threadId: string, title: string) => void
   onToken: (content: string) => void
-  onSources: (sources: string[]) => void
+  onSources: (sources: string[], sourceMap?: Record<string, string>) => void
   onDone: () => void
   onError: (error: Error) => void
 }
@@ -147,7 +147,10 @@ export function streamChat(
       } else if (event === "token") {
         callbacks.onToken(asString(data.content))
       } else if (event === "sources") {
-        callbacks.onSources(asStringArray(data.sources))
+        const sourceMap = data.source_map && typeof data.source_map === "object"
+          ? data.source_map as Record<string, string>
+          : undefined
+        callbacks.onSources(asStringArray(data.sources), sourceMap)
       }
     },
     callbacks.onDone,

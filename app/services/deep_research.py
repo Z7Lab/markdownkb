@@ -141,7 +141,7 @@ def stream_deep_research(
     # Build context from research results for the synthesis prompt
     documents = [r["document"] for r in planner._research_results[:10]]
     metadatas = [r["metadata"] for r in planner._research_results[:10]]
-    context = format_context(documents, metadatas)
+    context, _ = format_context(documents, metadatas)
 
     # Phase 6: Stream the synthesis
     yield sse("status", {

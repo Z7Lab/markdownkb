@@ -41,6 +41,53 @@ export function SourceBadge({
 }
 
 /**
+ * Numbered source legend for messages with citation references.
+ * Each entry shows [N] + filename badge, matching inline [N] citations.
+ */
+export function SourceLegend({
+  sourceMap,
+  onSelect,
+}: {
+  sourceMap: Record<string, string>;
+  onSelect: (path: string) => void;
+}) {
+  const entries = Object.entries(sourceMap).sort(
+    ([a], [b]) => Number(a) - Number(b),
+  );
+  if (entries.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {entries.map(([num, path]) => (
+        <Tooltip key={num}>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => onSelect(path)}
+              className="inline-flex items-center gap-1 text-xs bg-background/60 hover:bg-background px-2 py-0.5 rounded border border-border hover:border-primary/50 transition-colors cursor-pointer"
+            >
+              <span className="text-[10px] font-semibold text-primary">
+                [{num}]
+              </span>
+              <FileText className="h-3 w-3 shrink-0" />
+              <span className="truncate max-w-[200px]">
+                {path.split("/").pop()}
+              </span>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent
+            side="top"
+            className="max-w-md break-all text-xs font-mono"
+          >
+            {path}
+          </TooltipContent>
+        </Tooltip>
+      ))}
+    </div>
+  );
+}
+
+/**
  * Renders a list of source badges with an optional label and flex-wrap layout.
  */
 export function SourceList({

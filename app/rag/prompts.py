@@ -53,18 +53,35 @@ def get_skill_review_template() -> str:
 
 def format_context(
     documents: list[str], metadatas: list[dict]
-) -> str:
-    """Format documents and metadata into a context string."""
+) -> tuple[str, dict[str, str]]:
+    """Format documents with numbered source references.
+
+    Returns ``(context_string, source_map)`` where *source_map* maps
+    reference numbers to absolute file paths, e.g. ``{"1": "/data/a.md"}``.
+    Multiple chunks from the same file share the same reference number.
+    """
+    source_map: dict[str, str] = {}   # "1" -> path
+    path_to_num: dict[str, str] = {}  # path -> "1"
+    counter = 0
     parts: list[str] = []
+
     for doc, meta in zip(documents, metadatas):
         source = meta.get("source_path", "unknown")
         heading = meta.get("heading", "")
-        header = f"[Source: {source}"
+
+        if source not in path_to_num:
+            counter += 1
+            num = str(counter)
+            path_to_num[source] = num
+            source_map[num] = source
+
+        ref = path_to_num[source]
+        header = f"[{ref}] Source: {source}"
         if heading:
             header += f" | Section: {heading}"
-        header += "]"
         parts.append(f"{header}\n{doc}")
-    return "\n\n---\n\n".join(parts)
+
+    return "\n\n---\n\n".join(parts), source_map
 
 
 def build_rag_messages(
@@ -73,9 +90,13 @@ def build_rag_messages(
     metadatas: list[dict],
     conversation_history: list[dict] | None = None,
     system_prompt: str = "",
-) -> list[dict]:
-    """Build the message list for a RAG completion request."""
-    context = format_context(documents, metadatas)
+) -> tuple[list[dict], dict[str, str]]:
+    """Build the message list for a RAG completion request.
+
+    Returns ``(messages, source_map)`` where *source_map* maps reference
+    numbers (``"1"``, ``"2"``, …) to absolute source file paths.
+    """
+    context, source_map = format_context(documents, metadatas)
 
     messages: list[dict] = [
         {"role": "system", "content": system_prompt}
@@ -91,7 +112,7 @@ def build_rag_messages(
         ),
     })
 
-    return messages
+    return messages, source_map
 
 
 def build_planning_messages(
@@ -101,7 +122,7 @@ def build_planning_messages(
     exploration_context: str = "",
 ) -> list[dict]:
     """Build the message list for a planning request."""
-    context = format_context(documents, metadatas)
+    context, _ = format_context(documents, metadatas)
     return [
         {"role": "system", "content": get_planning_system_prompt()},
         {"role": "user", "content": get_planning_user_template().format(
@@ -119,7 +140,7 @@ def build_skill_review_messages(
     metadatas: list[dict],
 ) -> list[dict]:
     """Build the message list for a skill-based plan review."""
-    context = format_context(documents, metadatas)
+    context, _ = format_context(documents, metadatas)
     return [
         {"role": "system",
          "content": "You are a specialist plan reviewer."},

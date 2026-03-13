@@ -10,6 +10,7 @@ export interface ChatMessage {
   role: "user" | "assistant"
   content: string
   sources?: string[]
+  sourceMap?: Record<string, string>
 }
 
 export interface SearchSnippet {

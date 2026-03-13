@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import type { ChatMessage as ChatMessageType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { SourceList } from "@/components/ui/source-badge";
+import { SourceLegend, SourceList } from "@/components/ui/source-badge";
 
 interface ThinkBlock {
   type: "think" | "text" | "thinking";
@@ -147,7 +147,7 @@ export const ChatMessage = memo(function ChatMessage({
           <div>
             {blocks.map((block, i) =>
               block.type === "text" ? (
-                <Markdown key={`text-${i}`} className="p-1 my-1">
+                <Markdown key={`text-${i}`} className="p-1 my-1" sourceMap={message.sourceMap} onCiteClick={onViewFile}>
                   {block.content}
                 </Markdown>
               ) : (
@@ -161,12 +161,14 @@ export const ChatMessage = memo(function ChatMessage({
             )}
           </div>
         ) : (
-          <Markdown className="p-1">{message.content}</Markdown>
+          <Markdown className="p-1" sourceMap={message.sourceMap} onCiteClick={onViewFile}>{message.content}</Markdown>
         )}
         {!isUser && (message.content || (sources && sources.length > 0)) && (
           <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-foreground/10">
             {sources && sources.length > 0 && onViewFile && (
-              <SourceList sources={sources} onSelect={onViewFile} />
+              message.sourceMap
+                ? <SourceLegend sourceMap={message.sourceMap} onSelect={onViewFile} />
+                : <SourceList sources={sources} onSelect={onViewFile} />
             )}
             <div className="flex-1" />
             <Button

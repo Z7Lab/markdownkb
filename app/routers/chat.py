@@ -48,7 +48,7 @@ def chat(
     documents = [r.document for r in results]
     metadatas = [r.metadata for r in results]
 
-    messages = build_rag_messages(
+    messages, source_map = build_rag_messages(
         req.message,
         documents,
         metadatas,
@@ -69,7 +69,7 @@ def chat(
         {m.get("source_path", "") for m in metadatas if m.get("source_path")}
     )
 
-    return {"response": response, "sources": sources}
+    return {"response": response, "sources": sources, "source_map": source_map}
 
 
 @router.post("/chat/stream")
@@ -100,6 +100,7 @@ def chat_stream(
         yield sse("thread", {"thread_id": thread_id, "title": title})
 
         sources: list[str] = []
+        source_map: dict[str, str] = {}
         last_yielded = ""
         try:
             for partial in chat_respond(
@@ -111,6 +112,7 @@ def chat_stream(
                 folders_filter=scope_folders or None,
                 allowed_paths=allowed,
                 sources_out=sources,
+                source_map_out=source_map,
                 conversation_history=conv_history,
             ):
                 new_text = partial[len(last_yielded):]
@@ -119,8 +121,8 @@ def chat_stream(
                     last_yielded = partial
 
             if sources:
-                chatdb.set_sources(thread_id, "assistant", sources)
-                yield sse("sources", {"sources": sources})
+                chatdb.set_sources(thread_id, "assistant", sources, source_map or None)
+                yield sse("sources", {"sources": sources, "source_map": source_map})
         except (RuntimeError, OSError, ValueError) as e:
             logger.error("LLM/retrieval error during chat stream: %s", e)
             yield sse("error", {"message": "LLM request failed. Check server logs for details."})
