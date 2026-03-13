@@ -1,8 +1,14 @@
-import { useState } from "react"
+import { useRef, useState, type KeyboardEvent } from "react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { AppSidebar } from "@/components/ui/app-sidebar"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { Plus, Search, Trash2, FolderOpen, Tag } from "lucide-react"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { Pencil, Plus, Search, Trash2, FolderOpen, Tag } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -25,6 +31,7 @@ export function SearchSidebar({
   selectedScopeIds,
   onNewSearch,
   onLoadSearch,
+  onRenameSearch,
   onDeleteSearch,
   onFolderChange,
   onTagChange,
@@ -43,6 +50,7 @@ export function SearchSidebar({
   selectedScopeIds: Set<string>
   onNewSearch: () => void
   onLoadSearch: (search: SavedSearch) => void
+  onRenameSearch: (id: string, query: string) => void
   onDeleteSearch: (id: string) => void
   onFolderChange: (folder: string | null) => void
   onTagChange: (tag: string | null) => void
@@ -52,6 +60,27 @@ export function SearchSidebar({
   onAdHocTagChange: (tags: Set<string>) => void
 }) {
   const [pendingDelete, setPendingDelete] = useState<SavedSearch | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState("")
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  function startRename(s: SavedSearch) {
+    setEditingId(s.id)
+    setEditValue(s.query)
+    setTimeout(() => inputRef.current?.select(), 0)
+  }
+
+  function commitRename() {
+    if (editingId && editValue.trim()) {
+      onRenameSearch(editingId, editValue.trim())
+    }
+    setEditingId(null)
+  }
+
+  function handleRenameKey(e: KeyboardEvent) {
+    if (e.key === "Enter") commitRename()
+    if (e.key === "Escape") setEditingId(null)
+  }
 
   return (
     <AppSidebar
@@ -132,17 +161,55 @@ export function SearchSidebar({
             )}
             onClick={() => onLoadSearch(s)}
           >
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <Search className="h-3 w-3 shrink-0 text-muted-foreground" />
-              <p className="font-medium overflow-hidden line-clamp-2 flex-1">
-                {s.query}
-              </p>
-            </div>
+            {editingId === s.id ? (
+              <Input
+                ref={inputRef}
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={commitRename}
+                onKeyDown={handleRenameKey}
+                onClick={(e) => e.stopPropagation()}
+                className="h-6 text-sm px-1 py-0"
+                autoFocus
+              />
+            ) : (
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <Search className="h-3 w-3 shrink-0 text-muted-foreground" />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <p
+                      className="font-medium overflow-hidden line-clamp-2 flex-1"
+                      onDoubleClick={(e) => {
+                        e.stopPropagation()
+                        startRename(s)
+                      }}
+                    >
+                      {s.query}
+                    </p>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-sm">
+                    <p>{s.query}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            )}
             <div className="flex items-center gap-1">
               <p className="text-xs text-muted-foreground flex-1 truncate">
                 {relativeTime(s.created_at)}
                 {s.folder && ` · ${s.folder.split("/").pop()}`}
               </p>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Rename search"
+                className="h-5 w-5 shrink-0 text-muted-foreground hover:text-foreground"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  startRename(s)
+                }}
+              >
+                <Pencil className="h-3 w-3" />
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"

@@ -187,6 +187,16 @@ class SearchDB:
             )
             self._conn.commit()
 
+    def rename_search(self, search_id: str, query: str) -> bool:
+        """Rename a search's query text. Returns True if it existed."""
+        with self._lock:
+            cursor = self._conn.execute(
+                "UPDATE searches SET query = ? WHERE id = ?",
+                (query, search_id),
+            )
+            self._conn.commit()
+        return cursor.rowcount > 0
+
     def delete_search(self, search_id: str):
         with self._lock:
             self._conn.execute("DELETE FROM searches WHERE id = ?", (search_id,))

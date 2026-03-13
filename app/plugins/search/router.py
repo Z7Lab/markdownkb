@@ -356,6 +356,23 @@ def get_search_versions(
     return {"versions": versions}
 
 
+@router.patch("/searches/{search_id}")
+@limiter.limit(STANDARD)
+def rename_search(
+    request: Request,
+    search_id: str,
+    req: dict,
+    searchdb: SearchDB = Depends(get_searchdb),
+):
+    """Rename a search's query text."""
+    query = req.get("query", "").strip()
+    if not query:
+        raise HTTPException(status_code=400, detail="Query is required")
+    if not searchdb.rename_search(search_id, query):
+        raise HTTPException(status_code=404, detail="Search not found")
+    return {"status": "renamed"}
+
+
 @router.delete("/searches/{search_id}")
 @limiter.limit(STANDARD)
 def delete_search(

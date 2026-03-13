@@ -61,6 +61,16 @@ class PlanDB:
             ).fetchone()
         return dict(row) if row else None
 
+    def rename(self, plan_id: str, title: str) -> bool:
+        """Rename a plan. Returns True if it existed."""
+        with self._lock:
+            cursor = self._conn.execute(
+                "UPDATE plans SET title = ? WHERE id = ?",
+                (title, plan_id),
+            )
+            self._conn.commit()
+        return cursor.rowcount > 0
+
     def delete(self, plan_id: str) -> bool:
         """Delete a plan. Returns True if it existed."""
         with self._lock:

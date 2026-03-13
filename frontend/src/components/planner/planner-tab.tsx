@@ -28,7 +28,7 @@ export function PlannerTab() {
     plan, sources, approaches, reviews, refinedPlan, query,
     statusMessage, isPlanning, isRefined,
     savedPlans, activePlanId,
-    generatePlan, stop, clear, savePlan, loadPlan, deletePlan,
+    generatePlan, stop, clear, savePlan, loadPlan, renamePlan, deletePlan,
   } = usePlanner()
 
   const { scopes } = useScopes()
@@ -106,6 +106,7 @@ export function PlannerTab() {
         onTagChange={setSelectedTags}
         onNewPlan={handleNewPlan}
         onLoadPlan={loadPlan}
+        onRenamePlan={renamePlan}
         onDeletePlan={deletePlan}
       />
 

@@ -123,10 +123,10 @@ class ChatDB:
             return dict(row) if row else None
 
     def rename_thread(self, thread_id: str, title: str):
-        """Rename a thread and update its timestamp."""
+        """Rename a thread without changing its timestamp."""
         with self._lock:
             self._conn.execute(
-                "UPDATE threads SET title = ?, updated_at = datetime('now') WHERE id = ?",
+                "UPDATE threads SET title = ? WHERE id = ?",
                 (title, thread_id),
             )
             self._conn.commit()

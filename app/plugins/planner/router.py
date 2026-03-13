@@ -130,6 +130,23 @@ def get_plan(
     return result
 
 
+@router.patch("/plans/{plan_id}")
+@limiter.limit(STANDARD)
+def rename_plan(
+    request: Request,
+    plan_id: str,
+    req: dict,
+    plandb: PlanDB = Depends(get_plandb),
+):
+    """Rename a saved plan."""
+    title = req.get("title", "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="Title is required")
+    if not plandb.rename(plan_id, title):
+        raise HTTPException(status_code=404, detail="Plan not found")
+    return {"status": "renamed"}
+
+
 @router.delete("/plans/{plan_id}")
 @limiter.limit(STANDARD)
 def delete_plan(

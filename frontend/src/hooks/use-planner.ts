@@ -165,6 +165,15 @@ export function usePlanner() {
     }
   }, [resetGeneration])
 
+  const renamePlan = useCallback(async (planId: string, title: string) => {
+    try {
+      await api.patch(`/api/planner/plans/${planId}`, { title })
+      await refreshPlans()
+    } catch (err) {
+      toast.error(`Failed to rename plan: ${(err as Error).message}`)
+    }
+  }, [refreshPlans])
+
   const deletePlan = useCallback(async (planId: string) => {
     try {
       await api.del(`/api/planner/plans/${planId}`)
@@ -182,6 +191,6 @@ export function usePlanner() {
     plan, sources, tree, approaches, reviews, refinedPlan,
     statusMessage, phase, isPlanning, isRefined, skills, query,
     savedPlans, activePlanId,
-    generatePlan, loadSkills, stop, clear, savePlan, loadPlan, deletePlan,
+    generatePlan, loadSkills, stop, clear, savePlan, loadPlan, renamePlan, deletePlan,
   }
 }

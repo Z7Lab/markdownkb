@@ -48,7 +48,7 @@ export function SearchTab() {
     results, folders, tags,
     loading, loadingHistorical, error, search,
     searches, activeSearchId,
-    deleteSearch, loadSearch,
+    renameSearch, deleteSearch, loadSearch,
     summary, summarySources, summaryStatus, isSummarizing, stopSummary, generateSummary,
     deepResearch, setDeepResearch,
     deepResearchIterations, setDeepResearchIterations,
@@ -101,6 +101,7 @@ export function SearchTab() {
         selectedScopeIds={selectedScopeIds}
         onNewSearch={newSearch}
         onLoadSearch={loadSearch}
+        onRenameSearch={renameSearch}
         onDeleteSearch={deleteSearch}
         onFolderChange={setFolder}
         onTagChange={setTag}

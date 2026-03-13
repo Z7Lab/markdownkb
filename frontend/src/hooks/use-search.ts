@@ -192,6 +192,17 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
 
   const requery = useCallback(() => executeSearch(activeSearchId), [executeSearch, activeSearchId])
 
+  const renameSearch = useCallback(async (id: string, query: string) => {
+    try {
+      await api.patch(`/api/searches/${id}`, { query })
+      setSearches((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, query } : s)),
+      )
+    } catch (err) {
+      toast.error(`Failed to rename search: ${(err as Error).message}`)
+    }
+  }, [])
+
   const deleteSearch = useCallback(async (id: string) => {
     try {
       await api.del(`/api/searches/${id}`)
@@ -311,7 +322,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
   return {
     query, setQuery, folder, setFolder, tag, setTag,
     results, folders, tags, loading, loadingHistorical, error, search,
-    searches, activeSearchId, deleteSearch, loadSearch,
+    searches, activeSearchId, renameSearch, deleteSearch, loadSearch,
     summary, summarySources, summaryStatus, isSummarizing, stopSummary, generateSummary,
     deepResearch, setDeepResearch,
     deepResearchIterations, setDeepResearchIterations,

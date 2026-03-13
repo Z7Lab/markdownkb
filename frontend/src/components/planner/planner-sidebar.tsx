@@ -1,5 +1,6 @@
-import { useState } from "react"
+import { useRef, useState, type KeyboardEvent } from "react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { AppSidebar } from "@/components/ui/app-sidebar"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
@@ -7,7 +8,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Plus, Trash2 } from "lucide-react"
+import { Pencil, Plus, Trash2 } from "lucide-react"
 import type { SavedPlan, Scope } from "@/lib/types"
 import { cn, relativeTime } from "@/lib/utils"
 import { ScopeTagFilter } from "@/components/scope-tag-filter"
@@ -23,6 +24,7 @@ export function PlannerSidebar({
   onTagChange,
   onNewPlan,
   onLoadPlan,
+  onRenamePlan,
   onDeletePlan,
 }: {
   plans: SavedPlan[]
@@ -35,9 +37,31 @@ export function PlannerSidebar({
   onTagChange: (tags: Set<string>) => void
   onNewPlan: () => void
   onLoadPlan: (planId: string) => void
+  onRenamePlan: (planId: string, title: string) => void
   onDeletePlan: (planId: string) => void
 }) {
   const [pendingDelete, setPendingDelete] = useState<SavedPlan | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editValue, setEditValue] = useState("")
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  function startRename(p: SavedPlan) {
+    setEditingId(p.id)
+    setEditValue(p.query || p.title)
+    setTimeout(() => inputRef.current?.select(), 0)
+  }
+
+  function commitRename() {
+    if (editingId && editValue.trim()) {
+      onRenamePlan(editingId, editValue.trim())
+    }
+    setEditingId(null)
+  }
+
+  function handleRenameKey(e: KeyboardEvent) {
+    if (e.key === "Enter") commitRename()
+    if (e.key === "Escape") setEditingId(null)
+  }
 
   return (
     <AppSidebar
@@ -79,20 +103,51 @@ export function PlannerSidebar({
               )}
               onClick={() => onLoadPlan(p.id)}
             >
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <p className="font-medium overflow-hidden line-clamp-2">
-                    {p.query || p.title}
-                  </p>
-                </TooltipTrigger>
-                <TooltipContent side="right" className="max-w-sm">
-                  <p>{p.query || p.title}</p>
-                </TooltipContent>
-              </Tooltip>
+              {editingId === p.id ? (
+                <Input
+                  ref={inputRef}
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onBlur={commitRename}
+                  onKeyDown={handleRenameKey}
+                  onClick={(e) => e.stopPropagation()}
+                  className="h-6 text-sm px-1 py-0"
+                  autoFocus
+                />
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <p
+                      className="font-medium overflow-hidden line-clamp-2"
+                      onDoubleClick={(e) => {
+                        e.stopPropagation()
+                        startRename(p)
+                      }}
+                    >
+                      {p.query || p.title}
+                    </p>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-sm">
+                    <p>{p.query || p.title}</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
               <div className="flex items-center gap-1 mt-0.5">
                 <p className="text-xs text-muted-foreground flex-1 truncate">
                   {relativeTime(p.created_at)}
                 </p>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Rename plan"
+                  className="h-5 w-5 shrink-0 text-muted-foreground hover:text-foreground"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    startRename(p)
+                  }}
+                >
+                  <Pencil className="h-3 w-3" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
