@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
@@ -9,6 +9,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { RetrievalPresets } from "./retrieval-presets"
 
 interface RetrievalSettingsFormProps {
   topK: number
@@ -84,12 +85,35 @@ export function RetrievalSettingsForm({
     setBm25WeightValue(defaultBm25Weight)
   }
 
+  function handlePresetLoad(settings: {
+    top_k: number
+    score_threshold: number
+    hybrid_search: boolean
+    bm25_weight: number
+  }) {
+    setTopKValue(settings.top_k)
+    setScoreThresholdValue(settings.score_threshold)
+    setHybridSearchValue(settings.hybrid_search)
+    setBm25WeightValue(settings.bm25_weight)
+  }
+
+  const getCurrentSettings = useCallback(() => ({
+    top_k: topKValue,
+    score_threshold: scoreThresholdValue,
+    hybrid_search: hybridSearchValue,
+    bm25_weight: bm25WeightValue,
+  }), [topKValue, scoreThresholdValue, hybridSearchValue, bm25WeightValue])
+
   return (
     <div className="border-t pt-6">
       <h3 className="text-base font-semibold mb-3">Retrieval Settings</h3>
       <p className="text-sm text-muted-foreground mb-4">
         Configure hybrid search, relevance thresholds, and result limits
       </p>
+
+      <div className="mb-6">
+        <RetrievalPresets onLoad={handlePresetLoad} getCurrentSettings={getCurrentSettings} />
+      </div>
 
       <div className="space-y-6">
         {/* Hybrid Search Toggle */}

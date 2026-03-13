@@ -20,7 +20,7 @@ import { SourcesPanel } from "./sources-panel"
 import { PluginsPanel } from "./plugins-panel"
 import { SystemPromptPanel } from "./system-prompt-panel"
 import { EmbeddingPanel } from "./embedding-panel"
-import { SearchPanel } from "./search-panel"
+import { SearchPanel } from "./retrieval-panel"
 import { DatabasePanel } from "./database-panel"
 import { LoggingPanel } from "./logging-panel"
 import { ScopesPanel } from "./scopes-panel"
@@ -28,7 +28,7 @@ import { Library } from "lucide-react"
 
 const sections = [
   { id: "llm", label: "LLM Provider", icon: Cpu },
-  { id: "search", label: "Search", icon: Search },
+  { id: "search", label: "Retrieval", icon: Search },
   { id: "sources", label: "Sources", icon: FolderCog },
   { id: "scopes", label: "Scopes", icon: Library },
   { id: "embeddings", label: "Embeddings", icon: Layers },

@@ -8,6 +8,7 @@ from app.config import Settings
 from app.rag.retriever import Retriever
 from app.storage.chatdb import ChatDB
 from app.storage.plandb import PlanDB
+from app.storage.presetsdb import PresetsDB
 from app.storage.scopedb import ScopeDB
 from app.storage.searchdb import SearchDB
 from app.storage.trackingdb import TrackingDB
@@ -44,6 +45,10 @@ def get_plandb(request: Request) -> PlanDB:
 
 def get_scopedb(request: Request) -> ScopeDB:
     return request.app.state.scopedb
+
+
+def get_presetsdb(request: Request) -> PresetsDB:
+    return request.app.state.presetsdb
 
 
 def get_cancel_event(request: Request) -> threading.Event:

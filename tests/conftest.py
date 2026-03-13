@@ -260,6 +260,14 @@ def app():
     scopedb.list_scopes.return_value = []
     application.state.scopedb = scopedb
 
+    presetsdb = MagicMock()
+    presetsdb.list_presets.return_value = []
+    presetsdb.get.return_value = None
+    presetsdb.create.return_value = "preset001"
+    presetsdb.update.return_value = True
+    presetsdb.delete.return_value = True
+    application.state.presetsdb = presetsdb
+
     application.state.cancel_event = threading.Event()
 
     # Tags plugin: mock TagDB

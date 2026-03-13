@@ -50,9 +50,9 @@ export function SearchPanel({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold mb-1">Search Settings</h2>
+        <h2 className="text-lg font-semibold mb-1">Retrieval Settings</h2>
         <p className="text-sm text-muted-foreground">
-          Configure intelligent search and retrieval options
+          Configure intelligent search, hybrid retrieval, and relevance tuning
         </p>
       </div>
 

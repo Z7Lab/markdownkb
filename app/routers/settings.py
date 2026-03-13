@@ -5,7 +5,8 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.config import Settings
-from app.deps import get_settings
+from app.deps import get_presetsdb, get_settings
+from app.storage.presetsdb import PresetsDB
 from app.ratelimit import STANDARD, limiter
 from app.schemas import (
     FeatureToggleRequest,
@@ -215,6 +216,109 @@ def get_mcp_tool_settings(
 ):
     """Get configuration for a specific MCP tool."""
     return {"config": settings.get_mcp_config(tool_name)}
+
+
+# -- Retrieval Presets --
+
+@router.get("/settings/presets")
+@limiter.limit(STANDARD)
+def list_presets(
+    request: Request,
+    presetsdb: PresetsDB = Depends(get_presetsdb),
+):
+    """List all retrieval presets."""
+    return {"presets": presetsdb.list_presets()}
+
+
+@router.post("/settings/presets")
+@limiter.limit(STANDARD)
+def create_preset(
+    request: Request,
+    body: dict,
+    presetsdb: PresetsDB = Depends(get_presetsdb),
+    settings: Settings = Depends(get_settings),
+):
+    """Create a retrieval preset.
+
+    Body: {"name": "...", "settings": {...}} or {"name": "..."} to snapshot current.
+    """
+    name = body.get("name", "").strip()
+    if not name:
+        raise HTTPException(400, "name is required")
+    preset_settings = body.get("settings")
+    if not preset_settings:
+        # Snapshot current retrieval settings
+        preset_settings = {
+            "top_k": settings.top_k,
+            "score_threshold": settings.score_threshold,
+            "hybrid_search": settings.hybrid_search,
+            "bm25_weight": settings.bm25_weight,
+        }
+    try:
+        preset_id = presetsdb.create(name, preset_settings)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    return {"id": preset_id, "status": "created"}
+
+
+@router.put("/settings/presets/{preset_id}")
+@limiter.limit(STANDARD)
+def update_preset(
+    request: Request,
+    preset_id: str,
+    body: dict,
+    presetsdb: PresetsDB = Depends(get_presetsdb),
+):
+    """Update a preset's name and/or settings."""
+    try:
+        found = presetsdb.update(
+            preset_id,
+            name=body.get("name"),
+            settings=body.get("settings"),
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    if not found:
+        raise HTTPException(404, "Preset not found")
+    return {"status": "updated"}
+
+
+@router.delete("/settings/presets/{preset_id}")
+@limiter.limit(STANDARD)
+def delete_preset(
+    request: Request,
+    preset_id: str,
+    presetsdb: PresetsDB = Depends(get_presetsdb),
+):
+    """Delete a retrieval preset."""
+    if not presetsdb.delete(preset_id):
+        raise HTTPException(404, "Preset not found")
+    return {"status": "deleted"}
+
+
+@router.post("/settings/presets/{preset_id}/load")
+@limiter.limit(STANDARD)
+def load_preset(
+    request: Request,
+    preset_id: str,
+    presetsdb: PresetsDB = Depends(get_presetsdb),
+    settings: Settings = Depends(get_settings),
+):
+    """Apply a preset's settings to the active retrieval configuration."""
+    preset = presetsdb.get(preset_id)
+    if not preset:
+        raise HTTPException(404, "Preset not found")
+    s = preset["settings"]
+    if "top_k" in s:
+        settings.top_k = s["top_k"]
+    if "score_threshold" in s:
+        settings.score_threshold = s["score_threshold"]
+    if "hybrid_search" in s:
+        settings.hybrid_search = s["hybrid_search"]
+    if "bm25_weight" in s:
+        settings.bm25_weight = s["bm25_weight"]
+    settings.save()
+    return {"status": "loaded", "name": preset["name"], "settings": s}
 
 
 @router.patch("/settings/mcp")

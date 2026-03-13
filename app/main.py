@@ -22,6 +22,7 @@ from app.rag.retriever import Retriever
 from app.storage.chatdb import ChatDB
 from app.storage.plandb import PlanDB
 from app.storage.searchdb import SearchDB
+from app.storage.presetsdb import PresetsDB
 from app.storage.scopedb import ScopeDB
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
@@ -49,6 +50,7 @@ async def lifespan(app: FastAPI):
     searchdb = SearchDB(settings.data_directory)
     plandb = PlanDB(settings.data_directory)
     scopedb = ScopeDB(settings.data_directory)
+    presetsdb = PresetsDB(settings.data_directory)
 
     # Load embedding model registry from config
     load_models(settings.model_configs)
@@ -96,6 +98,7 @@ async def lifespan(app: FastAPI):
     app.state.searchdb = searchdb
     app.state.plandb = plandb
     app.state.scopedb = scopedb
+    app.state.presetsdb = presetsdb
     app.state.cancel_event = cancel_event
     app.state.conversation_history = ConversationHistory()
 
@@ -137,6 +140,7 @@ async def lifespan(app: FastAPI):
     searchdb.close()
     plandb.close()
     scopedb.close()
+    presetsdb.close()
     logger.info("Shutdown complete")
 
 
