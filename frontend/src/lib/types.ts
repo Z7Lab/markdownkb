@@ -119,7 +119,9 @@ export interface ProjectRoot {
 export interface AppSettings {
   active_provider: string
   providers: Provider[]
-  features: Record<string, boolean>
+  core: Record<string, boolean>
+  mcp_flags: Record<string, boolean>
+  plugins_enabled: Record<string, boolean>
   mcp: Record<string, unknown>
   sources: string[]
   project_roots: ProjectRoot[]

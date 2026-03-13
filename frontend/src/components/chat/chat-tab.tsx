@@ -34,7 +34,7 @@ export function ChatTab() {
   } = useChat(scopeIdsParam, adHocTagsParam);
 
   const { settings } = useSettings();
-  const showDiagnostics = settings?.features?.diagnostics ?? false;
+  const showDiagnostics = settings?.core?.diagnostics ?? false;
 
   return (
     <div className="flex flex-row h-full overflow-hidden">

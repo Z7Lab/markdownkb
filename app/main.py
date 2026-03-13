@@ -108,13 +108,13 @@ async def lifespan(app: FastAPI):
     logging.getLogger().setLevel(log_level)
 
     # Enable rate limiting if configured
-    if settings.feature_enabled("rate_limiting"):
+    if settings.core_enabled("rate_limiting"):
         limiter.enabled = True
         logger.info("Rate limiting enabled")
 
     # Start file watcher if enabled
     app.state.watcher = None
-    if settings.feature_enabled("file_watcher"):
+    if settings.core_enabled("file_watcher"):
         watcher = FileWatcher(settings, store, tracking)
         watcher.start()
         app.state.watcher = watcher

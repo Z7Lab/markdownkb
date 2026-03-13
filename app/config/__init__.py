@@ -61,10 +61,6 @@ _PLUGIN_FLAG_MAP = {
     "write_api": "write_api",
 }
 
-# Reverse: plugin name → old feature-flag name
-_PLUGIN_NAME_TO_FLAG = {v: k for k, v in _PLUGIN_FLAG_MAP.items()}
-
-
 def _migrate_settings(data: dict) -> bool:
     """Migrate legacy ``features:``/``plugins:`` layout to the new structure.
 
@@ -300,76 +296,35 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
             "collection_name", "mdkb"
         )
 
-    # --- Features (computed flat dict for backwards compat) ---
-
-    @property
-    def features(self) -> dict[str, bool]:
-        """Computed flat dict assembling all enable flags.
-
-        Provides the same shape as the old ``features:`` section so that
-        the frontend and ``feature_enabled()`` callers keep working
-        without changes.
-        """
-        result: dict[str, bool] = {}
-        # Core flags
-        for flag, enabled in self._data.get("core", {}).items():
-            result[flag] = enabled
-        # MCP flags (re-add prefix)
-        for old_key, new_key in _MCP_FLAGS.items():
-            if new_key in self._data.get("mcp", {}):
-                result[old_key] = self._data["mcp"][new_key]
-        # Plugin enabled flags (map back to old flag names)
-        for plugin_name, cfg in self._data.get("plugins", {}).items():
-            if "enabled" in cfg:
-                old_flag = _PLUGIN_NAME_TO_FLAG.get(plugin_name, plugin_name)
-                result[old_flag] = cfg["enabled"]
-        # Sub-flags: tags.ai_generation → mcp_tag_generator
-        tags_cfg = self._data.get("plugins", {}).get("tags", {})
-        if "ai_generation" in tags_cfg:
-            result["mcp_tag_generator"] = tags_cfg["ai_generation"]
-        return result
-
-    def feature_enabled(self, name: str) -> bool:
-        """Check whether a named feature is enabled."""
-        return self.features.get(name, False)
-
-    def set_feature(self, name: str, enabled: bool) -> None:
-        """Route a feature toggle to the correct section.
-
-        Handles old flag names from the frontend (which still sends
-        ``mcp_filesystem``, ``knowledge_graph``, etc.).
-        """
-        # Core flags
-        if name in _CORE_FLAGS:
-            self._data.setdefault("core", {})[name] = enabled
-            return
-        # MCP flags
-        if name in _MCP_FLAGS:
-            self._data.setdefault("mcp", {})[_MCP_FLAGS[name]] = enabled
-            return
-        # Plugin enable flags (by old flag name)
-        if name in _PLUGIN_FLAG_MAP:
-            plugin_name = _PLUGIN_FLAG_MAP[name]
-            self._data.setdefault("plugins", {}).setdefault(plugin_name, {})["enabled"] = enabled
-            return
-        # Sub-flags
-        if name == "mcp_tag_generator":
-            self._data.setdefault("plugins", {}).setdefault("tags", {})["ai_generation"] = enabled
-            return
-        # Unknown flag — could be an external plugin's flag; route to plugins
-        self._data.setdefault("plugins", {}).setdefault(name, {})["enabled"] = enabled
-
-    # --- Core / MCP accessors ---
+    # --- Core ---
 
     @property
     def core_features(self) -> dict[str, bool]:
         """Return the core behaviour flags."""
         return dict(self._data.get("core", {}))
 
+    def core_enabled(self, name: str) -> bool:
+        """Check whether a core feature is enabled."""
+        return self._data.get("core", {}).get(name, False)
+
+    def set_core(self, name: str, enabled: bool) -> None:
+        """Set a core feature flag."""
+        self._data.setdefault("core", {})[name] = enabled
+
+    # --- MCP ---
+
     @property
     def mcp_features(self) -> dict[str, bool]:
         """Return the MCP tool enable flags."""
         return dict(self._data.get("mcp", {}))
+
+    def mcp_enabled(self, name: str) -> bool:
+        """Check whether an MCP tool is enabled."""
+        return self._data.get("mcp", {}).get(name, False)
+
+    def set_mcp_enabled(self, name: str, enabled: bool) -> None:
+        """Set an MCP tool enable flag."""
+        self._data.setdefault("mcp", {})[name] = enabled
 
     # --- Plugin Configuration ---
 

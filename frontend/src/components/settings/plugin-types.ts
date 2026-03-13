@@ -38,6 +38,6 @@ export interface CoreFeature {
   description: string
   icon: string
   category: string
-  feature_flag: string
+  section: "core" | "mcp"
   enabled: boolean
 }

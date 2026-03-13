@@ -73,7 +73,7 @@ class MCTSPlanner:
 
         # Phase 2: Explore -- if MCP is enabled, explore filesystem
         self._exploration_context = ""
-        if self._settings.feature_enabled("mcp_filesystem"):
+        if self._settings.mcp_enabled("filesystem"):
             logger.info("MCTS Phase 2: Filesystem exploration")
             self._exploration_context = self._explore_filesystem(
                 self._research_results

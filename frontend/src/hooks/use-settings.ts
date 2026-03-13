@@ -42,10 +42,26 @@ function useSettingsInternal() {
   const provider = useProviderSettings(load)
   const embedding = useEmbeddingSettings(load)
 
-  // Simple settings actions that just save + reload
-  const toggleFeature = useCallback(
+  // Section-aware toggle actions
+  const toggleCore = useCallback(
     async (name: string, enabled: boolean) => {
-      await api.put("/api/settings/features", { name, enabled })
+      await api.put("/api/settings/core", { name, enabled })
+      await load()
+    },
+    [load],
+  )
+
+  const toggleMcpFlag = useCallback(
+    async (name: string, enabled: boolean) => {
+      await api.put("/api/settings/mcp-flags", { name, enabled })
+      await load()
+    },
+    [load],
+  )
+
+  const togglePlugin = useCallback(
+    async (name: string, enabled: boolean) => {
+      await api.put(`/api/settings/plugins/${name}/enabled`, { name, enabled })
       await load()
     },
     [load],
@@ -167,8 +183,10 @@ function useSettingsInternal() {
     addProjectRoot,
     removeProjectRoot,
     updateProjectRoot,
-    // Features & config
-    toggleFeature,
+    // Feature toggles
+    toggleCore,
+    toggleMcpFlag,
+    togglePlugin,
     toggleIntelligentSearch,
     saveSystemPrompt,
     saveSearchSummaryPrompt,

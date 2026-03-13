@@ -15,8 +15,6 @@ class FakeSettings:
     """Minimal settings stub for testing.
 
     Mirrors the real Settings structure: core/mcp/plugins/services.
-    The ``features`` property computes a flat dict for backwards compat,
-    exactly like the real Settings class.
     """
 
     sources: list[str] = field(default_factory=lambda: ["/tmp/test-source"])
@@ -85,40 +83,27 @@ class FakeSettings:
         import os
         return bool(os.environ.get(f"{provider_name.upper()}_API_KEY", ""))
 
-    # --- Computed features (backwards compat) ---
+    # --- Core / MCP / Plugin accessors ---
 
     @property
-    def features(self) -> dict:
-        from app.config import _MCP_FLAGS, _PLUGIN_NAME_TO_FLAG
-        result: dict[str, bool] = {}
-        result.update(self._core)
-        for old_key, new_key in _MCP_FLAGS.items():
-            if new_key in self._mcp:
-                result[old_key] = self._mcp[new_key]
-        for plugin_name, cfg in self._plugins.items():
-            if "enabled" in cfg:
-                old_flag = _PLUGIN_NAME_TO_FLAG.get(plugin_name, plugin_name)
-                result[old_flag] = cfg["enabled"]
-        tags_cfg = self._plugins.get("tags", {})
-        if "ai_generation" in tags_cfg:
-            result["mcp_tag_generator"] = tags_cfg["ai_generation"]
-        return result
+    def core_features(self) -> dict:
+        return dict(self._core)
 
-    def feature_enabled(self, name):
-        return self.features.get(name, False)
+    def core_enabled(self, name):
+        return self._core.get(name, False)
 
-    def set_feature(self, name, enabled):
-        from app.config import _CORE_FLAGS, _MCP_FLAGS, _PLUGIN_FLAG_MAP
-        if name in _CORE_FLAGS:
-            self._core[name] = enabled
-        elif name in _MCP_FLAGS:
-            self._mcp[_MCP_FLAGS[name]] = enabled
-        elif name in _PLUGIN_FLAG_MAP:
-            self._plugins.setdefault(_PLUGIN_FLAG_MAP[name], {})["enabled"] = enabled
-        elif name == "mcp_tag_generator":
-            self._plugins.setdefault("tags", {})["ai_generation"] = enabled
-        else:
-            self._plugins.setdefault(name, {})["enabled"] = enabled
+    def set_core(self, name, enabled):
+        self._core[name] = enabled
+
+    @property
+    def mcp_features(self) -> dict:
+        return dict(self._mcp)
+
+    def mcp_enabled(self, name):
+        return self._mcp.get(name, False)
+
+    def set_mcp_enabled(self, name, enabled):
+        self._mcp[name] = enabled
 
     def plugin_enabled(self, name):
         return self._plugins.get(name, {}).get("enabled", False)
@@ -157,6 +142,10 @@ class FakeSettings:
 
     def save(self):
         pass
+
+    @property
+    def raw(self):
+        return {"core": self._core, "mcp": self._mcp, "plugins": self._plugins, "services": self._services}
 
     @property
     def mcp_config(self):

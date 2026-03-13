@@ -53,7 +53,14 @@ export function TagEditDialog({
   const [shouldReindex, setShouldReindex] = useState(false);
   const { settings } = useSettings();
 
-  const tagGenEnabled = settings?.features?.mcp_tag_generator === true;
+  const [tagGenEnabled, setTagGenEnabled] = useState(false);
+
+  // Fetch tags plugin config to check AI generation enabled
+  useEffect(() => {
+    api.get<{ plugin: string; config: Record<string, unknown> }>("/api/settings/plugins/tags")
+      .then((res) => setTagGenEnabled(res.config.ai_generation === true))
+      .catch(() => setTagGenEnabled(false));
+  }, [settings]);
 
   // Set default backup checkbox from settings
   useEffect(() => {

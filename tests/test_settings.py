@@ -10,7 +10,9 @@ async def test_get_settings(client):
     data = resp.json()
     assert data["active_provider"] == "test"
     assert isinstance(data["providers"], list)
-    assert isinstance(data["features"], dict)
+    assert isinstance(data["core"], dict)
+    assert isinstance(data["mcp_flags"], dict)
+    assert isinstance(data["plugins_enabled"], dict)
     assert isinstance(data["sources"], list)
     assert "system_prompt" in data
     assert "embedding_model" in data
@@ -28,10 +30,30 @@ async def test_save_provider(client):
 
 
 @pytest.mark.asyncio
-async def test_toggle_feature(client):
-    resp = await client.put("/api/settings/features", json={
+async def test_toggle_core(client):
+    resp = await client.put("/api/settings/core", json={
         "name": "rate_limiting",
         "enabled": True,
+    })
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "saved"
+
+
+@pytest.mark.asyncio
+async def test_toggle_mcp_flag(client):
+    resp = await client.put("/api/settings/mcp-flags", json={
+        "name": "filesystem",
+        "enabled": True,
+    })
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "saved"
+
+
+@pytest.mark.asyncio
+async def test_toggle_plugin(client):
+    resp = await client.put("/api/settings/plugins/search/enabled", json={
+        "name": "search",
+        "enabled": False,
     })
     assert resp.status_code == 200
     assert resp.json()["status"] == "saved"

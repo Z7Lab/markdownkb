@@ -102,8 +102,8 @@ def test_migration_idempotent(tmp_path):
     assert data == new_config
 
 
-def test_feature_enabled_backwards_compat(tmp_path):
-    """All old flag names still work through computed features dict."""
+def test_migrated_flags_accessible_via_direct_methods(tmp_path):
+    """After migration, flags are accessible via core_enabled/mcp_enabled/plugin_enabled."""
     old_config = {
         "features": {
             "rag_chat": True,
@@ -115,11 +115,10 @@ def test_feature_enabled_backwards_compat(tmp_path):
     config_file = _write_yaml(tmp_path, old_config)
     s = Settings(config_file)
 
-    # These should all work via the computed features property
-    assert s.feature_enabled("rag_chat") is True
-    assert s.feature_enabled("mcp_filesystem") is True
-    assert s.feature_enabled("knowledge_graph") is True
-    assert s.feature_enabled("mcp_tag_generator") is True
+    assert s.core_enabled("rag_chat") is True
+    assert s.mcp_enabled("filesystem") is True
+    assert s.plugin_enabled("graph") is True
+    assert s.get_plugin_config("tags").get("ai_generation") is True
 
 
 def test_plugin_config_excludes_enabled(tmp_path):
@@ -138,8 +137,8 @@ def test_plugin_config_excludes_enabled(tmp_path):
     assert cfg["chunk_multiplier"] == 10
 
 
-def test_set_feature_routes_correctly(tmp_path):
-    """set_feature routes to the correct section based on flag name."""
+def test_direct_setters(tmp_path):
+    """set_core/set_mcp_enabled/set_plugin_enabled write to correct sections."""
     new_config = {
         "core": {"rag_chat": True},
         "mcp": {"filesystem": False},
@@ -150,20 +149,16 @@ def test_set_feature_routes_correctly(tmp_path):
     s = Settings(config_file)
 
     # Core flag
-    s.set_feature("rag_chat", False)
+    s.set_core("rag_chat", False)
     assert s._data["core"]["rag_chat"] is False
 
-    # MCP flag (old name with prefix)
-    s.set_feature("mcp_filesystem", True)
+    # MCP flag
+    s.set_mcp_enabled("filesystem", True)
     assert s._data["mcp"]["filesystem"] is True
 
-    # Plugin flag (old name)
-    s.set_feature("knowledge_graph", True)
+    # Plugin flag
+    s.set_plugin_enabled("graph", True)
     assert s._data["plugins"]["graph"]["enabled"] is True
-
-    # Sub-flag
-    s.set_feature("mcp_tag_generator", True)
-    assert s._data["plugins"]["tags"]["ai_generation"] is True
 
 
 def test_plugin_enabled(tmp_path):

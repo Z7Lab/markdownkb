@@ -35,21 +35,20 @@ def test_settings_load(config_dir):
     assert s.sources == ["/tmp/docs"]
 
 
-def test_feature_enabled(config_dir):
+def test_core_enabled(config_dir):
     from app.config import Settings
     s = Settings(config_dir)
-    assert s.feature_enabled("rag_chat") is True
-    assert s.feature_enabled("search") is False
-    assert s.feature_enabled("nonexistent") is False
+    assert s.core_enabled("rag_chat") is True
+    assert s.core_enabled("nonexistent") is False
 
 
-def test_set_feature(config_dir):
+def test_set_core(config_dir):
     from app.config import Settings
     s = Settings(config_dir)
-    s.set_feature("rag_chat", False)
-    assert s.feature_enabled("rag_chat") is False
-    s.set_feature("rag_chat", True)
-    assert s.feature_enabled("rag_chat") is True
+    s.set_core("rag_chat", False)
+    assert s.core_enabled("rag_chat") is False
+    s.set_core("rag_chat", True)
+    assert s.core_enabled("rag_chat") is True
 
 
 def test_plugin_config(config_dir):

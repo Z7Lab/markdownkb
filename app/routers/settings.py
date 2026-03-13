@@ -40,7 +40,12 @@ def get_settings_endpoint(request: Request, settings: Settings = Depends(get_set
             }
             for p in settings.llm_providers
         ],
-        "features": settings.features,
+        "core": settings.core_features,
+        "mcp_flags": settings.mcp_features,
+        "plugins_enabled": {
+            name: cfg.get("enabled", False)
+            for name, cfg in settings.raw.get("plugins", {}).items()
+        },
         "mcp": settings.mcp_config,
         "sources": settings.sources,
         "project_roots": settings.project_roots,
@@ -68,15 +73,42 @@ def get_settings_endpoint(request: Request, settings: Settings = Depends(get_set
     }
 
 
-@router.put("/settings/features")
+@router.put("/settings/core")
 @limiter.limit(STANDARD)
-def toggle_feature(
+def toggle_core(
     request: Request,
     req: FeatureToggleRequest,
     settings: Settings = Depends(get_settings),
 ):
-    """Toggle a feature flag on or off."""
-    settings.set_feature(req.name, req.enabled)
+    """Toggle a core behaviour flag."""
+    settings.set_core(req.name, req.enabled)
+    settings.save()
+    return {"status": "saved"}
+
+
+@router.put("/settings/mcp-flags")
+@limiter.limit(STANDARD)
+def toggle_mcp_flag(
+    request: Request,
+    req: FeatureToggleRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """Toggle an MCP tool enable flag."""
+    settings.set_mcp_enabled(req.name, req.enabled)
+    settings.save()
+    return {"status": "saved"}
+
+
+@router.put("/settings/plugins/{plugin_name}/enabled")
+@limiter.limit(STANDARD)
+def toggle_plugin(
+    request: Request,
+    plugin_name: str,
+    req: FeatureToggleRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """Toggle a plugin's enabled state."""
+    settings.set_plugin_enabled(plugin_name, req.enabled)
     settings.save()
     return {"status": "saved"}
 

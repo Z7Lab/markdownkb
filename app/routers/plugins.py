@@ -126,21 +126,30 @@ def list_plugins(
     registry = get_registry()
     plugins = [_build_plugin_response(entry, settings) for entry in registry]
 
-    # Also return core features (non-plugin toggles)
-    all_flags = settings.features
-    plugin_flags = {p["feature_flag"] for p in plugins if p["feature_flag"]}
+    # Build core + MCP feature list for the UI
     core_features = []
-    for flag, enabled in all_flags.items():
-        if flag in plugin_flags:
-            continue
+    for flag, enabled in settings.core_features.items():
         meta = _CORE_FEATURES.get(flag, {})
         core_features.append({
             "name": flag,
             "display_name": meta.get("display_name", flag.replace("_", " ").title()),
             "description": meta.get("description", ""),
             "icon": meta.get("icon", "toggle-right"),
-            "category": meta.get("category", "other"),
-            "feature_flag": flag,
+            "category": meta.get("category", "core"),
+            "section": "core",
+            "enabled": enabled,
+        })
+    for flag, enabled in settings.mcp_features.items():
+        # MCP features use mcp_ prefix keys in _CORE_FEATURES metadata
+        meta_key = f"mcp_{flag}"
+        meta = _CORE_FEATURES.get(meta_key, {})
+        core_features.append({
+            "name": flag,
+            "display_name": meta.get("display_name", flag.replace("_", " ").title()),
+            "description": meta.get("description", ""),
+            "icon": meta.get("icon", "toggle-right"),
+            "category": meta.get("category", "mcp"),
+            "section": "mcp",
             "enabled": enabled,
         })
 

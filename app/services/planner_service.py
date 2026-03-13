@@ -34,7 +34,7 @@ def run_planner(
     planner._allowed_paths = allowed_paths
     result = planner.plan(request, iterations, n_approaches)
 
-    if skill_names and settings.feature_enabled("agent_skills"):
+    if skill_names and settings.core_enabled("agent_skills"):
         reviews = run_multi_skill_review(
             result["plan"], skill_names, retriever, settings,
         )
@@ -74,7 +74,7 @@ def stream_planner(
 
     # Phase 2: Filesystem exploration (optional)
     planner._exploration_context = ""
-    if settings.feature_enabled("mcp_filesystem"):
+    if settings.mcp_enabled("filesystem"):
         yield sse("status", {"phase": "explore", "message": "Exploring filesystem..."})
         planner._exploration_context = planner._explore_filesystem(
             planner._research_results,
@@ -118,7 +118,7 @@ def stream_planner(
     yield sse("tree", {"tree": root.to_dict()})
 
     # Optional: Skill reviews
-    if skill_names and settings.feature_enabled("agent_skills"):
+    if skill_names and settings.core_enabled("agent_skills"):
         yield sse("status", {"phase": "review", "message": "Running skill reviews..."})
         reviews = run_multi_skill_review(
             best_plan, skill_names, retriever, settings,

@@ -134,7 +134,7 @@ export function SearchTab() {
                 <DeepResearchToggle
                   enabled={deepResearch}
                   onToggle={setDeepResearch}
-                  featureEnabled={settings?.features?.deep_research ?? false}
+                  featureEnabled={settings?.core?.deep_research ?? false}
                   disabled={loading}
                   iterations={deepResearchIterations}
                   onIterationsChange={setDeepResearchIterations}
@@ -208,7 +208,7 @@ export function SearchTab() {
                       <DeepResearchToggle
                         enabled={deepResearch}
                         onToggle={setDeepResearch}
-                        featureEnabled={settings?.features?.deep_research ?? false}
+                        featureEnabled={settings?.core?.deep_research ?? false}
                         disabled={isSummarizing}
                         iterations={deepResearchIterations}
                         onIterationsChange={setDeepResearchIterations}

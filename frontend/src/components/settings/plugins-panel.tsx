@@ -84,7 +84,7 @@ function PluginCard({
   onUninstall,
 }: {
   plugin: PluginInfo
-  onToggle: (flag: string, enabled: boolean) => Promise<void>
+  onToggle: (name: string, enabled: boolean) => Promise<void>
   onConfigure: (plugin: PluginInfo) => void
   onUninstall?: (name: string) => void
 }) {
@@ -178,7 +178,7 @@ function PluginCard({
         )}
         <Switch
           checked={plugin.enabled}
-          onCheckedChange={(checked) => onToggle(plugin.feature_flag, checked)}
+          onCheckedChange={(checked) => onToggle(plugin.name, checked)}
           className="mt-0.5"
           disabled={!!plugin.error}
         />
@@ -195,11 +195,11 @@ function CoreFeatureToggle({
   onOpenMcpSettings,
 }: {
   feature: CoreFeature
-  onToggle: (flag: string, enabled: boolean) => Promise<void>
+  onToggle: (name: string, enabled: boolean) => Promise<void>
   onOpenMcpSettings?: (toolName: string, label: string) => void
 }) {
   const Icon = getIcon(feature.icon)
-  const isMcp = feature.category === "mcp"
+  const isMcp = feature.section === "mcp"
 
   return (
     <div className="flex items-start justify-between py-3 gap-4">
@@ -220,7 +220,7 @@ function CoreFeatureToggle({
             variant="ghost"
             size="icon"
             className="h-7 w-7"
-            onClick={() => onOpenMcpSettings(feature.name.replace("mcp_", ""), feature.display_name)}
+            onClick={() => onOpenMcpSettings(feature.name, feature.display_name)}
             aria-label={`Configure ${feature.display_name}`}
           >
             <Settings className="h-3.5 w-3.5" />
@@ -228,7 +228,7 @@ function CoreFeatureToggle({
         )}
         <Switch
           checked={feature.enabled}
-          onCheckedChange={(checked) => onToggle(feature.feature_flag, checked)}
+          onCheckedChange={(checked) => onToggle(feature.name, checked)}
           className="mt-0.5"
         />
       </div>
@@ -239,13 +239,15 @@ function CoreFeatureToggle({
 // -- Main Panel --
 
 export function PluginsPanel({
-  features,
   mcpConfig,
-  onToggle,
+  onToggleCore,
+  onToggleMcpFlag,
+  onTogglePlugin,
 }: {
-  features: Record<string, boolean>
   mcpConfig?: Record<string, unknown>
-  onToggle: (name: string, enabled: boolean) => Promise<void>
+  onToggleCore: (name: string, enabled: boolean) => Promise<void>
+  onToggleMcpFlag: (name: string, enabled: boolean) => Promise<void>
+  onTogglePlugin: (name: string, enabled: boolean) => Promise<void>
 }) {
   const [plugins, setPlugins] = useState<PluginInfo[]>([])
   const [coreFeatures, setCoreFeatures] = useState<CoreFeature[]>([])
@@ -263,43 +265,15 @@ export function PluginsPanel({
       setCoreFeatures(res.core_features)
     } catch (err) {
       console.warn("Failed to load plugins:", (err as Error).message)
-      toast.warning("Could not load plugin details — showing basic feature toggles")
-      // Fallback: show features as flat toggles
-      setCoreFeatures(
-        Object.entries(features).map(([name, enabled]) => ({
-          name,
-          display_name: name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-          description: "",
-          icon: "toggle-right",
-          category: "other",
-          feature_flag: name,
-          enabled,
-        }))
-      )
+      toast.warning("Could not load plugin details")
     } finally {
       setLoading(false)
     }
-  }, [features])
+  }, [])
 
   useEffect(() => {
     loadPlugins()
   }, [loadPlugins])
-
-  // Sync enabled state from features prop (after toggle)
-  useEffect(() => {
-    setPlugins((prev) =>
-      prev.map((p) => ({
-        ...p,
-        enabled: p.feature_flag ? (features[p.feature_flag] ?? p.enabled) : p.enabled,
-      }))
-    )
-    setCoreFeatures((prev) =>
-      prev.map((f) => ({
-        ...f,
-        enabled: features[f.feature_flag] ?? f.enabled,
-      }))
-    )
-  }, [features])
 
   const handleUninstall = async (name: string) => {
     if (!confirm(`Uninstall plugin '${name}'? This cannot be undone.`)) return
@@ -368,9 +342,16 @@ export function PluginsPanel({
                 <div key={feature.name}>
                   <CoreFeatureToggle
                     feature={feature}
-                    onToggle={onToggle}
+                    onToggle={async (name, enabled) => {
+                      if (feature.section === "mcp") {
+                        await onToggleMcpFlag(name, enabled)
+                      } else {
+                        await onToggleCore(name, enabled)
+                      }
+                      loadPlugins()
+                    }}
                     onOpenMcpSettings={
-                      feature.category === "mcp"
+                      feature.section === "mcp"
                         ? (toolName, label) => setMcpDialog({ open: true, toolName, toolLabel: label })
                         : undefined
                     }
@@ -382,7 +363,10 @@ export function PluginsPanel({
                 <div key={plugin.name}>
                   <PluginCard
                     plugin={plugin}
-                    onToggle={onToggle}
+                    onToggle={async (name, enabled) => {
+                      await onTogglePlugin(name, enabled)
+                      loadPlugins()
+                    }}
                     onConfigure={setConfigPlugin}
                     onUninstall={plugin.source === "external" ? handleUninstall : undefined}
                   />

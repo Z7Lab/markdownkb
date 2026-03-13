@@ -387,7 +387,7 @@ def summarize_search(
     top_k = req.top_k if req.top_k is not None else settings.top_k
 
     # Deep research mode — delegate to MCTS pipeline
-    if req.deep_research and settings.feature_enabled("deep_research"):
+    if req.deep_research and settings.core_enabled("deep_research"):
         from app.services.deep_research import stream_deep_research
 
         def deep_generate():

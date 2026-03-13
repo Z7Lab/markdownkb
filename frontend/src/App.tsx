@@ -42,7 +42,7 @@ const tabToRoute: Record<string, string> = {
 
 function GraphTabTrigger() {
   const { settings } = useSettings()
-  if (!settings?.features?.knowledge_graph) return null
+  if (!settings?.plugins_enabled?.graph) return null
   return (
     <TabsTrigger value="graph">
       <Network className="h-4 w-4" />

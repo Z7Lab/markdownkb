@@ -55,7 +55,9 @@ export function SettingsTab() {
     refreshModels,
     pingModel,
     fetchModelInfo,
-    toggleFeature,
+    toggleCore,
+    toggleMcpFlag,
+    togglePlugin,
     addSource,
     removeSource,
     addIgnorePattern,
@@ -185,9 +187,10 @@ export function SettingsTab() {
             )}
             {activeSection === "features" && (
               <PluginsPanel
-                features={settings.features}
                 mcpConfig={settings.mcp}
-                onToggle={toggleFeature}
+                onToggleCore={toggleCore}
+                onToggleMcpFlag={toggleMcpFlag}
+                onTogglePlugin={togglePlugin}
               />
             )}
             {activeSection === "prompt" && (
