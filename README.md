@@ -144,10 +144,10 @@ app/
 │   ├── settings.py      # Provider config, features, database maintenance
 │   ├── embeddings.py    # Embedding model management, indexing
 │   └── export.py        # Conversation export
-├── plugins/             # Auto-discovered, feature-gated plugins
-│   ├── planner/         # MCTS plan generation (mcts_planner flag)
-│   ├── tags/            # AI tag generation (mcp_tag_generator flag)
-│   └── write_api/       # Document creation via HTTP (write_api flag)
+├── plugins/             # Auto-discovered, enabled via plugins.<name>.enabled
+│   ├── planner/         # MCTS plan generation
+│   ├── tags/            # Tag storage, CRUD, AI tag generation
+│   └── write_api/       # Document creation via HTTP
 ├── services/
 │   ├── chat_service.py  # Conversation memory, streaming RAG, think-block stripping
 │   ├── llm_service.py   # Ollama model discovery, connection testing

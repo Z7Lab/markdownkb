@@ -2,7 +2,7 @@
 
 MCTS (Monte Carlo Tree Search) based implementation plan generation with agent skills and scope filtering.
 
-**Feature flag:** `mcts_planner`
+**Feature flag:** `planner`
 **Prefix:** `/api/planner`
 
 ## Endpoints

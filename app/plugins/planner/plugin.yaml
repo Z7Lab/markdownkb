@@ -5,7 +5,7 @@ version: 1.0.0
 author: mdkb
 icon: brain
 category: ai
-feature_flag: mcts_planner
+feature_flag: planner
 requires: []
 
 endpoints:

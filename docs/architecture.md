@@ -221,7 +221,7 @@ Configuration is split into four sections in `config/settings.yaml`:
 - **`plugins:`** — each plugin has `enabled` + config together (`plugins.<name>.enabled`)
 - **`services:`** — shared service config (deep_research iterations, etc.)
 
-Legacy `features:` layouts are auto-migrated on first startup. The `Settings.features` property computes a flat dict for backwards compatibility with the frontend. Security-sensitive features (MCP tools) default to off — see [SECURITY.md](../SECURITY.md).
+Legacy `features:` layouts are auto-migrated on first startup and saved to disk. Security-sensitive features (MCP tools) default to off — see [SECURITY.md](../SECURITY.md).
 
 ## MCP Server
 

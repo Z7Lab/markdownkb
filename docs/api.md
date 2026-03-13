@@ -244,7 +244,7 @@ Query parameters: `path` (required), `source` (optional, defaults to first sourc
 
 ## Planner
 
-Requires the `mcts_planner` feature flag. Plugin: `app/plugins/planner/`.
+Requires `plugins.planner.enabled: true`. Plugin: `app/plugins/planner/`.
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -258,7 +258,7 @@ Requires the `mcts_planner` feature flag. Plugin: `app/plugins/planner/`.
 
 ## Knowledge Graph
 
-Requires the `knowledge_graph` feature flag. Plugin: `app/plugins/graph/`.
+Requires `plugins.graph.enabled: true`. Plugin: `app/plugins/graph/`.
 
 | Method | Path | Description |
 |--------|------|-------------|

@@ -4,7 +4,7 @@ The planner uses Monte Carlo Tree Search (MCTS) to generate implementation plans
 
 Think of it as the difference between a junior dev who tries things until they work, and a senior dev who studies the codebase first and gives you the exact right approach.
 
-Requires the `mcts_planner` feature flag. Enabled by default.
+Requires `plugins.planner.enabled: true` in settings.
 
 ## How It Works
 
@@ -126,14 +126,19 @@ Add a directory under `app/skills/builtin/` (or a custom directory) containing a
 ## Configuration
 
 ```yaml
-features:
-  mcts_planner: true      # Enable the planner tab and endpoints
-  agent_skills: false     # Enable skill review system
-  mcp_filesystem: false   # Enable filesystem exploration during planning
+plugins:
+  planner:
+    enabled: true           # Enable the planner tab and endpoints
+
+core:
+  agent_skills: false       # Enable skill review system
+
+mcp:
+  filesystem: false         # Enable filesystem exploration during planning
 ```
 
 The planner also depends on having an active LLM provider and indexed documents in the knowledge base. Planning quality scales with how much relevant content is indexed.
 
 ## Deep Research
 
-The MCTS engine is also used by the **Deep Research** feature (`features.deep_research`), which provides multi-angle research synthesis on the Search tab. While the planner generates implementation plans, deep research focuses on comprehensive answers to complex search queries — exploring multiple angles via MCTS before synthesizing a summary. Both use the same core library (`app/planner/`) but serve different purposes. See `app/services/deep_research.py`.
+The MCTS engine is also used by the **Deep Research** feature (`core.deep_research`), which provides multi-angle research synthesis on the Search tab. While the planner generates implementation plans, deep research focuses on comprehensive answers to complex search queries — exploring multiple angles via MCTS before synthesizing a summary. Both use the same core library (`app/planner/`) but serve different purposes. See `app/services/deep_research.py`.

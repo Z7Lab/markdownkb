@@ -33,7 +33,7 @@ def on_shutdown(app) -> None:
     pass
 ```
 
-- `FEATURE_FLAG` — the key under `features:` in `settings.yaml` that enables/disables the plugin
+- `FEATURE_FLAG` — metadata identifier for the plugin (must match the directory name)
 - `router` — a FastAPI `APIRouter` instance with your endpoints
 - `on_startup(app)` — *(optional)* initialize plugin resources after core services are ready (e.g. create databases, register hooks)
 - `on_shutdown(app)` — *(optional)* clean up plugin resources before shutdown
@@ -173,7 +173,7 @@ To uninstall: `DELETE /api/plugins/{name}` (only works for external plugins).
 A valid plugin must have:
 
 1. `__init__.py` with `FEATURE_FLAG` (string) and `router` (APIRouter)
-2. The feature flag must be a valid settings key (alphanumeric + underscores)
+2. The `FEATURE_FLAG` must match the plugin directory name
 3. `plugin.yaml` is recommended but not required
 
 ## Reference Plugins

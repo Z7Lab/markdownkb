@@ -2,6 +2,6 @@
 
 from app.plugins.planner.router import router
 
-FEATURE_FLAG = "mcts_planner"
+FEATURE_FLAG = "planner"
 
 __all__ = ["FEATURE_FLAG", "router"]

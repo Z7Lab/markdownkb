@@ -109,7 +109,7 @@ def _build_plugin_response(entry: dict, settings: Settings) -> dict:
         "error": entry.get("error"),
         "endpoints": manifest.get("endpoints", []),
         "config_schema": manifest.get("config", {}),
-        "config": settings.get_plugin_config(entry["name"]) if feature_flag else {},
+        "config": settings.get_plugin_config(entry["name"]),
         "requires": manifest.get("requires", []),
         "has_manifest": bool(manifest),
     }
@@ -218,23 +218,6 @@ def _install_from_source(source_dir: Path, settings: Settings) -> dict:
                 detail=f"Failed to install requirements: {e.stderr.strip()[:500]}",
             )
 
-    # Add feature flag to settings (disabled by default)
-    feature_flag = ""
-    if manifest and manifest.get("feature_flag"):
-        feature_flag = manifest["feature_flag"]
-    elif (dest / "__init__.py").exists():
-        try:
-            content = (dest / "__init__.py").read_text()
-            for line in content.splitlines():
-                if line.strip().startswith("FEATURE_FLAG"):
-                    feature_flag = line.split("=", 1)[1].strip().strip("'\"")
-                    break
-        except Exception:
-            logger.warning(
-                "Could not extract FEATURE_FLAG from %s — plugin installed without flag",
-                dest / "__init__.py", exc_info=True,
-            )
-
     # Register the plugin as disabled in plugins.<name>.enabled
     if not settings.plugin_enabled(plugin_name):
         settings.set_plugin_enabled(plugin_name, False)
@@ -243,7 +226,6 @@ def _install_from_source(source_dir: Path, settings: Settings) -> dict:
     return {
         "status": "installed",
         "name": plugin_name,
-        "feature_flag": feature_flag,
         "manifest": manifest,
         "message": "Plugin installed. Enable it in settings and restart to activate.",
     }
@@ -339,18 +321,9 @@ def uninstall_plugin(
             raise HTTPException(
                 status_code=400,
                 detail=f"Plugin '{name}' is a builtin plugin and cannot be uninstalled. "
-                       "Disable it via the feature flag instead.",
+                       "Disable it in settings instead.",
             )
         raise HTTPException(status_code=404, detail=f"External plugin '{name}' not found")
-
-    # Remove the feature flag from settings
-    feature_flag = ""
-    if entry:
-        feature_flag = entry.get("feature_flag", "")
-    if not feature_flag:
-        manifest = _read_manifest_safe(plugin_dir)
-        if manifest:
-            feature_flag = manifest.get("feature_flag", "")
 
     # Remove the plugin's config section entirely
     plugins = settings._data.get("plugins", {})

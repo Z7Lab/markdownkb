@@ -2,7 +2,7 @@
 
 3D document similarity graph visualization with clustering, word clouds, and scope/tag filtering.
 
-**Feature flag:** `knowledge_graph`
+**Feature flag:** `graph`
 **Prefix:** `/api/graph`
 
 ## Endpoints

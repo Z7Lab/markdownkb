@@ -5,7 +5,7 @@ version: 1.0.0
 author: mdkb
 icon: network
 category: visualization
-feature_flag: knowledge_graph
+feature_flag: graph
 requires: []
 
 endpoints:

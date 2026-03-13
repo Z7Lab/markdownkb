@@ -7,7 +7,7 @@ Optional modules that extend mdkb beyond its core "chat with your docs" function
 At startup, `app/plugins/__init__.py` scans this directory for subdirectories containing an `__init__.py`. Each valid plugin package must expose:
 
 ```python
-FEATURE_FLAG: str    # Metadata identifier for the plugin
+FEATURE_FLAG: str    # Plugin identifier (must match the directory name)
 router: APIRouter    # FastAPI router to register when enabled
 ```
 
@@ -23,7 +23,8 @@ The discovery/registration flow:
    ```
    app/plugins/my_feature/
    ├── __init__.py
-   └── router.py
+   ├── router.py
+   └── plugin.yaml
    ```
 
 2. In `__init__.py`, expose the feature flag and router:
@@ -45,7 +46,25 @@ The discovery/registration flow:
        return {"hello": "world"}
    ```
 
-4. Enable the plugin in `config/settings.yaml`:
+4. Add a `plugin.yaml` manifest for UI metadata:
+   ```yaml
+   name: my_feature
+   display_name: My Feature
+   description: Short description of what this plugin does.
+   version: 1.0.0
+   author: your-name
+   icon: puzzle
+   category: other
+   feature_flag: my_feature
+   requires: []
+   endpoints:
+     - method: GET
+       path: /api/my-feature/example
+       description: Example endpoint
+   config: {}
+   ```
+
+5. Enable the plugin in `config/settings.yaml`:
    ```yaml
    plugins:
      my_feature:
