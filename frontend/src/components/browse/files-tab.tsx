@@ -462,7 +462,7 @@ export function FilesTab() {
               <ResizableHandle />
               <ResizablePanel id="indexed" defaultSize={DEFAULT_LAYOUT.indexed} minSize={6}>
                 <SortHeader sortKey="indexed" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort}>
-                  Indexed At
+                  Last Indexed
                 </SortHeader>
               </ResizablePanel>
               <ResizableHandle />

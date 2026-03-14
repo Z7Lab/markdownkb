@@ -11,7 +11,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 _CREATE_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -107,6 +107,19 @@ def _migrate_v3_to_v4(conn: sqlite3.Connection):
         )
 
 
+def _migrate_v4_to_v5(conn: sqlite3.Connection):
+    """Backfill indexed_at for rows that were indexed before the column existed."""
+    count = conn.execute(
+        "UPDATE indexed_files SET indexed_at = updated_at "
+        "WHERE indexed_at IS NULL AND status = 'complete' AND chunk_count > 0"
+    ).rowcount
+    conn.commit()
+    if count:
+        logger.info(
+            "Migrated schema v4 → v5: backfilled indexed_at for %d files", count
+        )
+
+
 class TrackingDB:
     """Tracks indexed file states in SQLite."""
 
@@ -142,6 +155,8 @@ class TrackingDB:
                 _migrate_v2_to_v3(self._conn)
             if current < 4:
                 _migrate_v3_to_v4(self._conn)
+            if current < 5:
+                _migrate_v4_to_v5(self._conn)
             if current < SCHEMA_VERSION:
                 self._conn.execute(
                     "UPDATE schema_version SET version = ?",
