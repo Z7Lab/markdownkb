@@ -102,6 +102,11 @@ Supports Google-style quoted phrases: `"exact phrase"` requires literal match in
 | PUT | `/api/settings/log-level` | Set log level (INFO/DEBUG) |
 | GET | `/api/settings/logs` | Get log entries (incremental via `?since=`) |
 | DELETE | `/api/settings/logs` | Clear log buffer |
+| GET | `/api/settings/presets` | List retrieval presets |
+| POST | `/api/settings/presets` | Create preset (name + settings, or snapshot current) |
+| PUT | `/api/settings/presets/{id}` | Update preset name/settings |
+| DELETE | `/api/settings/presets/{id}` | Delete preset |
+| POST | `/api/settings/presets/{id}/load` | Apply preset to active retrieval config |
 
 ## Plugin Management
 

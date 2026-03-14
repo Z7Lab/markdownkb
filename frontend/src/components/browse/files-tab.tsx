@@ -43,15 +43,17 @@ const getValue = (f: TrackedFile, key: string): string | number | null => {
       return f.status
     case "chunks":
       return f.chunk_count
+    case "indexed":
+      return f.indexed_at || ""
     default:
       return null
   }
 }
 
 // Column IDs and default sizes as percentages (must sum to 100)
-const COL_IDS = ["file", "folder", "tags", "rag", "status", "chunks", "actions"] as const
+const COL_IDS = ["file", "folder", "tags", "rag", "status", "chunks", "indexed", "actions"] as const
 const DEFAULT_LAYOUT: Record<string, number> = {
-  file: 22, folder: 22, tags: 14, rag: 10, status: 10, chunks: 8, actions: 14,
+  file: 20, folder: 20, tags: 12, rag: 8, status: 8, chunks: 6, indexed: 12, actions: 14,
 }
 
 function SortHeader({
@@ -455,6 +457,12 @@ export function FilesTab() {
               <ResizablePanel id="chunks" defaultSize={DEFAULT_LAYOUT.chunks} minSize={4}>
                 <SortHeader sortKey="chunks" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort} className="justify-center">
                   Chunks
+                </SortHeader>
+              </ResizablePanel>
+              <ResizableHandle />
+              <ResizablePanel id="indexed" defaultSize={DEFAULT_LAYOUT.indexed} minSize={6}>
+                <SortHeader sortKey="indexed" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort}>
+                  Indexed At
                 </SortHeader>
               </ResizablePanel>
               <ResizableHandle />

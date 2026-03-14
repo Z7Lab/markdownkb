@@ -73,7 +73,7 @@ mdkb is a chat-with-your-docs tool with a Python backend and React frontend. The
 
 ## Storage
 
-mdkb uses one vector database and six SQLite databases:
+mdkb uses one vector database and seven SQLite databases:
 
 | Database | File | Purpose |
 |----------|------|---------|
@@ -82,6 +82,7 @@ mdkb uses one vector database and six SQLite databases:
 | **ChatDB** | `data/chat.db` | Chat threads and messages |
 | **SearchDB** | `data/search.db` | Search history, versions, AI summaries |
 | **PlanDB** | `data/plans.db` | Saved planner plans and metadata |
+| **PresetsDB** | `data/presets.db` | Named retrieval setting templates |
 | **ScopeDB** | `data/scopes.db` | Named scopes (folder + tag filters) |
 | **TagDB** | `data/tags.db` | File-to-tag mappings (owned by tags plugin) |
 

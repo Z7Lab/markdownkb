@@ -91,6 +91,7 @@ export interface TrackedFile {
   mtime: number
   include_rag: number
   tags: string
+  indexed_at: string | null
 }
 
 export interface Provider {

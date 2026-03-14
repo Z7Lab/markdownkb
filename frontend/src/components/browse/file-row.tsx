@@ -163,6 +163,11 @@ export const FileRow = React.memo(function FileRow({
       <div className="px-2 py-2 text-center">
         {file.chunk_count}
       </div>
+      <div className="px-2 py-2 text-muted-foreground text-xs truncate" title={file.indexed_at || undefined}>
+        {file.indexed_at
+          ? new Date(file.indexed_at).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+          : "—"}
+      </div>
       <div className="px-2 py-2">
         <FileActions
           status={file.status}
