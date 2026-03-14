@@ -167,7 +167,7 @@ export const ChatMessage = memo(function ChatMessage({
           <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-foreground/10">
             {sources && sources.length > 0 && onViewFile && (
               message.sourceMap
-                ? <SourceLegend sourceMap={message.sourceMap} onSelect={onViewFile} />
+                ? <SourceLegend sourceMap={message.sourceMap} onSelect={onViewFile} messageContent={message.content} />
                 : <SourceList sources={sources} onSelect={onViewFile} />
             )}
             <div className="flex-1" />
