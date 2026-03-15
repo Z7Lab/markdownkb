@@ -78,6 +78,13 @@ save_document(
 
 Path must be relative, must end in `.md`, and cannot contain `..` traversal. The file is written to disk and automatically picked up by the file watcher for indexing.
 
+**Disabled by default.** Enable in `config/settings.yaml`:
+
+```yaml
+mcp:
+  save_document: true
+```
+
 ### index_file
 
 ```

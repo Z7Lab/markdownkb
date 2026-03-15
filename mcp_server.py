@@ -51,6 +51,13 @@ async def lifespan(server: FastMCP):
 
     retriever = Retriever(store, settings, tracking)
 
+    # Conditionally register write tools based on config
+    if settings.mcp_enabled("save_document"):
+        mcp.tool(name="save_document")(_save_document)
+        logger.info("MCP tool enabled: save_document")
+    else:
+        logger.info("MCP tool disabled: save_document (mcp.save_document: false)")
+
     logger.info(
         "MCP server ready (%d documents indexed)",
         store.count,
@@ -245,8 +252,7 @@ def stats() -> dict:
 _UNSAFE_CHARS = re.compile(r'[<>:"|?*\x00-\x1f]')
 
 
-@mcp.tool()
-def save_document(
+def _save_document(
     path: str,
     content: str,
     source: str = "",
