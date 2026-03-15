@@ -31,6 +31,26 @@ services:
       start_period: 30s
     restart: unless-stopped
 
+  mdkb-mcp:
+    build: .
+    container_name: ${MDKB_CONTAINER:-mdkb}-mcp
+    command: python mcp_server.py --sse --host 0.0.0.0 --port 9715
+    ports:
+      - "${MDKB_HOST:-127.0.0.1}:${MDKB_MCP_PORT:-9715}:9715"
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+      - ${HOME}:${HOME}:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - OLLAMA_API_BASE=${OLLAMA_API_BASE:-}
+    secrets:
+      - anthropic_api_key
+      - openai_api_key
+      - venice_api_key
+    restart: unless-stopped
+
 # Docker secrets — create files in ./secrets/ with one key per file.
 # Only the secrets that exist will be mounted; missing files cause a
 # warning but don't prevent the container from starting.

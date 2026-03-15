@@ -7,12 +7,13 @@ export
 # Defaults (overridden by .env)
 MDKB_CONTAINER ?= mdkb
 MDKB_PORT      ?= 9713
+MDKB_MCP_PORT  ?= 9715
 MDKB_HOST      ?= 127.0.0.1
 API_PORT        ?= 9713
 FRONTEND_PORT   ?= 9714
 
 .DEFAULT_GOAL := help
-.PHONY: help install dev stop build up down restart logs ps shell clean backend prod test lint status check-ports
+.PHONY: help install dev stop build up down restart logs ps shell clean backend prod test lint status check-ports mcp
 
 # ── Quick Start ──────────────────────────────────
 
@@ -59,10 +60,12 @@ up: ## Start container (detached)
 	@docker compose up -d
 	@echo ""
 	@echo "  mdkb running at http://localhost:$(MDKB_PORT)"
+	@echo "  MCP server at   http://localhost:$(MDKB_MCP_PORT)/sse"
 	@LAN_IP=$$(hostname -I 2>/dev/null | awk '{print $$1}'); \
 	LAN_HOST=$$(hostname 2>/dev/null); \
 	if [ -n "$$LAN_IP" ]; then \
 		echo "  Network:        http://$$LAN_IP:$(MDKB_PORT)"; \
+		echo "  MCP network:    http://$$LAN_IP:$(MDKB_MCP_PORT)/sse"; \
 	fi; \
 	if [ -n "$$LAN_HOST" ]; then \
 		echo "                  http://$$LAN_HOST.local:$(MDKB_PORT)"; \
@@ -93,6 +96,9 @@ clean: ## Stop container and remove image
 
 backend: ## Start backend only (no frontend)
 	@./run.sh --backend
+
+mcp: ## Start MCP server locally (SSE on port 9715)
+	@.venv/bin/python mcp_server.py --sse --port $(MDKB_MCP_PORT)
 
 prod: ## Production mode (build frontend + serve)
 	@./run.sh --prod
@@ -139,4 +145,9 @@ check-ports: ## Check if ports are available
 		echo "  Port $(MDKB_PORT) (Docker): \033[31min use\033[0m"; \
 	else \
 		echo "  Port $(MDKB_PORT) (Docker): \033[32mavailable\033[0m"; \
+	fi
+	@if fuser $(MDKB_MCP_PORT)/tcp 2>/dev/null | grep -q .; then \
+		echo "  Port $(MDKB_MCP_PORT) (MCP):    \033[31min use\033[0m"; \
+	else \
+		echo "  Port $(MDKB_MCP_PORT) (MCP):    \033[32mavailable\033[0m"; \
 	fi

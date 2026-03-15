@@ -57,7 +57,7 @@ RUN mkdir -p /app/data/chromadb /app/data/plans /app/data/plugins /app/docs /app
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
-EXPOSE 9713
+EXPOSE 9713 9715
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD python -c "import httpx; httpx.get('http://localhost:9713/api/health').raise_for_status()"

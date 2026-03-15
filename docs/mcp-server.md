@@ -7,10 +7,13 @@ The server runs as a **separate process** alongside the FastAPI app. It imports 
 ## Quick Start
 
 ```bash
-# stdio transport (default — for Claude Desktop, pipes, etc.)
+# SSE transport via Makefile (recommended for local dev)
+make mcp
+
+# stdio transport (for Claude Desktop, pipes, etc.)
 .venv/bin/python mcp_server.py
 
-# SSE transport (for network clients)
+# SSE transport (manual)
 .venv/bin/python mcp_server.py --sse --port 9715
 ```
 
@@ -22,6 +25,7 @@ The server runs as a **separate process** alongside the FastAPI app. It imports 
 | `chat` | RAG-grounded Q&A using the configured LLM |
 | `get_document` | Read the full content of an indexed markdown file |
 | `list_documents` | List all indexed documents (optionally filter by status) |
+| `save_document` | Save a markdown file to a watched source directory |
 | `index_file` | Re-index a single markdown file |
 | `list_sources` | List configured source directories |
 | `stats` | Knowledge base statistics (document counts, index status, vector count) |
@@ -59,6 +63,20 @@ list_documents(status: "complete")
 ```
 
 Status filter is optional. Valid values: `complete`, `pending`, `error`.
+
+### save_document
+
+```
+save_document(
+  path: "captures/2026-03-15-meeting.md",
+  content: "# Meeting Notes\n\n...",
+  source: "",       # defaults to first configured source
+  overwrite: false
+)
+→ {status: "created", path, relative_path, source}
+```
+
+Path must be relative, must end in `.md`, and cannot contain `..` traversal. The file is written to disk and automatically picked up by the file watcher for indexing.
 
 ### index_file
 
@@ -120,6 +138,29 @@ Add to `~/.config/claude/claude_desktop_config.json`:
     }
   }
 }
+```
+
+## Docker
+
+The MCP server runs as a separate service in `compose.yml`:
+
+```bash
+make up          # starts both mdkb and mdkb-mcp
+make logs        # tails logs for both services
+```
+
+The `mdkb-mcp` service uses SSE transport on port 9715 (configurable via `MDKB_MCP_PORT`). It shares the same data volume and config as the main app.
+
+Connect from another service on the Docker network:
+
+```
+http://mdkb-mcp:9715/sse
+```
+
+Or from the host:
+
+```
+http://localhost:9715/sse
 ```
 
 ## Architecture
