@@ -3,6 +3,11 @@
 Exposes core MDKB capabilities — search, chat, document listing, and
 indexing — as MCP tools that any MCP-compatible client can call.
 
+Tools are auto-discovered from ``app/mcp/tools/``.  Each tool module
+exports a ``TOOL`` dict (with ``name`` and optional ``feature_flag``)
+and a ``handler`` callable.  Feature-gated tools are only registered
+when their flag is enabled in ``config/settings.yaml`` under ``mcp:``.
+
 Run as a separate process alongside the FastAPI app::
 
     python mcp_server.py              # stdio transport (default)
@@ -14,15 +19,14 @@ FastAPI HTTP layer.
 
 import argparse
 import logging
-import re
 import sys
 from contextlib import asynccontextmanager
-from pathlib import Path as P
 
 from mcp.server.fastmcp import FastMCP
 
 from app.config import Settings
 from app.ingestion.indexer import run_index
+from app.mcp.tools import register_tools
 from app.rag.retriever import Retriever
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
@@ -51,17 +55,13 @@ async def lifespan(server: FastMCP):
 
     retriever = Retriever(store, settings, tracking)
 
-    # Conditionally register write tools based on config
-    if settings.mcp_enabled("save_document"):
-        mcp.tool(name="save_document")(_save_document)
-        logger.info("MCP tool enabled: save_document")
-    else:
-        logger.info("MCP tool disabled: save_document (mcp.save_document: false)")
-
+    # Auto-discover and register MCP tools
+    registered = register_tools(mcp, settings)
     logger.info(
-        "MCP server ready (%d documents indexed)",
-        store.count,
+        "MCP server ready (%d documents indexed, %d tools: %s)",
+        store.count, len(registered), registered,
     )
+
     yield {
         "settings": settings,
         "store": store,
@@ -82,248 +82,6 @@ mcp = FastMCP(
     ),
     lifespan=lifespan,
 )
-
-
-# -- Tools -----------------------------------------------------------------
-
-@mcp.tool()
-def search(query: str, top_k: int = 5) -> dict:
-    """Search the knowledge base using hybrid vector + keyword search.
-
-    Returns ranked results with document content, source paths, and
-    relevance scores.
-    """
-    ctx = mcp.get_context()
-    retriever: Retriever = ctx.request_context.lifespan_context["retriever"]
-
-    results = retriever.search(query, top_k=top_k)
-    return {
-        "results": [
-            {
-                "content": r.document,
-                "source": r.metadata.get("source_path", ""),
-                "score": round(r.score, 4),
-            }
-            for r in results
-        ],
-        "total": len(results),
-    }
-
-
-@mcp.tool()
-def get_document(path: str) -> dict:
-    """Read the full content of an indexed markdown file by its path."""
-    ctx = mcp.get_context()
-    settings: Settings = ctx.request_context.lifespan_context["settings"]
-    tracking: TrackingDB = ctx.request_context.lifespan_context["tracking"]
-
-    resolved = str(P(path).resolve())
-
-    # Verify the file belongs to a configured source (trailing / prevents
-    # sibling-dir bypass, e.g. /docs matching /docs-private)
-    in_source = any(
-        resolved.startswith(str(P(s).resolve()) + "/")
-        for s in settings.sources
-    )
-    if not in_source:
-        raise ValueError("Path is not within a configured source directory")
-
-    record = tracking.get_file(resolved)
-    if not record:
-        raise ValueError("File is not indexed")
-
-    try:
-        content = P(resolved).read_text(encoding="utf-8")
-    except OSError as exc:
-        raise ValueError(f"Cannot read file: {exc}") from exc
-
-    return {
-        "path": resolved,
-        "content": content,
-        "status": record.get("status", "unknown"),
-        "chunk_count": record.get("chunk_count", 0),
-    }
-
-
-@mcp.tool()
-def list_documents(status: str = "") -> dict:
-    """List all indexed documents.
-
-    Optionally filter by status: 'complete', 'pending', 'error'.
-    """
-    ctx = mcp.get_context()
-    tracking: TrackingDB = ctx.request_context.lifespan_context["tracking"]
-
-    files = tracking.get_all_files()
-    if status:
-        files = [f for f in files if f.get("status") == status]
-
-    return {
-        "documents": [
-            {
-                "path": f["path"],
-                "status": f.get("status", "unknown"),
-                "chunk_count": f.get("chunk_count", 0),
-            }
-            for f in files
-        ],
-        "total": len(files),
-    }
-
-
-@mcp.tool()
-def index_file(path: str) -> dict:
-    """Re-index a single markdown file, updating the vector store."""
-    from app.ingestion.watcher import reindex_file
-
-    ctx = mcp.get_context()
-    deps = ctx.request_context.lifespan_context
-    settings: Settings = deps["settings"]
-    store: VectorStore = deps["store"]
-    tracking: TrackingDB = deps["tracking"]
-
-    resolved = str(P(path).resolve())
-
-    if not resolved.endswith(".md"):
-        raise ValueError("Only .md files can be indexed")
-
-    in_source = any(
-        resolved == str(P(s).resolve())
-        or resolved.startswith(str(P(s).resolve()) + "/")
-        for s in settings.sources
-    )
-    if not in_source:
-        raise ValueError("File is not within a configured source directory")
-
-    reindex_file(resolved, settings, store, tracking)
-
-    record = tracking.get_file(resolved)
-    return {
-        "status": record.get("status", "unknown") if record else "not_found",
-        "chunk_count": record.get("chunk_count", 0) if record else 0,
-        "path": resolved,
-    }
-
-
-@mcp.tool()
-def chat(message: str) -> dict:
-    """Ask a question and get an answer grounded in your knowledge base.
-
-    Uses RAG to find relevant documents and generate a contextual response
-    via the configured LLM.
-    """
-    from app.services.chat_service import chat_respond
-
-    ctx = mcp.get_context()
-    deps = ctx.request_context.lifespan_context
-    retriever: Retriever = deps["retriever"]
-    settings: Settings = deps["settings"]
-
-    # Collect the streaming response into a single string
-    response = ""
-    for chunk in chat_respond(message, retriever, settings):
-        response = chunk
-
-    return {"response": response}
-
-
-@mcp.tool()
-def list_sources() -> dict:
-    """List all configured source directories being watched."""
-    ctx = mcp.get_context()
-    settings: Settings = ctx.request_context.lifespan_context["settings"]
-    return {"sources": settings.sources}
-
-
-@mcp.tool()
-def stats() -> dict:
-    """Get knowledge base statistics — document counts, index status."""
-    ctx = mcp.get_context()
-    tracking: TrackingDB = ctx.request_context.lifespan_context["tracking"]
-    store: VectorStore = ctx.request_context.lifespan_context["store"]
-
-    return {
-        **tracking.get_stats(),
-        "vector_count": store.count,
-    }
-
-
-# Characters not allowed in filenames
-_UNSAFE_CHARS = re.compile(r'[<>:"|?*\x00-\x1f]')
-
-
-def _save_document(
-    path: str,
-    content: str,
-    source: str = "",
-    overwrite: bool = False,
-) -> dict:
-    """Save a markdown document to a watched source directory.
-
-    The file is written to disk and automatically indexed by the file
-    watcher.  Use this to store captures, notes, or any markdown content
-    in the knowledge base.
-
-    Args:
-        path: Relative path within the source directory (e.g.
-              'captures/2026-03-15-meeting.md').  Must end with .md.
-        content: Markdown content to write.
-        source: Source directory to write into (must be a configured
-                source).  Defaults to the first configured source.
-        overwrite: Allow overwriting an existing file (default False).
-    """
-    ctx = mcp.get_context()
-    settings: Settings = ctx.request_context.lifespan_context["settings"]
-
-    # -- Validate path --------------------------------------------------------
-    normalized = P(path)
-    if normalized.is_absolute():
-        raise ValueError("Path must be relative")
-    for part in normalized.parts:
-        if part == "..":
-            raise ValueError("Path traversal ('..') is not allowed")
-    if _UNSAFE_CHARS.search(path):
-        raise ValueError("Path contains invalid characters")
-    if not path.endswith(".md"):
-        raise ValueError("Only .md files are supported")
-
-    relative = str(normalized)
-
-    # -- Resolve target source directory --------------------------------------
-    sources = settings.sources
-    if not sources:
-        raise ValueError("No source directories configured")
-
-    if source:
-        resolved_source = str(P(source).resolve())
-        if resolved_source not in [str(P(s).resolve()) for s in sources]:
-            raise ValueError(f"'{source}' is not a configured source directory")
-        target_dir = P(resolved_source)
-    else:
-        target_dir = P(sources[0])
-
-    full_path = target_dir / relative
-
-    # -- Guard against accidental overwrite -----------------------------------
-    if full_path.exists() and not overwrite:
-        raise ValueError(
-            f"File already exists: {relative}. Set overwrite=true to replace."
-        )
-
-    # -- Write ----------------------------------------------------------------
-    try:
-        full_path.parent.mkdir(parents=True, exist_ok=True)
-        full_path.write_text(content, encoding="utf-8")
-    except OSError as exc:
-        raise ValueError(f"Failed to write file: {exc}") from exc
-
-    logger.info("Document saved via MCP: %s", full_path)
-    return {
-        "status": "created" if not overwrite else "written",
-        "path": str(full_path),
-        "relative_path": relative,
-        "source": str(target_dir),
-    }
 
 
 # -- Entry point -----------------------------------------------------------

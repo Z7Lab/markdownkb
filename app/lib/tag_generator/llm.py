@@ -163,7 +163,7 @@ def auto_tag_file_interactive(
 
     # If auto_apply, update the file
     if auto_apply:
-        from app.mcp.tag_generator import apply_tags_to_file
+        from app.lib.tag_generator import apply_tags_to_file
 
         apply_result = apply_tags_to_file(
             filepath,

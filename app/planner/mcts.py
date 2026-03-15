@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from app.config import Settings
-from app.mcp.filesystem import format_tree
+from app.lib.filesystem import format_tree
 from app.planner.nodes import PlanNode
 from app.planner.scoring import score_approach, extract_user_patterns
 from app.rag.llm import get_completion

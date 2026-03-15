@@ -181,4 +181,13 @@ The MCP server shares the same storage as the FastAPI app:
 
 On startup, the server initializes its own instances of `VectorStore`, `TrackingDB`, and `Retriever`. If the vector store is empty, it runs an initial index automatically.
 
+### Tool Auto-Discovery
+
+Tools are auto-discovered from `app/mcp/tools/`. Each tool module exports:
+
+- `TOOL` dict — with `name` (str) and optional `feature_flag` (str or None)
+- `handler` callable — the MCP tool function
+
+Feature-gated tools (where `feature_flag` is set) are only registered when enabled in `config/settings.yaml` under `mcp:`. To add a new MCP tool, create a new `.py` file in `app/mcp/tools/` following the existing pattern.
+
 > **Note**: The MCP server and FastAPI app can run simultaneously — SQLite uses WAL mode for safe concurrent reads. However, only one process should write to the vector store at a time to avoid conflicts.

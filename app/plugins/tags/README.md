@@ -69,4 +69,4 @@ On first startup with the tags plugin enabled, `on_startup` checks if TagDB is e
 
 - `app.tag_utils` — dispatcher hooks for core integration
 - `app.rag.retriever` — similar document lookup (AI generation only)
-- `app.mcp.tag_generator` — LLM-based tag generation and file modification (AI generation only)
+- `app.lib.tag_generator` — LLM-based tag generation and file modification (AI generation only)

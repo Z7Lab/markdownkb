@@ -59,8 +59,8 @@ ENV PYTHONDONTWRITEBYTECODE=1
 
 EXPOSE 9713 9715
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD python -c "import httpx; httpx.get('http://localhost:9713/api/health').raise_for_status()"
+# Health checks are defined per-service in compose.yml since this image
+# serves both the FastAPI app (9713) and the MCP server (9715).
 
 USER mdkb
 

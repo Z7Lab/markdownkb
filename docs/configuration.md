@@ -206,4 +206,4 @@ services:
 
 ## MCP Tool Configuration
 
-Each MCP tool has a default config in its source directory (`app/mcp/<tool>/config.yaml`). When you modify MCP settings via the Settings UI, overrides are saved to `config/mcp/<tool>.yaml` (created automatically on first save). The defaults in the source tree are never modified.
+Each library module has a default config in its source directory (`app/lib/<module>/config.yaml`). When you modify MCP settings via the Settings UI, overrides are saved to `config/mcp/<tool>.yaml` (created automatically on first save). The defaults in the source tree are never modified.

@@ -122,7 +122,7 @@ document.20260206_153045.backup.md  # Backup
 #### Restore from Backup
 
 ```python
-from app.mcp.tag_generator.generator import restore_from_backup
+from app.lib.tag_generator.generator import restore_from_backup
 
 restore_from_backup(
     backup_path="/path/to/document.20260206_153045.backup.md",
@@ -166,7 +166,7 @@ Other frontmatter (will be preserved):
 #### From Python Code
 
 ```python
-from app.mcp.tag_generator.llm import auto_tag_file_interactive
+from app.lib.tag_generator.llm import auto_tag_file_interactive
 from app.deps import get_retriever, get_settings
 
 # Generate tags (preview only)
@@ -194,7 +194,7 @@ if input("Apply? (y/n): ") == "y":
 #### Bulk Processing
 
 ```python
-from app.mcp.tag_generator.llm import bulk_tag_directory
+from app.lib.tag_generator.llm import bulk_tag_directory
 
 results = bulk_tag_directory(
     directory="./docs",
@@ -211,7 +211,7 @@ for r in results:
 
 ### Customization
 
-Edit the prompt in `app/mcp/tag_generator/llm.py` to change tag format, count, or style. Add custom validation in `app/mcp/tag_generator/generator.py`.
+Edit the prompt in `app/lib/tag_generator/llm.py` to change tag format, count, or style. Add custom validation in `app/lib/tag_generator/generator.py`.
 
 ### Troubleshooting
 
@@ -227,7 +227,7 @@ Edit the prompt in `app/mcp/tag_generator/llm.py` to change tag format, count, o
 
 | Module | Path | Description |
 |--------|------|-------------|
-| Filesystem handlers | `app/mcp/filesystem/handlers.py` | Directory listing, file reading, pattern search |
-| Terminal handlers | `app/mcp/terminal/handlers.py` | Safe command execution with allowlist |
-| Tag generator | `app/mcp/tag_generator/generator.py` | Frontmatter parsing, tag application, backups |
-| Tag LLM | `app/mcp/tag_generator/llm.py` | LLM-powered tag generation, bulk operations |
+| Filesystem handlers | `app/lib/filesystem/handlers.py` | Directory listing, file reading, pattern search |
+| Terminal handlers | `app/lib/terminal/handlers.py` | Safe command execution with allowlist |
+| Tag generator | `app/lib/tag_generator/generator.py` | Frontmatter parsing, tag application, backups |
+| Tag LLM | `app/lib/tag_generator/llm.py` | LLM-powered tag generation, bulk operations |

@@ -49,6 +49,12 @@ services:
       - anthropic_api_key
       - openai_api_key
       - venice_api_key
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('localhost',9715),timeout=5); s.close()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
 
 # Docker secrets — create files in ./secrets/ with one key per file.

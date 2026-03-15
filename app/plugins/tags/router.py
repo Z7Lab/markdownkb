@@ -236,7 +236,7 @@ def generate_tags(
     _: None = Depends(_check_ai_enabled),
 ):
     """Generate AI-powered tags for a markdown file."""
-    from app.mcp.tag_generator import auto_tag_file_interactive
+    from app.lib.tag_generator import auto_tag_file_interactive
 
     db = _require_tagdb(tagdb)
     try:
@@ -268,7 +268,7 @@ def apply_tags(
     __: None = Depends(_check_ai_enabled),
 ):
     """Apply specific tags to a markdown file's frontmatter and sync to TagDB."""
-    from app.mcp.tag_generator import apply_tags_to_file
+    from app.lib.tag_generator import apply_tags_to_file
 
     db = _require_tagdb(tagdb)
     try:
@@ -303,7 +303,7 @@ def bulk_tag(
     _: None = Depends(_check_ai_enabled),
 ):
     """Generate tags for multiple files in a directory using AI."""
-    from app.mcp.tag_generator import bulk_tag_directory
+    from app.lib.tag_generator import bulk_tag_directory
 
     db = _require_tagdb(tagdb)
     try:
