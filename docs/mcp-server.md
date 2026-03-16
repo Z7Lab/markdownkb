@@ -22,6 +22,7 @@ make mcp
 | Tool | Description |
 |------|-------------|
 | `search` | Hybrid vector + keyword search across indexed documents |
+| `search_documents` | Search and return full document content (deduplicated by file) |
 | `chat` | RAG-grounded Q&A using the configured LLM |
 | `get_document` | Read the full content of an indexed markdown file |
 | `list_documents` | List all indexed documents (optionally filter by status) |
@@ -36,6 +37,15 @@ make mcp
 search(query: "authentication flow", top_k: 5)
 → {results: [{content, source, score}, ...], total}
 ```
+
+### search_documents
+
+```
+search_documents(query: "authentication flow", top_k: 3, max_chars: 15000)
+→ {documents: [{path, title, content, score}, ...], total_chars}
+```
+
+Unlike `search` which returns individual chunks, this returns the **full content** of the top matching files (deduplicated by source path). Ideal for embedding complete documents into prompts. The `max_chars` budget prevents oversized responses — documents are included in score order until the budget is exhausted, with truncation if needed.
 
 ### chat
 
@@ -185,9 +195,11 @@ On startup, the server initializes its own instances of `VectorStore`, `Tracking
 
 Tools are auto-discovered from `app/mcp/tools/`. Each tool module exports:
 
-- `TOOL` dict — with `name` (str) and optional `feature_flag` (str or None)
+- `TOOL` dict — with `name` (str), optional `feature_flag` (str or None), and optional `write` (bool)
 - `handler` callable — the MCP tool function
 
-Feature-gated tools (where `feature_flag` is set) are only registered when enabled in `config/settings.yaml` under `mcp:`. To add a new MCP tool, create a new `.py` file in `app/mcp/tools/` following the existing pattern.
+Feature-gated tools (where `feature_flag` is set) are only registered when enabled in `config/settings.yaml` under `mcp:`. Tools marked `write: True` are also disabled when `mcp.read_only` is enabled — this provides a single switch to make the MCP server read-only regardless of individual tool flags.
+
+To add a new MCP tool, create a new `.py` file in `app/mcp/tools/` following the existing pattern.
 
 > **Note**: The MCP server and FastAPI app can run simultaneously — SQLite uses WAL mode for safe concurrent reads. However, only one process should write to the vector store at a time to avoid conflicts.

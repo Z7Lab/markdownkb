@@ -9,6 +9,7 @@ from app.storage.vectorstore import VectorStore
 TOOL = {
     "name": "index_file",
     "feature_flag": None,
+    "write": True,
 }
 
 _mcp = None  # Injected by register_tools()

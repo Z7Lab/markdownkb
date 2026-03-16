@@ -137,6 +137,9 @@ core:
 
 # MCP tool enable flags
 mcp:
+  read_only: true       # disable all write tools (save_document, index_file) regardless
+                        # of individual flags. Set to false only if you trust MCP clients
+                        # to write to your knowledge base.
   filesystem: false
   terminal: false
   save_document: false  # allow MCP clients to write markdown files

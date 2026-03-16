@@ -9,6 +9,7 @@ from app.config import Settings
 TOOL = {
     "name": "save_document",
     "feature_flag": "save_document",
+    "write": True,
 }
 
 _mcp = None  # Injected by register_tools()

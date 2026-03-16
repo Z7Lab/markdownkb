@@ -152,8 +152,10 @@ MCP tool enable flags.
 
 | Key | Default | Description |
 |-----|---------|-------------|
+| `mcp.read_only` | `true` | Disable all write tools (save_document, index_file) regardless of individual flags |
 | `mcp.filesystem` | `false` | MCP file browsing tool |
 | `mcp.terminal` | `false` | MCP terminal tool |
+| `mcp.save_document` | `false` | Allow MCP clients to write markdown files |
 
 ## Plugins
 
