@@ -57,13 +57,17 @@ Each immediate subdirectory of `path` is treated as a project. If any files matc
 
 ## Embeddings
 
-| Key | Default | Description |
-|-----|---------|-------------|
-| `embeddings.model` | `all-MiniLM-L6-v2` | Embedding model (ONNX, no PyTorch) |
-| `embeddings.chunk_size` | `512` | Max characters per chunk |
-| `embeddings.chunk_overlap` | `50` | Overlap between chunks |
+| Key | Code default | Recommended | Description |
+|-----|-------------|-------------|-------------|
+| `embeddings.model` | `all-MiniLM-L6-v2` | `bge-small-en-v1.5` | Embedding model (ONNX, no PyTorch) |
+| `embeddings.chunk_size` | `512` | `1500` | Max characters per chunk |
+| `embeddings.chunk_overlap` | `50` | `150` | Overlap between consecutive chunks |
+
+The code defaults (512/50) are conservative fallbacks. The recommended values (1500/150) are set in `settings.yaml.example` and optimized for `bge-small-en-v1.5` (1500 chars &asymp; 375 tokens, within the model's 512-token window). After changing chunk settings, re-index all files for the new values to take effect.
 
 Three embedding models are available: `all-MiniLM-L6-v2`, `all-MiniLM-L12-v2`, and `bge-small-en-v1.5`. Install and switch between them from the **Settings** tab. See [embedding-models.md](embedding-models.md) for details.
+
+For a detailed explanation of how chunking works — header splitting, paragraph boundaries, breadcrumbs, frontmatter extraction, and how to structure files for best search quality — see [chunking.md](chunking.md).
 
 ## LLM Providers
 

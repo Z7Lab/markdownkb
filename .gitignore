@@ -3,6 +3,7 @@
 scripts/internal/
 docs/internal/
 
+.claude/
 .venv/
 __pycache__/
 *.pyc
