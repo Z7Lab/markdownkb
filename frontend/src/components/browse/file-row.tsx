@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { basename, dirname } from "@/lib/utils"
+import { basename, dirname, utc } from "@/lib/utils"
 import { FileActions } from "./file-actions"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -163,9 +163,9 @@ export const FileRow = React.memo(function FileRow({
       <div className="px-2 py-2 text-center">
         {file.chunk_count}
       </div>
-      <div className="px-2 py-2 text-muted-foreground text-xs truncate" title={file.indexed_at || undefined}>
+      <div className="px-2 py-2 text-muted-foreground text-xs truncate" title={file.indexed_at ? new Date(utc(file.indexed_at)).toLocaleString() : undefined}>
         {file.indexed_at
-          ? new Date(file.indexed_at).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+          ? new Date(utc(file.indexed_at)).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
           : "—"}
       </div>
       <div className="px-2 py-2">

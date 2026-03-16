@@ -1,3 +1,4 @@
+import { utc } from "@/lib/utils"
 import { useSearch } from "@/hooks/use-search"
 import { useScopes } from "@/hooks/use-scopes"
 import { useTags } from "@/hooks/use-tags"
@@ -173,7 +174,7 @@ export function SearchTab() {
                   </Badge>
 
                   {/* Staleness indicator */}
-                  {createdAt && lastIndexedAt && lastIndexedAt > new Date(createdAt).getTime() / 1000 && (
+                  {createdAt && lastIndexedAt && lastIndexedAt > new Date(utc(createdAt)).getTime() / 1000 && (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Badge variant="outline" className="text-xs text-warning border-warning/50 cursor-help">
@@ -268,7 +269,7 @@ export function SearchTab() {
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
                         <span>
-                          {new Date(createdAt).toLocaleString()}
+                          {new Date(utc(createdAt)).toLocaleString()}
                         </span>
                       </div>
                     )}

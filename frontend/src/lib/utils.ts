@@ -5,8 +5,13 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/** Normalize a server timestamp (SQLite datetime without Z) to a proper UTC ISO string. */
+export function utc(ts: string): string {
+  return ts.includes("T") ? ts : `${ts.replace(" ", "T")}Z`
+}
+
 export function relativeTime(iso: string): string {
-  const normalized = iso.includes("T") ? iso : `${iso.replace(" ", "T")}Z`
+  const normalized = utc(iso)
   const ms = Date.now() - new Date(normalized).getTime()
   if (Number.isNaN(ms)) return ""
   const min = Math.floor(ms / 60000)

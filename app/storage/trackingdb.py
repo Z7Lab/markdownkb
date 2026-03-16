@@ -281,8 +281,10 @@ class TrackingDB:
             self._conn.execute(
                 """INSERT INTO indexed_files
                     (path, source_root, content_hash, file_size, mtime,
-                     chunk_count, status, include_rag, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                     chunk_count, status, include_rag, updated_at,
+                     indexed_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'),
+                        CASE WHEN ? = 'complete' THEN datetime('now') ELSE NULL END)
                 ON CONFLICT(path) DO UPDATE SET
                     source_root = excluded.source_root,
                     content_hash = excluded.content_hash,
@@ -299,7 +301,7 @@ class TrackingDB:
                     updated_at = datetime('now')
                 """,
                 (path, source_root, content_hash, file_size, mtime,
-                 chunk_count, status, include_rag),
+                 chunk_count, status, include_rag, status),
             )
             self._conn.commit()
 

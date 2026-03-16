@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { utc } from "@/lib/utils"
 import {
   Dialog,
   DialogContent,
@@ -97,7 +98,7 @@ export function SearchHistoryDialog({
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {new Date(version.created_at).toLocaleString()}
+                        {new Date(utc(version.created_at)).toLocaleString()}
                       </span>
                       {version.result_count != null && (
                         <span className="flex items-center gap-1">
