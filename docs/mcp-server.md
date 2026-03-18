@@ -19,34 +19,52 @@ make mcp
 
 ## Tools
 
-| Tool | Description |
-|------|-------------|
-| `search` | Hybrid vector + keyword search across indexed documents |
-| `search_documents` | Search and return full document content (deduplicated by file) |
-| `chat` | RAG-grounded Q&A using the configured LLM |
-| `get_document` | Read the full content of an indexed markdown file |
-| `list_documents` | List all indexed documents (optionally filter by status) |
-| `plan` | Generate an implementation plan using MCTS (saved to plan database) |
-| `save_document` | Save a markdown file to a watched source directory |
-| `index_file` | Re-index a single markdown file |
-| `list_sources` | List configured source directories |
-| `stats` | Knowledge base statistics (document counts, index status, vector count) |
+| Tool | Maps to | Plugin | Write | Description |
+|------|---------|--------|-------|-------------|
+| `health` | `app/routers/health` | core | | Server health, chunk count, active LLM provider |
+| `retrieve` | `app/rag/retriever` | core | | Hybrid vector + keyword search, returns chunks |
+| `retrieve_documents` | `app/rag/retriever` | core | | Search and return full document content (deduplicated by file) |
+| `enhance_query` | `app/services/query_service` | core | | Extract keywords and expand acronyms for better retrieval |
+| `chat` | `app/routers/chat` | core | | RAG-grounded Q&A using the configured LLM |
+| `get_file` | `app/routers/files` | core | | Read the full content of an indexed file |
+| `list_files` | `app/routers/files` | core | | List all indexed files (optionally filter by status) |
+| `list_threads` | `app/routers/threads` | core | | List recent chat threads |
+| `list_sources` | `app/routers/sources` | core | | List configured source directories |
+| `list_models` | `app/services/llm_service` | core | | List LLM providers and active model |
+| `list_scopes` | `app/storage/scopedb` | core | | List named scopes (folder + tag filter presets) |
+| `stats` | `app/routers/maintenance` | core | | Knowledge base statistics |
+| `deep_research` | `app/services/deep_research` | core | | Multi-angle MCTS research synthesis |
+| `index_file` | `app/ingestion/` | core | yes | Re-index a single markdown file |
+| `save_file` | `app/routers/files` | core | yes | Save a markdown file to a watched source directory |
+| `summarize` | `app/services/` | search | | Search and return an LLM-generated summary |
+| `plan` | `app/services/planner_service` | planner | | Generate an implementation plan using MCTS |
+| `list_tags` | `app/plugins/tags/tagdb` | tags | | List all tags with file counts, or tags for a specific file |
+| `generate_tags` | `app/lib/tag_generator/` | tags | yes | Generate tags for a file using AI |
+| `update_tags` | `app/plugins/tags/tagdb` | tags | yes | Set, add, or remove tags on a file |
+| `graph` | `app/services/graph_service` | graph | | Compute knowledge graph — nodes, edges, clusters |
+| `export_chat` | `app/storage/chatdb` | export | | Export chat conversations as markdown or JSON |
 
-### search
+**Gating rules:**
+- **core** tools are always registered (unless they're write tools and `mcp.read_only` is true)
+- **Plugin** tools require `plugins.<name>.enabled: true` in settings
+- **Write** tools are disabled when `mcp.read_only: true`, regardless of other flags
+- `save_file` has an additional feature flag: `mcp.save_document` must also be true
+
+### retrieve
 
 ```
-search(query: "authentication flow", top_k: 5)
+retrieve(query: "authentication flow", top_k: 5)
 → {results: [{content, source, score}, ...], total}
 ```
 
-### search_documents
+### retrieve_documents
 
 ```
-search_documents(query: "authentication flow", top_k: 3, max_chars: 15000)
+retrieve_documents(query: "authentication flow", top_k: 3, max_chars: 15000)
 → {documents: [{path, title, content, score}, ...], total_chars}
 ```
 
-Unlike `search` which returns individual chunks, this returns the **full content** of the top matching files (deduplicated by source path). Ideal for embedding complete documents into prompts. The `max_chars` budget prevents oversized responses — documents are included in score order until the budget is exhausted, with truncation if needed.
+Unlike `retrieve` which returns individual chunks, this returns the **full content** of the top matching files (deduplicated by source path). Ideal for embedding complete documents into prompts. The `max_chars` budget prevents oversized responses — documents are included in score order until the budget is exhausted, with truncation if needed.
 
 ### plan
 
@@ -66,28 +84,28 @@ chat(message: "How does the auth middleware work?")
 
 Uses the same RAG pipeline as the web UI chat — retrieves relevant chunks, builds a context prompt, and calls the active LLM provider.
 
-### get_document
+### get_file
 
 ```
-get_document(path: "/home/user/docs/auth.md")
+get_file(path: "/home/user/docs/auth.md")
 → {path, content, status, chunk_count}
 ```
 
 Only reads files within configured source directories. Returns an error for paths outside sources or unindexed files.
 
-### list_documents
+### list_files
 
 ```
-list_documents(status: "complete")
-→ {documents: [{path, status, chunk_count}, ...], total}
+list_files(status: "complete")
+→ {files: [{path, status, chunk_count}, ...], total}
 ```
 
 Status filter is optional. Valid values: `complete`, `pending`, `error`.
 
-### save_document
+### save_file
 
 ```
-save_document(
+save_file(
   path: "captures/2026-03-15-meeting.md",
   content: "# Meeting Notes\n\n...",
   source: "",       # defaults to first configured source
@@ -207,10 +225,14 @@ DNS rebinding protection is disabled so that containers (e.g. sandbox agents) ca
 
 Tools are auto-discovered from `app/mcp/tools/`. Each tool module exports:
 
-- `TOOL` dict — with `name` (str), optional `feature_flag` (str or None), and optional `write` (bool)
+- `TOOL` dict — with `name` (str), optional `feature_flag` (str or None), optional `requires_plugin` (str or None), and optional `write` (bool)
 - `handler` callable — the MCP tool function
 
-Feature-gated tools (where `feature_flag` is set) are only registered when enabled in `config/settings.yaml` under `mcp:`. Tools marked `write: True` are also disabled when `mcp.read_only` is enabled — this provides a single switch to make the MCP server read-only regardless of individual tool flags.
+Three gating mechanisms control whether a tool is registered:
+
+1. **`feature_flag`** — key under `mcp:` in settings. Tool disabled when the flag is `false`.
+2. **`requires_plugin`** — plugin name (e.g. `"planner"`). Tool disabled when `plugins.<name>.enabled` is `false`. This keeps MCP tools in sync with their corresponding plugins — disabling the planner plugin also disables the MCP `plan` tool.
+3. **`write: True`** — tool disabled when `mcp.read_only` is `true`, regardless of other flags.
 
 To add a new MCP tool, create a new `.py` file in `app/mcp/tools/` following the existing pattern.
 

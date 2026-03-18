@@ -1,4 +1,4 @@
-"""MCP tool: save a markdown document to the knowledge base."""
+"""MCP tool: save a markdown file to the knowledge base."""
 
 import logging
 import re
@@ -7,7 +7,7 @@ from pathlib import Path
 from app.config import Settings
 
 TOOL = {
-    "name": "save_document",
+    "name": "save_file",
     "feature_flag": "save_document",
     "write": True,
 }

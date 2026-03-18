@@ -32,6 +32,7 @@ from app.mcp.tools import register_tools
 from app.rag.retriever import Retriever
 from app.storage.chatdb import ChatDB
 from app.storage.plandb import PlanDB
+from app.storage.scopedb import ScopeDB
 from app.storage.searchdb import SearchDB
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
@@ -61,8 +62,15 @@ async def lifespan(server: FastMCP):
 
     retriever = Retriever(store, settings, tracking)
 
-    # Plan storage — shared with the web UI planner plugin
+    # Core databases
     plandb = PlanDB(settings.data_directory)
+    scopedb = ScopeDB(settings.data_directory)
+
+    tagdb = None
+    if settings.plugin_enabled("tags"):
+        from app.plugins.tags.tagdb import TagDB
+        tagdb = TagDB(settings.data_directory)
+        logger.info("TagDB initialized for MCP (tags plugin enabled)")
 
     # Optional history tracking — record MCP calls to the web UI sidebar DBs
     chatdb = None
@@ -85,6 +93,8 @@ async def lifespan(server: FastMCP):
         "tracking": tracking,
         "retriever": retriever,
         "plandb": plandb,
+        "scopedb": scopedb,
+        "tagdb": tagdb,
         "chatdb": chatdb,
         "searchdb": searchdb,
     }
@@ -93,6 +103,9 @@ async def lifespan(server: FastMCP):
         chatdb.close()
     if searchdb:
         searchdb.close()
+    if tagdb:
+        tagdb.close()
+    scopedb.close()
     plandb.close()
     tracking.close()
     logger.info("MCP server shutdown")

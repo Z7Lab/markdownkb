@@ -1,4 +1,4 @@
-"""MCP tool: read full content of an indexed markdown file."""
+"""MCP tool: read full content of an indexed file."""
 
 from pathlib import Path
 
@@ -6,7 +6,7 @@ from app.config import Settings
 from app.storage.trackingdb import TrackingDB
 
 TOOL = {
-    "name": "get_document",
+    "name": "get_file",
     "feature_flag": None,
 }
 

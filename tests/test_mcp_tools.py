@@ -1,4 +1,4 @@
-"""Tests for MCP tool discovery, read-only mode, and search_documents tool."""
+"""Tests for MCP tool discovery, read-only mode, and retrieve_documents tool."""
 
 import types
 from pathlib import Path
@@ -23,11 +23,34 @@ class TestToolDiscovery:
         tools = discover_tools(settings)
         names = [t["name"] for t in tools]
 
-        assert "search" in names
-        assert "get_document" in names
-        assert "list_documents" in names
-        assert "search_documents" in names
+        assert "retrieve" in names
+        assert "get_file" in names
+        assert "list_files" in names
+        assert "retrieve_documents" in names
         assert "plan" in names
+
+    def test_requires_plugin_disables_when_plugin_off(self):
+        from app.mcp.tools import discover_tools
+
+        settings = FakeSettings()
+        settings.set_plugin_enabled("planner", False)
+
+        tools = discover_tools(settings)
+        by_name = {t["name"]: t for t in tools}
+
+        assert by_name["plan"]["enabled"] is False
+        assert by_name["plan"]["requires_plugin"] == "planner"
+
+    def test_requires_plugin_enables_when_plugin_on(self):
+        from app.mcp.tools import discover_tools
+
+        settings = FakeSettings()
+        settings.set_plugin_enabled("planner", True)
+
+        tools = discover_tools(settings)
+        by_name = {t["name"]: t for t in tools}
+
+        assert by_name["plan"]["enabled"] is True
 
     def test_write_tools_marked(self):
         from app.mcp.tools import discover_tools
@@ -37,8 +60,8 @@ class TestToolDiscovery:
         by_name = {t["name"]: t for t in tools}
 
         assert by_name["index_file"]["write"] is True
-        assert by_name["save_document"]["write"] is True
-        assert by_name["search"]["write"] is False
+        assert by_name["save_file"]["write"] is True
+        assert by_name["retrieve"]["write"] is False
 
     def test_read_only_disables_write_tools(self):
         from app.mcp.tools import discover_tools
@@ -51,12 +74,12 @@ class TestToolDiscovery:
 
         # Write tools should be disabled
         assert by_name["index_file"]["enabled"] is False
-        assert by_name["save_document"]["enabled"] is False
+        assert by_name["save_file"]["enabled"] is False
 
         # Read tools should remain enabled
-        assert by_name["search"]["enabled"] is True
-        assert by_name["get_document"]["enabled"] is True
-        assert by_name["search_documents"]["enabled"] is True
+        assert by_name["retrieve"]["enabled"] is True
+        assert by_name["get_file"]["enabled"] is True
+        assert by_name["retrieve_documents"]["enabled"] is True
 
     def test_read_only_false_allows_write_tools(self):
         from app.mcp.tools import discover_tools
@@ -70,7 +93,7 @@ class TestToolDiscovery:
         by_name = {t["name"]: t for t in tools}
 
         assert by_name["index_file"]["enabled"] is True
-        assert by_name["save_document"]["enabled"] is True
+        assert by_name["save_file"]["enabled"] is True
 
     def test_feature_flag_still_disables_when_not_read_only(self):
         """save_document should be disabled by its own feature flag even when read_only is off."""
@@ -83,16 +106,16 @@ class TestToolDiscovery:
         tools = discover_tools(settings)
         by_name = {t["name"]: t for t in tools}
 
-        assert by_name["save_document"]["enabled"] is False
+        assert by_name["save_file"]["enabled"] is False
         assert by_name["index_file"]["enabled"] is True
 
 
 # ---------------------------------------------------------------------------
-# search_documents tool
+# retrieve_documents tool
 # ---------------------------------------------------------------------------
 
 class TestSearchDocuments:
-    """Tests for the search_documents MCP tool handler."""
+    """Tests for the retrieve_documents MCP tool handler."""
 
     def _make_context(self, retriever, tracking):
         """Build a fake MCP context matching what tools expect."""
@@ -126,7 +149,7 @@ class TestSearchDocuments:
             "chunk_count": 2,
         }
 
-        import app.mcp.tools.search_documents as mod
+        import app.mcp.tools.retrieve_documents as mod
 
         mod._mcp = self._make_context(retriever, tracking)
 
@@ -151,7 +174,7 @@ class TestSearchDocuments:
         tracking = MagicMock()
         tracking.get_file.return_value = {"path": str(doc), "status": "complete", "chunk_count": 2}
 
-        import app.mcp.tools.search_documents as mod
+        import app.mcp.tools.retrieve_documents as mod
 
         mod._mcp = self._make_context(retriever, tracking)
 
@@ -175,7 +198,7 @@ class TestSearchDocuments:
         tracking = MagicMock()
         tracking.get_file.side_effect = lambda p: {"path": p, "status": "complete", "chunk_count": 1}
 
-        import app.mcp.tools.search_documents as mod
+        import app.mcp.tools.retrieve_documents as mod
 
         mod._mcp = self._make_context(retriever, tracking)
 
@@ -196,7 +219,7 @@ class TestSearchDocuments:
         tracking = MagicMock()
         tracking.get_file.return_value = None  # Not tracked
 
-        import app.mcp.tools.search_documents as mod
+        import app.mcp.tools.retrieve_documents as mod
 
         mod._mcp = self._make_context(retriever, tracking)
 
@@ -209,7 +232,7 @@ class TestSearchDocuments:
 
         tracking = MagicMock()
 
-        import app.mcp.tools.search_documents as mod
+        import app.mcp.tools.retrieve_documents as mod
 
         mod._mcp = self._make_context(retriever, tracking)
 

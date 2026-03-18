@@ -6,6 +6,7 @@ from app.rag.retriever import Retriever
 TOOL = {
     "name": "plan",
     "feature_flag": None,
+    "requires_plugin": "planner",
 }
 
 _mcp = None  # Injected by register_tools()

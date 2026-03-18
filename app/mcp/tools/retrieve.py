@@ -1,10 +1,10 @@
-"""MCP tool: search the knowledge base."""
+"""MCP tool: retrieve from the knowledge base via hybrid search."""
 
 from app.mcp.history import record_search
 from app.rag.retriever import Retriever
 
 TOOL = {
-    "name": "search",
+    "name": "retrieve",
     "feature_flag": None,
 }
 
@@ -30,7 +30,7 @@ def handler(query: str, top_k: int = 5) -> dict:
         for r in results
     ]
 
-    record_search(ctx, query, formatted, tool_name="search")
+    record_search(ctx, query, formatted, tool_name="retrieve")
 
     return {
         "results": formatted,

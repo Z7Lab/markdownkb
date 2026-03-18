@@ -8,6 +8,8 @@ TOOL dict keys:
     name:          str  — MCP tool name (must be unique)
     feature_flag:  str | None — key under ``mcp:`` in settings.yaml.
                    ``None`` means always enabled (core tool).
+    requires_plugin: str | None — plugin name that must be enabled
+                   (checked via ``settings.plugin_enabled(name)``).
     write:         bool — if True, this tool performs writes and is
                    disabled when ``mcp.read_only`` is enabled.
 """
@@ -47,9 +49,12 @@ def discover_tools(settings: Any) -> list[dict[str, Any]]:
             continue
 
         flag = meta.get("feature_flag")
+        requires_plugin = meta.get("requires_plugin")
         is_write = meta.get("write", False)
         enabled = True
         if flag and not settings.mcp_enabled(flag):
+            enabled = False
+        if requires_plugin and not settings.plugin_enabled(requires_plugin):
             enabled = False
         if is_write and settings.mcp_enabled("read_only"):
             enabled = False
@@ -59,6 +64,7 @@ def discover_tools(settings: Any) -> list[dict[str, Any]]:
             "handler": handler,
             "module": mod,
             "feature_flag": flag,
+            "requires_plugin": requires_plugin,
             "write": is_write,
             "enabled": enabled,
         })
@@ -75,7 +81,9 @@ def register_tools(mcp_server: Any, settings: Any) -> list[str]:
 
     for tool in discover_tools(settings):
         if not tool["enabled"]:
-            if tool.get("write") and settings.mcp_enabled("read_only"):
+            if tool.get("requires_plugin") and not settings.plugin_enabled(tool["requires_plugin"]):
+                reason = f"plugin '{tool['requires_plugin']}' disabled"
+            elif tool.get("write") and settings.mcp_enabled("read_only"):
                 reason = "mcp.read_only: true"
             else:
                 reason = f"mcp.{tool['feature_flag']}: false"

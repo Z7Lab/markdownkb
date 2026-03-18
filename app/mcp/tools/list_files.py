@@ -1,9 +1,9 @@
-"""MCP tool: list all indexed documents."""
+"""MCP tool: list all indexed files."""
 
 from app.storage.trackingdb import TrackingDB
 
 TOOL = {
-    "name": "list_documents",
+    "name": "list_files",
     "feature_flag": None,
 }
 

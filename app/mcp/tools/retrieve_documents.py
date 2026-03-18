@@ -1,6 +1,6 @@
-"""MCP tool: search and return full document content.
+"""MCP tool: retrieve full document content.
 
-Unlike ``search`` which returns chunks, this returns complete document
+Unlike ``retrieve`` which returns chunks, this returns complete document
 content for the top matching files — ideal for embedding into prompts.
 """
 
@@ -11,7 +11,7 @@ from app.rag.retriever import Retriever
 from app.storage.trackingdb import TrackingDB
 
 TOOL = {
-    "name": "search_documents",
+    "name": "retrieve_documents",
     "feature_flag": None,
 }
 
@@ -81,7 +81,7 @@ def handler(query: str, top_k: int = 3, max_chars: int = 15000) -> dict:
             "score": round(score, 4),
         })
 
-    record_search(ctx, query, documents, tool_name="search_documents")
+    record_search(ctx, query, documents, tool_name="retrieve_documents")
 
     return {
         "documents": documents,

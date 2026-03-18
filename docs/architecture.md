@@ -56,12 +56,98 @@ mdkb is a chat-with-your-docs tool with a Python backend and React frontend. The
 
 ┌─────────────────────────────────────────────────────────┐
 │  MCP Server (mcp_server.py — separate process)          │
-│  Tools: search │ search_documents │ chat │ plan         │
-│    get_document │ list_documents │ index_file            │
-│    save_document │ list_sources │ stats                  │
+│  Core (22 tools):                                       │
+│    health │ retrieve │ retrieve_documents │ chat        │
+│    enhance_query │ deep_research │ get_file │ list_files│
+│    list_threads │ list_sources │ list_models            │
+│    list_scopes │ stats │ index_file │ save_file         │
+│  Plugin:                                                │
+│    summarize │ plan │ list_tags │ generate_tags         │
+│    update_tags │ graph │ export_chat                    │
 │  Transports: stdio │ SSE  │  read_only mode            │
 └─────────────────────────────────────────────────────────┘
 ```
+
+## Core Components
+
+Core is everything that loads regardless of plugin settings. Plugins add HTTP endpoints and UI features on top of core services.
+
+### Routers (`app/routers/` — always registered)
+
+| Router | Description |
+|--------|-------------|
+| `health` | Health check endpoint, SSE event stream for index progress |
+| `chat` | RAG chat with LLM, thread creation, streaming responses |
+| `threads` | List, rename, delete chat threads |
+| `files` | File browser, indexing controls, folder listing, tag display |
+| `settings` | Feature flags, system/retrieval prompts, retrieval config, plugin config |
+| `sources` | Source directory management, ignore patterns, project roots |
+| `llm` | LLM provider config, model listing, connection testing |
+| `maintenance` | DB stats, clear, compact, log streaming |
+| `embeddings` | Embedding model switching, download, status |
+| `scopes` | Named folder + tag filter presets |
+
+### Services (`app/services/`)
+
+| Service | Description |
+|---------|-------------|
+| `chat_service` | RAG response generation (retrieve → prompt → LLM → stream) |
+| `llm_service` | Provider health checks, model discovery, Ollama integration |
+| `query_service` | Query enhancement — keyword extraction, term expansion |
+| `planner_service` | MCTS planner orchestration (HTTP endpoint is in the planner plugin) |
+| `deep_research` | Multi-angle research synthesis using MCTS (consumed by search plugin) |
+| `graph_service` | Knowledge graph computation (HTTP endpoint is in the graph plugin) |
+
+Note: `planner_service` and `graph_service` live in core because they are reusable — the plugins just add the HTTP + UI layer on top.
+
+### Ingestion Pipeline (`app/ingestion/`)
+
+| Module | Description |
+|--------|-------------|
+| `scanner` | File discovery across source directories, respecting ignore patterns |
+| `parser` | Markdown splitting by headings, size-limited chunking, breadcrumbs, frontmatter |
+| `indexer` | Orchestrates scan → parse → embed → store pipeline |
+| `watcher` | Watchdog-based file change detection, incremental re-indexing |
+
+### Storage (`app/storage/`)
+
+| Store | File | Description |
+|-------|------|-------------|
+| VectorStore | `data/chromadb/` | ChromaDB vector embeddings for semantic search |
+| TrackingDB | `data/tracking.db` | File index state, hashes, RAG inclusion flags |
+| ChatDB | `data/chat.db` | Chat threads and messages |
+| SearchDB | `data/searches.db` | Search history, versions, AI summaries |
+| PlanDB | `data/plans.db` | Saved planner plans and metadata |
+| PresetsDB | `data/presets.db` | Named retrieval setting templates |
+| ScopeDB | `data/scopes.db` | Named scopes (folder + tag filters) |
+
+### RAG (`app/rag/`)
+
+| Module | Description |
+|--------|-------------|
+| `retriever` | Hybrid search — vector similarity + BM25 keyword matching, score fusion |
+| `llm` | LiteLLM interface, provider fallback chain, streaming |
+| `prompts` | System and user prompt templates for chat, summaries, query enhancement |
+
+### Shared Libraries (`app/lib/`)
+
+| Module | Description |
+|--------|-------------|
+| `filesystem` | File browsing utilities (directory tree formatting) |
+| `terminal` | Terminal command execution helpers |
+| `tag_generator` | Tag suggestion from content, LLM-based generation, frontmatter writing |
+
+### Infrastructure
+
+| Module | Description |
+|--------|-------------|
+| `app/auth.py` | API key middleware (`X-MDKB-Key` header) |
+| `app/config/` | Settings singleton, mixin-based config, YAML persistence |
+| `app/deps.py` | FastAPI dependency injection (Depends providers) |
+| `app/embeddings/` | ONNX embedding model registry, CPU inference |
+| `app/events.py` | IndexEventBus for real-time SSE notifications |
+| `app/main.py` | Application entry point, lifespan context manager |
+| `app/api.py` | App factory, router registration, plugin discovery |
 
 ## Request Lifecycle
 
