@@ -15,7 +15,7 @@ function displayTitle(t: Thread): string {
   return t.title || "New chat"
 }
 
-export function ThreadSidebar({
+export function ChatSidebar({
   threads,
   activeThreadId,
   scopes,

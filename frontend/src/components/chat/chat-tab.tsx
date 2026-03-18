@@ -6,7 +6,7 @@ import { useScopeTagFilter } from "@/hooks/use-scope-tag-filter";
 import { ChatControls } from "./chat-controls";
 import { ChatInput } from "./chat-input";
 import { ChatMessageList } from "./chat-message-list";
-import { ThreadSidebar } from "./thread-sidebar";
+import { ChatSidebar } from "./chat-sidebar";
 
 export function ChatTab() {
   const { scopes } = useScopes();
@@ -38,7 +38,7 @@ export function ChatTab() {
 
   return (
     <div className="flex flex-row h-full overflow-hidden">
-      <ThreadSidebar
+      <ChatSidebar
         threads={threads}
         activeThreadId={activeThreadId}
         scopes={scopes}
