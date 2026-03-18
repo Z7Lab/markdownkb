@@ -26,6 +26,7 @@ make mcp
 | `chat` | RAG-grounded Q&A using the configured LLM |
 | `get_document` | Read the full content of an indexed markdown file |
 | `list_documents` | List all indexed documents (optionally filter by status) |
+| `plan` | Generate an implementation plan using MCTS (saved to plan database) |
 | `save_document` | Save a markdown file to a watched source directory |
 | `index_file` | Re-index a single markdown file |
 | `list_sources` | List configured source directories |
@@ -46,6 +47,15 @@ search_documents(query: "authentication flow", top_k: 3, max_chars: 15000)
 ```
 
 Unlike `search` which returns individual chunks, this returns the **full content** of the top matching files (deduplicated by source path). Ideal for embedding complete documents into prompts. The `max_chars` budget prevents oversized responses — documents are included in score order until the budget is exhausted, with truncation if needed.
+
+### plan
+
+```
+plan(request: "Design a caching layer for the API", iterations: 3, n_approaches: 3, save: true)
+→ {plan: "...", approaches: [{content, score}, ...], plan_id: "abc123"}
+```
+
+Uses MCTS to explore multiple approaches grounded in your knowledge base, then synthesizes the best plan. Plans are saved to the plan database by default (visible in the Planner tab sidebar with a bot icon). Set `save: false` to skip persistence.
 
 ### chat
 

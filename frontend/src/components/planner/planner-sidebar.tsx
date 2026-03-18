@@ -1,9 +1,19 @@
 import { Button } from "@/components/ui/button"
 import { AppSidebar } from "@/components/ui/app-sidebar"
 import { SidebarItemList } from "@/components/ui/sidebar-item-list"
-import { Plus } from "lucide-react"
+import { Bot, Lightbulb, Plus } from "lucide-react"
 import type { SavedPlan, Scope } from "@/lib/types"
 import { ScopeTagFilter } from "@/components/scope-tag-filter"
+
+function isAgentPlan(p: SavedPlan): boolean {
+  return p.title?.startsWith("[agent]") ?? false
+}
+
+function displayLabel(p: SavedPlan): string {
+  const label = p.query || p.title
+  if (isAgentPlan(p)) return label.replace(/^\[agent\]\s*/, "")
+  return label
+}
 
 export function PlannerSidebar({
   plans,
@@ -60,9 +70,16 @@ export function PlannerSidebar({
         activeId={activePlanId}
         emptyMessage="No saved plans yet"
         deleteTitle="Delete plan?"
-        deleteDescription={(p) => `This will permanently delete "${p.query || p.title || "this plan"}".`}
-        getLabel={(p) => p.query || p.title}
+        deleteDescription={(p) => `This will permanently delete "${displayLabel(p) || "this plan"}".`}
+        getLabel={displayLabel}
         getTime={(p) => p.created_at}
+        renderIcon={(p) =>
+          isAgentPlan(p) ? (
+            <Bot className="h-3 w-3 shrink-0 text-muted-foreground" />
+          ) : (
+            <Lightbulb className="h-3 w-3 shrink-0 text-muted-foreground" />
+          )
+        }
         onSelect={(p) => onLoadPlan(p.id)}
         onRename={onRenamePlan}
         onDelete={onDeletePlan}

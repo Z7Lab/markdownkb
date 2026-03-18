@@ -56,9 +56,9 @@ mdkb is a chat-with-your-docs tool with a Python backend and React frontend. The
 
 ┌─────────────────────────────────────────────────────────┐
 │  MCP Server (mcp_server.py — separate process)          │
-│  Tools: search │ search_documents │ chat │ get_document │
-│    list_documents │ index_file │ save_document          │
-│    list_sources │ stats                                 │
+│  Tools: search │ search_documents │ chat │ plan         │
+│    get_document │ list_documents │ index_file            │
+│    save_document │ list_sources │ stats                  │
 │  Transports: stdio │ SSE  │  read_only mode            │
 └─────────────────────────────────────────────────────────┘
 ```

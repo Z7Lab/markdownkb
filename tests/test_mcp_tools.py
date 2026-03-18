@@ -27,6 +27,7 @@ class TestToolDiscovery:
         assert "get_document" in names
         assert "list_documents" in names
         assert "search_documents" in names
+        assert "plan" in names
 
     def test_write_tools_marked(self):
         from app.mcp.tools import discover_tools

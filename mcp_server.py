@@ -31,6 +31,7 @@ from app.ingestion.indexer import run_index
 from app.mcp.tools import register_tools
 from app.rag.retriever import Retriever
 from app.storage.chatdb import ChatDB
+from app.storage.plandb import PlanDB
 from app.storage.searchdb import SearchDB
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
@@ -60,6 +61,9 @@ async def lifespan(server: FastMCP):
 
     retriever = Retriever(store, settings, tracking)
 
+    # Plan storage — shared with the web UI planner plugin
+    plandb = PlanDB(settings.data_directory)
+
     # Optional history tracking — record MCP calls to the web UI sidebar DBs
     chatdb = None
     searchdb = None
@@ -80,6 +84,7 @@ async def lifespan(server: FastMCP):
         "store": store,
         "tracking": tracking,
         "retriever": retriever,
+        "plandb": plandb,
         "chatdb": chatdb,
         "searchdb": searchdb,
     }
@@ -88,6 +93,7 @@ async def lifespan(server: FastMCP):
         chatdb.close()
     if searchdb:
         searchdb.close()
+    plandb.close()
     tracking.close()
     logger.info("MCP server shutdown")
 
@@ -97,7 +103,7 @@ mcp = FastMCP(
     instructions=(
         "MDKB is a personal markdown knowledge base. Use the tools below to "
         "search indexed documents, retrieve full file contents, list indexed "
-        "files, and trigger re-indexing."
+        "files, generate implementation plans, and trigger re-indexing."
     ),
     lifespan=lifespan,
     transport_security=TransportSecuritySettings(
