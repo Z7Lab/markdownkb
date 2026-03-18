@@ -269,6 +269,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
       folder: folder,
       tag: tag,
       summary: version.summary,
+      source: null,
       result_paths: [],
       result_count: version.result_count,
       parent_id: version.parent_id,

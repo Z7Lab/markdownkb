@@ -30,6 +30,8 @@ from app.embeddings.registry import load_models
 from app.ingestion.indexer import run_index
 from app.mcp.tools import register_tools
 from app.rag.retriever import Retriever
+from app.storage.chatdb import ChatDB
+from app.storage.searchdb import SearchDB
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 
@@ -58,6 +60,14 @@ async def lifespan(server: FastMCP):
 
     retriever = Retriever(store, settings, tracking)
 
+    # Optional history tracking — record MCP calls to the web UI sidebar DBs
+    chatdb = None
+    searchdb = None
+    if settings.mcp_enabled("track_history"):
+        chatdb = ChatDB(settings.data_directory)
+        searchdb = SearchDB(settings.data_directory)
+        logger.info("MCP history tracking enabled (searches + chat threads)")
+
     # Auto-discover and register MCP tools
     registered = register_tools(mcp, settings)
     logger.info(
@@ -70,8 +80,14 @@ async def lifespan(server: FastMCP):
         "store": store,
         "tracking": tracking,
         "retriever": retriever,
+        "chatdb": chatdb,
+        "searchdb": searchdb,
     }
 
+    if chatdb:
+        chatdb.close()
+    if searchdb:
+        searchdb.close()
     tracking.close()
     logger.info("MCP server shutdown")
 

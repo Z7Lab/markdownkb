@@ -25,6 +25,7 @@ Docker secrets take highest priority, then environment variables, then `settings
 - Use `secrets/` for all API keys (Docker mounts them read-only at `/run/secrets/`).
 - Use `settings.yaml` for non-secret configuration — it's the canonical config file.
 - Use `.env` for machine-specific overrides (ports, Docker settings).
+- `.mcp.json` (gitignored) — local MCP client config for connecting to other MCP servers. Contains connection tokens, so never commit it.
 
 Settings changed via the **Settings** tab in the UI are saved back to `settings.yaml`.
 

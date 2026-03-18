@@ -43,6 +43,7 @@ export interface SavedSearch {
   folder: string | null
   tag: string | null
   summary: string | null
+  source: string | null
   result_paths: string[]
   result_count: number | null
   parent_id: string | null

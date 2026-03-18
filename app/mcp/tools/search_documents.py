@@ -6,6 +6,7 @@ content for the top matching files — ideal for embedding into prompts.
 
 from pathlib import Path
 
+from app.mcp.history import record_search
 from app.rag.retriever import Retriever
 from app.storage.trackingdb import TrackingDB
 
@@ -79,6 +80,8 @@ def handler(query: str, top_k: int = 3, max_chars: int = 15000) -> dict:
             "content": content,
             "score": round(score, 4),
         })
+
+    record_search(ctx, query, documents, tool_name="search_documents")
 
     return {
         "documents": documents,

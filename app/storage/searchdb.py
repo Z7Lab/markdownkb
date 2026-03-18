@@ -31,6 +31,7 @@ _MIGRATIONS: list[tuple[int, str, str]] = [
     (5, "add result_details column to searches", "ALTER TABLE searches ADD COLUMN result_details TEXT"),
     (6, "add result_data column to searches", "ALTER TABLE searches ADD COLUMN result_data TEXT"),
     (7, "add parent_id column to searches", "ALTER TABLE searches ADD COLUMN parent_id TEXT"),
+    (8, "add source column to searches", "ALTER TABLE searches ADD COLUMN source TEXT DEFAULT 'web'"),
 ]
 
 
@@ -83,6 +84,7 @@ class SearchDB:
         result_details: list[dict] | None = None,
         result_data: list[dict] | None = None,
         parent_id: str | None = None,
+        source: str = "web",
     ) -> str:
         """Save a new search with result metadata and full results.
 
@@ -90,6 +92,7 @@ class SearchDB:
             result_details: List of dicts with {path, score} for each result
             result_data: Full grouped results with snippets (preserves original view)
             parent_id: Root search ID linking re-queries into a version chain
+            source: Origin of the search — "web" (UI) or "agent" (MCP)
         """
         search_id = uuid.uuid4().hex[:12]
         result_paths_json = json.dumps(result_paths) if result_paths else None
@@ -98,9 +101,9 @@ class SearchDB:
         with self._lock:
             self._conn.execute(
                 """INSERT INTO searches
-                   (id, query, folder, tag, result_paths, result_count, result_details, result_data, parent_id)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (search_id, query, folder, tag, result_paths_json, result_count, result_details_json, result_data_json, parent_id),
+                   (id, query, folder, tag, result_paths, result_count, result_details, result_data, parent_id, source)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (search_id, query, folder, tag, result_paths_json, result_count, result_details_json, result_data_json, parent_id, source),
             )
             self._conn.commit()
         return search_id

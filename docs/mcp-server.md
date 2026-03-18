@@ -189,7 +189,9 @@ The MCP server shares the same storage as the FastAPI app:
 - **Tracking DB**: SQLite at `data/mdkb.db`
 - **Embeddings**: Same ONNX models, same embedding pipeline
 
-On startup, the server initializes its own instances of `VectorStore`, `TrackingDB`, and `Retriever`. If the vector store is empty, it runs an initial index automatically.
+On startup, the server loads embedding models (`load_models()`), initializes its own instances of `VectorStore`, `TrackingDB`, and `Retriever`, then auto-discovers and registers MCP tools. If the vector store is empty, it runs an initial index automatically.
+
+DNS rebinding protection is disabled so that containers (e.g. sandbox agents) can reach the MCP server via `host.docker.internal`.
 
 ### Tool Auto-Discovery
 

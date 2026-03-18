@@ -37,12 +37,12 @@ mdkb is a chat-with-your-docs tool with a Python backend and React frontend. The
 │  └──────────────────────────────────────────────────┘   │
 │                                                         │
 │  ┌──────────────────┐  ┌────────────────────────────┐   │
-│  │  Ingestion        │  │  Optional Modules          │   │
-│  │  scanner          │  │  MCP tools (filesystem,    │   │
-│  │  parser           │  │    terminal, tag generator) │   │
-│  │  watcher          │  │  MCTS planner              │   │
-│  │  indexer           │  │  Knowledge graph            │   │
-│  │                    │  │  Agent skills              │   │
+│  │  Ingestion        │  │  Shared Libraries (app/lib)│   │
+│  │  scanner          │  │  filesystem, terminal,     │   │
+│  │  parser           │  │  tag_generator             │   │
+│  │  watcher          │  ├────────────────────────────┤   │
+│  │  indexer           │  │  MCTS planner              │   │
+│  │                    │  │  Knowledge graph            │   │
 │  └──────────────────┘  └────────────────────────────┘   │
 │                                                         │
 │  ┌──────────────────┐  ┌────────────────────────────┐   │
@@ -56,9 +56,10 @@ mdkb is a chat-with-your-docs tool with a Python backend and React frontend. The
 
 ┌─────────────────────────────────────────────────────────┐
 │  MCP Server (mcp_server.py — separate process)          │
-│  Tools: search │ chat │ get_document │ list_documents   │
-│         index_file │ list_sources │ stats               │
-│  Transports: stdio │ SSE                                │
+│  Tools: search │ search_documents │ chat │ get_document │
+│    list_documents │ index_file │ save_document          │
+│    list_sources │ stats                                 │
+│  Transports: stdio │ SSE  │  read_only mode            │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -218,7 +219,7 @@ Current catalogs: `venice` (Venice.ai — 21 privacy-preserving chat models).
 Configuration is split into four sections in `config/settings.yaml`:
 
 - **`core:`** — behaviour toggles for built-in features (rag_chat, file_watcher, etc.)
-- **`mcp:`** — MCP tool enable flags (filesystem, terminal)
+- **`mcp:`** — MCP tool flags (read_only, save_document, filesystem, terminal)
 - **`plugins:`** — each plugin has `enabled` + config together (`plugins.<name>.enabled`)
 - **`services:`** — shared service config (deep_research iterations, etc.)
 

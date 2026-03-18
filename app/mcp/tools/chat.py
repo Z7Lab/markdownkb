@@ -1,6 +1,7 @@
 """MCP tool: RAG-powered chat with the knowledge base."""
 
 from app.config import Settings
+from app.mcp.history import record_chat
 from app.rag.retriever import Retriever
 
 TOOL = {
@@ -28,5 +29,7 @@ def handler(message: str) -> dict:
     response = ""
     for chunk in chat_respond(message, retriever, settings):
         response = chunk
+
+    record_chat(ctx, message, response)
 
     return {"response": response}

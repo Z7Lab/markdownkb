@@ -8,7 +8,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Pencil, Plus, Search, Trash2, FolderOpen, Tag } from "lucide-react"
+import { Bot, Pencil, Plus, Search, Trash2, FolderOpen, Tag } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -174,7 +174,11 @@ export function SearchSidebar({
               />
             ) : (
               <div className="flex items-center gap-1.5 mb-0.5">
-                <Search className="h-3 w-3 shrink-0 text-muted-foreground" />
+                {s.source === "agent" ? (
+                  <Bot className="h-3 w-3 shrink-0 text-muted-foreground" />
+                ) : (
+                  <Search className="h-3 w-3 shrink-0 text-muted-foreground" />
+                )}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <p

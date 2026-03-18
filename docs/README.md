@@ -9,5 +9,6 @@
 | [CLI](cli.md) | Command-line interface (index, search, add-source, stats) |
 | [Embedding Models](embedding-models.md) | Available models, switching, storage |
 | [Ollama Remote Setup](ollama-remote-setup.md) | Running Ollama on a separate machine |
+| [MCP Server](mcp-server.md) | Standalone MCP server — tools, transports, Docker setup |
 | [MCP Tools](mcp-tools.md) | File browsing, terminal, AI tag generation |
 | [Plugin Development](plugin-development.md) | Writing custom plugins (manifest, config, installation) |
