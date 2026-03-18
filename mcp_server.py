@@ -23,8 +23,10 @@ import sys
 from contextlib import asynccontextmanager
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 from app.config import Settings
+from app.embeddings.registry import load_models
 from app.ingestion.indexer import run_index
 from app.mcp.tools import register_tools
 from app.rag.retriever import Retriever
@@ -45,6 +47,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(server: FastMCP):
     """Set up MDKB services and expose them via the lifespan context."""
     settings = Settings.get()
+    load_models(settings.model_configs)
 
     store = VectorStore(settings.persist_directory, settings.collection_name)
     tracking = TrackingDB(settings.data_directory)
@@ -81,6 +84,9 @@ mcp = FastMCP(
         "files, and trigger re-indexing."
     ),
     lifespan=lifespan,
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=False,
+    ),
 )
 
 

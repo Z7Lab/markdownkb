@@ -4,6 +4,7 @@ scripts/internal/
 docs/internal/
 
 .claude/
+.mcp.json
 .venv/
 __pycache__/
 *.pyc
