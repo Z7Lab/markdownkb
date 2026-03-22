@@ -158,7 +158,7 @@ app/
 ├── embeddings/          # ONNX embedding (3 models, no PyTorch)
 ├── storage/             # ChromaDB vector store + SQLite (file tracking, chat, search)
 ├── rag/                 # LLM calls (LiteLLM), retrieval, prompts
-├── mcp/                 # Filesystem + terminal + tag generator tools (optional)
+├── mcp/                 # MCP server tool modules (tools/) + history tracking
 ├── planner/             # MCTS planning engine (optional)
 └── skills/              # Agent skills for plan review (optional)
 
