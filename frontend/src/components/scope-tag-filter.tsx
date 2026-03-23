@@ -90,28 +90,45 @@ export function ScopeTagFilter({
                   {noScopesSelected ? "All sources" : "Select all"}
                 </span>
               </label>
-              {scopes.map((s) => {
-                const hasFolders = s.folders.length > 0
-                const hasTags = s.tags.length > 0
-                return (
-                  <label
-                    key={s.id}
-                    className="flex items-center gap-2 px-1 py-1 rounded hover:bg-accent cursor-pointer text-xs"
-                  >
-                    <Checkbox
-                      checked={selectedScopeIds.has(s.id)}
-                      onCheckedChange={() => toggleScope(s.id)}
-                    />
-                    <span className="truncate flex-1">{s.name}</span>
-                    {hasFolders && (
-                      <FolderCog className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+              {(() => {
+                const folderScopes = scopes.filter(s => s.folders.length > 0 && s.tags.length === 0)
+                const tagScopes = scopes.filter(s => s.folders.length === 0 && s.tags.length > 0)
+                const mixedScopes = scopes.filter(s => s.folders.length > 0 && s.tags.length > 0)
+                const groups: { label: string; icon: typeof FolderCog; items: Scope[] }[] = []
+                if (folderScopes.length > 0) groups.push({ label: "Folder", icon: FolderCog, items: folderScopes })
+                if (tagScopes.length > 0) groups.push({ label: "Tag", icon: Tag, items: tagScopes })
+                if (mixedScopes.length > 0) groups.push({ label: "Mixed", icon: Layers, items: mixedScopes })
+                // If all scopes are the same type, skip the group header
+                const showHeaders = groups.length > 1
+                return groups.map((group) => (
+                  <div key={group.label}>
+                    {showHeaders && (
+                      <div className="flex items-center gap-1.5 px-1 pt-1.5 pb-0.5">
+                        <group.icon className="h-2.5 w-2.5 text-muted-foreground/60" />
+                        <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">{group.label}</span>
+                      </div>
                     )}
-                    {hasTags && (
-                      <Tag className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
-                    )}
-                  </label>
-                )
-              })}
+                    {group.items.map((s) => (
+                      <label
+                        key={s.id}
+                        className="flex items-center gap-2 px-1 py-1 rounded hover:bg-accent cursor-pointer text-xs"
+                      >
+                        <Checkbox
+                          checked={selectedScopeIds.has(s.id)}
+                          onCheckedChange={() => toggleScope(s.id)}
+                        />
+                        <span className="truncate flex-1">{s.name}</span>
+                        {!showHeaders && s.folders.length > 0 && (
+                          <FolderCog className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+                        )}
+                        {!showHeaders && s.tags.length > 0 && (
+                          <Tag className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                ))
+              })()}
             </div>
           )
         )}
@@ -130,7 +147,7 @@ export function ScopeTagFilter({
               <ChevronRight className="h-3 w-3 text-muted-foreground" />
             )}
             <Tag className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span className="text-xs font-medium text-muted-foreground">Tags</span>
+            <span className="text-xs font-medium text-muted-foreground">Markdown Tags</span>
             {selectedTags.size > 0 && (
               <Badge variant="secondary" className="text-[10px] h-4 px-1 ml-auto">
                 {selectedTags.size}
