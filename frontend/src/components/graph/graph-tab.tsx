@@ -148,14 +148,20 @@ export function GraphTab() {
     const set = new Set<string>()
 
     if (searchTerm) {
-      const lower = searchTerm.toLowerCase()
-      for (const node of graphData.nodes) {
-        const inLabel = node.label.toLowerCase().includes(lower)
-        const inTags = node.tags.some(t => t.toLowerCase().includes(lower))
-        const inHeadings = node.headings.some(h => h.toLowerCase().includes(lower))
-        const inWordCloud = Object.keys(node.word_cloud).some(t => t.toLowerCase().includes(lower))
-        if (inLabel || inTags || inHeadings || inWordCloud) {
-          set.add(node.id)
+      const terms = searchTerm.toLowerCase().split(/\s+/).filter(Boolean)
+      if (terms.length > 0) {
+        for (const node of graphData.nodes) {
+          const label = node.label.toLowerCase()
+          const tags = node.tags.map(t => t.toLowerCase())
+          const headings = node.headings.map(h => h.toLowerCase())
+          const wcKeys = Object.keys(node.word_cloud).map(t => t.toLowerCase())
+          const matchesAll = terms.every(term =>
+            label.includes(term)
+            || tags.some(t => t.includes(term))
+            || headings.some(h => h.includes(term))
+            || wcKeys.some(k => k.includes(term)),
+          )
+          if (matchesAll) set.add(node.id)
         }
       }
     } else if (selectedNodeId) {
@@ -194,9 +200,6 @@ export function GraphTab() {
       links,
     }
   }, [graphData, threshold])
-
-  // Reset initial fit when graph data changes
-  useEffect(() => { initialFitDone.current = false }, [graphData])
 
   // Configure d3 forces — spread slider scales all distances
   useEffect(() => {
