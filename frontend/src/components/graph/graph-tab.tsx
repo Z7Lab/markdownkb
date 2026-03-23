@@ -201,6 +201,21 @@ export function GraphTab() {
     }
   }, [graphData, threshold])
 
+  // Reset initial fit when the visible node/link set changes so the
+  // camera re-centers after threshold changes or new graph data.
+  const prevNodeCount = useRef(forceGraphData.nodes.length)
+  const prevLinkCount = useRef(forceGraphData.links.length)
+  useEffect(() => {
+    if (
+      forceGraphData.nodes.length !== prevNodeCount.current
+      || forceGraphData.links.length !== prevLinkCount.current
+    ) {
+      prevNodeCount.current = forceGraphData.nodes.length
+      prevLinkCount.current = forceGraphData.links.length
+      initialFitDone.current = false
+    }
+  }, [forceGraphData])
+
   // Configure d3 forces — spread slider scales all distances
   useEffect(() => {
     const fg = fgRef.current
