@@ -118,6 +118,7 @@ export function GraphTab() {
   const [spread, setSpread] = useState(100)
   const spreadInitialized = useRef(false)
   const initialFitDone = useRef(false)
+  const pendingRecenter = useRef(false)
 
   const {
     selectedScopeIds, selectedTags,
@@ -201,8 +202,11 @@ export function GraphTab() {
     }
   }, [graphData, threshold])
 
-  // Reset initial fit when the visible node/link set changes so the
-  // camera re-centers after threshold changes or new graph data.
+  // Re-center camera when the visible node/link set changes (threshold
+  // adjustment or new graph data).  We never reset initialFitDone — that
+  // would let unrelated re-renders (e.g. word-cloud clicks that change
+  // highlight callbacks) trigger an unwanted fit-to-screen via onEngineStop.
+  // Instead we set a pendingRecenter flag consumed by onEngineStop.
   const prevNodeCount = useRef(forceGraphData.nodes.length)
   const prevLinkCount = useRef(forceGraphData.links.length)
   useEffect(() => {
@@ -212,7 +216,9 @@ export function GraphTab() {
     ) {
       prevNodeCount.current = forceGraphData.nodes.length
       prevLinkCount.current = forceGraphData.links.length
-      initialFitDone.current = false
+      if (initialFitDone.current) {
+        pendingRecenter.current = true
+      }
     }
   }, [forceGraphData])
 
@@ -504,6 +510,9 @@ export function GraphTab() {
             onEngineStop={() => {
               if (!initialFitDone.current) {
                 initialFitDone.current = true
+                fgRef.current?.zoomToFit(400, 60)
+              } else if (pendingRecenter.current) {
+                pendingRecenter.current = false
                 fgRef.current?.zoomToFit(400, 60)
               }
             }}
