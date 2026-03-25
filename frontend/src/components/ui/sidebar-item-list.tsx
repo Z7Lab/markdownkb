@@ -7,7 +7,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Pencil, Trash2 } from "lucide-react"
+import { Pencil, Search, Trash2, X } from "lucide-react"
 import { cn, relativeTime } from "@/lib/utils"
 
 /** Minimal shape every sidebar item must satisfy. */
@@ -56,7 +56,14 @@ export function SidebarItemList<T extends SidebarItem>({
   const [pendingDelete, setPendingDelete] = useState<T | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState("")
+  const [filterText, setFilterText] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
+
+  const filteredItems = filterText
+    ? items.filter((item) =>
+        getLabel(item).toLowerCase().includes(filterText.toLowerCase()),
+      )
+    : items
 
   function startRename(item: T) {
     setEditingId(item.id)
@@ -78,8 +85,28 @@ export function SidebarItemList<T extends SidebarItem>({
 
   return (
     <>
+      {items.length > 1 && (
+        <div className="px-3 pt-3 relative">
+          <Search className="absolute left-5.5 top-5.5 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Filter by title..."
+            value={filterText}
+            onChange={(e) => setFilterText(e.target.value)}
+            className="h-8 text-xs pl-8 pr-8"
+          />
+          {filterText && (
+            <button
+              type="button"
+              onClick={() => setFilterText("")}
+              className="absolute right-5 top-5 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      )}
       <div className="p-3 space-y-1" role="list">
-        {items.map((item) => (
+        {filteredItems.map((item) => (
           <button
             key={item.id}
             type="button"
@@ -160,9 +187,9 @@ export function SidebarItemList<T extends SidebarItem>({
             </div>
           </button>
         ))}
-        {items.length === 0 && (
+        {filteredItems.length === 0 && (
           <p className="text-xs text-muted-foreground text-center py-4">
-            {emptyMessage}
+            {filterText ? "No matches" : emptyMessage}
           </p>
         )}
       </div>
