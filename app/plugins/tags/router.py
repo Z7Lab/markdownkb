@@ -246,8 +246,8 @@ def generate_tags(
         if result["status"] == "error":
             raise HTTPException(status_code=400, detail=result["message"])
         # Sync applied tags to TagDB
-        if req.auto_apply and result.get("status") == "applied":
-            applied = result.get("applied_tags", result.get("suggested_tags", []))
+        if req.auto_apply and result.get("applied"):
+            applied = result.get("final_tags", result.get("suggested_tags", []))
             if applied:
                 db.update_tags(req.file_path, ", ".join(applied))
         return result
@@ -314,8 +314,8 @@ def bulk_tag(
         # Sync applied tags to TagDB
         if req.auto_apply:
             for r in results:
-                if r.get("status") == "applied" and r.get("applied_tags"):
-                    db.update_tags(r["file_path"], ", ".join(r["applied_tags"]))
+                if r.get("applied") and r.get("final_tags"):
+                    db.update_tags(r["file"], ", ".join(r["final_tags"]))
         return {"processed": len(results), "results": results}
     except Exception as e:
         logger.error("Bulk tagging error: %s", e, exc_info=True)

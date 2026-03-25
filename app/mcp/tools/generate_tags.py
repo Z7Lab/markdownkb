@@ -42,10 +42,18 @@ def handler(
         auto_apply=auto_apply,
     )
 
+    # Sync applied tags to TagDB
+    applied = auto_apply and result.get("applied")
+    if applied:
+        tagdb = deps.get("tagdb")
+        final_tags = result.get("final_tags", result.get("suggested_tags", []))
+        if tagdb and final_tags:
+            tagdb.update_tags(file_path, ", ".join(final_tags))
+
     return {
         "status": result.get("status", "error"),
         "suggested_tags": result.get("suggested_tags", []),
         "existing_tags": result.get("existing_tags", []),
         "similar_tags": result.get("similar_tags", []),
-        "applied": auto_apply and result.get("status") == "success",
+        "applied": applied,
     }
