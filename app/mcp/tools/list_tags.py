@@ -31,7 +31,7 @@ def handler(file_path: str = "") -> dict:
         return {"file": file_path, "tags": tags}
 
     # All tags with counts
-    all_tags = tagdb.get_all_tags()
+    all_tags = tagdb.get_all_tags_with_counts()
     return {
         "tags": [
             {"name": t["tag"], "count": t["count"]}

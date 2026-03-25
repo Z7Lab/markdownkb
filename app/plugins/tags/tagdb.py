@@ -91,6 +91,20 @@ class TagDB:
                     tags.add(t)
         return sorted(tags)
 
+    def get_all_tags_with_counts(self) -> list[dict]:
+        """Return sorted list of all unique tags with file counts."""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT DISTINCT tags FROM file_tags WHERE tags != ''"
+            ).fetchall()
+        counts: dict[str, int] = {}
+        for row in rows:
+            for t in row["tags"].split(","):
+                t = t.strip()
+                if t:
+                    counts[t] = counts.get(t, 0) + 1
+        return [{"tag": t, "count": counts[t]} for t in sorted(counts)]
+
     def get_all_file_tags(self) -> list[dict]:
         """Return all (path, tags) rows for enriching file listings."""
         with self._lock:

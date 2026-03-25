@@ -6,6 +6,7 @@ from pathlib import Path
 from app.config import Settings
 from app.rag.llm import get_completion
 from app.rag.retriever import Retriever
+from app.services.chat_service import strip_thinking
 
 from .generator import (
     apply_tags_to_file,
@@ -101,6 +102,9 @@ def generate_tags_with_llm(
         # Call LLM
         messages = [{"role": "user", "content": prompt}]
         response = get_completion(messages, settings)
+
+        # Strip <think>...</think> reasoning blocks before parsing tags
+        response = strip_thinking(response)
 
         # Parse response
         suggested_tags_str = response.strip()
