@@ -11,8 +11,9 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Markdown } from "@/components/ui/markdown"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Pencil, Copy } from "lucide-react"
+import { Pencil, Copy, ChevronLeft, ChevronRight } from "lucide-react"
 import { toast } from "sonner"
+import { copyToClipboard } from "@/lib/utils"
 import { TagEditDialog } from "@/components/tags/tag-edit-dialog"
 import { FileActions } from "@/components/browse/file-actions"
 import { ConfirmDialog } from "./confirm-dialog"
@@ -21,6 +22,16 @@ interface ParsedContent {
   tags: string[]
   content: string
 }
+
+interface FileReadResponse {
+  content: string
+  page?: number
+  total_pages?: number
+  total_lines?: number
+  page_size?: number
+}
+
+const PAGE_SIZE = 5000
 
 function parseFrontmatter(raw: string): ParsedContent {
   const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/
@@ -77,25 +88,60 @@ export function FileViewerDialog({
   })
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [pendingUnindex, setPendingUnindex] = useState(false)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalLines, setTotalLines] = useState(0)
+  const [fileTags, setFileTags] = useState<string[]>([])
+  const [copyingAll, setCopyingAll] = useState(false)
+
+  const fetchPage = async (filePath: string, pageNum: number, signal?: AbortSignal) => {
+    setLoading(true)
+    try {
+      const res = await api.get<FileReadResponse>(
+        `/api/file?path=${encodeURIComponent(filePath)}&page=${pageNum}&page_size=${PAGE_SIZE}`,
+        signal,
+      )
+      if (signal?.aborted) return
+      setRawContent(res.content)
+      setPage(res.page ?? pageNum)
+      setTotalPages(res.total_pages ?? 1)
+      setTotalLines(res.total_lines ?? 0)
+      // Parse and persist tags from page 1 (frontmatter only appears on first page)
+      if (pageNum === 1 && filePath.endsWith(".md")) {
+        const { tags } = parseFrontmatter(res.content)
+        setFileTags(tags)
+      }
+    } catch (err) {
+      if (signal?.aborted) return
+      setRawContent("Error loading file.")
+      setTotalPages(1)
+      setTotalLines(0)
+    } finally {
+      if (!signal?.aborted) setLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (!path) return
-    setLoading(true)
     setRawContent("")
+    setPage(1)
+    setTotalPages(1)
+    setTotalLines(0)
+    setFileTags([])
 
-    // Load file content
-    api
-      .get<{ content: string }>(`/api/file?path=${encodeURIComponent(path)}`)
-      .then((res) => setRawContent(res.content))
-      .catch(() => setRawContent("Error loading file."))
-      .finally(() => setLoading(false))
+    const controller = new AbortController()
+
+    // Load file content (page 1)
+    fetchPage(path, 1, controller.signal)
 
     // Check file status (using lightweight endpoint)
     api
       .get<{ path: string; status: string; include_rag: number; chunk_count: number }>(
-        `/api/file/status?path=${encodeURIComponent(path)}`
+        `/api/file/status?path=${encodeURIComponent(path)}`,
+        controller.signal,
       )
       .then((res) => {
+        if (controller.signal.aborted) return
         setFileStatus({
           status: res.status,
           include_rag: res.include_rag,
@@ -103,12 +149,15 @@ export function FileViewerDialog({
         })
       })
       .catch(() => {
+        if (controller.signal.aborted) return
         setFileStatus({
           status: "not_indexed",
           include_rag: 1,
           chunk_count: 0,
         })
       })
+
+    return () => controller.abort()
   }, [path])
 
   /** Refresh file status from the lightweight status endpoint */
@@ -147,17 +196,15 @@ export function FileViewerDialog({
         create_backup: createBackup,
       })
 
-      // Reload content to reflect changes
-      const updated = await api.get<{ content: string }>(
-        `/api/file?path=${encodeURIComponent(path)}`
-      )
-      setRawContent(updated.content)
+      // Reload content to reflect changes (page 1 since tags may shift content)
+      // fetchPage will also update fileTags from the new page 1 content
+      await fetchPage(path, 1)
 
       toast.success(createBackup ? "Tags updated! Backup created." : "Tags updated successfully!")
 
       if (shouldReindex) {
         try {
-          await api.post("/api/files/reindex", { paths: [path] })
+          await api.post("/api/files/reindex", { path })
           toast.success("File reindexed successfully!")
           await refreshFileStatus()
         } catch (err) {
@@ -172,41 +219,65 @@ export function FileViewerDialog({
 
   const handleToggleRag = async (checked: boolean) => {
     await withAction(async () => {
-      await api.post("/api/files/toggle-rag", { path, include_rag: checked })
+      await api.put("/api/files/toggle-rag", { path, include: checked })
       setFileStatus((prev) => ({ ...prev, include_rag: checked ? 1 : 0 }))
       toast.success(checked ? "File included in RAG" : "File excluded from RAG")
     })
   }
 
   const handleIndexFile = () => withAction(async () => {
-    await api.post("/api/files/index", { paths: [path] })
+    await api.post("/api/files/index", { path })
     toast.success("File indexed successfully!")
   })
 
   const handleReindexFile = () => withAction(async () => {
-    await api.post("/api/files/reindex", { paths: [path] })
+    await api.post("/api/files/reindex", { path })
     toast.success("File reindexed successfully!")
   })
 
   const handleUnindexFile = async () => {
     setPendingUnindex(false)
     await withAction(async () => {
-      await api.post("/api/files/unindex", { paths: [path] })
+      await api.post("/api/files/unindex", { path })
       toast.success("File removed from index")
     })
   }
 
-  const { tags, content} = parseFrontmatter(rawContent)
   const filename = path?.split("/").pop() ?? ""
   const isMarkdown = filename.endsWith(".md")
+  // Only strip frontmatter on page 1 of markdown files; otherwise show raw content
+  const { content } = (page === 1 && isMarkdown) ? parseFrontmatter(rawContent) : { content: rawContent }
+  const tags = fileTags
 
   const handleCopyPath = async () => {
     if (!path) return
-    try {
-      await navigator.clipboard.writeText(path)
+    const ok = await copyToClipboard(path)
+    if (ok) {
       toast.success("File path copied to clipboard")
-    } catch {
+    } else {
       toast.error("Failed to copy — clipboard access denied")
+    }
+  }
+
+  const handleCopyContent = async () => {
+    if (!path) return
+    setCopyingAll(true)
+    try {
+      // Fetch full file content (no pagination) for copying
+      const res = await api.get<FileReadResponse>(
+        `/api/file?path=${encodeURIComponent(path)}`
+      )
+      const fullContent = isMarkdown ? parseFrontmatter(res.content).content : res.content
+      const ok = await copyToClipboard(fullContent)
+      if (ok) {
+        toast.success("File content copied to clipboard")
+      } else {
+        toast.error("Failed to copy — clipboard access denied")
+      }
+    } catch {
+      toast.error("Failed to load file content for copying")
+    } finally {
+      setCopyingAll(false)
     }
   }
 
@@ -287,7 +358,45 @@ export function FileViewerDialog({
               <Markdown>{content}</Markdown>
             )}
           </ScrollArea>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="flex items-center justify-between sm:justify-between">
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCopyContent}
+                disabled={loading || copyingAll || !content}
+              >
+                <Copy className="h-3.5 w-3.5 mr-1.5" />
+                {copyingAll ? "Copying..." : "Copy Content"}
+              </Button>
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  disabled={loading || page <= 1}
+                  onClick={() => path && fetchPage(path, page - 1)}
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm text-muted-foreground whitespace-nowrap">
+                  Page {page} of {totalPages} ({totalLines.toLocaleString()} lines)
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  disabled={loading || page >= totalPages}
+                  onClick={() => path && fetchPage(path, page + 1)}
+                  aria-label="Next page"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
             <AlertDialogCancel>Close</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>

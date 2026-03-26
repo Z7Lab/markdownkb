@@ -2,7 +2,8 @@
 chromadb>=0.4.22,<2
 onnxruntime>=1.17.0,<2
 tokenizers>=0.15.0,<1
-litellm>=1.30.0,<1.82.7  # pin: 1.82.7-1.82.8 compromised (supply chain attack 2026-03-24)
+anthropic>=0.40.0,<1
+openai>=1.50.0,<2
 pyyaml>=6.0.1,<7
 python-frontmatter>=1.1.0,<2
 

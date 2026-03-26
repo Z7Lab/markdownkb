@@ -1,9 +1,10 @@
-"""LLM abstraction layer using LiteLLM with provider fallback chain."""
+"""LLM abstraction layer with direct provider SDK calls and fallback chain."""
 
 import logging
 from typing import Generator
 
-import litellm
+import anthropic
+import openai
 
 from app.config import Settings
 
@@ -42,6 +43,110 @@ def _usable_providers(settings: Settings) -> list[dict]:
     return usable
 
 
+def _parse_model(model_string: str) -> tuple[str, str]:
+    """Parse 'provider/model' string into (provider_type, model_name).
+
+    Returns provider_type as one of: 'anthropic', 'openai', 'ollama', or
+    the raw prefix for other OpenAI-compatible providers.
+    """
+    if "/" in model_string:
+        prefix, model_name = model_string.split("/", 1)
+        return prefix.lower(), model_name
+    return "openai", model_string
+
+
+def _extract_system_message(messages: list[dict]) -> tuple[str | None, list[dict]]:
+    """Extract system message from messages list for Anthropic API.
+
+    Returns (system_text, remaining_messages).
+    """
+    system_text = None
+    remaining = []
+    for msg in messages:
+        if msg.get("role") == "system":
+            system_text = msg.get("content", "")
+        else:
+            remaining.append(msg)
+    return system_text, remaining
+
+
+def _call_anthropic(
+    model_name: str,
+    messages: list[dict],
+    api_key: str,
+    temperature: float,
+    max_tokens: int,
+    stream: bool,
+) -> object:
+    """Call Anthropic Messages API."""
+    client = anthropic.Anthropic(api_key=api_key)
+    system_text, filtered_messages = _extract_system_message(messages)
+
+    kwargs: dict = {
+        "model": model_name,
+        "messages": filtered_messages,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+    }
+    if system_text:
+        kwargs["system"] = system_text
+
+    if stream:
+        return client.messages.create(**kwargs, stream=True)
+    return client.messages.create(**kwargs)
+
+
+def _call_openai(
+    model_name: str,
+    messages: list[dict],
+    api_key: str | None,
+    api_base: str | None,
+    temperature: float,
+    max_tokens: int,
+    stream: bool,
+    num_ctx: int | None = None,
+) -> object:
+    """Call OpenAI-compatible API (OpenAI, Ollama, Venice, etc.)."""
+    client_kwargs: dict = {}
+    if api_key:
+        client_kwargs["api_key"] = api_key
+    else:
+        # Ollama and local providers don't need a real key
+        client_kwargs["api_key"] = "ollama"
+    if api_base:
+        client_kwargs["base_url"] = api_base
+
+    client = openai.OpenAI(**client_kwargs)
+
+    create_kwargs: dict = {
+        "model": model_name,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "stream": stream,
+    }
+    if num_ctx is not None:
+        # Ollama supports num_ctx as an extra body parameter
+        create_kwargs["extra_body"] = {"num_ctx": num_ctx}
+
+    return client.chat.completions.create(**create_kwargs)
+
+
+def _stream_anthropic(response) -> Generator:
+    """Yield content chunks from an Anthropic streaming response."""
+    with response as stream:
+        for event in stream:
+            if event.type == "content_block_delta" and hasattr(event.delta, "text"):
+                yield event.delta.text
+
+
+def _stream_openai(response) -> Generator:
+    """Yield content chunks from an OpenAI streaming response."""
+    for chunk in response:
+        if chunk.choices and chunk.choices[0].delta.content:
+            yield chunk.choices[0].delta.content
+
+
 def get_completion(
     messages: list[dict],
     settings: Settings | None = None,
@@ -60,44 +165,74 @@ def get_completion(
     last_error = None
     for provider in providers:
         model = provider.get("model", "")
-        # Convert empty strings to None so LiteLLM doesn't send
-        # blank api_key/api_base headers (causes auth failures).
         api_key = provider.get("api_key", "") or None
         api_base = provider.get("api_base", "") or None
 
-        kwargs = {
-            "model": model,
-            "messages": messages,
-            "temperature": settings.llm_temperature,
-            "max_tokens": settings.llm_max_tokens,
-            "stream": stream,
-        }
-        if api_key:
-            kwargs["api_key"] = api_key
-        if api_base:
-            kwargs["api_base"] = api_base
-        if settings.llm_num_ctx and "ollama" in provider.get("name", "").lower():
-            kwargs["num_ctx"] = settings.llm_num_ctx
+        provider_type, model_name = _parse_model(model)
+        is_ollama = "ollama" in provider.get("name", "").lower() or provider_type == "ollama"
+
+        # Ollama exposes an OpenAI-compatible API at /v1
+        if is_ollama and api_base and not api_base.rstrip("/").endswith("/v1"):
+            api_base = api_base.rstrip("/") + "/v1"
+
+        num_ctx = settings.llm_num_ctx if is_ollama else None
 
         try:
             logger.info(
                 "LLM request: provider=%s model=%s tokens=%d temp=%.2f",
                 provider.get("name"), model, settings.llm_max_tokens, settings.llm_temperature,
             )
-            response = litellm.completion(**kwargs)
 
-            if stream:
-                return _stream_response(response)
-
-            content = response.choices[0].message.content
-            usage = getattr(response, "usage", None)
-            if usage:
-                logger.info(
-                    "LLM response: model=%s prompt_tokens=%s completion_tokens=%s",
-                    model, usage.prompt_tokens, usage.completion_tokens,
+            if provider_type == "anthropic":
+                response = _call_anthropic(
+                    model_name=model_name,
+                    messages=messages,
+                    api_key=api_key or "",
+                    temperature=settings.llm_temperature,
+                    max_tokens=settings.llm_max_tokens,
+                    stream=stream,
                 )
+
+                if stream:
+                    return _stream_anthropic(response)
+
+                # Anthropic response: response.content[0].text
+                content = response.content[0].text if response.content else None
+                usage = response.usage
+                if usage:
+                    logger.info(
+                        "LLM response: model=%s prompt_tokens=%s completion_tokens=%s",
+                        model, usage.input_tokens, usage.output_tokens,
+                    )
+                else:
+                    logger.info("LLM response: model=%s (no usage data)", model)
+
             else:
-                logger.info("LLM response: model=%s (no usage data)", model)
+                # OpenAI, Ollama, and all OpenAI-compatible providers
+                response = _call_openai(
+                    model_name=model_name,
+                    messages=messages,
+                    api_key=api_key,
+                    api_base=api_base,
+                    temperature=settings.llm_temperature,
+                    max_tokens=settings.llm_max_tokens,
+                    stream=stream,
+                    num_ctx=num_ctx,
+                )
+
+                if stream:
+                    return _stream_openai(response)
+
+                content = response.choices[0].message.content
+                usage = getattr(response, "usage", None)
+                if usage:
+                    logger.info(
+                        "LLM response: model=%s prompt_tokens=%s completion_tokens=%s",
+                        model, usage.prompt_tokens, usage.completion_tokens,
+                    )
+                else:
+                    logger.info("LLM response: model=%s (no usage data)", model)
+
             if content is None:
                 logger.warning("LLM returned None content for model %s — trying next provider", model)
                 last_error = RuntimeError(f"LLM returned None content for model {model}")
@@ -105,10 +240,14 @@ def get_completion(
             return content
 
         except (
-            litellm.APIError,
-            litellm.APIConnectionError,
-            litellm.AuthenticationError,
-            litellm.Timeout,
+            anthropic.APIError,
+            anthropic.APIConnectionError,
+            anthropic.AuthenticationError,
+            anthropic.APITimeoutError,
+            openai.APIError,
+            openai.APIConnectionError,
+            openai.AuthenticationError,
+            openai.APITimeoutError,
             RuntimeError,
             OSError,
             ValueError,
@@ -123,13 +262,6 @@ def get_completion(
     raise RuntimeError(
         f"All LLM providers failed. Last error: {last_error}"
     )
-
-
-def _stream_response(response) -> Generator:
-    """Yield content chunks from a streaming LLM response."""
-    for chunk in response:
-        if chunk.choices and chunk.choices[0].delta.content:
-            yield chunk.choices[0].delta.content
 
 
 def get_streaming_completion(

@@ -171,9 +171,15 @@ def prune_missing_files(
 def read_file(
     request: Request,
     path: str,
+    page: int | None = Query(None, ge=1, description="Page number (1-based)"),
+    page_size: int = Query(5000, ge=100, le=50000, description="Lines per page"),
     settings: Settings = Depends(get_settings),
 ):
-    """Read file content, validating path is within configured sources."""
+    """Read file content, validating path is within configured sources.
+
+    Supports optional pagination via ``page`` and ``page_size`` (in lines).
+    When ``page`` is omitted the full content is returned.
+    """
     p = Path(path).resolve()
     allowed = False
     for source in settings.sources:
@@ -188,7 +194,7 @@ def read_file(
         logger.warning("Access denied: %s is outside configured sources", p)
         raise HTTPException(
             status_code=403,
-            detail=f"Access denied: path is outside configured sources",
+            detail="Access denied: path is outside configured sources",
         )
     if not p.exists():
         raise HTTPException(
@@ -200,13 +206,35 @@ def read_file(
             encoding="utf-8",
             errors="replace",
         )
-        return {"path": str(p), "content": content}
     except OSError as e:
         logger.error("Failed to read file %s: %s", p, e)
         raise HTTPException(
             status_code=500,
             detail="Failed to read file",
         ) from e
+
+    if page is not None:
+        lines = content.splitlines(keepends=True)
+        total_lines = len(lines)
+        total_pages = max(1, (total_lines + page_size - 1) // page_size)
+        if page > total_pages:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Page {page} not found (file has {total_pages} page(s))",
+            )
+        start = (page - 1) * page_size
+        end = start + page_size
+        content = "".join(lines[start:end])
+        return {
+            "path": str(p),
+            "content": content,
+            "page": page,
+            "total_pages": total_pages,
+            "total_lines": total_lines,
+            "page_size": page_size,
+        }
+
+    return {"path": str(p), "content": content}
 
 
 @router.put("/files/toggle-rag")

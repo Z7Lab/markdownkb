@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
+import { copyToClipboard } from "@/lib/utils"
 import { Copy, ScrollText, Trash2 } from "lucide-react"
 import type { LogEntry } from "@/lib/types"
 
@@ -62,20 +63,11 @@ export function LoggingPanel({ logLevel, onSetLogLevel }: LoggingPanelProps) {
 
   const handleCopy = async () => {
     const text = entries.map((e) => e.message).join("\n")
-    try {
-      await navigator.clipboard.writeText(text)
+    const ok = await copyToClipboard(text)
+    if (ok) {
       toast.success("Logs copied to clipboard")
-    } catch {
-      // Fallback for non-secure contexts (e.g. accessing via LAN IP)
-      const textarea = document.createElement("textarea")
-      textarea.value = text
-      textarea.style.position = "fixed"
-      textarea.style.opacity = "0"
-      document.body.appendChild(textarea)
-      textarea.select()
-      document.execCommand("copy")
-      document.body.removeChild(textarea)
-      toast.success("Logs copied to clipboard")
+    } else {
+      toast.error("Failed to copy logs")
     }
   }
 

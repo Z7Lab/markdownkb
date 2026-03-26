@@ -118,7 +118,7 @@ def get_model_info(model_id: str) -> dict | None:
                 "supports_response_schema": p["response_schema"],
                 "supports_pdf_input": False,
                 "privacy": p["privacy"],
-                "litellm_provider": "venice",
+                "provider": "venice",
                 "mode": "chat",
             }
     return None

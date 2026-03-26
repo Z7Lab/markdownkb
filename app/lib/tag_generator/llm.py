@@ -176,7 +176,7 @@ def auto_tag_file_interactive(
             create_backup=True
         )
 
-        result["applied"] = True
+        result["applied"] = apply_result.get("status") == "success"
         result["backup_path"] = apply_result.get("backup_path", "")
         result["final_tags"] = apply_result.get("new_tags", [])
     else:

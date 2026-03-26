@@ -108,7 +108,7 @@ def get_model_info(model_id: str, api_base: str = "") -> dict | None:
         "supports_function_calling": False,
         "supports_response_schema": False,
         "supports_pdf_input": False,
-        "litellm_provider": "ollama",
+        "provider": "ollama",
         "mode": "chat",
         "ollama_details": {
             "family": details.get("family"),

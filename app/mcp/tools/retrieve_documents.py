@@ -18,7 +18,8 @@ TOOL = {
 _mcp = None  # Injected by register_tools()
 
 
-def handler(query: str, top_k: int = 3, max_chars: int = 15000) -> dict:
+def handler(query: str, top_k: int = 3, max_chars: int = 15000,
+            tags: list[str] | None = None) -> dict:
     """Search and return full documents matching a query.
 
     Searches the knowledge base for relevant chunks, deduplicates by
@@ -32,14 +33,26 @@ def handler(query: str, top_k: int = 3, max_chars: int = 15000) -> dict:
         max_chars: Character budget for total returned content (default
                    15000).  Documents are included in score order until
                    the budget is exhausted.
+        tags: Optional list of tags to filter by (OR logic — documents
+              matching any tag are included).  Use the list_tags tool
+              to discover available tags.
     """
     ctx = _mcp.get_context()
     deps = ctx.request_context.lifespan_context
     retriever: Retriever = deps["retriever"]
     tracking: TrackingDB = deps["tracking"]
 
+    # Resolve tags to allowed file paths via TagDB
+    allowed_paths = None
+    if tags:
+        tagdb = deps.get("tagdb")
+        if tagdb is not None:
+            allowed_paths = tagdb.get_paths_for_tags(set(tags))
+            if not allowed_paths:
+                return {"documents": [], "total_chars": 0, "tags_filter": tags}
+
     # 1. Search chunks (fetch more than top_k to improve dedup coverage)
-    results = retriever.search(query, top_k=top_k * 5)
+    results = retriever.search(query, top_k=top_k * 5, allowed_paths=allowed_paths)
 
     # 2. Deduplicate by source path, keeping the highest score per file
     best_by_file: dict[str, float] = {}
@@ -83,7 +96,10 @@ def handler(query: str, top_k: int = 3, max_chars: int = 15000) -> dict:
 
     record_search(ctx, query, documents, tool_name="retrieve_documents")
 
-    return {
+    response = {
         "documents": documents,
         "total_chars": total_chars,
     }
+    if tags:
+        response["tags_filter"] = tags
+    return response

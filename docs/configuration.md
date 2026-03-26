@@ -80,13 +80,13 @@ For a detailed explanation of how chunking works — header splitting, paragraph
 | `llm.max_tokens` | `2048` | Max output tokens |
 | `llm.num_ctx` | (unset) | Ollama context window override. Leave unset for the model's built-in default. Set higher (e.g. `32768`) to use more context for longer documents. Only applies to Ollama providers. |
 
-Model names use [LiteLLM format](https://docs.litellm.ai/docs/providers): `provider/model` (e.g. `ollama/qwen3:8b`, `anthropic/claude-3-5-sonnet-20241022`). For OpenAI-compatible APIs (Venice, Together, etc.) use `openai/<model-name>` with a custom `api_base`.
+Model names use the format `provider/model` (e.g. `ollama/qwen3:8b`, `anthropic/claude-sonnet-4-20250514`). For OpenAI-compatible APIs (Venice, Together, etc.) use `openai/<model-name>` with a custom `api_base`.
 
 Providers without an API key are skipped (except Ollama). If the active provider fails, others are tried as fallbacks. API keys are provided via Docker secrets (`secrets/<provider>_api_key`) or environment variables (`<PROVIDER>_API_KEY`).
 
 ### Model Catalogs
 
-Static model catalogs live in `app/plugins/catalogs/`. When a provider matches a catalog (by name), the model dropdown in the Settings UI is populated from the catalog instead of querying the LiteLLM registry. Model info (pricing, context size) is also served from the catalog.
+Static model catalogs live in `app/plugins/catalogs/`. When a provider matches a catalog (by name), the model dropdown in the Settings UI is populated from the catalog. Model info (pricing, context size) is also served from the catalog.
 
 Available catalogs: `venice` (Venice.ai — privacy-preserving OpenAI-compatible API).
 

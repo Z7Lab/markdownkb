@@ -301,7 +301,7 @@ export interface ModelInfo {
   supports_function_calling?: boolean
   supports_response_schema?: boolean
   supports_pdf_input?: boolean
-  litellm_provider?: string
+  provider?: string
   mode?: string
   error?: string
   ollama_details?: {

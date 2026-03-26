@@ -8,7 +8,7 @@ import {
 import { ChevronRight, Brain, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ChatMessage as ChatMessageType } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, copyToClipboard } from "@/lib/utils";
 import { toast } from "sonner";
 import { SourceLegend, SourceList } from "@/components/ui/source-badge";
 
@@ -96,11 +96,11 @@ export const ChatMessage = memo(function ChatMessage({
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(message.content);
+    const ok = await copyToClipboard(message.content);
+    if (ok) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch {
+    } else {
       toast.error("Failed to copy — clipboard access denied")
     }
   }

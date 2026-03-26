@@ -42,7 +42,6 @@ jsonschema==4.26.0
 jsonschema-specifications==2025.9.1
 kubernetes==35.0.0
 limits==5.8.0
-litellm==1.82.0
 markdown-it-py==4.0.0
 MarkupSafe==3.0.3
 mcp==1.26.0
