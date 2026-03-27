@@ -27,6 +27,8 @@ def record_search(
     results: list[dict],
     *,
     tool_name: str = "search",
+    result_details: list[dict] | None = None,
+    result_data: list[dict] | None = None,
 ) -> str | None:
     """Record an MCP search call to SearchDB (sidebar history).
 
@@ -44,6 +46,8 @@ def record_search(
             query,
             result_paths=result_paths,
             result_count=result_count,
+            result_details=result_details,
+            result_data=result_data,
             source="agent",
         )
         logger.debug("MCP %s recorded to history: %s (id=%s)", tool_name, query, search_id)
@@ -57,11 +61,14 @@ def record_chat(
     ctx: Any,
     message: str,
     response: str,
+    *,
+    sources: list[str] | None = None,
+    source_map: dict[str, str] | None = None,
 ) -> str | None:
     """Record an MCP chat call to ChatDB (thread sidebar).
 
     Creates a thread titled with a short version of the message, then
-    adds the user message and assistant response.
+    adds the user message and assistant response with sources.
 
     Returns the thread_id if recorded, None if history tracking is off.
     """
@@ -79,6 +86,8 @@ def record_chat(
         thread_id = chatdb.create_thread(title)
         chatdb.add_message(thread_id, "user", message)
         chatdb.add_message(thread_id, "assistant", response)
+        if sources:
+            chatdb.set_sources(thread_id, "assistant", sources, source_map or None)
         logger.debug("MCP chat recorded to history: thread=%s", thread_id)
         return thread_id
     except Exception:

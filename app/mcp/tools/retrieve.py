@@ -48,7 +48,29 @@ def handler(query: str, top_k: int = 5, tags: list[str] | None = None) -> dict:
         for r in results
     ]
 
-    record_search(ctx, query, formatted, tool_name="retrieve")
+    # Build rich history data matching the web UI search format
+    result_details = [
+        {"path": r.metadata.get("source_path", ""), "score": r.score}
+        for r in results
+    ]
+    result_data = [
+        {
+            "document": r.document,
+            "snippets": [{"text": r.document, "score": r.score, "heading": r.metadata.get("heading", "")}],
+            "metadata": dict(r.metadata),
+            "score": r.score,
+            "chunk_count": 1,
+            "score_min": r.score,
+            "score_max": r.score,
+            "score_avg": r.score,
+        }
+        for r in results
+    ]
+
+    record_search(
+        ctx, query, formatted, tool_name="retrieve",
+        result_details=result_details, result_data=result_data,
+    )
 
     response = {
         "results": formatted,

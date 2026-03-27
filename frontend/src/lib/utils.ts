@@ -45,7 +45,7 @@ export function dirname(path: string): string {
  * Returns true if the copy succeeded.
  */
 export async function copyToClipboard(text: string): Promise<boolean> {
-  if (navigator.clipboard && window.isSecureContext) {
+  if (navigator.clipboard) {
     try {
       await navigator.clipboard.writeText(text)
       return true

@@ -26,10 +26,15 @@ def handler(message: str) -> dict:
     settings: Settings = deps["settings"]
 
     # Collect the streaming response into a single string
+    sources: list[str] = []
+    source_map: dict[str, str] = {}
     response = ""
-    for chunk in chat_respond(message, retriever, settings):
+    for chunk in chat_respond(
+        message, retriever, settings,
+        sources_out=sources, source_map_out=source_map,
+    ):
         response = chunk
 
-    record_chat(ctx, message, response)
+    record_chat(ctx, message, response, sources=sources, source_map=source_map)
 
-    return {"response": response}
+    return {"response": response, "sources": sources, "source_map": source_map}

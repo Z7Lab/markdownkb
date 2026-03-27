@@ -94,7 +94,29 @@ def handler(query: str, top_k: int = 3, max_chars: int = 15000,
             "score": round(score, 4),
         })
 
-    record_search(ctx, query, documents, tool_name="retrieve_documents")
+    # Build rich history data matching the web UI search format
+    result_details = [
+        {"path": d["path"], "score": d["score"]}
+        for d in documents
+    ]
+    result_data = [
+        {
+            "document": d["content"][:500],  # Store preview, not full content
+            "snippets": [{"text": d["content"][:500], "score": d["score"], "heading": d["title"]}],
+            "metadata": {"source_path": d["path"]},
+            "score": d["score"],
+            "chunk_count": 1,
+            "score_min": d["score"],
+            "score_max": d["score"],
+            "score_avg": d["score"],
+        }
+        for d in documents
+    ]
+
+    record_search(
+        ctx, query, documents, tool_name="retrieve_documents",
+        result_details=result_details, result_data=result_data,
+    )
 
     response = {
         "documents": documents,
