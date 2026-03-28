@@ -7,17 +7,12 @@ import anthropic
 import httpx
 import openai
 
+from app.utils import parse_model as _parse_model
+
 logger = logging.getLogger(__name__)
 
 
 # ── Model Discovery ───────────────────────────────────────
-
-def _parse_model(model_string: str) -> tuple[str, str]:
-    """Parse 'provider/model' string into (provider_type, model_name)."""
-    if "/" in model_string:
-        prefix, model_name = model_string.split("/", 1)
-        return prefix.lower(), model_name
-    return "openai", model_string
 
 
 def get_provider_models(provider_name: str) -> list[str]:

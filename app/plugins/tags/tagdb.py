@@ -117,17 +117,21 @@ class TagDB:
         """Return file paths that have any of the given tags (OR logic)."""
         if not tags:
             return set()
+        # Build a single query with OR clauses for all tags
+        conditions = []
+        params: list[str] = []
+        for tag in tags:
+            conditions.append(
+                "(tags = ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ?)"
+            )
+            params.extend([tag, f"{tag},%", f"%, {tag},%", f"%, {tag}"])
+        where_clause = " OR ".join(conditions)
         with self._lock:
-            paths: set[str] = set()
-            for tag in tags:
-                rows = self._conn.execute(
-                    "SELECT path FROM file_tags "
-                    "WHERE tags = ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ?",
-                    (tag, f"{tag},%", f"%, {tag},%", f"%, {tag}"),
-                ).fetchall()
-                for r in rows:
-                    paths.add(r["path"])
-            return paths
+            rows = self._conn.execute(
+                f"SELECT DISTINCT path FROM file_tags WHERE {where_clause}",
+                params,
+            ).fetchall()
+        return {r["path"] for r in rows}
 
     def is_empty(self) -> bool:
         """Check if the database has any records."""

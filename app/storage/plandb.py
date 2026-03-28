@@ -81,4 +81,5 @@ class PlanDB:
         return cursor.rowcount > 0
 
     def close(self):
-        self._conn.close()
+        with self._lock:
+            self._conn.close()

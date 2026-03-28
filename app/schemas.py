@@ -273,3 +273,35 @@ class ExportRequest(BaseModel):
     """Request model for exporting conversation history."""
 
     format: str = "json"
+
+
+# -- Plugin Settings --
+
+class PluginConfigRequest(BaseModel):
+    """Request model for updating plugin configuration."""
+
+    config: dict[str, str | int | float | bool | None]
+
+
+# -- Presets --
+
+class CreatePresetRequest(BaseModel):
+    """Request model for creating a retrieval preset."""
+
+    name: str = Field(..., min_length=1, max_length=200)
+    settings: dict | None = None
+
+
+class UpdatePresetRequest(BaseModel):
+    """Request model for updating a retrieval preset."""
+
+    name: str | None = Field(None, min_length=1, max_length=200)
+    settings: dict | None = None
+
+
+# -- Search --
+
+class RenameSearchRequest(BaseModel):
+    """Request model for renaming a search."""
+
+    query: str = Field(..., min_length=1, max_length=500)

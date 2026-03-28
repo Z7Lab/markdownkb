@@ -1,5 +1,6 @@
 """LLM abstraction layer with direct provider SDK calls and fallback chain."""
 
+import functools
 import logging
 from typing import Generator
 
@@ -7,8 +8,28 @@ import anthropic
 import openai
 
 from app.config import Settings
+from app.utils import parse_model as _parse_model
 
 logger = logging.getLogger(__name__)
+
+
+@functools.lru_cache(maxsize=8)
+def _get_anthropic_client(api_key: str) -> anthropic.Anthropic:
+    """Return a cached Anthropic client for the given API key."""
+    return anthropic.Anthropic(api_key=api_key)
+
+
+@functools.lru_cache(maxsize=8)
+def _get_openai_client(api_key: str, api_base: str | None = None) -> openai.OpenAI:
+    """Return a cached OpenAI client for the given key and base URL."""
+    kwargs: dict = {}
+    if api_key:
+        kwargs["api_key"] = api_key
+    else:
+        kwargs["api_key"] = "ollama"
+    if api_base:
+        kwargs["base_url"] = api_base
+    return openai.OpenAI(**kwargs)
 
 
 def _needs_api_key(provider: dict) -> bool:
@@ -43,18 +64,6 @@ def _usable_providers(settings: Settings) -> list[dict]:
     return usable
 
 
-def _parse_model(model_string: str) -> tuple[str, str]:
-    """Parse 'provider/model' string into (provider_type, model_name).
-
-    Returns provider_type as one of: 'anthropic', 'openai', 'ollama', or
-    the raw prefix for other OpenAI-compatible providers.
-    """
-    if "/" in model_string:
-        prefix, model_name = model_string.split("/", 1)
-        return prefix.lower(), model_name
-    return "openai", model_string
-
-
 def _extract_system_message(messages: list[dict]) -> tuple[str | None, list[dict]]:
     """Extract system message from messages list for Anthropic API.
 
@@ -79,7 +88,7 @@ def _call_anthropic(
     stream: bool,
 ) -> object:
     """Call Anthropic Messages API."""
-    client = anthropic.Anthropic(api_key=api_key)
+    client = _get_anthropic_client(api_key)
     system_text, filtered_messages = _extract_system_message(messages)
 
     kwargs: dict = {
@@ -107,16 +116,7 @@ def _call_openai(
     num_ctx: int | None = None,
 ) -> object:
     """Call OpenAI-compatible API (OpenAI, Ollama, Venice, etc.)."""
-    client_kwargs: dict = {}
-    if api_key:
-        client_kwargs["api_key"] = api_key
-    else:
-        # Ollama and local providers don't need a real key
-        client_kwargs["api_key"] = "ollama"
-    if api_base:
-        client_kwargs["base_url"] = api_base
-
-    client = openai.OpenAI(**client_kwargs)
+    client = _get_openai_client(api_key or "", api_base)
 
     create_kwargs: dict = {
         "model": model_name,

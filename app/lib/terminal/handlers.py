@@ -19,7 +19,6 @@ ALLOWED_PREFIXES = {
     "ls", "cat", "head", "tail", "find", "grep", "wc",
     "pwd", "echo", "tree", "du", "df",
     "git", "npm", "yarn", "pip", "poetry",
-    "python", "node",
     "mkdir", "touch", "cp",
     "docker", "docker-compose",
 }

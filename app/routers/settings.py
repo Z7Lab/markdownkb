@@ -9,11 +9,14 @@ from app.deps import get_presetsdb, get_settings
 from app.storage.presetsdb import PresetsDB
 from app.ratelimit import STANDARD, limiter
 from app.schemas import (
+    CreatePresetRequest,
     FeatureToggleRequest,
     McpToolConfigRequest,
+    PluginConfigRequest,
     RetrievalSettingsRequest,
     SearchSummaryPromptRequest,
     SystemPromptRequest,
+    UpdatePresetRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -74,6 +77,14 @@ def get_settings_endpoint(request: Request, settings: Settings = Depends(get_set
     }
 
 
+_KNOWN_CORE_FLAGS = frozenset({
+    "rag_chat", "file_watcher", "rate_limiting",
+    "deep_research", "agent_skills", "diagnostics",
+})
+
+_KNOWN_MCP_FLAGS = frozenset({"filesystem", "terminal"})
+
+
 @router.put("/settings/core")
 @limiter.limit(STANDARD)
 def toggle_core(
@@ -82,6 +93,8 @@ def toggle_core(
     settings: Settings = Depends(get_settings),
 ):
     """Toggle a core behaviour flag."""
+    if req.name not in _KNOWN_CORE_FLAGS:
+        raise HTTPException(400, f"Unknown core flag: {req.name}")
     settings.set_core(req.name, req.enabled)
     settings.save()
     return {"status": "saved"}
@@ -95,6 +108,8 @@ def toggle_mcp_flag(
     settings: Settings = Depends(get_settings),
 ):
     """Toggle an MCP tool enable flag."""
+    if req.name not in _KNOWN_MCP_FLAGS:
+        raise HTTPException(400, f"Unknown MCP flag: {req.name}")
     settings.set_mcp_enabled(req.name, req.enabled)
     settings.save()
     return {"status": "saved"}
@@ -187,13 +202,11 @@ def get_plugin_settings(
 def update_plugin_settings(
     request: Request,
     plugin_name: str,
-    config: dict,
+    req: PluginConfigRequest,
     settings: Settings = Depends(get_settings),
 ):
     """Update configuration for a specific plugin (shallow merge)."""
-    if not all(isinstance(k, str) for k in config):
-        raise HTTPException(400, "Plugin config keys must be strings")
-    settings.set_plugin_config(plugin_name, config)
+    settings.set_plugin_config(plugin_name, req.config)
     settings.save()
     return {"status": "saved", "plugin": plugin_name, "config": settings.get_plugin_config(plugin_name)}
 
@@ -234,7 +247,7 @@ def list_presets(
 @limiter.limit(STANDARD)
 def create_preset(
     request: Request,
-    body: dict,
+    body: CreatePresetRequest,
     presetsdb: PresetsDB = Depends(get_presetsdb),
     settings: Settings = Depends(get_settings),
 ):
@@ -242,10 +255,8 @@ def create_preset(
 
     Body: {"name": "...", "settings": {...}} or {"name": "..."} to snapshot current.
     """
-    name = body.get("name", "").strip()
-    if not name:
-        raise HTTPException(400, "name is required")
-    preset_settings = body.get("settings")
+    name = body.name.strip()
+    preset_settings = body.settings
     if not preset_settings:
         # Snapshot current retrieval settings
         preset_settings = {
@@ -266,15 +277,15 @@ def create_preset(
 def update_preset(
     request: Request,
     preset_id: str,
-    body: dict,
+    body: UpdatePresetRequest,
     presetsdb: PresetsDB = Depends(get_presetsdb),
 ):
     """Update a preset's name and/or settings."""
     try:
         found = presetsdb.update(
             preset_id,
-            name=body.get("name"),
-            settings=body.get("settings"),
+            name=body.name,
+            settings=body.settings,
         )
     except ValueError as e:
         raise HTTPException(400, str(e)) from e

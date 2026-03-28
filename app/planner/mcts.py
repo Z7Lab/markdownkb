@@ -109,6 +109,30 @@ class MCTSPlanner:
             "iterations": iterations,
         }
 
+    # -- Public API for step-by-step usage (e.g. deep_research) --
+
+    @property
+    def research_results(self) -> list[dict]:
+        """Return the research results from the last research phase."""
+        return self._research_results
+
+    @research_results.setter
+    def research_results(self, value: list[dict]):
+        self._research_results = value
+
+    def research(self, request: str) -> list[dict]:
+        """Search the knowledge base for relevant context."""
+        return self._research(request)
+
+    def expand(self, root: "PlanNode", request: str,
+               n_approaches: int):
+        """Generate initial approach nodes under the root."""
+        self._expand(root, request, n_approaches)
+
+    def iterate(self, root: "PlanNode", request: str):
+        """Run one MCTS iteration: select, expand, evaluate."""
+        self._iterate(root, request)
+
     def _research(self, request: str) -> list[dict]:
         """Search the knowledge base for relevant context."""
         results = self._retriever.search(

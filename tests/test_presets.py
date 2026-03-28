@@ -36,7 +36,7 @@ async def test_create_preset_snapshot_current(client, app):
 @pytest.mark.asyncio
 async def test_create_preset_no_name(client):
     resp = await client.post("/api/settings/presets", json={"name": ""})
-    assert resp.status_code == 400
+    assert resp.status_code == 422
 
 
 @pytest.mark.asyncio

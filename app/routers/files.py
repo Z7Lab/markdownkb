@@ -170,7 +170,7 @@ def prune_missing_files(
 @limiter.limit(STANDARD)
 def read_file(
     request: Request,
-    path: str,
+    path: str = Query(..., min_length=1, max_length=4096),
     page: int | None = Query(None, ge=1, description="Page number (1-based)"),
     page_size: int = Query(5000, ge=100, le=50000, description="Lines per page"),
     settings: Settings = Depends(get_settings),

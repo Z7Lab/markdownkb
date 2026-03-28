@@ -12,7 +12,7 @@ from app.rag.llm import get_streaming_completion
 from app.rag.prompts import format_context, get_search_summary_user
 from app.rag.retriever import Retriever
 from app.ratelimit import HEAVY, LLM, STANDARD, limiter
-from app.schemas import SearchRequest, SummarizeRequest
+from app.schemas import RenameSearchRequest, SearchRequest, SummarizeRequest
 from app.scope_utils import parse_scope_ids, resolve_scopes
 from app.tag_utils import resolve_tag_paths
 from app.services.chat_service import strip_thinking, extract_unique_sources
@@ -361,14 +361,11 @@ def get_search_versions(
 def rename_search(
     request: Request,
     search_id: str,
-    req: dict,
+    req: RenameSearchRequest,
     searchdb: SearchDB = Depends(get_searchdb),
 ):
     """Rename a search's query text."""
-    query = req.get("query", "").strip()
-    if not query:
-        raise HTTPException(status_code=400, detail="Query is required")
-    if not searchdb.rename_search(search_id, query):
+    if not searchdb.rename_search(search_id, req.query):
         raise HTTPException(status_code=404, detail="Search not found")
     return {"status": "renamed"}
 
@@ -420,15 +417,17 @@ def summarize_search(
                 **kwargs,
             ):
                 # Intercept summary_text to persist, then forward as-is
-                if req.search_id and '"summary_text"' in event:
+                if req.search_id and "event: summary_text" in event:
                     import json as _json
                     try:
-                        line = event.strip().split("data: ", 1)[-1]
-                        text = _json.loads(line).get("text", "")
-                        if text:
-                            searchdb.update_summary(req.search_id, text)
-                            logger.info("Saved deep research summary for search %s", req.search_id)
-                    except (ValueError, IndexError):
+                        for line in event.strip().splitlines():
+                            if line.startswith("data: "):
+                                text = _json.loads(line[6:]).get("text", "")
+                                if text:
+                                    searchdb.update_summary(req.search_id, text)
+                                    logger.info("Saved deep research summary for search %s", req.search_id)
+                                break
+                    except (ValueError, IndexError, KeyError):
                         logger.debug("Could not extract summary_text from deep research SSE event")
                 yield event
 

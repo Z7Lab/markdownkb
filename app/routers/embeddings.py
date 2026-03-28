@@ -177,18 +177,18 @@ def switch_embedding_model(
         _switch_status["message"] = "Preparing to switch..."
         _switch_status["result"] = ""
 
-    logger.info("Switching embedding model from %s to %s", settings.embedding_model, req.model_id)
-    settings.embedding_model = req.model_id
-    settings.save()
-    unload_model()
-    store.clear()
-    tracking.clear()
+        logger.info("Switching embedding model from %s to %s", settings.embedding_model, req.model_id)
+        settings.embedding_model = req.model_id
+        settings.save()
+        unload_model()
+        store.clear()
+        tracking.clear()
 
-    threading.Thread(
-        target=_bg_reindex,
-        args=(settings, store, tracking, cancel_event),
-        daemon=True,
-    ).start()
+        threading.Thread(
+            target=_bg_reindex,
+            args=(settings, store, tracking, cancel_event),
+            daemon=True,
+        ).start()
     return {"status": "switching", "model": req.model_id}
 
 

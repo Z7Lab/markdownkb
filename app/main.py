@@ -162,7 +162,11 @@ def main():
             """Serve index.html for all non-API routes (SPA routing)."""
             if path.startswith("api/"):
                 return JSONResponse({"detail": "Not Found"}, status_code=404)
-            file_path = FRONTEND_DIR / path
+            file_path = (FRONTEND_DIR / path).resolve()
+            try:
+                file_path.relative_to(FRONTEND_DIR.resolve())
+            except ValueError:
+                return JSONResponse({"detail": "Not Found"}, status_code=404)
             if file_path.is_file():
                 return FileResponse(file_path)
             return FileResponse(FRONTEND_DIR / "index.html")

@@ -26,6 +26,18 @@ def short_title(message: str, limit: int = 80) -> str:
     return text[:limit] + "..."
 
 
+def parse_model(model_string: str) -> tuple[str, str]:
+    """Parse 'provider/model' string into (provider_type, model_name).
+
+    Returns provider_type as one of: 'anthropic', 'openai', 'ollama', or
+    the raw prefix for other OpenAI-compatible providers.
+    """
+    if "/" in model_string:
+        prefix, model_name = model_string.split("/", 1)
+        return prefix.lower(), model_name
+    return "openai", model_string
+
+
 def get_path_size(path: Path) -> int:
     """Get total size of a file or directory in bytes.
 

@@ -349,6 +349,10 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
         existing = plugins.setdefault(plugin_name, {})
         existing.update(config)
 
+    def remove_plugin_config(self, plugin_name: str) -> None:
+        """Remove a plugin's configuration section entirely."""
+        self._data.get("plugins", {}).pop(plugin_name, None)
+
     # --- Service Configuration ---
 
     def get_service_config(self, service_name: str) -> dict:

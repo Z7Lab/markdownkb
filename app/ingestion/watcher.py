@@ -123,6 +123,7 @@ class MarkdownHandler(FileSystemEventHandler):
         self._store = store
         self._tracking = tracking
         self._debounce: dict[str, float] = {}
+        self._debounce_lock = threading.Lock()
 
     def _should_process(self, path: str) -> bool:
         """Check if a file event should trigger re-indexing."""
@@ -132,14 +133,15 @@ class MarkdownHandler(FileSystemEventHandler):
             if fnmatch.fnmatch(path, pattern):
                 return False
         now = time.time()
-        last = self._debounce.get(path, 0)
-        if now - last < 2.0:
-            return False
-        self._debounce[path] = now
-        # Prune stale entries to prevent unbounded growth
-        if len(self._debounce) > 1000:
-            cutoff = now - 10.0
-            self._debounce = {k: v for k, v in self._debounce.items() if v > cutoff}
+        with self._debounce_lock:
+            last = self._debounce.get(path, 0)
+            if now - last < 2.0:
+                return False
+            self._debounce[path] = now
+            # Prune stale entries to prevent unbounded growth
+            if len(self._debounce) > 1000:
+                cutoff = now - 10.0
+                self._debounce = {k: v for k, v in self._debounce.items() if v > cutoff}
         return True
 
     def on_created(self, event: FileSystemEvent):

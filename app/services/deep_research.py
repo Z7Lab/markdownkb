@@ -98,7 +98,7 @@ def stream_deep_research(
         "iteration": 0,
         "total_iterations": iterations,
     })
-    planner._research_results = planner._research(query)
+    planner.research_results = planner.research(query)
 
     yield sse("status", {
         "phase": "expand",
@@ -109,7 +109,7 @@ def stream_deep_research(
 
     from app.planner.nodes import PlanNode
     root = PlanNode(content=query, node_type="root")
-    planner._expand(root, query, n_approaches)
+    planner.expand(root, query, n_approaches)
 
     yield sse("status", {
         "phase": "expand",
@@ -125,7 +125,7 @@ def stream_deep_research(
             "iteration": i + 1,
             "total_iterations": iterations,
         })
-        planner._iterate(root, query)
+        planner.iterate(root, query)
 
     # Phase 5: Extract best plan and sources
     best_plan = root.flatten_plan()
@@ -139,8 +139,8 @@ def stream_deep_research(
     yield sse("sources", {"sources": unique_sources})
 
     # Build context from research results for the synthesis prompt
-    documents = [r["document"] for r in planner._research_results[:10]]
-    metadatas = [r["metadata"] for r in planner._research_results[:10]]
+    documents = [r["document"] for r in planner.research_results[:10]]
+    metadatas = [r["metadata"] for r in planner.research_results[:10]]
     context, _ = format_context(documents, metadatas)
 
     # Phase 6: Stream the synthesis

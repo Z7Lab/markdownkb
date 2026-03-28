@@ -2,6 +2,7 @@
 
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -281,9 +282,10 @@ def install_plugin(
                 capture_output=True, text=True, check=True, timeout=60,
             )
         except subprocess.CalledProcessError as e:
+            logger.warning("git clone failed: %s", e.stderr.strip())
             raise HTTPException(
                 status_code=400,
-                detail=f"Failed to clone repository: {e.stderr.strip()}",
+                detail="Failed to clone repository. Check the URL and try again.",
             )
         except subprocess.TimeoutExpired:
             raise HTTPException(status_code=408, detail="Clone timed out (60s limit)")
@@ -326,8 +328,7 @@ def uninstall_plugin(
         raise HTTPException(status_code=404, detail=f"External plugin '{name}' not found")
 
     # Remove the plugin's config section entirely
-    plugins = settings._data.get("plugins", {})
-    plugins.pop(name, None)
+    settings.remove_plugin_config(name)
     settings.save()
 
     # Remove the plugin directory
@@ -370,6 +371,9 @@ def _parse_github_url(url: str) -> tuple[str | None, str | None]:
         return None, None
 
     user, repo = parts[0], parts[1]
+    # Validate user/repo contain only safe characters
+    if not re.match(r'^[a-zA-Z0-9._-]+$', user) or not re.match(r'^[a-zA-Z0-9._-]+$', repo):
+        return None, None
     repo_url = f"https://github.com/{user}/{repo}.git"
 
     # Check for /tree/branch/path subdirectory
