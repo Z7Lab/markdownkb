@@ -8,13 +8,14 @@
  * as clickable superscript citation badges.
  */
 import type { Node, Parent } from "unist"
+import type { Text, PhrasingContent } from "mdast"
 import { visit } from "unist-util-visit"
 
 const CITE_RE = /\[(\d+)\]/g
 
 export function remarkCitations() {
   return (tree: Node) => {
-    visit(tree, "text", (node: any, index: number | undefined, parent: Parent | undefined) => {
+    visit(tree, "text", (node: Text, index: number | undefined, parent: Parent | undefined) => {
       if (index === undefined || !parent) return
       const text: string = node.value
       if (!CITE_RE.test(text)) return
@@ -22,7 +23,7 @@ export function remarkCitations() {
       // Reset regex state
       CITE_RE.lastIndex = 0
 
-      const children: any[] = []
+      const children: PhrasingContent[] = []
       let lastIndex = 0
       let match: RegExpExecArray | null
 

@@ -60,7 +60,7 @@ export function Markdown({
   const components = useMemo(() => {
     if (!sourceMap) return undefined
     return {
-      a: ({ href, children: linkChildren, ...props }: any) => {
+      a: ({ href, children: linkChildren, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
         const match = href?.match(/^#cite-(\d+)$/)
         if (match) {
           const num = match[1]

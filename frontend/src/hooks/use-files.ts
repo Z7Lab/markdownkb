@@ -40,27 +40,31 @@ export function useFiles() {
     }
   }, [])
 
+  // Derive a boolean so the poll effect only re-runs when indexing state flips
+  const hasIndexing = files.some((f) => f.status === "indexing")
+
   // Auto-poll while any file is being indexed
   useEffect(() => {
-    const hasIndexing = files.some((f) => f.status === "indexing")
-    if (hasIndexing && !pollRef.current) {
-      pollRef.current = setInterval(async () => {
-        const updated = await refresh()
-        if (!updated?.some((f: TrackedFile) => f.status === "indexing")) {
-          if (pollRef.current) clearInterval(pollRef.current)
-          pollRef.current = null
-        }
-      }, 3000)
+    if (!hasIndexing) {
+      if (pollRef.current) {
+        clearInterval(pollRef.current)
+        pollRef.current = null
+      }
+      return
     }
-    if (!hasIndexing && pollRef.current) {
-      clearInterval(pollRef.current)
-      pollRef.current = null
-    }
+    if (pollRef.current) return // already polling
+    pollRef.current = setInterval(async () => {
+      const updated = await refresh()
+      if (!updated?.some((f: TrackedFile) => f.status === "indexing")) {
+        if (pollRef.current) clearInterval(pollRef.current)
+        pollRef.current = null
+      }
+    }, 3000)
     return () => {
       if (pollRef.current) clearInterval(pollRef.current)
       pollRef.current = null
     }
-  }, [files, refresh])
+  }, [hasIndexing, refresh])
 
   // Initial load with retry on failure
   useEffect(() => {

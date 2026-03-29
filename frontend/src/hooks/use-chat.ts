@@ -5,15 +5,14 @@ import { toast } from "sonner"
 import { usePersistedState } from "@/hooks/use-persisted-state"
 import type { ChatMessage, PaginatedResponse, Thread } from "@/lib/types"
 
+let idCounter = 0
 function nextId(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID()
   }
-  // Fallback for non-secure contexts (HTTP over LAN)
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0
-    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16)
-  })
+  // Counter-based fallback for non-secure contexts (HTTP over LAN).
+  // Only needs to be unique within a browser session, not cryptographically random.
+  return `msg-${Date.now()}-${++idCounter}`
 }
 
 // LocalStorage key for streaming thread tracking (transient, not persisted state)
@@ -27,14 +26,35 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
   const controllerRef = useRef<AbortController | null>(null)
   const loadIdRef = useRef(0)
   const streamingThreadIdRef = useRef<string | null>(null) // Track which thread is streaming
+  const streamContentRef = useRef("") // Mutable buffer for streaming tokens
+  const flushTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  /** Flush buffered streaming content into React state */
+  const flushStreamContent = useCallback(() => {
+    const content = streamContentRef.current
+    if (!content) return
+    setMessages((prev) => {
+      const last = prev[prev.length - 1]
+      if (last?.role !== "assistant") return prev
+      const updated = [...prev]
+      updated[updated.length - 1] = { ...last, content }
+      return updated
+    })
+  }, [setMessages])
 
   /** Shared cleanup for ending a stream (used by onDone, onError, stop) */
   const cleanupStream = useCallback(() => {
+    if (flushTimerRef.current) {
+      clearInterval(flushTimerRef.current)
+      flushTimerRef.current = null
+    }
+    flushStreamContent()
+    streamContentRef.current = ""
     setIsStreaming(false)
     controllerRef.current = null
     streamingThreadIdRef.current = null
     try { localStorage.removeItem(STREAMING_THREAD_KEY) } catch { /* ignore */ }
-  }, [])
+  }, [flushStreamContent])
 
   // Restore streaming thread state on mount (transient — not managed by usePersistedState)
   useEffect(() => {
@@ -83,6 +103,10 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
         // ignore
       }
 
+      // Start a throttled flush timer for streaming tokens (~30fps)
+      streamContentRef.current = ""
+      flushTimerRef.current = setInterval(flushStreamContent, 33)
+
       controllerRef.current = streamChat(
         text,
         {
@@ -108,17 +132,8 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
             })
           },
           onToken(content) {
-            setMessages((prev) => {
-              const updated = [...prev]
-              const last = updated[updated.length - 1]
-              if (last.role === "assistant") {
-                updated[updated.length - 1] = {
-                  ...last,
-                  content: last.content + content,
-                }
-              }
-              return updated
-            })
+            // Append to mutable ref; flushed to state by interval timer
+            streamContentRef.current += content
           },
           onSources(sources, sourceMap) {
             setMessages((prev) => {
@@ -139,17 +154,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
             refreshThreads()
           },
           onError(error) {
-            setMessages((prev) => {
-              const updated = [...prev]
-              const last = updated[updated.length - 1]
-              if (last.role === "assistant") {
-                updated[updated.length - 1] = {
-                  ...last,
-                  content: `Error: ${error.message}`,
-                }
-              }
-              return updated
-            })
+            streamContentRef.current = `Error: ${error.message}`
             cleanupStream()
           },
         },
@@ -158,7 +163,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
         adHocTags,
       )
     },
-    [isStreaming, activeThreadId, refreshThreads, scopeIds, adHocTags, setMessages, setActiveThreadId, cleanupStream],
+    [isStreaming, activeThreadId, refreshThreads, scopeIds, adHocTags, setMessages, setActiveThreadId, cleanupStream, flushStreamContent],
   )
 
   const stop = useCallback(() => {

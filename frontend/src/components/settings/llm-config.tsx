@@ -56,6 +56,24 @@ export function LlmConfig({
 
   const userPickedModel = useRef(false)
 
+  // Re-sync local state when settings change externally (e.g. after save)
+  const prevSettingsRef = useRef(settings)
+  useEffect(() => {
+    const prev = prevSettingsRef.current
+    prevSettingsRef.current = settings
+    if (
+      prev.active_provider !== settings.active_provider
+      || prev.active_model !== settings.active_model
+      || prev.active_api_base !== settings.active_api_base
+    ) {
+      setProvider(settings.active_provider)
+      setModel(settings.active_model)
+      setApiBase(settings.active_api_base)
+      setApiKey("")
+      userPickedModel.current = false
+    }
+  }, [settings])
+
   const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null)
   const [infoLoading, setInfoLoading] = useState(false)
 

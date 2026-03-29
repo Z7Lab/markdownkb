@@ -35,6 +35,7 @@ import { toast } from "sonner"
 import { McpSettingsDialog } from "./mcp-settings-dialog"
 import { PluginConfigDialog } from "./plugin-config-dialog"
 import { InstallPluginDialog } from "./install-plugin-dialog"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import type { PluginInfo, CoreFeature } from "./plugin-types"
 
 // Map icon names from plugin.yaml to lucide components
@@ -257,6 +258,7 @@ export function PluginsPanel({
   const [mcpDialog, setMcpDialog] = useState<{
     open: boolean; toolName: string; toolLabel: string
   } | null>(null)
+  const [pendingUninstall, setPendingUninstall] = useState<string | null>(null)
 
   const loadPlugins = useCallback(async () => {
     try {
@@ -276,7 +278,6 @@ export function PluginsPanel({
   }, [loadPlugins])
 
   const handleUninstall = async (name: string) => {
-    if (!confirm(`Uninstall plugin '${name}'? This cannot be undone.`)) return
     try {
       await api.del(`/api/plugins/${name}`)
       toast.success(`Plugin '${name}' uninstalled. Restart to complete cleanup.`)
@@ -368,7 +369,7 @@ export function PluginsPanel({
                       loadPlugins()
                     }}
                     onConfigure={setConfigPlugin}
-                    onUninstall={plugin.source === "external" ? handleUninstall : undefined}
+                    onUninstall={plugin.source === "external" ? setPendingUninstall : undefined}
                   />
                   {idx < catPlugins.length - 1 && <Separator />}
                 </div>
@@ -429,6 +430,23 @@ export function PluginsPanel({
           onSave={() => setMcpDialog(null)}
         />
       )}
+
+      {/* Uninstall confirmation dialog */}
+      <ConfirmDialog
+        open={!!pendingUninstall}
+        onOpenChange={(open) => { if (!open) setPendingUninstall(null) }}
+        title="Uninstall plugin?"
+        description={`Uninstall plugin '${pendingUninstall}'? This cannot be undone.`}
+        confirmLabel="Uninstall"
+        variant="destructive"
+        onConfirm={async () => {
+          if (pendingUninstall) {
+            const name = pendingUninstall
+            setPendingUninstall(null)
+            await handleUninstall(name)
+          }
+        }}
+      />
     </div>
   )
 }

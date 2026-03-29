@@ -60,6 +60,8 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
   const [summaryIteration, setSummaryIteration] = useState(0)
   const [summaryTotalIterations, setSummaryTotalIterations] = useState(0)
 
+  // API key is set once before mount via setApiKey() and does not change at runtime,
+  // so an empty dependency array is correct here — no re-fetch needed on key change.
   useEffect(() => {
     const cancelRetry = retryWithBackoff(async () => {
       try {

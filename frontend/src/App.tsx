@@ -108,7 +108,7 @@ export function App() {
               </div>
             </header>
 
-            <main className="flex-1 flex flex-col min-h-0">
+            <main className="flex-1 flex flex-col min-h-0" aria-label={`${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} tab content`}>
               <TabsContent value="chat" forceMount className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
                 <ErrorBoundary fallbackMessage="Chat encountered an error">
                   <ChatTab />

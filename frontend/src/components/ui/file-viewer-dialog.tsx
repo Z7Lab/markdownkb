@@ -71,6 +71,8 @@ function parseFrontmatter(raw: string): ParsedContent {
   return { tags: [], content }
 }
 
+// TODO: Extract data fetching and state management into a useFileViewer hook.
+// Move parseFrontmatter to a shared utility (used by both this dialog and other components).
 export function FileViewerDialog({
   path,
   onClose,
@@ -111,7 +113,7 @@ export function FileViewerDialog({
         const { tags } = parseFrontmatter(res.content)
         setFileTags(tags)
       }
-    } catch (err) {
+    } catch {
       if (signal?.aborted) return
       setRawContent("Error loading file.")
       setTotalPages(1)

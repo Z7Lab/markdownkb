@@ -37,6 +37,7 @@ export function useGraph() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const graphDataRef = useRef<GraphData | null>(null)
   const lastScopeRef = useRef<string | null | undefined>(undefined)
+  const abortRef = useRef<AbortController | null>(null)
 
   // Clean up poll on unmount
   useEffect(() => {
@@ -47,24 +48,25 @@ export function useGraph() {
 
   // On mount, check if server has cached graph data and load it transparently
   useEffect(() => {
-    let cancelled = false
+    const controller = new AbortController()
+    abortRef.current = controller
     ;(async () => {
       try {
         // Check both with and without word clouds
         const mw = `&min_weight=${MIN_WEIGHT}`
         const [withWc, withoutWc] = await Promise.all([
-          api.get<{ cached: boolean }>(`/api/graph/status?word_clouds=true${mw}`),
-          api.get<{ cached: boolean }>(`/api/graph/status?word_clouds=false${mw}`),
+          api.get<{ cached: boolean }>(`/api/graph/status?word_clouds=true${mw}`, controller.signal),
+          api.get<{ cached: boolean }>(`/api/graph/status?word_clouds=false${mw}`, controller.signal),
         ])
-        if (cancelled || graphDataRef.current) return
+        if (controller.signal.aborted || graphDataRef.current) return
 
         const hasCached = withWc.cached || withoutWc.cached
         if (hasCached) {
           // Prefer the one that's cached; if both, prefer with word clouds
           const useWc = withWc.cached
           setIsLoading(true)
-          const data = await api.get<GraphData>(`/api/graph/data${buildQs(null, useWc)}`)
-          if (cancelled) return
+          const data = await api.get<GraphData>(`/api/graph/data${buildQs(null, useWc)}`, controller.signal)
+          if (controller.signal.aborted) return
           graphDataRef.current = data
           lastScopeRef.current = null
           setWordClouds(useWc)
@@ -72,15 +74,15 @@ export function useGraph() {
           setFetchedAt(Date.now() / 1000)
         }
       } catch {
-        // Ignore — user can manually build
+        // Ignore — user can manually build (or request was aborted by fetchGraph)
       } finally {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setIsLoading(false)
           setCheckingCache(false)
         }
       }
     })()
-    return () => { cancelled = true }
+    return () => { controller.abort() }
   }, [])
 
   const fetchGraph = useCallback(async (
@@ -93,7 +95,9 @@ export function useGraph() {
     if (!force && graphDataRef.current && lastScopeRef.current === scopeIds) return
     lastScopeRef.current = scopeIds ?? null
 
-    // Abort any in-flight poll
+    // Abort any in-flight cache check or previous fetch
+    abortRef.current?.abort()
+    abortRef.current = null
     if (pollRef.current) {
       clearInterval(pollRef.current)
       pollRef.current = null

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 
 /**
  * Shared hook for scope and ad-hoc tag filter state.
@@ -19,20 +19,13 @@ export function useScopeTagFilter() {
     return Array.from(selectedTags).sort()
   }, [selectedTags])
 
-  const handleScopeChange = useCallback((ids: Set<string>) => {
-    setSelectedScopeIds(ids)
-  }, [])
-
-  const handleTagChange = useCallback((tags: Set<string>) => {
-    setSelectedTags(tags)
-  }, [])
-
   return {
     selectedScopeIds,
     selectedTags,
     scopeIdsParam,
     adHocTagsParam,
-    handleScopeChange,
-    handleTagChange,
+    // useState setters are already referentially stable — no useCallback needed
+    handleScopeChange: setSelectedScopeIds,
+    handleTagChange: setSelectedTags,
   }
 }

@@ -20,16 +20,7 @@ import { Loader2, Search, RotateCcw, Clock, AlertCircle, History } from "lucide-
 import { useState, type KeyboardEvent as ReactKeyboardEvent } from "react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useScopeTagFilter } from "@/hooks/use-scope-tag-filter"
-
-// ASCII art banner
-const ASCII_BANNER = `
-███╗   ███╗██████╗ ██╗  ██╗██████╗     ███████╗███████╗ █████╗ ██████╗  ██████╗██╗  ██╗
-████╗ ████║██╔══██╗██║ ██╔╝██╔══██╗    ██╔════╝██╔════╝██╔══██╗██╔══██╗██╔════╝██║  ██║
-██╔████╔██║██║  ██║█████╔╝ ██████╔╝    ███████╗█████╗  ███████║██████╔╝██║     ███████║
-██║╚██╔╝██║██║  ██║██╔═██╗ ██╔══██╗    ╚════██║██╔══╝  ██╔══██║██╔══██╗██║     ██╔══██║
-██║ ╚═╝ ██║██████╔╝██║  ██╗██████╔╝    ███████║███████╗██║  ██║██║  ██║╚██████╗██║  ██║
-╚═╝     ╚═╝╚═════╝ ╚═╝  ╚═╝╚═════╝     ╚══════╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝
-`.trim()
+import { ASCII_BANNER } from "@/lib/constants"
 
 export function SearchTab() {
   const { scopes } = useScopes()
@@ -340,6 +331,7 @@ export function SearchTab() {
                 No results found for "{query}"
               </p>
             )}
+            {/* TODO: Virtualize results list with @tanstack/react-virtual if result sets commonly exceed ~50 items */}
             {results.map((r, i) => (
               <SearchResultCard
                 key={`${r.metadata.source_path ?? ""}:${r.score}:${i}`}

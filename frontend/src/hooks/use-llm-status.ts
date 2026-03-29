@@ -93,7 +93,7 @@ export function useLLMStatus() {
   }, [pollStatus])
 
   // Full status check once on mount
-  useEffect(() => { checkStatus() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { checkStatus() }, [checkStatus])
 
   return { status, lastChecked, availableModels, provider, checkStatus }
 }

@@ -2,6 +2,8 @@
  * Reusable polling helper for async operations with progress tracking
  */
 
+import { api } from "@/lib/api"
+
 export interface PollingStatus {
   running: boolean
   progress: number
@@ -31,12 +33,7 @@ export function startPolling(
 
   const poll = async () => {
     try {
-      const response = await fetch(statusEndpoint)
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const status: PollingStatus = await response.json()
+      const status = await api.get<PollingStatus>(statusEndpoint)
 
       if (status.running) {
         callbacks.onProgress(status)

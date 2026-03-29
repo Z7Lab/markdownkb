@@ -11,6 +11,14 @@ export interface IndexEvent {
   ts: number
 }
 
+const INDEX_EVENT_TYPES = new Set(["indexed", "deleted", "error", "indexing"])
+
+function isIndexEvent(data: unknown): data is IndexEvent {
+  if (typeof data !== "object" || data === null) return false
+  const obj = data as Record<string, unknown>
+  return typeof obj.type === "string" && INDEX_EVENT_TYPES.has(obj.type) && typeof obj.path === "string"
+}
+
 interface IndexEventState {
   /** True when any file is currently being indexed */
   isIndexing: boolean
@@ -29,6 +37,8 @@ const IndexEventContext = createContext<IndexEventState>({
   clearErrors: () => {},
 })
 
+// Co-located with IndexEventProvider for cohesion — splitting into separate files
+// would add indirection without benefit since the hook is tightly coupled to the provider.
 // eslint-disable-next-line react-refresh/only-export-components
 export function useIndexEvents() {
   return useContext(IndexEventContext)
@@ -95,8 +105,8 @@ export function IndexEventProvider({ children }: { children: ReactNode }) {
 
         const reader = res.body.getReader()
         await parseSSEStream(reader, (eventType, data) => {
-          if (eventType === "index") {
-            handleEvent(data as unknown as IndexEvent)
+          if (eventType === "index" && isIndexEvent(data)) {
+            handleEvent(data)
           }
         })
       } catch {

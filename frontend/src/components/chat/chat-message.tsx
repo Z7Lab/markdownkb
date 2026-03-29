@@ -114,7 +114,7 @@ export const ChatMessage = memo(function ChatMessage({
   const sources = message.sources;
 
   return (
-    <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
+    <div className={cn("flex", isUser ? "justify-end" : "justify-start")} aria-label={isUser ? "User message" : "Assistant message"}>
       <div
         className={cn(
           "rounded-lg px-4 py-2",

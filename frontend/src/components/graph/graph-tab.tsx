@@ -61,11 +61,7 @@ const CLUSTER_COLORS = [
 const UNCLUSTERED_COLOR = "oklch(0.551 0.027 264)" // gray-500
 const HIGHLIGHT_COLOR = "oklch(0.852 0.199 91.9)"  // yellow-300
 
-// Theme-aware colors — these must remain raw values for WebGL canvas rendering
-const THEME = {
-  dark: { bg: "#09090b", dim: "#1f2937", linkBase: "140,180,255", linkDim: "255,255,255" },
-  light: { bg: "#f8fafc", dim: "#d1d5db", linkBase: "59,130,246", linkDim: "0,0,0" },
-} as const
+import { GRAPH_THEME } from "@/lib/constants"
 
 /** Force-graph link with weight metadata */
 interface GraphLink {
@@ -98,6 +94,9 @@ function useContainerDimensions() {
   return { containerRef, dimensions }
 }
 
+// TODO: Extract useIsDark, useContainerDimensions to hooks/ directory.
+// Consider splitting ForceGraph3D rendering into a dedicated wrapper component
+// to reduce this file's complexity (549 lines, 8 useState, 5 useEffect, 9 useCallback, 3 useMemo).
 export function GraphTab() {
   const {
     graphData, isLoading, isComputing, checkingCache, fetchedAt, threshold, setThreshold,
@@ -109,7 +108,7 @@ export function GraphTab() {
   const { tags: availableTags } = useTags()
   const { lastIndexedAt } = useIndexEvents()
   const isDark = useIsDark()
-  const colors = isDark ? THEME.dark : THEME.light
+  const colors = isDark ? GRAPH_THEME.dark : GRAPH_THEME.light
   const [viewingPath, setViewingPath] = useState<string | null>(null)
   const [selectedEdge, setSelectedEdge] = useState<{ source: string; target: string; weight: number } | null>(null)
   const { containerRef, dimensions } = useContainerDimensions()

@@ -1,6 +1,11 @@
 const BASE = ""
 
-/** API key for X-MDKB-Key auth header — set via setApiKey() */
+/**
+ * API key for X-MDKB-Key auth header — set once at app startup via setApiKey().
+ * Stored as module-level state (not reactive) because it is configured before
+ * React renders and does not change at runtime. SSE streaming reads it
+ * synchronously via getApiKey(), which is safe under this assumption.
+ */
 let apiKey: string | null = null
 
 /** Configure the API key for authenticated requests */

@@ -158,7 +158,7 @@ function VirtualizedFileList({
 }) {
   const parentRef = useRef<HTMLDivElement>(null)
 
-  // eslint-disable-next-line react-hooks/incompatible-library -- isolated component, no memoization needed
+  // eslint-disable-next-line react-hooks/incompatible-library -- @tanstack/react-virtual v3 peer-deps lag behind React 19; safe to use
   const virtualizer = useVirtualizer({
     count: files.length,
     getScrollElement: () => parentRef.current,
@@ -215,6 +215,8 @@ function VirtualizedFileList({
   )
 }
 
+// TODO: Extract toolbar/action bar into sub-component, filtering logic into
+// a dedicated hook, and move dialog state closer to dialogs to reduce complexity.
 export function FilesTab() {
   const { files, busyPaths, refresh, toggleRag, unindexFile, indexFile, reindexFile, indexAll, unindexSource, updateTags, bulkUpdateTags } = useFiles()
   const { isIndexing, lastIndexedAt } = useIndexEvents()
