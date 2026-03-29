@@ -43,6 +43,11 @@ make mcp
 | `update_tags` | `app/plugins/tags/tagdb` | tags | yes | Set, add, or remove tags on a file |
 | `graph` | `app/services/graph_service` | graph | | Compute knowledge graph — nodes, edges, clusters |
 | `export_chat` | `app/storage/chatdb` | export | | Export chat conversations as markdown or JSON |
+| `bucket_create` | `app/plugins/buckets/` | buckets | yes | Create a temporary bucket from source paths |
+| `bucket_list` | `app/plugins/buckets/` | buckets | | List all temporary buckets with metadata |
+| `bucket_search` | `app/plugins/buckets/` | buckets | | Search within a temporary bucket |
+| `bucket_chat` | `app/plugins/buckets/` | buckets | | RAG chat scoped to a temporary bucket |
+| `bucket_delete` | `app/plugins/buckets/` | buckets | yes | Delete a temporary bucket and its vector data |
 
 **Gating rules:**
 - **core** tools are always registered (unless they're write tools and `mcp.read_only` is true)
@@ -55,7 +60,12 @@ make mcp
 ```
 retrieve(query: "authentication flow", top_k: 5)
 → {results: [{content, source, score}, ...], total}
+
+retrieve(query: "authentication flow", top_k: 5, tags: ["security", "backend"])
+→ {results: [...], total, tags_filter: ["security", "backend"]}
 ```
+
+Optionally filter results by tags (OR logic — documents matching any tag are included). Use the `list_tags` tool to discover available tags.
 
 ### retrieve_documents
 
@@ -144,6 +154,47 @@ list_sources()
 ```
 stats()
 → {total_files, complete, pending, error, total_chunks, vector_count}
+```
+
+### bucket_create
+
+```
+bucket_create(
+  name: "project-docs",
+  sources: [{"path": "/home/user/projects/myapp/docs", "glob": "**/*.md"}],
+  expires_in: 3600
+)
+→ {id, name, file_count, chunk_count, created_at, expires_at}
+```
+
+Creates a temporary bucket with its own ChromaDB collection. Each source must have a `path` (file or directory) and an optional `glob` pattern (default `**/*.md`). `expires_in` is optional (seconds until auto-delete).
+
+### bucket_search
+
+```
+bucket_search(bucket: "project-docs", query: "authentication", top_k: 5)
+→ {results: [{content, source, score}, ...], total}
+```
+
+### bucket_chat
+
+```
+bucket_chat(bucket: "project-docs", message: "How does auth work?")
+→ {response: "...", sources: [...], source_map: {...}}
+```
+
+### bucket_list
+
+```
+bucket_list()
+→ {buckets: [{id, name, file_count, chunk_count, created_at, expires_at}, ...]}
+```
+
+### bucket_delete
+
+```
+bucket_delete(bucket: "project-docs")
+→ {deleted: true, id, name}
 ```
 
 ## Transports

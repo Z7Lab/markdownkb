@@ -28,7 +28,7 @@ Supports Google-style quoted phrases: `"exact phrase"` requires literal match in
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/search` | Semantic search with optional query enhancement |
+| POST | `/api/search` | Semantic search with optional query enhancement. Pass `bucket_id` to search within a specific bucket. |
 | GET | `/api/searches` | List search history (paginated) |
 | GET | `/api/searches/{id}/load` | Load historical search version with preserved results |
 | GET | `/api/searches/{id}/versions` | Get all versions of a search (original + re-queries) |
@@ -42,7 +42,7 @@ Supports Google-style quoted phrases: `"exact phrase"` requires literal match in
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/api/chat` | RAG chat (non-streaming) |
-| POST | `/api/chat/stream` | SSE streaming chat |
+| POST | `/api/chat/stream` | SSE streaming chat. Pass `bucket_id` to chat within a specific bucket. |
 | DELETE | `/api/chat/history` | Clear conversation |
 | POST | `/api/chat/save-plan` | Save response as markdown |
 
@@ -298,3 +298,36 @@ These endpoints additionally require the `mcp_tag_generator` feature flag (sub-f
 | POST | `/api/tags/generate` | Generate AI tags for a markdown file |
 | POST | `/api/tags/apply` | Apply tags to a file's frontmatter |
 | POST | `/api/tags/bulk` | Bulk-tag files in a directory |
+
+## Buckets
+
+Requires `plugins.buckets.enabled: true`. Plugin: `app/plugins/buckets/`.
+
+Temporary scoped document collections with independent vector storage. Each bucket gets its own ChromaDB collection for isolated search and RAG chat. Expired buckets are automatically cleaned up on startup.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/buckets` | List all buckets with metadata |
+| POST | `/api/buckets` | Create a new bucket from source paths |
+| GET | `/api/buckets/{id}` | Get bucket details |
+| DELETE | `/api/buckets/{id}` | Delete a bucket and its vector data |
+| POST | `/api/buckets/{id}/search` | Search within a bucket |
+| POST | `/api/buckets/{id}/chat` | RAG chat scoped to a bucket |
+
+### POST /api/buckets
+
+```json
+{
+  "name": "project-docs",
+  "sources": [
+    {"path": "/home/user/projects/myapp/docs", "glob": "**/*.md"}
+  ],
+  "expires_in": 3600
+}
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `name` | (required) | Unique bucket name |
+| `sources` | (required) | List of `{path, glob}` source descriptors |
+| `expires_in` | null | Optional auto-delete after this many seconds (min 60) |

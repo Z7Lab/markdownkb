@@ -24,7 +24,7 @@ mdkb is a chat-with-your-docs tool with a Python backend and React frontend. The
 │  ┌──────────▼──────────┐  ┌─────────────▼───────────┐   │
 │  │  Services           │  │  RAG Pipeline           │   │
 │  │  chat_service       │  │  retriever (hybrid)     │   │
-│  │  llm_service        │  │  llm (LiteLLM)          │   │
+│  │  llm_service        │  │  llm (direct SDK calls) │   │
 │  │  query_service      │  │  prompts                │   │
 │  │  planner_service    │  │                         │   │
 │  │  deep_research      │  │                         │   │
@@ -32,8 +32,8 @@ mdkb is a chat-with-your-docs tool with a Python backend and React frontend. The
 │             │                           │               │
 │  ┌──────────▼───────────────────────────▼───────────┐   │
 │  │  Storage Layer                                   │   │
-│  │  ChromaDB (vectors) │ SQLite ×6 (tracking,       │   │
-│  │    chat, search, plans, scopes, tags)            │   │
+│  │  ChromaDB (vectors) │ SQLite ×7 (tracking,       │   │
+│  │    chat, search, plans, scopes, tags, buckets)   │   │
 │  └──────────────────────────────────────────────────┘   │
 │                                                         │
 │  ┌──────────────────┐  ┌────────────────────────────┐   │
@@ -64,6 +64,8 @@ mdkb is a chat-with-your-docs tool with a Python backend and React frontend. The
 │  Plugin:                                                │
 │    summarize │ plan │ list_tags │ generate_tags         │
 │    update_tags │ graph │ export_chat                    │
+│    bucket_create │ bucket_list │ bucket_search          │
+│    bucket_chat │ bucket_delete                          │
 │  Transports: stdio │ SSE  │  read_only mode            │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -126,7 +128,7 @@ Note: `planner_service` and `graph_service` live in core because they are reusab
 | Module | Description |
 |--------|-------------|
 | `retriever` | Hybrid search — vector similarity + BM25 keyword matching, score fusion |
-| `llm` | LiteLLM interface, provider fallback chain, streaming |
+| `llm` | Anthropic SDK for Anthropic models, OpenAI-compatible SDK for everything else (Ollama, Venice, OpenAI, etc.), provider fallback chain, streaming |
 | `prompts` | System and user prompt templates for chat, summaries, query enhancement |
 
 ### Shared Libraries (`app/lib/`)
@@ -160,7 +162,7 @@ Note: `planner_service` and `graph_service` live in core because they are reusab
 
 ## Storage
 
-mdkb uses one vector database and seven SQLite databases:
+mdkb uses one vector database and eight SQLite databases:
 
 | Database | File | Purpose |
 |----------|------|---------|
@@ -172,6 +174,7 @@ mdkb uses one vector database and seven SQLite databases:
 | **PresetsDB** | `data/presets.db` | Named retrieval setting templates |
 | **ScopeDB** | `data/scopes.db` | Named scopes (folder + tag filters) |
 | **TagDB** | `data/tags.db` | File-to-tag mappings (owned by tags plugin) |
+| **BucketDB** | `data/buckets.db` | Temporary bucket metadata (owned by buckets plugin) |
 
 SQLite databases use `PRAGMA user_version` for schema migrations. Each database class carries a `_MIGRATIONS` list that is applied on open. Plugin-owned databases (e.g. TagDB) follow the same patterns but are created by the plugin's `on_startup` hook rather than in core startup.
 
@@ -197,18 +200,18 @@ The hybrid score is a weighted combination (configurable via `retrieval.bm25_wei
 1. User sends a message.
 2. Retriever finds relevant chunks.
 3. Chunks are assembled into a context prompt (`app/rag/prompts.py`).
-4. LiteLLM sends the prompt + context to the active LLM provider (`app/rag/llm.py`).
+4. The prompt + context is sent to the active LLM provider via the anthropic or openai SDK (`app/rag/llm.py`).
 5. Response streams back via SSE. Think-blocks (`<think>`) from reasoning models are stripped during streaming.
 
 ## LLM Integration
 
-LLM calls go through **LiteLLM** (`app/rag/llm.py`), which provides a unified interface across providers. The fallback chain tries providers in order:
+LLM calls go through `app/rag/llm.py`, which routes to the **anthropic** or **openai** SDK based on the `provider/model` string format. Anthropic models use the Messages API directly; everything else (OpenAI, Ollama, Venice, and other OpenAI-compatible providers) uses the openai SDK with a custom `base_url`. The fallback chain tries providers in order:
 
 1. Active provider (configured in settings)
 2. Other configured providers with valid API keys
 3. Ollama (no key required)
 
-Connection testing and model discovery for Ollama use `httpx` directly (`app/services/llm_service.py`). For providers with a model catalog plugin (e.g. Venice), the catalog provides the model list and capability info instead of relying on LiteLLM's registry. API keys are resolved from Docker secrets (`/run/secrets/<provider>_api_key`) or environment variables (`<PROVIDER>_API_KEY`) — never from YAML config.
+SDK clients are cached with `lru_cache` for connection reuse. Ollama gets special handling: the base URL auto-appends `/v1` if missing, and `num_ctx` is passed via `extra_body`. Connection testing and model discovery for Ollama use `httpx` directly (`app/services/llm_service.py`). For providers with a model catalog plugin (e.g. Venice), the catalog provides the model list and capability info. API keys are resolved from Docker secrets (`/run/secrets/<provider>_api_key`) or environment variables (`<PROVIDER>_API_KEY`) — never from YAML config.
 
 ## Plugin System
 
@@ -290,7 +293,7 @@ plugins:
 
 Plugins read their config via `Settings.get_plugin_config("name")` (which filters out the `enabled` key) and define their own defaults internally. A generic API (`GET/PUT /api/settings/plugins/{name}`) allows reading and updating any plugin's config without changes to core code.
 
-Current builtin plugins: `search` (search with history and AI summaries), `export` (conversation export), `graph` (knowledge graph visualization), `planner` (MCTS plan generation), `tags` (tag storage, CRUD, auto-tagging, and optional AI generation), `write_api` (document creation via HTTP).
+Current builtin plugins: `search` (search with history and AI summaries), `export` (conversation export), `graph` (knowledge graph visualization), `planner` (MCTS plan generation), `tags` (tag storage, CRUD, auto-tagging, and optional AI generation), `write_api` (document creation via HTTP), `buckets` (temporary scoped document collections with independent vector storage, search, and chat).
 
 **Deep Research** is not a plugin with its own routes — it's a shared service (`app/services/deep_research.py`) that uses the MCTS engine (`app/planner/`) to run multi-angle research synthesis. It is consumed by the search plugin (via the `deep_research` flag on the summarize endpoint) and can be used by any other plugin. Gated by `core.deep_research`. Its config lives under `services.deep_research`.
 

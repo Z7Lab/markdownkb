@@ -154,7 +154,7 @@ llm:
   providers:
   - name: llamacpp
     model: openai/deepseek  # "openai/" prefix for OpenAI-compatible APIs
-    api_key: 'dummy'        # Not used, but required by LiteLLM
+    api_key: 'dummy'        # Not used, but required for OpenAI-compatible providers
     api_base: http://<your-server-ip>:8080/v1  # Note the /v1 suffix!
   active_provider: llamacpp
   temperature: 0.3

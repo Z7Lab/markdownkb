@@ -184,6 +184,8 @@ plugins:
     enabled: false
   write_api:
     enabled: false
+  buckets:
+    enabled: false
 ```
 
 Plugin config (excluding `enabled`) is read/written via the generic API:

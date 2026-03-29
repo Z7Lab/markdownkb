@@ -210,7 +210,7 @@ print(data["choices"][0]["message"]["content"])
 
 ## Configuring mdkb to Use llama.cpp
 
-mdkb uses LiteLLM, which supports any OpenAI-compatible endpoint.
+mdkb uses the `openai` Python SDK for any OpenAI-compatible endpoint.
 
 ### Option 1: Edit `config/settings.yaml`
 
@@ -218,8 +218,8 @@ mdkb uses LiteLLM, which supports any OpenAI-compatible endpoint.
 llm:
   providers:
     - name: llamacpp
-      model: openai/qwen3        # "openai/" prefix tells LiteLLM to use OpenAI-compatible API
-      api_key: "dummy"            # Not used, but LiteLLM requires something
+      model: openai/qwen3        # "openai/" prefix routes through the openai SDK
+      api_key: "dummy"            # Not used, but required for OpenAI-compatible providers
       api_base: "http://localhost:8080/v1"
   active_provider: llamacpp
   temperature: 0.3
