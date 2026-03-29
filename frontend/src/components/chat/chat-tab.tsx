@@ -3,6 +3,7 @@ import { useScopes } from "@/hooks/use-scopes";
 import { useTags } from "@/hooks/use-tags";
 import { useSettings } from "@/hooks/use-settings";
 import { useScopeTagFilter } from "@/hooks/use-scope-tag-filter";
+import { useBuckets } from "@/hooks/use-buckets";
 import { ChatControls } from "./chat-controls";
 import { ChatInput } from "./chat-input";
 import { ChatMessageList } from "./chat-message-list";
@@ -11,10 +12,13 @@ import { ChatSidebar } from "./chat-sidebar";
 export function ChatTab() {
   const { scopes } = useScopes();
   const { tags: availableTags } = useTags();
+  const { buckets } = useBuckets();
   const {
     selectedScopeIds, selectedTags,
     scopeIdsParam, adHocTagsParam,
+    selectedBucketId,
     handleScopeChange, handleTagChange,
+    handleBucketChange,
   } = useScopeTagFilter();
 
   const {
@@ -31,7 +35,7 @@ export function ChatTab() {
     loadThread,
     renameThread,
     deleteThread,
-  } = useChat(scopeIdsParam, adHocTagsParam);
+  } = useChat(scopeIdsParam, adHocTagsParam, selectedBucketId);
 
   const { settings } = useSettings();
   const showDiagnostics = settings?.core?.diagnostics ?? false;
@@ -51,6 +55,9 @@ export function ChatTab() {
         onLoadThread={loadThread}
         onRenameThread={renameThread}
         onDeleteThread={deleteThread}
+        buckets={buckets}
+        selectedBucketId={selectedBucketId}
+        onBucketChange={handleBucketChange}
       />
       <div className="flex flex-col flex-1 min-w-0 min-h-0">
         <ChatMessageList

@@ -1,0 +1,31 @@
+name: buckets
+display_name: Temp Buckets
+description: Temporary scoped document collections with independent vector storage, search, and chat.
+version: 1.0.0
+author: mdkb
+icon: database
+category: search
+feature_flag: buckets
+requires: []
+
+endpoints:
+  - method: GET
+    path: /api/buckets
+    description: List all buckets with metadata
+  - method: POST
+    path: /api/buckets
+    description: Create a new bucket from source paths
+  - method: GET
+    path: /api/buckets/{bucket_id}
+    description: Get bucket details
+  - method: DELETE
+    path: /api/buckets/{bucket_id}
+    description: Delete a bucket and its vector data
+  - method: POST
+    path: /api/buckets/{bucket_id}/search
+    description: Search within a bucket
+  - method: POST
+    path: /api/buckets/{bucket_id}/chat
+    description: RAG chat scoped to a bucket
+
+config: {}

@@ -29,7 +29,7 @@ const INITIAL_HISTORICAL: HistoricalMeta = {
   versionCount: 0,
 }
 
-export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null) {
+export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null, bucketId?: string | null) {
   const [query, setQuery] = useState("")
   const [folder, setFolder] = useState<string | null>(null)
   const [tag, setTag] = useState<string | null>(null)
@@ -170,6 +170,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
         tag: tag || undefined,
         scope_ids: scopeIds || undefined,
         ad_hoc_tags: adHocTags && adHocTags.length > 0 ? adHocTags : undefined,
+        bucket_id: bucketId || undefined,
         ...(parentId ? { parent_id: parentId } : {}),
       })
       setResults(res.results)
@@ -188,7 +189,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null)
     } finally {
       setLoading(false)
     }
-  }, [query, folder, tag, scopeIds, adHocTags, refreshSearches, resetSummary, startSummary])
+  }, [query, folder, tag, scopeIds, adHocTags, bucketId, refreshSearches, resetSummary, startSummary])
 
   const search = useCallback(() => executeSearch(), [executeSearch])
 

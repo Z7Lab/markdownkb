@@ -24,13 +24,15 @@ import { SearchPanel } from "./retrieval-panel"
 import { DatabasePanel } from "./database-panel"
 import { LoggingPanel } from "./logging-panel"
 import { ScopesPanel } from "./scopes-panel"
-import { Library } from "lucide-react"
+import { BucketsPanel } from "./buckets-panel"
+import { Library, Archive } from "lucide-react"
 
 const sections = [
   { id: "llm", label: "LLM Provider", icon: Cpu },
   { id: "search", label: "Retrieval", icon: Search },
   { id: "sources", label: "Sources", icon: FolderCog },
   { id: "scopes", label: "Scopes", icon: Library },
+  { id: "buckets", label: "Buckets", icon: Archive },
   { id: "embeddings", label: "Embeddings", icon: Layers },
   { id: "features", label: "Plugins", icon: ToggleRight },
   { id: "prompt", label: "System Prompt", icon: MessageSquareText },
@@ -171,6 +173,9 @@ export function SettingsTab() {
             )}
             {activeSection === "scopes" && (
               <ScopesPanel folders={settings.sources} availableTags={availableTags} />
+            )}
+            {activeSection === "buckets" && (
+              <BucketsPanel />
             )}
             {activeSection === "embeddings" && (
               <EmbeddingPanel

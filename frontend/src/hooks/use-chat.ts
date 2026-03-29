@@ -18,7 +18,7 @@ function nextId(): string {
 // LocalStorage key for streaming thread tracking (transient, not persisted state)
 const STREAMING_THREAD_KEY = "mdkb_streaming_thread"
 
-export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
+export function useChat(scopeIds?: string | null, adHocTags?: string[] | null, bucketId?: string | null) {
   const [messages, setMessages] = usePersistedState<ChatMessage[]>("mdkb_messages", [])
   const [isStreaming, setIsStreaming] = useState(false)
   const [threads, setThreads] = useState<Thread[]>([])
@@ -161,9 +161,10 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null) {
         activeThreadId,
         scopeIds,
         adHocTags,
+        bucketId,
       )
     },
-    [isStreaming, activeThreadId, refreshThreads, scopeIds, adHocTags, setMessages, setActiveThreadId, cleanupStream, flushStreamContent],
+    [isStreaming, activeThreadId, refreshThreads, scopeIds, adHocTags, bucketId, setMessages, setActiveThreadId, cleanupStream, flushStreamContent],
   )
 
   const stop = useCallback(() => {

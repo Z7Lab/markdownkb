@@ -16,6 +16,7 @@ class SearchRequest(BaseModel):
     scope_ids: str | None = None  # Comma-separated scope IDs (multi-select)
     ad_hoc_tags: list[str] | None = None  # Ad-hoc tag filter (OR logic)
     parent_id: str | None = None  # Link re-queries into a version chain
+    bucket_id: str | None = None  # Search within a specific bucket
 
 
 class SummarizeRequest(BaseModel):
@@ -29,6 +30,7 @@ class SummarizeRequest(BaseModel):
     scope_ids: str | None = None
     ad_hoc_tags: list[str] | None = None
     search_id: str | None = None  # Optional: save summary when provided
+    bucket_id: str | None = None  # Summarize within a specific bucket
     deep_research: bool = False  # Use MCTS deep research instead of single-pass
     deep_research_iterations: int | None = Field(None, ge=1, le=20)  # Override iteration count
 
@@ -50,6 +52,7 @@ class StreamChatRequest(BaseModel):
     scope_id: str | None = None
     scope_ids: str | None = None
     ad_hoc_tags: list[str] | None = None
+    bucket_id: str | None = None  # Chat within a specific bucket
 
 
 class SavePlanRequest(BaseModel):

@@ -20,17 +20,21 @@ import { Loader2, Search, RotateCcw, Clock, AlertCircle, History } from "lucide-
 import { useState, type KeyboardEvent as ReactKeyboardEvent } from "react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useScopeTagFilter } from "@/hooks/use-scope-tag-filter"
+import { useBuckets } from "@/hooks/use-buckets"
 import { ASCII_BANNER } from "@/lib/constants"
 
 export function SearchTab() {
   const { scopes } = useScopes()
   const { tags: availableTags } = useTags()
   const { settings } = useSettings()
+  const { buckets } = useBuckets()
 
   const {
     selectedScopeIds, selectedTags: selectedAdHocTags,
     scopeIdsParam, adHocTagsParam,
+    selectedBucketId,
     handleScopeChange, handleTagChange: handleAdHocTagChange,
+    handleBucketChange,
   } = useScopeTagFilter()
 
   const {
@@ -58,7 +62,7 @@ export function SearchTab() {
     requery,
     loadVersion,
     fetchVersions,
-  } = useSearch(scopeIdsParam, adHocTagsParam)
+  } = useSearch(scopeIdsParam, adHocTagsParam, selectedBucketId)
   const { lastIndexedAt } = useIndexEvents()
   const [viewingPath, setViewingPath] = useState<string | null>(null)
   const [resultsChangedDialogOpen, setResultsChangedDialogOpen] = useState(false)
@@ -101,6 +105,9 @@ export function SearchTab() {
         availableTags={availableTags}
         selectedAdHocTags={selectedAdHocTags}
         onAdHocTagChange={handleAdHocTagChange}
+        buckets={buckets}
+        selectedBucketId={selectedBucketId}
+        onBucketChange={handleBucketChange}
       />
 
       <div className="flex flex-col flex-1 min-w-0 min-h-0">

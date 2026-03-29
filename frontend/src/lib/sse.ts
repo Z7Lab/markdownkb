@@ -132,11 +132,13 @@ export function streamChat(
   threadId?: string | null,
   scopeIds?: string | null,
   adHocTags?: string[] | null,
+  bucketId?: string | null,
 ): AbortController {
   const body: Record<string, unknown> = { message }
   if (threadId) body.thread_id = threadId
   if (scopeIds) body.scope_ids = scopeIds
   if (adHocTags && adHocTags.length > 0) body.ad_hoc_tags = adHocTags
+  if (bucketId) body.bucket_id = bucketId
 
   return streamSSE(
     "/api/chat/stream",

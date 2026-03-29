@@ -72,6 +72,17 @@ async def lifespan(server: FastMCP):
         tagdb = TagDB(settings.data_directory)
         logger.info("TagDB initialized for MCP (tags plugin enabled)")
 
+    bucket_service = None
+    if settings.plugin_enabled("buckets"):
+        from app.plugins.buckets.bucketdb import BucketDB
+        from app.plugins.buckets.bucket_service import BucketService
+        bucketdb = BucketDB(settings.data_directory)
+        bucket_service = BucketService(
+            bucketdb, settings.persist_directory, settings.embedding_model,
+        )
+        bucket_service.cleanup_expired()
+        logger.info("BucketService initialized for MCP (buckets plugin enabled)")
+
     # Optional history tracking — record MCP calls to the web UI sidebar DBs
     chatdb = None
     searchdb = None
@@ -97,6 +108,7 @@ async def lifespan(server: FastMCP):
         "tagdb": tagdb,
         "chatdb": chatdb,
         "searchdb": searchdb,
+        "bucket_service": bucket_service,
     }
 
     if chatdb:
@@ -105,6 +117,8 @@ async def lifespan(server: FastMCP):
         searchdb.close()
     if tagdb:
         tagdb.close()
+    if bucket_service:
+        bucket_service.db.close()
     scopedb.close()
     plandb.close()
     tracking.close()

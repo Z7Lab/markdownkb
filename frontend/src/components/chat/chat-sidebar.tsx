@@ -3,8 +3,10 @@ import { AppSidebar } from "@/components/ui/app-sidebar";
 import { SidebarItemList } from "@/components/ui/sidebar-item-list";
 import { Bot, MessageSquare, Plus } from "lucide-react";
 import type { Scope, Thread } from "@/lib/types";
+import type { Bucket } from "@/hooks/use-buckets";
 import { ModelPicker } from "./model-picker";
 import { ScopeTagFilter } from "@/components/scope-tag-filter";
+import { BucketSelector } from "@/components/bucket-selector";
 
 function isAgentThread(t: Thread): boolean {
   return t.title?.startsWith("[agent]") ?? false
@@ -28,6 +30,9 @@ export function ChatSidebar({
   onLoadThread,
   onRenameThread,
   onDeleteThread,
+  buckets,
+  selectedBucketId,
+  onBucketChange,
 }: {
   threads: Thread[];
   activeThreadId: string | null;
@@ -41,6 +46,9 @@ export function ChatSidebar({
   onLoadThread: (id: string) => void;
   onRenameThread: (id: string, title: string) => void;
   onDeleteThread: (id: string) => void;
+  buckets: Bucket[];
+  selectedBucketId: string | null;
+  onBucketChange: (id: string | null) => void;
 }) {
   return (
     <AppSidebar
@@ -54,6 +62,11 @@ export function ChatSidebar({
             availableTags={availableTags}
             selectedTags={selectedTags}
             onTagChange={onTagChange}
+          />
+          <BucketSelector
+            buckets={buckets}
+            selectedBucketId={selectedBucketId}
+            onBucketChange={onBucketChange}
           />
           <Button
             onClick={onNewChat}

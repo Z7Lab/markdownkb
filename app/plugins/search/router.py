@@ -112,6 +112,37 @@ def search(
     tracking: TrackingDB = Depends(get_tracking),
 ):
     """Search the vector database with optional intelligent query enhancement."""
+    # Bucket-scoped search: delegate to BucketService if bucket_id is set
+    if req.bucket_id:
+        bucket_service = getattr(request.app.state, "bucket_service", None)
+        if bucket_service is None:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=503, detail="Buckets plugin not initialized")
+        top_k = req.top_k if req.top_k is not None else settings.top_k
+        bucket_result = bucket_service.search(req.bucket_id, req.query, top_k, settings)
+        # Wrap in SearchResponse format for the frontend
+        results = [
+            {
+                "document": r["content"],
+                "metadata": {"source_path": r["source"]},
+                "score": r["score"],
+                "snippets": [{"text": r["content"], "score": r["score"], "heading": ""}],
+                "chunk_count": 1,
+                "score_min": r["score"],
+                "score_max": r["score"],
+                "score_avg": r["score"],
+            }
+            for r in bucket_result["results"]
+        ]
+        search_id = searchdb.save(req.query, req.folder, req.tag, results, parent_id=req.parent_id)
+        return {
+            "results": results,
+            "search_id": search_id,
+            "query": req.query,
+            "is_historical": False,
+            "bucket_id": req.bucket_id,
+        }
+
     cfg = _cfg(settings)
     ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
     scope_folders, scope_tags = resolve_scopes(ids, scopedb)

@@ -89,6 +89,15 @@ def chat_stream(
     scope_folders, scope_tags = resolve_scopes(ids, scopedb)
     allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
 
+    # Bucket-scoped chat: use a bucket-specific retriever
+    bucket_retriever = None
+    if req.bucket_id:
+        bucket_service = getattr(request.app.state, "bucket_service", None)
+        if bucket_service:
+            record = bucket_service.db.resolve(req.bucket_id)
+            if record:
+                bucket_retriever = bucket_service._get_retriever(record["id"], settings)
+
     if req.thread_id:
         thread_id = req.thread_id
         title = ""
@@ -105,12 +114,12 @@ def chat_stream(
         try:
             for partial in chat_respond(
                 req.message,
-                retriever,
+                bucket_retriever or retriever,
                 settings,
                 chatdb=chatdb,
                 thread_id=thread_id,
-                folders_filter=scope_folders or None,
-                allowed_paths=allowed,
+                folders_filter=scope_folders or None if not bucket_retriever else None,
+                allowed_paths=allowed if not bucket_retriever else None,
                 sources_out=sources,
                 source_map_out=source_map,
                 conversation_history=conv_history,

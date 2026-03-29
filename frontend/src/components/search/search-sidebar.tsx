@@ -10,7 +10,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { SavedSearch, Scope } from "@/lib/types"
+import type { Bucket } from "@/hooks/use-buckets"
 import { ScopeTagFilter } from "@/components/scope-tag-filter"
+import { BucketSelector } from "@/components/bucket-selector"
 
 export function SearchSidebar({
   searches,
@@ -31,6 +33,9 @@ export function SearchSidebar({
   availableTags,
   selectedAdHocTags,
   onAdHocTagChange,
+  buckets,
+  selectedBucketId,
+  onBucketChange,
 }: {
   searches: SavedSearch[]
   activeSearchId: string | null
@@ -50,6 +55,9 @@ export function SearchSidebar({
   availableTags: string[]
   selectedAdHocTags: Set<string>
   onAdHocTagChange: (tags: Set<string>) => void
+  buckets: Bucket[]
+  selectedBucketId: string | null
+  onBucketChange: (id: string | null) => void
 }) {
   return (
     <AppSidebar
@@ -113,6 +121,12 @@ export function SearchSidebar({
               availableTags={availableTags}
               selectedTags={selectedAdHocTags}
               onTagChange={onAdHocTagChange}
+            />
+
+            <BucketSelector
+              buckets={buckets}
+              selectedBucketId={selectedBucketId}
+              onBucketChange={onBucketChange}
             />
           </div>
         </div>
