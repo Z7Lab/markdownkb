@@ -134,7 +134,16 @@ def search(
             }
             for r in bucket_result["results"]
         ]
-        search_id = searchdb.save(req.query, req.folder, req.tag, results, parent_id=req.parent_id)
+        result_paths = [r["metadata"]["source_path"] for r in results if r.get("metadata", {}).get("source_path")]
+        result_details = [{"path": r["metadata"]["source_path"], "score": r["score"]} for r in results]
+        search_id = searchdb.save_search(
+            req.query, req.folder, req.tag,
+            result_paths=result_paths,
+            result_count=len(results),
+            result_details=result_details,
+            result_data=results,
+            parent_id=req.parent_id,
+        )
         return {
             "results": results,
             "search_id": search_id,
