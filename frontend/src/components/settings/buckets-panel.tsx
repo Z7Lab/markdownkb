@@ -16,7 +16,7 @@ function formatExpiry(expiresAt: string | null): string {
 }
 
 export function BucketsPanel() {
-  const { buckets, createBucket, deleteBucket, refresh } = useBuckets()
+  const { buckets, createBucket, deleteBucket } = useBuckets()
   const [name, setName] = useState("")
   const [sourcePath, setSourcePath] = useState("")
   const [sourceGlob, setSourceGlob] = useState("**/*.md")
