@@ -96,15 +96,9 @@ def enhance_query(
             error=str(e),
         )
     except (TypeError, AttributeError) as e:
-        # Likely a code bug — log prominently and report to caller
+        # Likely a code bug — log prominently and re-raise so it doesn't go unnoticed
         logger.error("Query enhancement unexpected error: %s", e, exc_info=True)
-        return EnhancedQuery(
-            original=query,
-            keywords=[],
-            expanded_terms={},
-            context="",
-            error=str(e),
-        )
+        raise
 
 
 def build_enhanced_search_query(enhanced: EnhancedQuery) -> str:

@@ -22,14 +22,16 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-def discover_tools(settings: Any) -> list[dict[str, Any]]:
+def discover_tools(settings: Any) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
     """Scan this package for tool modules and return enabled ones.
 
-    Returns a list of dicts with keys ``name``, ``handler``, and
-    ``enabled``.  Disabled tools are included with ``enabled=False``
-    for logging purposes.
+    Returns a tuple of (tools, import_errors).  ``tools`` is a list of
+    dicts with keys ``name``, ``handler``, and ``enabled``.  Disabled
+    tools are included with ``enabled=False`` for logging purposes.
+    ``import_errors`` lists modules that failed to import.
     """
     tools: list[dict[str, Any]] = []
+    import_errors: list[dict[str, str]] = []
     tools_dir = Path(__file__).resolve().parent
 
     for module_path in sorted(tools_dir.glob("*.py")):
@@ -39,8 +41,9 @@ def discover_tools(settings: Any) -> list[dict[str, Any]]:
         mod_name = module_path.stem
         try:
             mod = importlib.import_module(f"{__package__}.{mod_name}")
-        except Exception:
+        except Exception as e:
             logger.exception("Failed to import MCP tool module '%s'", mod_name)
+            import_errors.append({"module": mod_name, "error": str(e)})
             continue
 
         meta = getattr(mod, "TOOL", None)
@@ -69,7 +72,7 @@ def discover_tools(settings: Any) -> list[dict[str, Any]]:
             "enabled": enabled,
         })
 
-    return tools
+    return tools, import_errors
 
 
 def register_tools(mcp_server: Any, settings: Any) -> list[str]:
@@ -79,7 +82,14 @@ def register_tools(mcp_server: Any, settings: Any) -> list[str]:
     """
     registered: list[str] = []
 
-    for tool in discover_tools(settings):
+    tools, import_errors = discover_tools(settings)
+    for error in import_errors:
+        logger.warning(
+            "MCP tool module '%s' failed to import: %s",
+            error["module"], error["error"],
+        )
+
+    for tool in tools:
         if not tool["enabled"]:
             if tool.get("requires_plugin") and not settings.plugin_enabled(tool["requires_plugin"]):
                 reason = f"plugin '{tool['requires_plugin']}' disabled"

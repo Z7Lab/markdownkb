@@ -245,6 +245,8 @@ class FileWatcher:
         self._store = store
         self._tracking = tracking
         self._rescan_timer: threading.Timer | None = None
+        self._rescan_interval: float = 60.0
+        self._rescan_max_interval: float = 300.0
 
     def add_directory(self, path: str) -> bool:
         """Schedule a directory for watching.  Returns True if newly added."""
@@ -293,10 +295,20 @@ class FileWatcher:
                             args=(source,),
                             daemon=True,
                         ).start()
+            # Reset interval on success
+            self._rescan_interval = 60.0
         except Exception:
             logger.exception("Error during project root rescan")
+            # Back off on repeated errors (up to max interval)
+            self._rescan_interval = min(
+                self._rescan_interval * 2, self._rescan_max_interval,
+            )
+            logger.warning(
+                "Next project root rescan in %.0fs (backoff)",
+                self._rescan_interval,
+            )
         # Schedule next rescan
-        self._rescan_timer = threading.Timer(60.0, self._rescan_project_roots)
+        self._rescan_timer = threading.Timer(self._rescan_interval, self._rescan_project_roots)
         self._rescan_timer.daemon = True
         self._rescan_timer.start()
 

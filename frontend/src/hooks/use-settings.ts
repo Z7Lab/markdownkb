@@ -22,13 +22,18 @@ export function useSettings(): SettingsValue {
 
 function useSettingsInternal() {
   const [settings, setSettings] = useState<AppSettings | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const load = useCallback(async (): Promise<boolean> => {
     try {
       const res = await api.get<AppSettings>("/api/settings")
       setSettings(res)
+      setLoadError(null)
       return true
-    } catch {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      console.error("Failed to load settings:", message)
+      setLoadError(message)
       return false
     }
   }, [])
@@ -170,6 +175,7 @@ function useSettingsInternal() {
 
   return {
     settings,
+    loadError,
     // Provider
     ...provider,
     // Embedding

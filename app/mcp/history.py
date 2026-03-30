@@ -29,10 +29,11 @@ def record_search(
     tool_name: str = "search",
     result_details: list[dict] | None = None,
     result_data: list[dict] | None = None,
-) -> str | None:
+) -> str | None | bool:
     """Record an MCP search call to SearchDB (sidebar history).
 
-    Returns the search_id if recorded, None if history tracking is off.
+    Returns the search_id if recorded, None if history tracking is off,
+    or False if recording failed.
     """
     searchdb = _get_db(ctx, "searchdb")
     if searchdb is None:
@@ -54,7 +55,7 @@ def record_search(
         return search_id
     except Exception:
         logger.warning("Failed to record MCP %s to history", tool_name, exc_info=True)
-        return None
+        return False
 
 
 def record_chat(
@@ -64,13 +65,14 @@ def record_chat(
     *,
     sources: list[str] | None = None,
     source_map: dict[str, str] | None = None,
-) -> str | None:
+) -> str | None | bool:
     """Record an MCP chat call to ChatDB (thread sidebar).
 
     Creates a thread titled with a short version of the message, then
     adds the user message and assistant response with sources.
 
-    Returns the thread_id if recorded, None if history tracking is off.
+    Returns the thread_id if recorded, None if history tracking is off,
+    or False if recording failed.
     """
     chatdb = _get_db(ctx, "chatdb")
     if chatdb is None:
@@ -92,4 +94,4 @@ def record_chat(
         return thread_id
     except Exception:
         logger.warning("Failed to record MCP chat to history", exc_info=True)
-        return None
+        return False

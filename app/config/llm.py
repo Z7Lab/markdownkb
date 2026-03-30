@@ -52,7 +52,7 @@ class LLMMixin:
                     [p.get("name") for p in self.llm_providers],
                     self.llm_providers[0].get("name"),
                 )
-                config = self.llm_providers[0]
+                config = {**self.llm_providers[0], "_fallback": True}
             else:
                 logger.warning("No LLM providers configured — LLM features will be unavailable")
                 return {}

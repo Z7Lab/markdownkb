@@ -57,8 +57,11 @@ def _validate_path(relative: str) -> str:
         for part in normalized.parts:
             if part == "..":
                 raise HTTPException(400, "Path traversal ('..') is not allowed")
-    except (ValueError, OSError):
+    except ValueError:
         raise HTTPException(400, "Invalid path")
+    except OSError as e:
+        logger.warning("Filesystem error validating path %r: %s", relative, e)
+        raise HTTPException(500, "Filesystem error while validating path")
 
     if _UNSAFE_CHARS.search(relative):
         raise HTTPException(400, "Path contains invalid characters")

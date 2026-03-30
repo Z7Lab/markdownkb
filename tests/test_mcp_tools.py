@@ -20,7 +20,7 @@ class TestToolDiscovery:
         from app.mcp.tools import discover_tools
 
         settings = FakeSettings()
-        tools = discover_tools(settings)
+        tools, _errors = discover_tools(settings)
         names = [t["name"] for t in tools]
 
         assert "retrieve" in names
@@ -35,7 +35,7 @@ class TestToolDiscovery:
         settings = FakeSettings()
         settings.set_plugin_enabled("planner", False)
 
-        tools = discover_tools(settings)
+        tools, _errors = discover_tools(settings)
         by_name = {t["name"]: t for t in tools}
 
         assert by_name["plan"]["enabled"] is False
@@ -47,7 +47,7 @@ class TestToolDiscovery:
         settings = FakeSettings()
         settings.set_plugin_enabled("planner", True)
 
-        tools = discover_tools(settings)
+        tools, _errors = discover_tools(settings)
         by_name = {t["name"]: t for t in tools}
 
         assert by_name["plan"]["enabled"] is True
@@ -56,7 +56,7 @@ class TestToolDiscovery:
         from app.mcp.tools import discover_tools
 
         settings = FakeSettings()
-        tools = discover_tools(settings)
+        tools, _errors = discover_tools(settings)
         by_name = {t["name"]: t for t in tools}
 
         assert by_name["index_file"]["write"] is True
@@ -69,7 +69,7 @@ class TestToolDiscovery:
         settings = FakeSettings()
         settings._mcp["read_only"] = True
 
-        tools = discover_tools(settings)
+        tools, _errors = discover_tools(settings)
         by_name = {t["name"]: t for t in tools}
 
         # Write tools should be disabled
@@ -89,7 +89,7 @@ class TestToolDiscovery:
         # save_document needs its own feature flag enabled
         settings._mcp["save_document"] = True
 
-        tools = discover_tools(settings)
+        tools, _errors = discover_tools(settings)
         by_name = {t["name"]: t for t in tools}
 
         assert by_name["index_file"]["enabled"] is True
@@ -103,7 +103,7 @@ class TestToolDiscovery:
         settings._mcp["read_only"] = False
         settings._mcp["save_document"] = False
 
-        tools = discover_tools(settings)
+        tools, _errors = discover_tools(settings)
         by_name = {t["name"]: t for t in tools}
 
         assert by_name["save_file"]["enabled"] is False

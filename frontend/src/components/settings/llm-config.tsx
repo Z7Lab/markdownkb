@@ -110,7 +110,8 @@ export function LlmConfig({
       try {
         const info = await onFetchModelInfo(model, apiBase)
         setModelInfo(info)
-      } catch {
+      } catch (err) {
+        console.warn("Failed to fetch model info:", (err as Error).message)
         setModelInfo(null)
       } finally {
         setInfoLoading(false)

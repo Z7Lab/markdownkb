@@ -19,7 +19,17 @@ router = APIRouter(prefix="/api", tags=["health"])
 @router.get("/health")
 @limiter.limit(STANDARD)
 def health(request: Request, store: VectorStore = Depends(get_store)):
-    return {"status": "ok", "chunks": store.count}
+    degraded = getattr(request.app.state, "embedding_model_degraded", False)
+    using_defaults = getattr(request.app.state, "using_default_config", False)
+    result = {
+        "status": "degraded" if degraded else "ok",
+        "chunks": store.count,
+    }
+    if degraded:
+        result["embedding_model_degraded"] = True
+    if using_defaults:
+        result["using_defaults"] = True
+    return result
 
 
 @router.get("/health/llm")

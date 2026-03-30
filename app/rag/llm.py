@@ -165,8 +165,8 @@ def get_completion(
     last_error = None
     for provider in providers:
         model = provider.get("model", "")
-        api_key = provider.get("api_key", "") or None
-        api_base = provider.get("api_base", "") or None
+        api_key = (provider.get("api_key", "") or "").strip() or None
+        api_base = (provider.get("api_base", "") or "").strip() or None
 
         provider_type, model_name = _parse_model(model)
         is_ollama = "ollama" in provider.get("name", "").lower() or provider_type == "ollama"

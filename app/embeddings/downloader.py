@@ -70,12 +70,16 @@ def get_model_path(model_id: str) -> Path:
     info = MODELS.get(model_id)
     primary = model_dir(model_id)
     if info and _dir_has_model(primary, info):
+        logger.debug("Model '%s' found at primary path: %s", model_id, primary)
         return primary
     legacy = _LEGACY_CACHE / model_id
     if info and _dir_has_model(legacy, info):
+        logger.info("Model '%s' found at legacy path: %s", model_id, legacy)
         return legacy
     if model_id == "all-MiniLM-L6-v2" and _chroma_cache_ok():
+        logger.info("Model '%s' found at ChromaDB cache: %s", model_id, _CHROMA_BASE)
         return _CHROMA_BASE
+    logger.debug("Model '%s' not found, returning default path: %s", model_id, primary)
     return primary
 
 

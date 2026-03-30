@@ -93,10 +93,12 @@ def chat_stream(
     bucket_retriever = None
     if req.bucket_id:
         bucket_service = getattr(request.app.state, "bucket_service", None)
-        if bucket_service:
-            record = bucket_service.db.resolve(req.bucket_id)
-            if record:
-                bucket_retriever = bucket_service._get_retriever(record["id"], settings)
+        if bucket_service is None:
+            raise HTTPException(status_code=503, detail="Buckets plugin not initialized")
+        record = bucket_service.db.resolve(req.bucket_id)
+        if not record:
+            raise HTTPException(status_code=404, detail=f"Bucket not found: {req.bucket_id}")
+        bucket_retriever = bucket_service._get_retriever(record["id"], settings)
 
     if req.thread_id:
         thread_id = req.thread_id

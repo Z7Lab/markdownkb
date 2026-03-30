@@ -90,8 +90,12 @@ def test_ollama(api_base: str) -> str:
     )
 
 
-def test_api_provider(model: str, api_base: str, api_key: str = "") -> str:
-    """Test connectivity to an API-based LLM provider."""
+def test_api_provider(model: str, api_base: str, api_key: str = "") -> dict:
+    """Test connectivity to an API-based LLM provider.
+
+    Returns a dict with keys: ``ok`` (bool), ``message`` (str), and
+    optionally ``reply`` (the model's response text).
+    """
     provider_type, model_name = _parse_model(model)
 
     try:
@@ -121,8 +125,8 @@ def test_api_provider(model: str, api_base: str, api_key: str = "") -> str:
             reply = (response.choices[0].message.content or "").strip()
 
         if reply:
-            return f"Connected. Response: {reply}"
-        return "Connected (model returned empty response)"
+            return {"ok": True, "message": f"Connected. Response: {reply}", "reply": reply}
+        return {"ok": True, "message": "Connected (model returned empty response)", "reply": ""}
     except (
         anthropic.APIError, anthropic.APIConnectionError,
         anthropic.AuthenticationError, anthropic.APITimeoutError,
@@ -130,26 +134,34 @@ def test_api_provider(model: str, api_base: str, api_key: str = "") -> str:
         openai.AuthenticationError, openai.APITimeoutError,
         RuntimeError, OSError, ValueError,
     ) as e:
-        return f"Connection failed: {e}"
+        return {"ok": False, "message": f"Connection failed: {e}"}
 
 
 def test_llm_connection(
     provider_name: str, model: str, api_base: str, api_key: str = "",
-) -> str:
-    """Test connectivity to an LLM provider."""
+) -> dict:
+    """Test connectivity to an LLM provider.
+
+    Returns a dict with keys: ``ok`` (bool), ``message`` (str).
+    """
     if not model:
-        return "No model configured."
+        return {"ok": False, "message": "No model configured."}
 
     if "ollama" in provider_name.lower() and api_base:
-        return test_ollama(api_base)
+        msg = test_ollama(api_base)
+        ok = not msg.startswith(("Cannot reach", "Connection failed", "Connection error"))
+        return {"ok": ok, "message": msg}
 
     return test_api_provider(model, api_base, api_key)
 
 
-def ping_model(model: str, api_base: str, api_key: str = "") -> str:
-    """Quick test that a specific model loads and responds."""
+def ping_model(model: str, api_base: str, api_key: str = "") -> dict:
+    """Quick test that a specific model loads and responds.
+
+    Returns a dict with keys: ``ok`` (bool), ``message`` (str).
+    """
     if not model:
-        return "No model configured."
+        return {"ok": False, "message": "No model configured."}
     return test_api_provider(model, api_base, api_key)
 
 

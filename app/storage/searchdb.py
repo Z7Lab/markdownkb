@@ -132,6 +132,7 @@ class SearchDB:
             if not row:
                 return None
             result = dict(row)
+            corrupt_fields: list[str] = []
             # Parse JSON result_paths
             for field in ("result_paths", "result_details", "result_data"):
                 raw = result.get(field)
@@ -145,8 +146,11 @@ class SearchDB:
                             field, search_id,
                         )
                         result[field] = []
+                        corrupt_fields.append(field)
                 else:
                     result[field] = []
+            if corrupt_fields:
+                result["_corrupt_fields"] = corrupt_fields
             return result
 
     def get_search_versions(self, search_id: str) -> list[dict]:

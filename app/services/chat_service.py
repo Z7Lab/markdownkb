@@ -137,8 +137,8 @@ def rewrite_query(message: str, settings: Settings) -> str:
         if rewritten:
             logger.info("Query rewrite: %r -> %r", message[:80], rewritten)
             return rewritten
-    except (RuntimeError, OSError, ValueError):
-        logger.warning("Query rewrite failed, using original")
+    except (RuntimeError, OSError, ValueError) as e:
+        logger.warning("Query rewrite failed, using original: %s", e)
     return message
 
 

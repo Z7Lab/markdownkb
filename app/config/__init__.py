@@ -172,9 +172,11 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
         if path.exists():
             with open(path, encoding="utf-8") as f:
                 self._data = yaml.safe_load(f) or {}
+            self._using_defaults = False
         else:
             logger.warning("Config file not found at %s — using built-in defaults", path)
             self._data = {}
+            self._using_defaults = True
         self._data = _resolve_env_recursive(self._data)
         self._path = path
         self._project_root = path.resolve().parent.parent
@@ -186,6 +188,11 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
         # Auto-migrate legacy settings layout
         if _migrate_settings(self._data):
             self.save()
+
+    @property
+    def using_defaults(self) -> bool:
+        """Return True if no config file was found and built-in defaults are in use."""
+        return self._using_defaults
 
     @classmethod
     def get(cls, config_path: str | Path | None = None) -> "Settings":

@@ -84,8 +84,7 @@ def test_connection(
         req.api_base,
         api_key,
     )
-    success = not result.startswith(("Connection failed", "Cannot reach", "No model"))
-    return {"result": result, "success": success}
+    return {"result": result["message"], "success": result["ok"]}
 
 
 @router.post("/settings/ping-model")
@@ -98,8 +97,7 @@ def ping_model_endpoint(
     """Ping a specific model to check availability."""
     api_key = req.api_key or settings.resolve_provider_key(req.name)
     result = ping_model(req.model, req.api_base, api_key)
-    success = not result.startswith(("Connection failed", "No model"))
-    return {"result": result, "success": success}
+    return {"result": result["message"], "success": result["ok"]}
 
 
 @router.post("/settings/refresh-models")

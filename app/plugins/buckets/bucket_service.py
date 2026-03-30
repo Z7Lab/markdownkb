@@ -175,26 +175,36 @@ class BucketService:
         bucket_name = record["name"]
 
         # Delete ChromaDB collection
+        collection_deleted = True
         try:
             store = self._get_store(bucket_id)
             store.clear()
-        except Exception:
-            logger.warning("Failed to delete ChromaDB collection for bucket %s", bucket_id)
+        except Exception as e:
+            logger.warning("Failed to delete ChromaDB collection for bucket %s: %s", bucket_id, e)
+            collection_deleted = False
 
         self._db.delete(bucket_id)
         logger.info("Bucket '%s' (%s) deleted", bucket_name, bucket_id)
-        return {"deleted": True, "id": bucket_id, "name": bucket_name}
+        result = {"deleted": True, "id": bucket_id, "name": bucket_name}
+        if not collection_deleted:
+            result["partial"] = True
+            result["warning"] = "Bucket record deleted but ChromaDB collection cleanup failed"
+        return result
 
     # -- Cleanup expired -----------------------------------------------------
 
     def cleanup_expired(self) -> int:
         """Delete expired buckets. Returns count of cleaned up buckets."""
         expired = self._db.get_expired()
+        cleaned = 0
+        failed = 0
         for record in expired:
             try:
                 self.delete(record["id"])
-            except Exception:
-                logger.warning("Failed to clean up expired bucket %s", record["id"])
+                cleaned += 1
+            except Exception as e:
+                logger.warning("Failed to clean up expired bucket %s: %s", record["id"], e)
+                failed += 1
         if expired:
-            logger.info("Cleaned up %d expired bucket(s)", len(expired))
-        return len(expired)
+            logger.info("Cleaned up %d expired bucket(s), %d failed", cleaned, failed)
+        return cleaned

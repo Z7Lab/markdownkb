@@ -11,10 +11,12 @@ from itertools import combinations
 
 import numpy as np
 
+_SKLEARN_AVAILABLE = True
 try:
     from sklearn.cluster import DBSCAN
     from sklearn.feature_extraction.text import TfidfVectorizer
 except ImportError:
+    _SKLEARN_AVAILABLE = False
     DBSCAN = None  # type: ignore[assignment,misc]  # optional dep, checked at call site
     TfidfVectorizer = None  # type: ignore[assignment,misc]  # optional dep, checked at call site
     logging.getLogger(__name__).warning(
@@ -210,7 +212,7 @@ def compute_graph(
     total_chunks = sum(len(docs[p]["embeddings"]) for p in doc_paths)
 
     progress(1.0, "idle")
-    return {
+    result = {
         "nodes": nodes,
         "edges": edges,
         "clusters": clusters,
@@ -221,6 +223,10 @@ def compute_graph(
             "edge_count": len(edges),
         },
     }
+    if not _SKLEARN_AVAILABLE:
+        result["degraded"] = True
+        result["degraded_reason"] = "scikit-learn not installed — clustering and word clouds unavailable"
+    return result
 
 
 def _cluster_docs(

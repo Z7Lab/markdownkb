@@ -4,7 +4,10 @@ Unlike ``retrieve`` which returns chunks, this returns complete document
 content for the top matching files — ideal for embedding into prompts.
 """
 
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 from app.mcp.history import record_search
 from app.rag.retriever import Retriever
@@ -76,7 +79,15 @@ def handler(query: str, top_k: int = 3, max_chars: int = 15000,
 
         try:
             content = Path(source_path).read_text(encoding="utf-8")
-        except OSError:
+        except OSError as e:
+            logger.warning("Cannot read document %s: %s", source_path, e)
+            documents.append({
+                "path": source_path,
+                "title": Path(source_path).stem.replace("-", " ").replace("_", " "),
+                "content": "",
+                "score": round(score, 4),
+                "error": f"Could not read file: {e}",
+            })
             continue
 
         # Truncate individual document if it would blow the budget

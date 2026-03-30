@@ -188,7 +188,9 @@ def _flatten_metadata(meta: dict) -> dict:
         elif isinstance(v, list):
             flat[k] = ", ".join(str(x) for x in v)
         elif v is None:
-            flat[k] = ""
+            # Skip None values rather than storing as empty string,
+            # which would be indistinguishable from intentional empty strings
+            continue
         else:
             flat[k] = str(v)
     return flat

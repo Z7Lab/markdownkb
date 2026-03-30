@@ -70,6 +70,7 @@ async def lifespan(app: FastAPI):
             logger.info("Embedding model '%s' installed", model_id)
         except Exception:
             logger.exception("Failed to install embedding model '%s' — indexing will fail until it is installed", model_id)
+            app.state.embedding_model_degraded = True
 
     # Reset files stuck in "indexing" from a previous interrupted run
     reset_count = tracking.reset_incomplete()
@@ -91,6 +92,7 @@ async def lifespan(app: FastAPI):
     # Store services on app.state for dependency injection
     from app.services.chat_service import ConversationHistory
     app.state.settings = settings
+    app.state.using_default_config = settings.using_defaults
     app.state.store = store
     app.state.retriever = retriever
     app.state.tracking = tracking
