@@ -55,7 +55,8 @@ def list_buckets(
     request: Request,
     svc: BucketService = Depends(_get_bucket_service),
 ):
-    """List all buckets with metadata."""
+    """List all buckets with metadata. Cleans up expired buckets first."""
+    svc.cleanup_expired()
     buckets = svc.db.list_all()
     return {"buckets": buckets}
 

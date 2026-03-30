@@ -119,9 +119,12 @@ In the web UI, select a bucket from the sidebar dropdown in the Chat, Search, or
 
 ## Expiration and Cleanup
 
-Buckets with an `expires_at` timestamp are automatically cleaned up on server startup. The cleanup deletes both the SQLite metadata row and the ChromaDB collection.
+Expired buckets are automatically cleaned up in two places:
 
-There is no background expiration timer — expired buckets are cleaned up on the next server start. To force cleanup, restart the container or delete the bucket manually.
+1. **On server startup** — all expired buckets are deleted before the app begins serving requests.
+2. **On list** — the `GET /api/buckets` endpoint cleans up any expired buckets before returning results, so the UI never shows stale buckets.
+
+Cleanup deletes both the SQLite metadata row and the bucket's ChromaDB collection.
 
 ## MCP Tools
 
