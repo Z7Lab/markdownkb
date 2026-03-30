@@ -3,7 +3,9 @@ import { AppSidebar } from "@/components/ui/app-sidebar"
 import { SidebarItemList } from "@/components/ui/sidebar-item-list"
 import { Bot, Lightbulb, Plus } from "lucide-react"
 import type { SavedPlan, Scope } from "@/lib/types"
+import type { Bucket } from "@/hooks/use-buckets"
 import { ScopeTagFilter } from "@/components/scope-tag-filter"
+import { BucketSelector } from "@/components/bucket-selector"
 
 function isAgentPlan(p: SavedPlan): boolean {
   return p.title?.startsWith("[agent]") ?? false
@@ -24,6 +26,9 @@ export function PlannerSidebar({
   availableTags,
   selectedTags,
   onTagChange,
+  buckets,
+  selectedBucketId,
+  onBucketChange,
   onNewPlan,
   onLoadPlan,
   onRenamePlan,
@@ -37,6 +42,9 @@ export function PlannerSidebar({
   availableTags: string[]
   selectedTags: Set<string>
   onTagChange: (tags: Set<string>) => void
+  buckets: Bucket[]
+  selectedBucketId: string | null
+  onBucketChange: (id: string | null) => void
   onNewPlan: () => void
   onLoadPlan: (planId: string) => void
   onRenamePlan: (planId: string, title: string) => void
@@ -53,6 +61,11 @@ export function PlannerSidebar({
             availableTags={availableTags}
             selectedTags={selectedTags}
             onTagChange={onTagChange}
+          />
+          <BucketSelector
+            buckets={buckets}
+            selectedBucketId={selectedBucketId}
+            onBucketChange={onBucketChange}
           />
           <Button
             onClick={onNewPlan}

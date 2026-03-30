@@ -174,7 +174,7 @@ export interface PlanCallbacks {
 export function streamPlan(
   request: string,
   callbacks: PlanCallbacks,
-  options?: { iterations?: number; n_approaches?: number; skill_names?: string[]; scope_ids?: string | null; ad_hoc_tags?: string[] | null },
+  options?: { iterations?: number; n_approaches?: number; skill_names?: string[]; scope_ids?: string | null; ad_hoc_tags?: string[] | null; bucket_id?: string | null },
 ): AbortController {
   const body: Record<string, unknown> = { request }
   if (options?.iterations) body.iterations = options.iterations
@@ -182,6 +182,7 @@ export function streamPlan(
   if (options?.skill_names) body.skill_names = options.skill_names
   if (options?.scope_ids) body.scope_ids = options.scope_ids
   if (options?.ad_hoc_tags && options.ad_hoc_tags.length > 0) body.ad_hoc_tags = options.ad_hoc_tags
+  if (options?.bucket_id) body.bucket_id = options.bucket_id
 
   return streamSSE(
     "/api/planner/plan/stream",

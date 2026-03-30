@@ -37,16 +37,25 @@ def plan(
     scope_folders, scope_tags = resolve_scopes(ids, scopedb)
     allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
 
+    # Bucket-scoped planning: use a bucket-specific retriever
+    bucket_retriever = None
+    if req.bucket_id:
+        bucket_service = getattr(request.app.state, "bucket_service", None)
+        if bucket_service:
+            record = bucket_service.db.resolve(req.bucket_id)
+            if record:
+                bucket_retriever = bucket_service._get_retriever(record["id"], settings)
+
     try:
         result = run_planner(
             req.request,
-            retriever,
+            bucket_retriever or retriever,
             settings,
             iterations=req.iterations,
             n_approaches=req.n_approaches,
             skill_names=req.skill_names,
-            folders_filter=scope_folders,
-            allowed_paths=allowed,
+            folders_filter=scope_folders if not bucket_retriever else None,
+            allowed_paths=allowed if not bucket_retriever else None,
         )
     except RuntimeError as e:
         logger.error("Planner error: %s", e)
@@ -69,17 +78,26 @@ def plan_stream(
     scope_folders, scope_tags = resolve_scopes(ids, scopedb)
     allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
 
+    # Bucket-scoped planning: use a bucket-specific retriever
+    bucket_retriever = None
+    if req.bucket_id:
+        bucket_service = getattr(request.app.state, "bucket_service", None)
+        if bucket_service:
+            record = bucket_service.db.resolve(req.bucket_id)
+            if record:
+                bucket_retriever = bucket_service._get_retriever(record["id"], settings)
+
     def generate():
         try:
             yield from stream_planner(
                 req.request,
-                retriever,
+                bucket_retriever or retriever,
                 settings,
                 iterations=req.iterations,
                 n_approaches=req.n_approaches,
                 skill_names=req.skill_names,
-                folders_filter=scope_folders,
-                allowed_paths=allowed,
+                folders_filter=scope_folders if not bucket_retriever else None,
+                allowed_paths=allowed if not bucket_retriever else None,
             )
         except RuntimeError as e:
             logger.error("Planner stream error: %s", e)

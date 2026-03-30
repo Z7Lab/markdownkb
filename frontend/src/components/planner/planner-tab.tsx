@@ -1,6 +1,8 @@
 import { usePlanner } from "@/hooks/use-planner"
 import { useScopes } from "@/hooks/use-scopes"
 import { useTags } from "@/hooks/use-tags"
+import { useScopeTagFilter } from "@/hooks/use-scope-tag-filter"
+import { useBuckets } from "@/hooks/use-buckets"
 import { PlannerSidebar } from "./planner-sidebar"
 import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
 import { Button } from "@/components/ui/button"
@@ -12,7 +14,7 @@ import { Markdown } from "@/components/ui/markdown"
 import { SourceList } from "@/components/ui/source-badge"
 import { PlannerSkillReview } from "./planner-skill-review"
 import { Loader2, Lightbulb, Square, Save, Download } from "lucide-react"
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
+import { useEffect, useRef, useState, type KeyboardEvent } from "react"
 
 const ASCII_BANNER = `
 ███╗   ███╗██████╗ ██╗  ██╗██████╗     ██████╗ ██╗      █████╗ ███╗   ██╗
@@ -33,19 +35,14 @@ export function PlannerTab() {
 
   const { scopes } = useScopes()
   const { tags: availableTags } = useTags()
-
-  const [selectedScopeIds, setSelectedScopeIds] = useState<Set<string>>(new Set())
-  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
-
-  const scopeIdsParam = useMemo(() => {
-    if (selectedScopeIds.size === 0) return null
-    return Array.from(selectedScopeIds).join(",")
-  }, [selectedScopeIds])
-
-  const adHocTagsParam = useMemo(() => {
-    if (selectedTags.size === 0) return null
-    return Array.from(selectedTags)
-  }, [selectedTags])
+  const { buckets } = useBuckets()
+  const {
+    selectedScopeIds, selectedTags,
+    scopeIdsParam, adHocTagsParam,
+    selectedBucketId,
+    handleScopeChange, handleTagChange,
+    handleBucketChange,
+  } = useScopeTagFilter()
 
   const [inputQuery, setInputQuery] = useState("")
   const [viewingPath, setViewingPath] = useState<string | null>(null)
@@ -71,7 +68,7 @@ export function PlannerTab() {
 
   function handleGenerate() {
     if (!inputQuery.trim() || isPlanning) return
-    generatePlan(inputQuery, { scope_ids: scopeIdsParam, ad_hoc_tags: adHocTagsParam })
+    generatePlan(inputQuery, { scope_ids: scopeIdsParam, ad_hoc_tags: adHocTagsParam, bucket_id: selectedBucketId })
   }
 
   function handleNewPlan() {
@@ -100,10 +97,13 @@ export function PlannerTab() {
         activePlanId={activePlanId}
         scopes={scopes}
         selectedScopeIds={selectedScopeIds}
-        onScopeChange={setSelectedScopeIds}
+        onScopeChange={handleScopeChange}
         availableTags={availableTags}
         selectedTags={selectedTags}
-        onTagChange={setSelectedTags}
+        onTagChange={handleTagChange}
+        buckets={buckets}
+        selectedBucketId={selectedBucketId}
+        onBucketChange={handleBucketChange}
         onNewPlan={handleNewPlan}
         onLoadPlan={loadPlan}
         onRenamePlan={renamePlan}

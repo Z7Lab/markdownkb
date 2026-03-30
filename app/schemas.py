@@ -260,6 +260,7 @@ class PlanRequest(BaseModel):
     scope_id: str | None = None
     scope_ids: str | None = None
     ad_hoc_tags: list[str] | None = None
+    bucket_id: str | None = None  # Plan within a specific bucket
 
 
 # -- Logging --
