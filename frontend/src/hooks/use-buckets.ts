@@ -37,12 +37,22 @@ export function useBuckets() {
 
   const createBucket = useCallback(
     async (params: CreateBucketParams) => {
+      const toastId = toast.loading(`Creating bucket "${params.name}"...`, {
+        description: "Scanning, chunking, and embedding documents",
+      })
       try {
         const res = await api.post<Bucket>("/api/buckets", params)
         await refresh()
+        toast.success(`Bucket "${res.name}" ready`, {
+          id: toastId,
+          description: `${res.file_count} file${res.file_count !== 1 ? "s" : ""}, ${res.chunk_count} chunk${res.chunk_count !== 1 ? "s" : ""}`,
+          duration: 4000,
+        })
         return res
       } catch (err) {
-        toast.error(`Failed to create bucket: ${(err as Error).message}`)
+        toast.error(`Failed to create bucket: ${(err as Error).message}`, {
+          id: toastId,
+        })
         return null
       }
     },
@@ -51,17 +61,19 @@ export function useBuckets() {
 
   const deleteBucket = useCallback(
     async (id: string) => {
+      const name = buckets.find((b) => b.id === id)?.name
       try {
         await api.del(`/api/buckets/${id}`)
         if (selectedBucketId === id) setSelectedBucketId(null)
         await refresh()
+        toast.success(`Bucket "${name ?? id}" deleted`, { duration: 3000 })
         return true
       } catch (err) {
         toast.error(`Failed to delete bucket: ${(err as Error).message}`)
         return false
       }
     },
-    [refresh, selectedBucketId],
+    [buckets, refresh, selectedBucketId],
   )
 
   return {

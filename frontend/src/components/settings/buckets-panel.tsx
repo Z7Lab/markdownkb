@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Database, Plus, Trash2, Clock } from "lucide-react"
 import { useBuckets, type Bucket, type CreateBucketParams } from "@/hooks/use-buckets"
-import { toast } from "sonner"
+
 
 function formatExpiry(expiresAt: string | null): string {
   if (!expiresAt) return "Never"
@@ -36,7 +36,6 @@ export function BucketsPanel() {
     }
     const result = await createBucket(params)
     if (result) {
-      toast.success(`Bucket "${result.name}" created (${result.file_count} files, ${result.chunk_count} chunks)`)
       setName("")
       setSourcePath("")
       setExpiresIn("")
