@@ -1,0 +1,25 @@
+{
+  "name": "markdownkb",
+  "version": "0.0.1",
+  "description": "Chat with your markdown docs. Use @markdownkb/* packages or Docker: docker pull markdownkb/server",
+  "keywords": [
+    "markdown",
+    "knowledge-base",
+    "rag",
+    "chat",
+    "docs",
+    "mcp"
+  ],
+  "license": "MIT",
+  "bin": {
+    "markdownkb": "./bin/cli.js"
+  },
+  "files": [
+    "bin"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/markdownkb"
+  },
+  "homepage": "https://github.com/markdownkb"
+}
