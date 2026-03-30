@@ -32,7 +32,7 @@ const sections = [
   { id: "search", label: "Retrieval", icon: Search },
   { id: "sources", label: "Sources", icon: FolderCog },
   { id: "scopes", label: "Scopes", icon: Library },
-  { id: "buckets", label: "Buckets", icon: Archive },
+  { id: "buckets", label: "Buckets", icon: Archive, plugin: "buckets" },
   { id: "embeddings", label: "Embeddings", icon: Layers },
   { id: "features", label: "Plugins", icon: ToggleRight },
   { id: "prompt", label: "System Prompt", icon: MessageSquareText },
@@ -88,6 +88,10 @@ export function SettingsTab() {
     }
   }, [activeSection])
 
+  const visibleSections = sections.filter(
+    (s) => !("plugin" in s) || settings?.plugins_enabled?.[s.plugin],
+  )
+
   if (!settings) {
     return <div className="p-4 text-muted-foreground">Loading settings...</div>
   }
@@ -98,7 +102,7 @@ export function SettingsTab() {
         header={<h3 className="text-sm font-semibold text-muted-foreground">Settings</h3>}
       >
         <nav aria-label="Settings sections" className="p-2 space-y-0.5">
-          {sections.map((s) => (
+          {visibleSections.map((s) => (
             <button
               key={s.id}
               type="button"
