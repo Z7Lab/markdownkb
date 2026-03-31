@@ -7,12 +7,11 @@ export function useProviderSettings(reload: () => Promise<boolean>) {
   const [modelStatus, setModelStatus] = useState("")
 
   const saveProvider = useCallback(
-    async (name: string, model: string, apiBase: string, apiKey: string = "") => {
+    async (name: string, model: string, apiBase: string, _apiKey: string = "") => {
       await api.put("/api/settings/provider", {
         name,
         model,
         api_base: apiBase,
-        api_key: apiKey,
       })
       setModelStatus(`Saved: ${name} / ${model}`)
       await reload()

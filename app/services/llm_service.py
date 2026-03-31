@@ -7,7 +7,7 @@ import anthropic
 import httpx
 import openai
 
-from app.utils import parse_model as _parse_model
+from app.utils import parse_model as _parse_model, validate_api_base
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +63,7 @@ def build_model_list(
 def test_ollama(api_base: str) -> str:
     """Test connectivity to an Ollama instance."""
     try:
+        validate_api_base(api_base)
         resp = httpx.get(
             f"{api_base.rstrip('/')}/api/tags", timeout=10,
         )
@@ -96,6 +97,11 @@ def test_api_provider(model: str, api_base: str, api_key: str = "") -> dict:
     Returns a dict with keys: ``ok`` (bool), ``message`` (str), and
     optionally ``reply`` (the model's response text).
     """
+    try:
+        validate_api_base(api_base)
+    except ValueError as e:
+        return {"ok": False, "message": f"Invalid api_base: {e}"}
+
     provider_type, model_name = _parse_model(model)
 
     try:
@@ -213,6 +219,7 @@ def stream_test_prompt(
     num_ctx: int | None = None,
 ):
     """Stream a raw prompt to the model, yielding (event, data) tuples."""
+    validate_api_base(api_base)
     provider_type, model_name = _parse_model(model)
     start = time.time()
     token_count = 0

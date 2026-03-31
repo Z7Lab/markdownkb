@@ -134,7 +134,7 @@ mcp = FastMCP(
     ),
     lifespan=lifespan,
     transport_security=TransportSecuritySettings(
-        enable_dns_rebinding_protection=False,
+        enable_dns_rebinding_protection=True,
     ),
 )
 

@@ -148,12 +148,15 @@ class IgnorePatternRequest(BaseModel):
 # -- Settings --
 
 class ProviderSettingsRequest(BaseModel):
-    """Request model for provider settings."""
+    """Request model for provider settings.
+
+    API keys must be provided via Docker secrets or environment variables,
+    not in request bodies.
+    """
 
     name: str
     model: str
     api_base: str = ""
-    api_key: str = ""
 
 
 class TestConnectionRequest(BaseModel):

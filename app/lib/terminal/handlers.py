@@ -14,13 +14,21 @@ BLOCKED_COMMANDS = {
     "kill", "killall", "pkill",
 }
 
-# Only allow these command prefixes by default
+# Only allow these command prefixes by default — read-only/safe commands
 ALLOWED_PREFIXES = {
     "ls", "cat", "head", "tail", "find", "grep", "wc",
     "pwd", "echo", "tree", "du", "df",
-    "git", "npm", "yarn", "pip", "poetry",
-    "mkdir", "touch", "cp",
-    "docker", "docker-compose",
+}
+
+# Commands allowed only with safe subcommands
+_SUBCOMMAND_ALLOWLIST: dict[str, frozenset[str]] = {
+    "git": frozenset({"status", "log", "diff", "show", "branch", "tag", "ls-files", "remote"}),
+    "npm": frozenset({"list", "ls", "outdated", "audit", "info", "view"}),
+    "yarn": frozenset({"list", "info", "why", "audit"}),
+    "pip": frozenset({"list", "show", "freeze", "check"}),
+    "poetry": frozenset({"show", "check", "env"}),
+    "docker": frozenset({"ps", "images", "logs", "inspect", "stats", "version", "info"}),
+    "docker-compose": frozenset({"ps", "logs", "config", "version"}),
 }
 
 # Shell metacharacters that indicate injection attempts
@@ -78,11 +86,24 @@ def is_safe_command(command: str) -> tuple[bool, str]:
     if first_word in BLOCKED_COMMANDS:
         return False, f"Blocked command: {first_word}"
 
-    if first_word not in ALLOWED_PREFIXES:
-        return False, (f"Command '{first_word}' not in allowed list. "
-                       f"Allowed: {', '.join(sorted(ALLOWED_PREFIXES))}")
+    # Unconditionally safe commands
+    if first_word in ALLOWED_PREFIXES:
+        return True, ""
 
-    return True, ""
+    # Commands with subcommand restrictions
+    if first_word in _SUBCOMMAND_ALLOWLIST:
+        allowed_subs = _SUBCOMMAND_ALLOWLIST[first_word]
+        if len(parts) < 2:
+            return False, f"'{first_word}' requires a subcommand: {', '.join(sorted(allowed_subs))}"
+        sub = parts[1].lower().lstrip("-")
+        if sub not in allowed_subs:
+            return False, (f"'{first_word} {parts[1]}' not allowed. "
+                           f"Allowed subcommands: {', '.join(sorted(allowed_subs))}")
+        return True, ""
+
+    all_allowed = sorted(ALLOWED_PREFIXES | set(_SUBCOMMAND_ALLOWLIST))
+    return False, (f"Command '{first_word}' not in allowed list. "
+                   f"Allowed: {', '.join(all_allowed)}")
 
 
 def execute_command(command: str, cwd: str | None = None,

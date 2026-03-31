@@ -1,7 +1,9 @@
 """Shared utility functions for the mdkb API."""
 
+import ipaddress
 import json
 from pathlib import Path
+from urllib.parse import urlparse
 
 
 def sse(event: str, data: dict) -> str:
@@ -36,6 +38,57 @@ def parse_model(model_string: str) -> tuple[str, str]:
         prefix, model_name = model_string.split("/", 1)
         return prefix.lower(), model_name
     return "openai", model_string
+
+
+# IPs that must never be reached via user-supplied URLs
+_BLOCKED_IP_NETWORKS = [
+    ipaddress.ip_network("169.254.0.0/16"),     # AWS/cloud metadata
+    ipaddress.ip_network("100.100.100.0/24"),    # Alibaba metadata
+    ipaddress.ip_network("fd00::/8"),             # ULA IPv6
+    ipaddress.ip_network("fe80::/10"),            # Link-local IPv6
+]
+
+_BLOCKED_HOSTNAMES = frozenset({
+    "metadata.google.internal",
+    "metadata.goog",
+})
+
+
+def validate_api_base(url: str) -> str:
+    """Validate an api_base URL is safe for outbound requests.
+
+    Blocks non-HTTP schemes, cloud metadata endpoints, and
+    obviously dangerous targets. Returns the URL unchanged if valid,
+    raises ValueError otherwise.
+    """
+    if not url:
+        return url
+
+    parsed = urlparse(url)
+
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"api_base must use http or https scheme, got '{parsed.scheme}'")
+
+    hostname = (parsed.hostname or "").lower()
+
+    if not hostname:
+        raise ValueError("api_base has no hostname")
+
+    if hostname in _BLOCKED_HOSTNAMES:
+        raise ValueError(f"Requests to {hostname} are not allowed")
+
+    # Check for cloud metadata IPs
+    try:
+        addr = ipaddress.ip_address(hostname)
+        for network in _BLOCKED_IP_NETWORKS:
+            if addr in network:
+                raise ValueError(f"Requests to {hostname} are not allowed (blocked IP range)")
+    except ValueError as e:
+        if "not allowed" in str(e):
+            raise
+        # hostname is not an IP literal — that's fine
+
+    return url
 
 
 def get_path_size(path: Path) -> int:
