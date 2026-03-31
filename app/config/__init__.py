@@ -117,21 +117,27 @@ _DEFAULT_CONFIG_PATH = (
 )
 
 
-_SECRETS_DIR = Path("/run/secrets")
+_SECRETS_DIR = Path(os.environ.get("MDKB_SECRETS_DIR", "/run/secrets"))
+_WRITABLE_SECRETS_DIR = Path("/app/secrets")
 
 
 def _read_secret(name: str) -> str:
-    """Read a Docker secret by name.
+    """Read a secret by name.
 
-    Docker secrets are mounted as files under /run/secrets/.  Returns the
-    file content (stripped) or empty string if the secret doesn't exist.
+    Checks the writable secrets volume (/app/secrets/) first, then
+    Docker's read-only secrets mount (/run/secrets/).  Returns the
+    file content (stripped) or empty string if not found or empty.
     """
-    path = _SECRETS_DIR / name
-    try:
-        return path.read_text().strip() if path.is_file() else ""
-    except OSError as e:
-        logger.warning("Failed to read secret '%s': %s", name, e)
-        return ""
+    for directory in (_WRITABLE_SECRETS_DIR, _SECRETS_DIR):
+        path = directory / name
+        try:
+            if path.is_file():
+                value = path.read_text().strip()
+                if value:
+                    return value
+        except OSError as e:
+            logger.warning("Failed to read secret '%s' from %s: %s", name, directory, e)
+    return ""
 
 
 def _resolve_env(value: str) -> str:
@@ -207,6 +213,25 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
         """Reset the singleton for testing or reconfiguration."""
         with cls._class_lock:
             cls._instance = None
+
+    def reload(self):
+        """Re-read settings.yaml from disk and update the live instance.
+
+        Preserves the singleton identity — all existing references to this
+        object see the updated values immediately.
+        """
+        with self._lock:
+            if self._path.exists():
+                with open(self._path, encoding="utf-8") as f:
+                    self._data = yaml.safe_load(f) or {}
+                self._using_defaults = False
+            else:
+                self._data = {}
+                self._using_defaults = True
+            self._data = _resolve_env_recursive(self._data)
+            self._mcp_cache.clear()
+            self._prompt_cache.clear()
+            logger.info("Settings reloaded from %s", self._path)
 
     def save(self):
         """Write current configuration back to the YAML file."""

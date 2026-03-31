@@ -8,6 +8,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./config:/app/config
+      - ./secrets:/app/secrets
       - ./skills:/app/skills
       # Mount home directory read-only so source paths in settings.yaml
       # work identically whether running with Docker or natively.
@@ -36,9 +37,9 @@ services:
     container_name: ${MDKB_CONTAINER:-mdkb}-mcp
     command: python mcp_server.py --sse --host 0.0.0.0 --port 9715
     ports:
-      # MCP binds to 0.0.0.0 by default so sandbox containers can reach
-      # it via host.docker.internal.  Override with MDKB_MCP_HOST if needed.
-      - "${MDKB_MCP_HOST:-0.0.0.0}:${MDKB_MCP_PORT:-9715}:9715"
+      # MCP binds to localhost by default.  Set MDKB_MCP_HOST=0.0.0.0
+      # only when sandbox containers must reach it via host.docker.internal.
+      - "${MDKB_MCP_HOST:-127.0.0.1}:${MDKB_MCP_PORT:-9715}:9715"
     volumes:
       - ./data:/app/data
       - ./config:/app/config

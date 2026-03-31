@@ -1,7 +1,7 @@
 """API key authentication middleware.
 
-When ``auth.api_key`` is set in ``settings.yaml`` (or the ``MDKB_API_KEY``
-environment variable is present), every request must include the header::
+When an API key is configured (via ``secrets/mdkb_api_key`` Docker secret
+or ``MDKB_API_KEY`` env var), every request must include the header::
 
     X-MDKB-Key: <key>
 
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 _HEADER = "X-MDKB-Key"
 
 # Paths that bypass authentication (health check, CORS preflight)
-_PUBLIC_PATHS = frozenset({"/api/health"})
+_PUBLIC_PATHS = frozenset({"/api/health", "/api/setup/generate-key"})
 
 
 class ApiKeyMiddleware(BaseHTTPMiddleware):
