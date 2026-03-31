@@ -77,13 +77,18 @@ def test_connection(
     settings: Settings = Depends(get_settings),
 ):
     """Test LLM provider connection."""
+    # Fill missing fields from provider config
+    model = req.model
+    api_base = req.api_base
+    if not model or not api_base:
+        provider_cfg = next(
+            (p for p in settings.llm_providers if p.get("name") == req.name),
+            {},
+        )
+        model = model or provider_cfg.get("model", "")
+        api_base = api_base or provider_cfg.get("api_base", "")
     api_key = req.api_key or settings.resolve_provider_key(req.name)
-    result = test_llm_connection(
-        req.name,
-        req.model,
-        req.api_base,
-        api_key,
-    )
+    result = test_llm_connection(req.name, model, api_base, api_key)
     return {"result": result["message"], "success": result["ok"]}
 
 

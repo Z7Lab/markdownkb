@@ -160,10 +160,14 @@ class ProviderSettingsRequest(BaseModel):
 
 
 class TestConnectionRequest(BaseModel):
-    """Request model for testing LLM connection."""
+    """Request model for testing LLM connection.
+
+    Only ``name`` is required — ``model`` and ``api_base`` are filled
+    from the provider config when omitted.
+    """
 
     name: str
-    model: str
+    model: str = ""
     api_base: str = ""
     api_key: str = ""
 
