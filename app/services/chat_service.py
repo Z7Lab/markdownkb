@@ -1,7 +1,6 @@
 """Chat business logic: conversation memory, streaming RAG, plan saving."""
 
 import logging
-import re
 import threading
 from datetime import datetime
 from pathlib import Path
@@ -16,11 +15,6 @@ logger = logging.getLogger(__name__)
 
 MAX_HISTORY = 20
 REPEAT_WINDOW = 150
-
-# Matches <think>...</think> blocks (qwen3, deepseek, etc.)
-_THINK_RE = re.compile(r"<think>[\s\S]*?</think>[\s:]*", re.IGNORECASE)
-# Matches an unclosed <think> tag at the end of streaming text
-_THINK_OPEN_RE = re.compile(r"<think>[\s\S]*$", re.IGNORECASE)
 
 
 class ConversationHistory:
@@ -77,12 +71,12 @@ def _truncate_at_repeat(text: str) -> str:
 
 
 def strip_thinking(text: str) -> str:
-    """Remove <think>...</think> blocks from model output."""
-    # Strip completed thinking blocks
-    text = _THINK_RE.sub("", text)
-    # Strip unclosed thinking block at the end (still streaming)
-    text = _THINK_OPEN_RE.sub("", text)
-    return text
+    """Remove thinking blocks from model output.
+
+    Delegates to the canonical implementation in app.rag.llm.
+    """
+    from app.rag.llm import _strip_thinking
+    return _strip_thinking(text)
 
 
 def _strip_source_block(text: str) -> str:

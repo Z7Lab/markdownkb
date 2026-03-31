@@ -98,14 +98,18 @@ llm:
     api_base: http://host.docker.internal:11434  # Use localhost:11434 if running without Docker
     temperature: 0.3
     max_tokens: 4096
-    num_ctx: 32768  # Ollama context window override (default: model's built-in limit)
+    extra_body:             # Passed directly to the OpenAI SDK's extra_body param
+      num_ctx: 32768        # Ollama context window override (default: model's built-in limit)
   # Venice.ai — privacy-preserving OpenAI-compatible API (no data retention)
-  # Good for RAG: deepseek-v3.2 (value), kimi-k2-5 (flagship), qwen3-235b (budget)
+  # Good for RAG: mistral-small-3-2-24b-instruct (default), deepseek-v3.2 (value), kimi-k2-5 (flagship)
   - name: venice
-    model: openai/deepseek-v3.2
+    model: openai/mistral-small-3-2-24b-instruct
     api_base: https://api.venice.ai/api/v1
     temperature: 0.3
-    max_tokens: 16384  # Venice models support 4K-65K output depending on model
+    max_tokens: 16384       # Venice models support 4K-65K output depending on model
+    extra_body:
+      venice_parameters:
+        strip_thinking_response: true  # Ask Venice to strip <think> blocks server-side
   active_provider: ollama
   temperature: 0.3   # Global default (used when provider has no temperature set)
   max_tokens: 2048   # Global default (used when provider has no max_tokens set)

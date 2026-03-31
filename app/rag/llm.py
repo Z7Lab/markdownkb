@@ -1,8 +1,8 @@
 """LLM abstraction layer with direct provider SDK calls and fallback chain."""
 
-import functools
 import hashlib
 import logging
+import re
 from typing import Generator
 
 import anthropic
@@ -12,6 +12,23 @@ from app.config import Settings
 from app.utils import parse_model as _parse_model
 
 logger = logging.getLogger(__name__)
+
+# Think-block patterns — applied to all LLM output (cheap regex, safe no-op when absent)
+_THINK_RE = re.compile(r"<think>[\s\S]*?</think>[\s:]*", re.IGNORECASE)
+_THINK_OPEN_RE = re.compile(r"<think>[\s\S]*$", re.IGNORECASE)
+_THINK_PLAIN_RE = re.compile(r"^Thinking(?:\s+Process)?:\s*\n.*?\n\n", re.DOTALL)
+
+
+def _strip_thinking(text: str) -> str:
+    """Remove thinking blocks from model output.
+
+    Handles XML-style <think>...</think> tags and plain-text
+    "Thinking Process:" / "Thinking:" headers.
+    """
+    text = _THINK_RE.sub("", text)
+    text = _THINK_OPEN_RE.sub("", text)
+    text = _THINK_PLAIN_RE.sub("", text)
+    return text.strip()
 
 
 def _key_hash(api_key: str) -> str:
@@ -128,7 +145,7 @@ def _call_openai(
     temperature: float,
     max_tokens: int,
     stream: bool,
-    num_ctx: int | None = None,
+    extra_body: dict | None = None,
 ) -> object:
     """Call OpenAI-compatible API (OpenAI, Ollama, Venice, etc.)."""
     client = _get_openai_client(api_key or "", api_base)
@@ -140,9 +157,8 @@ def _call_openai(
         "max_tokens": max_tokens,
         "stream": stream,
     }
-    if num_ctx is not None:
-        # Ollama supports num_ctx as an extra body parameter
-        create_kwargs["extra_body"] = {"num_ctx": num_ctx}
+    if extra_body:
+        create_kwargs["extra_body"] = extra_body
 
     return client.chat.completions.create(**create_kwargs)
 
@@ -190,7 +206,8 @@ def get_completion(
         if is_ollama and api_base and not api_base.rstrip("/").endswith("/v1"):
             api_base = api_base.rstrip("/") + "/v1"
 
-        num_ctx = settings.llm_num_ctx if is_ollama else None
+        # Provider-specific extra_body from settings (num_ctx, venice_parameters, etc.)
+        extra_body = provider.get("extra_body") or None
 
         try:
             logger.info(
@@ -232,7 +249,7 @@ def get_completion(
                     temperature=settings.llm_temperature,
                     max_tokens=settings.llm_max_tokens,
                     stream=stream,
-                    num_ctx=num_ctx,
+                    extra_body=extra_body,
                 )
 
                 if stream:
@@ -252,7 +269,7 @@ def get_completion(
                 logger.warning("LLM returned None content for model %s — trying next provider", model)
                 last_error = RuntimeError(f"LLM returned None content for model {model}")
                 continue
-            return content
+            return _strip_thinking(content)
 
         except (
             anthropic.APIError,
@@ -283,9 +300,45 @@ def get_streaming_completion(
     messages: list[dict],
     settings: Settings | None = None,
 ) -> Generator:
-    """Get a streaming completion, yielding text chunks."""
+    """Get a streaming completion, yielding text chunks.
+
+    Buffers output until we can confirm whether the response starts
+    with a think block.  If it does, the block is held back until it
+    closes, then any remaining content is yielded.  Once past the
+    initial think block (or if there isn't one), chunks are yielded
+    directly.
+    """
     result = get_completion(messages, settings, stream=True)
-    if isinstance(result, str):
-        yield result
-    else:
-        yield from result
+    chunks = result if not isinstance(result, str) else iter([result])
+
+    buffer = ""
+    passthrough = False
+
+    for chunk in chunks:
+        if passthrough:
+            yield chunk
+            continue
+
+        buffer += chunk
+
+        # Still inside an opening think block — keep buffering
+        if buffer.lstrip().startswith("<think") and "</think>" not in buffer:
+            continue
+
+        # Think block just closed — strip it, flush remainder, switch to passthrough
+        if "</think>" in buffer:
+            cleaned = _strip_thinking(buffer)
+            if cleaned:
+                yield cleaned
+            passthrough = True
+            continue
+
+        # No think block — flush buffer and switch to passthrough
+        yield buffer
+        passthrough = True
+
+    # If we never left buffering mode (entire response was a think block)
+    if not passthrough and buffer:
+        cleaned = _strip_thinking(buffer)
+        if cleaned:
+            yield cleaned

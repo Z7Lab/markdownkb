@@ -40,7 +40,7 @@ def get_settings_endpoint(request: Request, settings: Settings = Depends(get_set
                 "api_key_source": "env" if settings.key_is_from_env(p["name"]) else "yaml",
                 "temperature": p.get("temperature"),
                 "max_tokens": p.get("max_tokens"),
-                "num_ctx": p.get("num_ctx"),
+                "num_ctx": p.get("extra_body", {}).get("num_ctx", p.get("num_ctx")),
             }
             for p in settings.llm_providers
         ],

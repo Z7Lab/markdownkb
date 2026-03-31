@@ -119,15 +119,17 @@ def test_prompt(
     settings: Settings = Depends(get_settings),
 ):
     """Test a prompt with the LLM using streaming."""
+    active = settings.get_active_llm_config()
     if req.provider and req.model:
         model = req.model
         api_base = req.api_base or ""
         api_key = req.api_key or ""
+        extra_body = None
     else:
-        active = settings.get_active_llm_config()
         model = active.get("model", "")
         api_base = active.get("api_base", "") or ""
         api_key = active.get("api_key", "") or ""
+        extra_body = active.get("extra_body")
 
     if not model:
         raise HTTPException(status_code=400, detail="No model configured")
@@ -141,7 +143,7 @@ def test_prompt(
                 settings.llm_temperature,
                 settings.llm_max_tokens,
                 api_key,
-                settings.llm_num_ctx,
+                extra_body,
             ):
                 yield sse(event, data)
         except (RuntimeError, ConnectionError, TimeoutError) as e:

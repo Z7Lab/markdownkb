@@ -216,13 +216,42 @@ def stream_test_prompt(
     temperature: float,
     max_tokens: int,
     api_key: str = "",
-    num_ctx: int | None = None,
+    extra_body: dict | None = None,
 ):
-    """Stream a raw prompt to the model, yielding (event, data) tuples."""
+    """Stream a raw prompt to the model, yielding (event, data) tuples.
+
+    Think blocks are buffered and stripped before yielding content tokens.
+    """
+    from app.rag.llm import _strip_thinking
+
     validate_api_base(api_base)
     provider_type, model_name = _parse_model(model)
     start = time.time()
     token_count = 0
+
+    def _buffer_and_yield(raw_chunks):
+        """Buffer until think block is resolved, then passthrough."""
+        buffer = ""
+        passthrough = False
+        for text in raw_chunks:
+            if passthrough:
+                yield text
+                continue
+            buffer += text
+            if buffer.lstrip().startswith("<think") and "</think>" not in buffer:
+                continue
+            if "</think>" in buffer:
+                cleaned = _strip_thinking(buffer)
+                if cleaned:
+                    yield cleaned
+                passthrough = True
+                continue
+            yield buffer
+            passthrough = True
+        if not passthrough and buffer:
+            cleaned = _strip_thinking(buffer)
+            if cleaned:
+                yield cleaned
 
     try:
         if provider_type == "anthropic":
@@ -233,7 +262,7 @@ def stream_test_prompt(
                 temperature=temperature,
                 max_tokens=max_tokens,
             ) as stream:
-                for text in stream.text_stream:
+                for text in _buffer_and_yield(stream.text_stream):
                     token_count += 1
                     yield "token", {"content": text}
         else:
@@ -252,15 +281,20 @@ def stream_test_prompt(
                 "max_tokens": max_tokens,
                 "stream": True,
             }
-            if num_ctx is not None:
-                create_kwargs["extra_body"] = {"num_ctx": num_ctx}
+            if extra_body:
+                create_kwargs["extra_body"] = extra_body
 
             response = client.chat.completions.create(**create_kwargs)
-            for chunk in response:
-                delta = chunk.choices[0].delta if chunk.choices else None
-                if delta and delta.content:
-                    token_count += 1
-                    yield "token", {"content": delta.content}
+
+            def _openai_chunks():
+                for chunk in response:
+                    delta = chunk.choices[0].delta if chunk.choices else None
+                    if delta and delta.content:
+                        yield delta.content
+
+            for text in _buffer_and_yield(_openai_chunks()):
+                token_count += 1
+                yield "token", {"content": text}
 
     except (
         anthropic.APIError, anthropic.APIConnectionError,

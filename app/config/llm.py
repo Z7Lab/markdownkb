@@ -127,23 +127,25 @@ class LLMMixin:
 
     @property
     def llm_num_ctx(self) -> int | None:
-        """Return Ollama context window override from active provider (None = model default)."""
+        """Return context window override from active provider's extra_body."""
         active = self.get_active_llm_config()
+        # Check extra_body first (new location), then top-level (legacy)
+        extra = active.get("extra_body", {})
+        if "num_ctx" in extra:
+            return extra["num_ctx"]
         if "num_ctx" in active:
             return active["num_ctx"]
-        return self._data.get("llm", {}).get("num_ctx")
+        return None
 
     @llm_num_ctx.setter
     def llm_num_ctx(self, value: int | None):
-        """Set Ollama context window on the active provider entry."""
+        """Set context window on the active provider's extra_body."""
         for p in self.llm_providers:
             if p.get("name") == self.active_provider:
                 if value is None:
-                    p.pop("num_ctx", None)
+                    p.get("extra_body", {}).pop("num_ctx", None)
+                    p.pop("num_ctx", None)  # clean up legacy location
                 else:
-                    p["num_ctx"] = value
+                    p.setdefault("extra_body", {})["num_ctx"] = value
+                    p.pop("num_ctx", None)  # migrate from legacy location
                 return
-        if value is None:
-            self._data.get("llm", {}).pop("num_ctx", None)
-        else:
-            self._data.setdefault("llm", {})["num_ctx"] = value
