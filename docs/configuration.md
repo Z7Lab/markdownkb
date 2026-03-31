@@ -29,6 +29,16 @@ Docker secrets take highest priority, then environment variables, then `settings
 
 Settings changed via the **Settings** tab in the UI are saved back to `settings.yaml`.
 
+### Reloading configuration
+
+If you edit `settings.yaml` on the host (e.g. via another tool or agent), the running container does not pick up changes automatically. Call the reload endpoint to re-read from disk without restarting:
+
+```bash
+curl -X POST http://localhost:9713/api/settings/reload
+```
+
+API-driven changes (via the Settings UI) take effect immediately — they update the live config and save to disk in one step. The reload endpoint is only needed for host-side file edits.
+
 ---
 
 ## Sources
@@ -115,19 +125,28 @@ Available catalogs: `venice` (Venice.ai — privacy-preserving OpenAI-compatible
 
 ## Authentication
 
-API key authentication protects all `/api/*` endpoints (except `/api/health`). When a key is configured, requests must include the `X-MDKB-Key: <key>` header.
+API key authentication protects all `/api/*` endpoints (except `/api/health` and `/api/setup/generate-key`). When a key is configured, requests must include the `X-MDKB-Key: <key>` header.
 
-Set the key via Docker secret or environment variable:
+### Setup options
+
+**Option 1: Web UI setup (easiest).** When the server is network-exposed (`MDKB_HOST=0.0.0.0`) without a key, a setup banner appears in the UI. Click "Generate API Key" to create one. The key is written to `secrets/mdkb_api_key` and takes effect immediately.
+
+**Option 2: Manual key file.**
 
 ```bash
-# Docker secret (preferred)
-echo -n "your-key-here" > secrets/mdkb_api_key
+# Generate and write a key
+openssl rand -hex 16 > secrets/mdkb_api_key
+```
 
-# Or environment variable
+**Option 3: Environment variable.**
+
+```bash
 export MDKB_API_KEY=your-key-here
 ```
 
-When no key is configured, authentication is disabled.
+Keys are resolved in order: Docker secret (`secrets/mdkb_api_key`) > env var (`MDKB_API_KEY`). Keys are never stored in `settings.yaml`.
+
+When no key is configured and the server binds to localhost only, authentication is disabled (single-user mode).
 
 ## Server
 

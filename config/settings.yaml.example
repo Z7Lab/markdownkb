@@ -74,10 +74,10 @@ embeddings:
   #   local_path: /path/to/model/directory  # must contain onnx/model.onnx, tokenizer.json, etc.
 
 # LLM provider configuration
-# Model names use LiteLLM format: provider/model
-# API keys: set <PROVIDER_NAME>_API_KEY in .env (recommended) or api_key below.
-#   Env vars always override yaml values. Providers without a key are skipped
-#   (except Ollama which doesn't need one).
+# Model names use the format: provider/model (e.g. ollama/qwen3:8b, anthropic/claude-sonnet-4-20250514)
+# API keys: store in secrets/<provider>_api_key (Docker secrets) or set <PROVIDER>_API_KEY env var.
+#   Keys are NEVER read from this file — they are fully externalized.
+#   Providers without a key are skipped (except Ollama which doesn't need one).
 # Generation params (temperature, max_tokens, num_ctx) are per-provider.
 # Global defaults under llm.temperature / llm.max_tokens apply when a
 # provider doesn't have its own value set.
@@ -164,6 +164,8 @@ plugins:
     enabled: false
   write_api:
     enabled: false
+  buckets:
+    enabled: false
   catalogs:
     enabled: true
 
@@ -186,11 +188,12 @@ ui:
 logging:
   level: INFO
 
-# API key authentication — set a key to protect all /api/ endpoints.
-# When empty, authentication is disabled (single-user / local mode).
-# Can also be set via MDKB_API_KEY environment variable.
-auth:
-  api_key: ''
+# API key authentication — protects all /api/ endpoints (except /api/health).
+# Keys are resolved from Docker secrets or env vars, NOT from this file:
+#   1. secrets/mdkb_api_key (Docker secret — preferred)
+#   2. MDKB_API_KEY env var (fallback)
+# When no key is configured and the server is network-exposed (0.0.0.0),
+# the web UI shows a setup banner to generate a key with one click.
 
 # Server binding — change host to 0.0.0.0 to allow external access
 server:
