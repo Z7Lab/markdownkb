@@ -1,6 +1,7 @@
 """LLM abstraction layer with direct provider SDK calls and fallback chain."""
 
 import functools
+import hashlib
 import logging
 from typing import Generator
 
@@ -13,23 +14,37 @@ from app.utils import parse_model as _parse_model
 logger = logging.getLogger(__name__)
 
 
-@functools.lru_cache(maxsize=8)
+def _key_hash(api_key: str) -> str:
+    """Return a short hash of an API key for use as a cache key."""
+    return hashlib.sha256(api_key.encode()).hexdigest()[:16]
+
+
+# Cache keyed by hash of the API key — avoids storing raw keys in memory
+_anthropic_clients: dict[str, anthropic.Anthropic] = {}
+_openai_clients: dict[str, openai.OpenAI] = {}
+
+
 def _get_anthropic_client(api_key: str) -> anthropic.Anthropic:
     """Return a cached Anthropic client for the given API key."""
-    return anthropic.Anthropic(api_key=api_key)
+    h = _key_hash(api_key)
+    if h not in _anthropic_clients:
+        _anthropic_clients[h] = anthropic.Anthropic(api_key=api_key)
+    return _anthropic_clients[h]
 
 
-@functools.lru_cache(maxsize=8)
 def _get_openai_client(api_key: str, api_base: str | None = None) -> openai.OpenAI:
     """Return a cached OpenAI client for the given key and base URL."""
-    kwargs: dict = {}
-    if api_key:
-        kwargs["api_key"] = api_key
-    else:
-        kwargs["api_key"] = "ollama"
-    if api_base:
-        kwargs["base_url"] = api_base
-    return openai.OpenAI(**kwargs)
+    h = _key_hash(api_key) + (api_base or "")
+    if h not in _openai_clients:
+        kwargs: dict = {}
+        if api_key:
+            kwargs["api_key"] = api_key
+        else:
+            kwargs["api_key"] = "ollama"
+        if api_base:
+            kwargs["base_url"] = api_base
+        _openai_clients[h] = openai.OpenAI(**kwargs)
+    return _openai_clients[h]
 
 
 def _needs_api_key(provider: dict) -> bool:
