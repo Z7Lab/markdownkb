@@ -1,6 +1,6 @@
 """Rate limiting configuration.
 
-Disabled by default. Enable via the 'rate_limiting' feature flag in settings.
+Disabled by default. Enable via the 'rate_limiting' core flag in settings.
 Useful when deploying as a shared platform or to prevent runaway LLM API costs.
 """
 
