@@ -219,7 +219,6 @@ llm:
   providers:
     - name: llamacpp
       model: openai/qwen3        # "openai/" prefix routes through the openai SDK
-      api_key: "dummy"            # Not used, but required for OpenAI-compatible providers
       api_base: "http://localhost:8080/v1"
   active_provider: llamacpp
   temperature: 0.3
@@ -243,12 +242,10 @@ llm:
   providers:
     - name: general
       model: openai/qwen3
-      api_key: "dummy"
       api_base: "http://localhost:8080/v1"  # General queries
 
     - name: coding
       model: openai/deepseek
-      api_key: "dummy"
       api_base: "http://localhost:8081/v1"  # Code-specific queries
 
   active_provider: coding  # Use DeepSeek by default

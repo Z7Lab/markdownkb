@@ -219,7 +219,6 @@ llm:
   providers:
     - name: ollama
       model: ollama/llama3
-      api_key: ""
       api_base: "http://<OLLAMA_IP>:11434"
   active_provider: ollama
 ```

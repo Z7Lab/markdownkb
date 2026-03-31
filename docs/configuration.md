@@ -6,7 +6,7 @@ mdkb is configured through three sources:
 - **`secrets/`** — Docker secrets for API keys. One key per file, mounted at `/run/secrets/` inside the container. See `secrets/README.md`.
 - **`.env`** — environment variables for ports and Docker settings. Copy from `.env.example`.
 
-All three are gitignored. API keys should **only** be stored in `secrets/` (or env vars as a fallback) — never in `settings.yaml`.
+All three are gitignored. API keys go in `secrets/` files or `.env` — never in `settings.yaml`.
 
 ## Precedence
 
@@ -22,7 +22,8 @@ Docker secrets take highest priority, then environment variables, then `settings
 | CORS origins | `server.cors_origins` | `CORS_ORIGINS` (comma-separated) |
 
 **When to use which:**
-- Use `secrets/` for all API keys (Docker mounts them read-only at `/run/secrets/`).
+- Use `secrets/` for API keys on shared/production hosts (not visible in `docker inspect`).
+- Use `.env` for API keys on single-user/home-lab setups (convenient, but visible in `docker inspect`).
 - Use `settings.yaml` for non-secret configuration — it's the canonical config file.
 - Use `.env` for machine-specific overrides (ports, Docker settings).
 - `.mcp.json` (gitignored) — local MCP client config for connecting to other MCP servers. Contains connection tokens, so never commit it.
@@ -129,22 +130,26 @@ API key authentication protects all `/api/*` endpoints (except `/api/health` and
 
 ### Setup options
 
-**Option 1: Web UI setup (easiest).** When the server is network-exposed (`MDKB_HOST=0.0.0.0`) without a key, a setup banner appears in the UI. Click "Generate API Key" to create one. The key is written to `secrets/mdkb_api_key` and takes effect immediately.
+**Option 1: Web UI setup (easiest).** When the server is network-exposed (`MDKB_HOST=0.0.0.0`) without a key, a setup banner appears in the UI. Click "Generate API Key" to create one. The key is written to `data/secrets/mdkb_api_key` and takes effect immediately.
 
-**Option 2: Manual key file.**
-
-```bash
-# Generate and write a key
-openssl rand -hex 16 > secrets/mdkb_api_key
-```
-
-**Option 3: Environment variable.**
+**Option 2: Secret file (preferred for shared/production hosts).**
 
 ```bash
-export MDKB_API_KEY=your-key-here
+echo -n "your-key-here" > secrets/mdkb_api_key
 ```
 
-Keys are resolved in order: Docker secret (`secrets/mdkb_api_key`) > env var (`MDKB_API_KEY`). Keys are never stored in `settings.yaml`.
+Secret files are mounted read-only at `/run/secrets/` and are **not** visible in `docker inspect`.
+
+**Option 3: Environment variable (convenience).**
+
+Add to `.env`:
+```
+MDKB_API_KEY=your-key-here
+```
+
+Env vars are visible in `docker inspect` — use secret files instead if others have Docker access on the host.
+
+Keys are resolved in order: `data/secrets/` (generated keys) > Docker secret (`secrets/`) > env var (`MDKB_API_KEY`). Keys are never stored in `settings.yaml`.
 
 When no key is configured and the server binds to localhost only, authentication is disabled (single-user mode).
 
