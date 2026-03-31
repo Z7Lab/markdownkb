@@ -118,17 +118,17 @@ _DEFAULT_CONFIG_PATH = (
 
 
 _SECRETS_DIR = Path(os.environ.get("MDKB_SECRETS_DIR", "/run/secrets"))
-_WRITABLE_SECRETS_DIR = Path("/app/secrets")
+_DATA_SECRETS_DIR = Path("/app/data/secrets")
 
 
 def _read_secret(name: str) -> str:
     """Read a secret by name.
 
-    Checks the writable secrets volume (/app/secrets/) first, then
+    Checks data/secrets/ (writable, for generated keys) first, then
     Docker's read-only secrets mount (/run/secrets/).  Returns the
     file content (stripped) or empty string if not found or empty.
     """
-    for directory in (_WRITABLE_SECRETS_DIR, _SECRETS_DIR):
+    for directory in (_DATA_SECRETS_DIR, _SECRETS_DIR):
         path = directory / name
         try:
             if path.is_file():

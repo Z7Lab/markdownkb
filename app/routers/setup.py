@@ -12,28 +12,29 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/setup", tags=["setup"])
 
-# Writable secrets volume — mounted from host ./secrets/ in compose.yml
-_WRITABLE_SECRETS_DIR = Path("/app/secrets")
+# Generated keys are written to data/secrets/ (inside the writable data volume).
+# _read_secret checks this path before /run/secrets/, so the key is picked up
+# on restart without needing to touch the host secrets/ directory.
+_DATA_SECRETS_DIR = Path("/app/data/secrets")
 
 
 @router.post("/generate-key")
 @limiter.limit(STANDARD)
 def generate_key(request: Request):
-    """Generate an API key and write it to the secrets volume.
+    """Generate an API key and persist it.
 
     Only works when no API key is currently configured. Returns the
     generated key once — it is not retrievable after this response.
-    The key is written to the writable secrets volume (/app/secrets/)
-    which maps to ./secrets/ on the host. On next container restart,
-    Docker picks it up via the compose secrets: block.
+    The key is written to data/secrets/ (writable volume) and picked
+    up by _read_secret on subsequent requests and restarts.
     """
     if getattr(request.app.state, "auth_enabled", False):
         raise HTTPException(403, "API key already configured")
 
     key = secrets.token_urlsafe(32)
 
-    # Write to the writable secrets volume (host ./secrets/)
-    target = _WRITABLE_SECRETS_DIR / "mdkb_api_key"
+    # Write to the data volume (host ./data/secrets/)
+    target = _DATA_SECRETS_DIR / "mdkb_api_key"
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(key)

@@ -8,7 +8,6 @@ services:
     volumes:
       - ./data:/app/data
       - ./config:/app/config
-      - ./secrets:/app/secrets
       - ./skills:/app/skills
       # Mount home directory read-only so source paths in settings.yaml
       # work identically whether running with Docker or natively.
@@ -19,6 +18,13 @@ services:
     environment:
       - SERVER_HOST=0.0.0.0
       - OLLAMA_API_BASE=${OLLAMA_API_BASE:-}
+      # API keys: secrets/ files (preferred) or env vars (convenience).
+      # Docker secrets are NOT visible in `docker inspect`.
+      # Env vars below ARE visible — use secrets/ for shared/production hosts.
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - VENICE_API_KEY=${VENICE_API_KEY:-}
+      - MDKB_API_KEY=${MDKB_API_KEY:-}
     secrets:
       - anthropic_api_key
       - openai_api_key
