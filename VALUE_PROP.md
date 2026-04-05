@@ -12,7 +12,7 @@ Python (FastAPI) backend, React (Vite + TypeScript + Tailwind) frontend, ChromaD
 
 **Developers and teams who accumulate markdown.** If you have a `docs/` directory, a `knowledge_docs/` folder, architecture decision records, meeting notes, runbooks, or project documentation scattered across repos — MDKB makes all of it searchable and queryable from one place.
 
-**Anyone building with AI agents.** MDKB's MCP server exposes 27+ tools that any MCP-compatible client can call — search, chat, retrieve documents, manage tags, create temporary collections. Claude Code, Claude Desktop, custom agents, or any tool that speaks MCP can use your knowledge base as context.
+**Anyone building with AI agents.** MDKB's MCP server exposes 29+ tools that any MCP-compatible client can call — search, chat, retrieve documents, manage tags, create temporary collections. Claude Code, Claude Desktop, custom agents, or any tool that speaks MCP can use your knowledge base as context.
 
 **People who want to own their data.** No SaaS, no API keys required for core functionality (Ollama runs locally), no data leaving your network. SQLite + ChromaDB on your filesystem. Back it up with `cp`.
 
@@ -44,7 +44,7 @@ The typical workarounds — grep, filesystem search, manually pasting docs into 
 
 **Plugin-based architecture.** The core is RAG chat — search, graph visualization, planner, tags, export, and buckets are all optional plugins. Enable what you need, disable what you don't. Write your own plugins (a directory with `__init__.py` and a router). External plugins install from GitHub URLs.
 
-**MCP-first agent access.** The standalone MCP server (`mcp_server.py`) exposes 27+ tools over stdio or SSE. Any MCP-compatible client — Claude Code, Claude Desktop, custom agents — can search, chat, retrieve full documents, manage tags, create buckets, and trigger indexing. The MCP server imports core services directly (no HTTP proxy), sharing the same vector store and databases as the web UI.
+**MCP-first agent access.** The standalone MCP server (`mcp_server.py`) exposes 29+ tools over stdio or SSE. Any MCP-compatible client — Claude Code, Claude Desktop, custom agents — can search, chat, retrieve full documents, manage tags, create buckets, and trigger indexing. The MCP server imports core services directly (no HTTP proxy), sharing the same vector store and databases as the web UI. MCP tools accept `scope_id` for project-scoped search, and the `chat` tool supports multi-turn conversations via `thread_id`. SSE transport supports API key auth via `X-MDKB-Key` header or `?token=` query param.
 
 **Scoped search — context curation, not just retrieval.** Three mechanisms for controlling what knowledge is active:
 
@@ -99,7 +99,7 @@ This composability is intentional. MDKB doesn't try to be the orchestrator, the 
 ### MCP Server
 | Feature | Status |
 |---|---|
-| 27+ tools (search, chat, documents, tags, buckets, graph, planner) | Built |
+| 29+ tools (search, chat, documents, tags, buckets, graph, planner) | Built |
 | stdio + SSE transports | Built |
 | Read-only mode, per-tool gating, plugin-aware tool registration | Built |
 | History tracking (MCP searches/chats appear in web UI sidebar) | Built |

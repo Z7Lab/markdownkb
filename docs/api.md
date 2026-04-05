@@ -196,6 +196,8 @@ A scope requires at least one folder or tag. When resolved, folder filtering res
 
 Search, Chat, and Planner endpoints accept an optional `scope_id` field in their request bodies. When provided, retrieval is restricted to the scope's folders and/or tags.
 
+MCP tools (`retrieve`, `retrieve_documents`, `chat`, `plan`, `deep_research`) also accept a `scope_id` parameter for the same behavior. Use the `list_scopes` MCP tool to discover available scopes. See [MCP Server](mcp-server.md#scope-support) for details.
+
 ## Embeddings & Indexing
 
 | Method | Path | Description |
@@ -313,6 +315,7 @@ Temporary scoped document collections with independent vector storage. Each buck
 | DELETE | `/api/buckets/{id}` | Delete a bucket and its vector data |
 | POST | `/api/buckets/{id}/search` | Search within a bucket |
 | POST | `/api/buckets/{id}/chat` | RAG chat scoped to a bucket |
+| POST | `/api/buckets/{id}/add` | Add documents to an existing bucket (skips duplicates) |
 
 ### POST /api/buckets
 

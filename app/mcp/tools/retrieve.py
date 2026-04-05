@@ -1,6 +1,7 @@
 """MCP tool: retrieve from the knowledge base via hybrid search."""
 
 from app.mcp.history import record_search
+from app.mcp.scope import resolve_mcp_scope
 from app.rag.retriever import Retriever
 
 TOOL = {
@@ -11,12 +12,12 @@ TOOL = {
 _mcp = None  # Injected by register_tools()
 
 
-def handler(query: str, top_k: int = 5, tags: list[str] | None = None) -> dict:
+def handler(query: str, top_k: int = 5, tags: list[str] | None = None,
+            scope_id: str | None = None) -> dict:
     """Search the knowledge base using hybrid vector + keyword search.
 
     Returns ranked results with document content, source paths, and
-    relevance scores.  Optionally filter results to documents matching
-    any of the given tags.
+    relevance scores.  Optionally filter results by scope, tags, or both.
 
     Args:
         query: Search query string.
@@ -24,21 +25,32 @@ def handler(query: str, top_k: int = 5, tags: list[str] | None = None) -> dict:
         tags: Optional list of tags to filter by (OR logic — documents
               matching any tag are included).  Use the list_tags tool
               to discover available tags.
+        scope_id: Optional scope ID to restrict search to specific folders
+                  and/or tags.  Use the list_scopes tool to discover
+                  available scopes.
     """
     ctx = _mcp.get_context()
     deps = ctx.request_context.lifespan_context
     retriever: Retriever = deps["retriever"]
 
-    # Resolve tags to allowed file paths via TagDB
-    allowed_paths = None
-    if tags:
-        tagdb = deps.get("tagdb")
-        if tagdb is not None:
-            allowed_paths = tagdb.get_paths_for_tags(set(tags))
-            if not allowed_paths:
-                return {"results": [], "total": 0, "tags_filter": tags}
+    # Resolve scope + ad-hoc tags into folder filter and allowed paths
+    folders_filter, allowed_paths = resolve_mcp_scope(
+        ctx, scope_id, ad_hoc_tags=tags,
+    )
 
-    results = retriever.search(query, top_k=top_k, allowed_paths=allowed_paths)
+    # If tags were given but resolved to zero matching paths, short-circuit
+    if (tags or scope_id) and allowed_paths is not None and not allowed_paths:
+        response: dict = {"results": [], "total": 0}
+        if tags:
+            response["tags_filter"] = tags
+        if scope_id:
+            response["scope_id"] = scope_id
+        return response
+
+    results = retriever.search(
+        query, top_k=top_k,
+        folders_filter=folders_filter, allowed_paths=allowed_paths,
+    )
     formatted = [
         {
             "content": r.document,
@@ -72,10 +84,12 @@ def handler(query: str, top_k: int = 5, tags: list[str] | None = None) -> dict:
         result_details=result_details, result_data=result_data,
     )
 
-    response = {
+    response: dict = {
         "results": formatted,
         "total": len(results),
     }
     if tags:
         response["tags_filter"] = tags
+    if scope_id:
+        response["scope_id"] = scope_id
     return response

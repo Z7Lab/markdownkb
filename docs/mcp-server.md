@@ -48,12 +48,15 @@ make mcp
 | `bucket_search` | `app/plugins/buckets/` | buckets | | Search within a temporary bucket |
 | `bucket_chat` | `app/plugins/buckets/` | buckets | | RAG chat scoped to a temporary bucket |
 | `bucket_delete` | `app/plugins/buckets/` | buckets | yes | Delete a temporary bucket and its vector data |
+| `bucket_add` | `app/plugins/buckets/` | buckets | yes | Add documents to an existing bucket |
+| `bucket_list_files` | `app/plugins/buckets/` | buckets | | List files and chunk counts in a bucket |
 
 **Gating rules:**
 - **core** tools are always registered (unless they're write tools and `mcp.read_only` is true)
 - **Plugin** tools require `plugins.<name>.enabled: true` in settings
 - **Write** tools are disabled when `mcp.read_only: true`, regardless of other flags
 - `save_file` has an additional feature flag: `mcp.save_document` must also be true
+- **Bucket write exemption:** when `mcp.allow_bucket_writes: true`, bucket write tools (`bucket_create`, `bucket_delete`, `bucket_add`) are allowed even with `read_only: true`. Buckets are ephemeral and isolated — they don't touch the main knowledge base.
 
 ### retrieve
 
@@ -63,36 +66,51 @@ retrieve(query: "authentication flow", top_k: 5)
 
 retrieve(query: "authentication flow", top_k: 5, tags: ["security", "backend"])
 → {results: [...], total, tags_filter: ["security", "backend"]}
+
+retrieve(query: "authentication flow", scope_id: "abc123def456")
+→ {results: [...], total, scope_id: "abc123def456"}
 ```
 
-Optionally filter results by tags (OR logic — documents matching any tag are included). Use the `list_tags` tool to discover available tags.
+Optionally filter results by tags (OR logic — documents matching any tag are included), scope, or both. Use `list_tags` to discover available tags and `list_scopes` to discover available scopes. When both `scope_id` and `tags` are provided, they are combined.
 
 ### retrieve_documents
 
 ```
 retrieve_documents(query: "authentication flow", top_k: 3, max_chars: 15000)
 → {documents: [{path, title, content, score}, ...], total_chars}
+
+retrieve_documents(query: "authentication flow", scope_id: "abc123def456")
+→ {documents: [...], total_chars, scope_id: "abc123def456"}
 ```
 
-Unlike `retrieve` which returns individual chunks, this returns the **full content** of the top matching files (deduplicated by source path). Ideal for embedding complete documents into prompts. The `max_chars` budget prevents oversized responses — documents are included in score order until the budget is exhausted, with truncation if needed.
+Unlike `retrieve` which returns individual chunks, this returns the **full content** of the top matching files (deduplicated by source path). Ideal for embedding complete documents into prompts. The `max_chars` budget prevents oversized responses — documents are included in score order until the budget is exhausted, with truncation if needed. Accepts `scope_id` and `tags` for filtering.
 
 ### plan
 
 ```
 plan(request: "Design a caching layer for the API", iterations: 3, n_approaches: 3, save: true)
 → {plan: "...", approaches: [{content, score}, ...], plan_id: "abc123"}
+
+plan(request: "Design a caching layer", scope_id: "abc123def456")
+→ {plan: "...", approaches: [...], plan_id: "..."}
 ```
 
-Uses MCTS to explore multiple approaches grounded in your knowledge base, then synthesizes the best plan. Plans are saved to the plan database by default (visible in the Planner tab sidebar with a bot icon). Set `save: false` to skip persistence.
+Uses MCTS to explore multiple approaches grounded in your knowledge base, then synthesizes the best plan. Plans are saved to the plan database by default (visible in the Planner tab sidebar with a bot icon). Set `save: false` to skip persistence. Accepts `scope_id` to restrict research to specific folders/tags.
 
 ### chat
 
 ```
 chat(message: "How does the auth middleware work?")
-→ {response: "The auth middleware checks..."}
+→ {response: "The auth middleware checks...", sources: [...], source_map: {...}}
+
+chat(message: "How does the auth middleware work?", scope_id: "abc123def456")
+→ {response: "...", sources: [...], source_map: {...}, scope_id: "abc123def456"}
+
+chat(message: "Tell me more about the token flow", thread_id: "a1b2c3d4e5f6")
+→ {response: "...", sources: [...], source_map: {...}, thread_id: "a1b2c3d4e5f6"}
 ```
 
-Uses the same RAG pipeline as the web UI chat — retrieves relevant chunks, builds a context prompt, and calls the active LLM provider.
+Uses the same RAG pipeline as the web UI chat — retrieves relevant chunks, builds a context prompt, and calls the active LLM provider. Accepts `scope_id` for filtering. Pass `thread_id` from a previous response to continue a multi-turn conversation with history (requires `mcp.track_history: true`).
 
 ### get_file
 
@@ -190,6 +208,27 @@ bucket_list()
 → {buckets: [{id, name, file_count, chunk_count, created_at, expires_at}, ...]}
 ```
 
+### bucket_add
+
+```
+bucket_add(
+  bucket: "project-docs",
+  sources: [{"path": "/home/user/projects/myapp/tests", "glob": "**/*.md"}]
+)
+→ {bucket_id, bucket_name, added_files, added_chunks, skipped_files, total_files, total_chunks}
+```
+
+Add documents to an existing bucket without recreating it. Files already present in the bucket are skipped automatically.
+
+### bucket_list_files
+
+```
+bucket_list_files(bucket: "project-docs")
+→ {bucket_id, bucket_name, files: [{path, name, chunk_count}, ...], total_files, total_chunks}
+```
+
+List all files indexed in a bucket with their chunk counts.
+
 ### bucket_delete
 
 ```
@@ -283,8 +322,28 @@ Three gating mechanisms control whether a tool is registered:
 
 1. **`feature_flag`** — key under `mcp:` in settings. Tool disabled when the flag is `false`.
 2. **`requires_plugin`** — plugin name (e.g. `"planner"`). Tool disabled when `plugins.<name>.enabled` is `false`. This keeps MCP tools in sync with their corresponding plugins — disabling the planner plugin also disables the MCP `plan` tool.
-3. **`write: True`** — tool disabled when `mcp.read_only` is `true`, regardless of other flags.
+3. **`write: True`** — tool disabled when `mcp.read_only` is `true`, regardless of other flags. Exception: bucket write tools are allowed when `mcp.allow_bucket_writes: true`.
 
 To add a new MCP tool, create a new `.py` file in `app/mcp/tools/` following the existing pattern.
+
+### Scope Support
+
+The `retrieve`, `retrieve_documents`, `chat`, `plan`, and `deep_research` tools accept an optional `scope_id` parameter. Scopes are named filter presets (folder paths + tags) managed via `POST /api/scopes`. Use the `list_scopes` tool to discover available scopes.
+
+Scope resolution is handled by `app/mcp/scope.py`, which resolves the scope ID to `folders_filter` and `allowed_paths` parameters for the Retriever. Tag resolution calls `TagDB.get_paths_for_tags()` directly (not through the `tag_utils` callback which is only registered in the FastAPI process).
+
+## Authentication
+
+When an API key is configured (via `secrets/mdkb_api_key` or `MDKB_API_KEY` env var), the MCP SSE server requires authentication. Two methods are accepted:
+
+1. **Header:** `X-MDKB-Key: <key>` (same as the REST API)
+2. **Query parameter:** `?token=<key>` (for SSE clients that can't set headers — matches the pattern used by deliberative-ai)
+
+If no API key is configured, all connections are allowed. The stdio transport is never authenticated.
+
+Connect with auth:
+```
+http://localhost:9715/sse?token=YOUR_KEY
+```
 
 > **Note**: The MCP server and FastAPI app can run simultaneously — SQLite uses WAL mode for safe concurrent reads. However, only one process should write to the vector store at a time to avoid conflicts.

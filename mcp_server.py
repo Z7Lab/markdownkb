@@ -141,6 +141,38 @@ mcp = FastMCP(
 
 # -- Entry point -----------------------------------------------------------
 
+def _run_sse_with_auth(host: str, port: int):
+    """Run SSE transport with optional API key middleware."""
+    import anyio
+    import uvicorn
+
+    async def _serve():
+        mcp.settings.host = host
+        mcp.settings.port = port
+        starlette_app = mcp.sse_app()
+
+        # Add API key auth if configured (same key as REST API)
+        settings = Settings.get()
+        api_key = settings.api_key
+        if api_key:
+            from app.mcp.auth import McpApiKeyMiddleware
+            starlette_app = McpApiKeyMiddleware(starlette_app, api_key)
+            logger.info(
+                "MCP auth enabled (accepts X-MDKB-Key header or ?token= query param)"
+            )
+        else:
+            logger.info("MCP auth disabled (no API key configured)")
+
+        config = uvicorn.Config(
+            starlette_app, host=host, port=port,
+            log_level="info",
+        )
+        server = uvicorn.Server(config)
+        await server.serve()
+
+    anyio.run(_serve)
+
+
 def main():
     parser = argparse.ArgumentParser(description="MDKB MCP Server")
     parser.add_argument(
@@ -158,10 +190,8 @@ def main():
     args = parser.parse_args()
 
     if args.sse:
-        mcp.settings.host = args.host
-        mcp.settings.port = args.port
         logger.info("Starting MCP server (SSE) on %s:%d", args.host, args.port)
-        mcp.run(transport="sse")
+        _run_sse_with_auth(args.host, args.port)
     else:
         logger.info("Starting MCP server (stdio)")
         mcp.run(transport="stdio")

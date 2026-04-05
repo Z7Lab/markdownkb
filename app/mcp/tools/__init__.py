@@ -60,7 +60,11 @@ def discover_tools(settings: Any) -> tuple[list[dict[str, Any]], list[dict[str, 
         if requires_plugin and not settings.plugin_enabled(requires_plugin):
             enabled = False
         if is_write and settings.mcp_enabled("read_only"):
-            enabled = False
+            # Bucket tools can be exempted from read_only via allow_bucket_writes
+            if requires_plugin == "buckets" and settings.mcp_enabled("allow_bucket_writes"):
+                pass
+            else:
+                enabled = False
 
         tools.append({
             "name": meta["name"],

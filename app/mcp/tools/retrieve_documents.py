@@ -10,6 +10,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 from app.mcp.history import record_search
+from app.mcp.scope import resolve_mcp_scope
 from app.rag.retriever import Retriever
 from app.storage.trackingdb import TrackingDB
 
@@ -22,7 +23,8 @@ _mcp = None  # Injected by register_tools()
 
 
 def handler(query: str, top_k: int = 3, max_chars: int = 15000,
-            tags: list[str] | None = None) -> dict:
+            tags: list[str] | None = None,
+            scope_id: str | None = None) -> dict:
     """Search and return full documents matching a query.
 
     Searches the knowledge base for relevant chunks, deduplicates by
@@ -39,23 +41,34 @@ def handler(query: str, top_k: int = 3, max_chars: int = 15000,
         tags: Optional list of tags to filter by (OR logic — documents
               matching any tag are included).  Use the list_tags tool
               to discover available tags.
+        scope_id: Optional scope ID to restrict search to specific folders
+                  and/or tags.  Use the list_scopes tool to discover
+                  available scopes.
     """
     ctx = _mcp.get_context()
     deps = ctx.request_context.lifespan_context
     retriever: Retriever = deps["retriever"]
     tracking: TrackingDB = deps["tracking"]
 
-    # Resolve tags to allowed file paths via TagDB
-    allowed_paths = None
-    if tags:
-        tagdb = deps.get("tagdb")
-        if tagdb is not None:
-            allowed_paths = tagdb.get_paths_for_tags(set(tags))
-            if not allowed_paths:
-                return {"documents": [], "total_chars": 0, "tags_filter": tags}
+    # Resolve scope + ad-hoc tags into folder filter and allowed paths
+    folders_filter, allowed_paths = resolve_mcp_scope(
+        ctx, scope_id, ad_hoc_tags=tags,
+    )
+
+    # If tags/scope resolved to zero matching paths, short-circuit
+    if (tags or scope_id) and allowed_paths is not None and not allowed_paths:
+        response: dict = {"documents": [], "total_chars": 0}
+        if tags:
+            response["tags_filter"] = tags
+        if scope_id:
+            response["scope_id"] = scope_id
+        return response
 
     # 1. Search chunks (fetch more than top_k to improve dedup coverage)
-    results = retriever.search(query, top_k=top_k * 5, allowed_paths=allowed_paths)
+    results = retriever.search(
+        query, top_k=top_k * 5,
+        folders_filter=folders_filter, allowed_paths=allowed_paths,
+    )
 
     # 2. Deduplicate by source path, keeping the highest score per file
     best_by_file: dict[str, float] = {}
@@ -129,10 +142,12 @@ def handler(query: str, top_k: int = 3, max_chars: int = 15000,
         result_details=result_details, result_data=result_data,
     )
 
-    response = {
+    response: dict = {
         "documents": documents,
         "total_chars": total_chars,
     }
     if tags:
         response["tags_filter"] = tags
+    if scope_id:
+        response["scope_id"] = scope_id
     return response

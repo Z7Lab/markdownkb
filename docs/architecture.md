@@ -64,9 +64,11 @@ mdkb is a chat-with-your-docs tool with a Python backend and React frontend. The
 │  Plugin:                                                │
 │    summarize │ plan │ list_tags │ generate_tags         │
 │    update_tags │ graph │ export_chat                    │
-│    bucket_create │ bucket_list │ bucket_search          │
-│    bucket_chat │ bucket_delete                          │
+│    bucket_create │ bucket_add │ bucket_list              │
+│    bucket_list_files │ bucket_search │ bucket_chat      │
+│    bucket_delete                                        │
 │  Transports: stdio │ SSE  │  read_only mode            │
+│  Auth: X-MDKB-Key header │ ?token= query param         │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -308,7 +310,7 @@ Current catalogs: `venice` (Venice.ai — 21 privacy-preserving chat models).
 Configuration is split into four sections in `config/settings.yaml`:
 
 - **`core:`** — behaviour toggles for built-in features (rag_chat, file_watcher, etc.)
-- **`mcp:`** — MCP tool flags (read_only, save_document, filesystem, terminal)
+- **`mcp:`** — MCP tool flags (read_only, allow_bucket_writes, save_document, filesystem, terminal)
 - **`plugins:`** — each plugin has `enabled` + config together (`plugins.<name>.enabled`)
 - **`services:`** — shared service config (deep_research iterations, etc.)
 

@@ -1,6 +1,7 @@
 """MCP tool: multi-angle deep research synthesis."""
 
 from app.config import Settings
+from app.mcp.scope import resolve_mcp_scope
 from app.rag.retriever import Retriever
 
 TOOL = {
@@ -15,6 +16,7 @@ def handler(
     query: str,
     iterations: int = 3,
     n_approaches: int = 3,
+    scope_id: str | None = None,
 ) -> dict:
     """Run deep research on a topic using MCTS multi-angle exploration.
 
@@ -29,6 +31,9 @@ def handler(
         query: The research question or topic.
         iterations: MCTS depth iterations (default 3).
         n_approaches: Number of research angles to explore (default 3).
+        scope_id: Optional scope ID to restrict search to specific folders
+                  and/or tags.  Use the list_scopes tool to discover
+                  available scopes.
     """
     from app.planner.mcts import MCTSPlanner
     from app.rag.llm import get_completion
@@ -43,8 +48,13 @@ def handler(
     retriever: Retriever = deps["retriever"]
     settings: Settings = deps["settings"]
 
+    # Resolve scope into folder filter + allowed paths
+    folders_filter, allowed_paths = resolve_mcp_scope(ctx, scope_id)
+
     # Run MCTS planner to explore research angles
-    planner = MCTSPlanner(retriever, settings)
+    planner = MCTSPlanner(retriever, settings,
+                          folders_filter=folders_filter,
+                          allowed_paths=allowed_paths)
     result = planner.plan(query, iterations, n_approaches)
 
     best_plan = result.get("plan", "")
@@ -52,8 +62,11 @@ def handler(
     # Gather source documents from the best path
     from app.planner.nodes import PlanNode
     all_sources: list[str] = []
-    # Get chunks for context
-    chunks = retriever.search(query, top_k=10)
+    # Get chunks for context (scoped to match the MCTS search)
+    chunks = retriever.search(
+        query, top_k=10,
+        folders_filter=folders_filter, allowed_paths=allowed_paths,
+    )
     context = format_context(chunks)
     sources = list(dict.fromkeys(
         r.metadata.get("source_path", "") for r in chunks if r.metadata.get("source_path")

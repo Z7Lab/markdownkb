@@ -109,6 +109,44 @@ class TestToolDiscovery:
         assert by_name["save_file"]["enabled"] is False
         assert by_name["index_file"]["enabled"] is True
 
+    def test_read_only_blocks_bucket_writes_by_default(self):
+        """Bucket write tools blocked under read_only when allow_bucket_writes is off."""
+        from app.mcp.tools import discover_tools
+
+        settings = FakeSettings()
+        settings._mcp["read_only"] = True
+        settings._mcp["allow_bucket_writes"] = False
+        settings.set_plugin_enabled("buckets", True)
+
+        tools, _errors = discover_tools(settings)
+        by_name = {t["name"]: t for t in tools}
+
+        assert by_name["bucket_create"]["enabled"] is False
+        assert by_name["bucket_delete"]["enabled"] is False
+        # Read-only bucket tools should still work
+        assert by_name["bucket_list"]["enabled"] is True
+        assert by_name["bucket_search"]["enabled"] is True
+
+    def test_allow_bucket_writes_exempts_bucket_tools(self):
+        """Bucket write tools allowed under read_only when allow_bucket_writes is true."""
+        from app.mcp.tools import discover_tools
+
+        settings = FakeSettings()
+        settings._mcp["read_only"] = True
+        settings._mcp["allow_bucket_writes"] = True
+        settings._mcp["save_document"] = True
+        settings.set_plugin_enabled("buckets", True)
+
+        tools, _errors = discover_tools(settings)
+        by_name = {t["name"]: t for t in tools}
+
+        # Bucket write tools should be allowed
+        assert by_name["bucket_create"]["enabled"] is True
+        assert by_name["bucket_delete"]["enabled"] is True
+        # Non-bucket write tools should still be blocked
+        assert by_name["save_file"]["enabled"] is False
+        assert by_name["index_file"]["enabled"] is False
+
 
 # ---------------------------------------------------------------------------
 # retrieve_documents tool

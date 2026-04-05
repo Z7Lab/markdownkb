@@ -15,6 +15,15 @@ mdkb supports optional API key authentication via the `X-MDKB-Key` header:
 - When empty (default), authentication is disabled — suitable for local/single-user use.
 - **If exposing mdkb to a network, always set an API key.** Without it, destructive endpoints (clear databases, change LLM provider, rewrite system prompt) are fully open.
 
+### MCP Server Authentication
+
+The standalone MCP SSE server uses the same API key. When `MDKB_API_KEY` is configured, the MCP server requires authentication via either:
+
+- **Header:** `X-MDKB-Key: <key>` (same as the REST API)
+- **Query parameter:** `?token=<key>` (for SSE clients that can't set headers, e.g. sandboxed agents connecting via a URL-only configuration)
+
+The stdio transport is never authenticated (stdio is process-local and not network-accessible). When no API key is configured, MCP connections are unauthenticated — suitable only for localhost-bound deployments.
+
 ## File System Access
 
 - The file browser reads files under configured `sources` directories.
@@ -32,10 +41,14 @@ Security-sensitive features are disabled by default and must be explicitly enabl
 
 | Feature | Default | Risk |
 |---------|---------|------|
-| `mcp_filesystem` | `false` | File system read access |
-| `mcp_terminal` | `false` | Shell command execution |
-| `mcp_tag_generator` | `false` | File modification (creates backups) |
+| `mcp.filesystem` | `false` | File system read access |
+| `mcp.terminal` | `false` | Shell command execution |
+| `mcp.tag_generator` | `false` | File modification (creates backups) |
+| `mcp.save_document` | `false` | MCP clients can write markdown files into source directories |
+| `mcp.allow_bucket_writes` | `false` | MCP clients can create/delete/add to ephemeral buckets even when `read_only: true`. Buckets are isolated from the main knowledge base — they use separate ChromaDB collections and don't touch indexed files. |
 | `write_api` | `false` | Create/update/delete markdown files via HTTP |
+
+The `mcp.read_only` flag (default `true`) blocks all MCP write tools regardless of individual flags. `allow_bucket_writes` is a narrow exemption that keeps the main knowledge base read-only while allowing bucket operations — useful when giving agents write access for scratch/research workflows without granting access to curated documents.
 
 The `write_api` plugin validates paths to prevent directory traversal and restricts writes to configured source directories only. It requires an explicit `overwrite: true` flag to replace existing files.
 

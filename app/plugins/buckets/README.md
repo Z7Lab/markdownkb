@@ -76,6 +76,7 @@ Then in the **Chat** tab, select the bucket and ask: "What were the common root 
 | DELETE | `/api/buckets/{id}` | Delete a bucket and its vector data |
 | POST | `/api/buckets/{id}/search` | Search within a bucket |
 | POST | `/api/buckets/{id}/chat` | RAG chat scoped to a bucket |
+| POST | `/api/buckets/{id}/add` | Add documents to an existing bucket (skips duplicates) |
 
 ## Creating a Bucket
 
@@ -128,17 +129,19 @@ Cleanup deletes both the SQLite metadata row and the bucket's ChromaDB collectio
 
 ## MCP Tools
 
-When the buckets plugin is enabled, five MCP tools are registered:
+When the buckets plugin is enabled, seven MCP tools are registered:
 
 | Tool | Write | Description |
 |------|-------|-------------|
 | `bucket_create` | yes | Create a bucket from source paths |
+| `bucket_add` | yes | Add documents to an existing bucket |
 | `bucket_list` | | List all buckets |
+| `bucket_list_files` | | List files and chunk counts in a bucket |
 | `bucket_search` | | Search within a bucket |
 | `bucket_chat` | | RAG chat scoped to a bucket |
 | `bucket_delete` | yes | Delete a bucket and its vector data |
 
-Write tools are disabled when `mcp.read_only` is true.
+Write tools are disabled when `mcp.read_only` is true, unless `mcp.allow_bucket_writes` is also true — this allows bucket operations while keeping the main knowledge base read-only.
 
 ## Configuration
 

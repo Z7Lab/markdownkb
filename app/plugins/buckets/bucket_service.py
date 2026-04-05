@@ -119,6 +119,91 @@ class BucketService:
 
         return record
 
+    # -- Add documents -------------------------------------------------------
+
+    def add_documents(self, bucket: str, sources: list[dict]) -> dict:
+        """Add documents to an existing bucket.
+
+        Parses, chunks, and embeds new files into the bucket's existing
+        ChromaDB collection.  Skips files already present (by source_path).
+        """
+        record = self._db.resolve(bucket)
+        if not record:
+            raise ValueError(f"Bucket not found: {bucket}")
+
+        bucket_id = record["id"]
+        bucket_name = record["name"]
+
+        # Discover existing file paths so we can skip duplicates
+        store = self._get_store(bucket_id)
+        existing_paths: set[str] = set()
+        for meta in store.get_all_metadatas():
+            path = meta.get("source_path", "")
+            if path:
+                existing_paths.add(path)
+
+        # Resolve source paths for scanning
+        scan_paths: list[str] = []
+        for src in sources:
+            path = src.get("path", "")
+            glob_pattern = src.get("glob", "**/*.md")
+            resolved = Path(path).resolve()
+            if resolved.is_file():
+                scan_paths.append(str(resolved))
+            elif resolved.is_dir():
+                for match in resolved.glob(glob_pattern):
+                    if match.is_file() and match.suffix == ".md":
+                        scan_paths.append(str(match))
+
+        # Parse, chunk, and embed new files only
+        all_ids: list[str] = []
+        all_docs: list[str] = []
+        all_metas: list[dict] = []
+        added_files = 0
+        skipped_files = 0
+
+        for file_path in scan_paths:
+            if file_path in existing_paths:
+                skipped_files += 1
+                continue
+            if not Path(file_path).exists():
+                logger.warning("Bucket add: file not found: %s", file_path)
+                continue
+            source_root = str(Path(file_path).parent)
+            chunks = parse_and_chunk(file_path, source_root)
+            if not chunks:
+                continue
+            added_files += 1
+            for i, chunk in enumerate(chunks):
+                chunk_id = f"bucket:{bucket_name}:{file_path}:{i}"
+                all_ids.append(chunk_id)
+                all_docs.append(chunk.content)
+                all_metas.append(chunk.metadata)
+
+        if all_docs:
+            embeddings = embed_texts(all_docs, self._embedding_model)
+            store.add(all_ids, all_docs, embeddings, all_metas)
+
+        # Update metadata counts
+        new_file_count = record["file_count"] + added_files
+        new_chunk_count = record["chunk_count"] + len(all_ids)
+        self._db.update_counts(bucket_id, new_file_count, new_chunk_count)
+
+        logger.info(
+            "Bucket '%s': added %d files (%d chunks), skipped %d existing",
+            bucket_name, added_files, len(all_ids), skipped_files,
+        )
+
+        return {
+            "bucket_id": bucket_id,
+            "bucket_name": bucket_name,
+            "added_files": added_files,
+            "added_chunks": len(all_ids),
+            "skipped_files": skipped_files,
+            "total_files": new_file_count,
+            "total_chunks": new_chunk_count,
+        }
+
     # -- Search --------------------------------------------------------------
 
     def search(self, bucket: str, query: str, top_k: int, settings) -> dict:

@@ -60,6 +60,16 @@ class BucketDB:
             ).fetchone()
         return dict(row)
 
+    def update_counts(self, bucket_id: str, file_count: int, chunk_count: int) -> bool:
+        """Update file and chunk counts after adding documents."""
+        with self._lock:
+            cursor = self._conn.execute(
+                "UPDATE buckets SET file_count = ?, chunk_count = ? WHERE id = ?",
+                (file_count, chunk_count, bucket_id),
+            )
+            self._conn.commit()
+        return cursor.rowcount > 0
+
     def delete(self, bucket_id: str) -> bool:
         """Delete a bucket by ID. Returns True if a row was deleted."""
         with self._lock:

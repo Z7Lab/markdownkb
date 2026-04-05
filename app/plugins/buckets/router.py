@@ -38,6 +38,10 @@ class BucketChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=4000)
 
 
+class AddToBucketRequest(BaseModel):
+    sources: list[BucketSource] = Field(..., min_length=1)
+
+
 # -- Helpers -----------------------------------------------------------------
 
 def _get_bucket_service(request: Request) -> BucketService:
@@ -139,3 +143,22 @@ def chat_bucket(
         return svc.chat(bucket_id, req.message, settings)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/buckets/{bucket_id}/add")
+@limiter.limit(STANDARD)
+def add_to_bucket(
+    request: Request,
+    bucket_id: str,
+    req: AddToBucketRequest,
+    svc: BucketService = Depends(_get_bucket_service),
+):
+    """Add documents to an existing bucket. Files already present are skipped."""
+    try:
+        sources = [s.model_dump() for s in req.sources]
+        return svc.add_documents(bucket_id, sources)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error("Bucket add failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Bucket add failed")

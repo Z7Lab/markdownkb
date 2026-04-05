@@ -1,6 +1,7 @@
 """MCP tool: generate an implementation plan using MCTS."""
 
 from app.config import Settings
+from app.mcp.scope import resolve_mcp_scope
 from app.rag.retriever import Retriever
 
 TOOL = {
@@ -17,6 +18,7 @@ def handler(
     iterations: int = 3,
     n_approaches: int = 3,
     save: bool = True,
+    scope_id: str | None = None,
 ) -> dict:
     """Generate an implementation plan grounded in the knowledge base.
 
@@ -28,6 +30,9 @@ def handler(
         iterations: MCTS depth iterations (default 3). Higher = deeper analysis.
         n_approaches: Number of initial approaches to generate (default 3).
         save: Whether to save the plan to the plan database (default True).
+        scope_id: Optional scope ID to restrict search to specific folders
+                  and/or tags.  Use the list_scopes tool to discover
+                  available scopes.
     """
     from app.services.planner_service import run_planner
 
@@ -36,12 +41,17 @@ def handler(
     retriever: Retriever = deps["retriever"]
     settings: Settings = deps["settings"]
 
+    # Resolve scope into folder filter + allowed paths
+    folders_filter, allowed_paths = resolve_mcp_scope(ctx, scope_id)
+
     result = run_planner(
         request,
         retriever,
         settings,
         iterations=iterations,
         n_approaches=n_approaches,
+        folders_filter=folders_filter,
+        allowed_paths=allowed_paths,
     )
 
     # Save to PlanDB if requested and available
