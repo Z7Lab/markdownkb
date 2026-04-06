@@ -1,0 +1,37 @@
+name: knowledge_graph
+display_name: Knowledge Graph
+description: Entity extraction and typed relationships from your documents using LLM. Builds a queryable knowledge graph with concepts, tools, processes, and their connections.
+version: 1.0.0
+author: mdkb
+icon: brain
+category: visualization
+feature_flag: knowledge_graph
+requires: []
+
+endpoints:
+  - method: GET
+    path: /api/knowledge-graph/data
+    description: All entities and relationships (with optional type filters)
+  - method: GET
+    path: /api/knowledge-graph/entity
+    description: Single entity with all incoming/outgoing relationships
+  - method: GET
+    path: /api/knowledge-graph/path
+    description: BFS shortest path between two entities
+  - method: GET
+    path: /api/knowledge-graph/stats
+    description: Entity and relationship counts
+  - method: POST
+    path: /api/knowledge-graph/extract
+    description: Start background entity extraction over all indexed files
+  - method: GET
+    path: /api/knowledge-graph/extract/status
+    description: Current extraction progress
+  - method: POST
+    path: /api/knowledge-graph/extract/cancel
+    description: Cancel running extraction
+  - method: POST
+    path: /api/knowledge-graph/clear
+    description: Clear all knowledge graph data
+
+config: {}

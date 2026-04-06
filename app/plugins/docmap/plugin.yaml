@@ -1,28 +1,28 @@
-name: graph
-display_name: Knowledge Graph
-description: Interactive 3D document similarity graph with clustering and word clouds.
+name: docmap
+display_name: Doc Map
+description: Interactive 3D document similarity visualization with clustering and word clouds.
 version: 1.0.0
 author: mdkb
 icon: network
 category: visualization
-feature_flag: graph
+feature_flag: docmap
 requires: []
 
 endpoints:
   - method: GET
-    path: /api/graph/data
-    description: Compute similarity graph (nodes, edges, clusters, word clouds)
+    path: /api/docmap/data
+    description: Compute document similarity map (nodes, edges, clusters, word clouds)
   - method: GET
-    path: /api/graph/stats
-    description: Graph statistics (doc count, chunk count)
+    path: /api/docmap/stats
+    description: Doc map statistics (doc count, chunk count)
   - method: GET
-    path: /api/graph/status
-    description: Check if cached graph data is available
+    path: /api/docmap/status
+    description: Check if cached doc map data is available
   - method: GET
-    path: /api/graph/edge-detail
+    path: /api/docmap/edge-detail
     description: Chunk-level similarity detail for a document pair
   - method: GET
-    path: /api/graph/progress
-    description: Current graph computation progress
+    path: /api/docmap/progress
+    description: Current doc map computation progress
 
 config: {}
