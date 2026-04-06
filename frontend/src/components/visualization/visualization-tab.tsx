@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import ForceGraph3D from "react-force-graph-3d"
 import { useVisualization } from "@/hooks/use-visualization"
-import { useSettings } from "@/hooks/use-settings"
 import { useScopes } from "@/hooks/use-scopes"
 import { useTags } from "@/hooks/use-tags"
 import { useScopeTagFilter } from "@/hooks/use-scope-tag-filter"
@@ -112,7 +111,9 @@ function useContainerDimensions() {
 // TODO: Extract useIsDark, useContainerDimensions to hooks/ directory.
 // Consider splitting ForceGraph3D rendering into a dedicated wrapper component
 // to reduce this file's complexity (549 lines, 8 useState, 5 useEffect, 9 useCallback, 3 useMemo).
-export function VisualizationTab() {
+import type { GraphMode } from "@/hooks/use-visualization"
+
+export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
   const {
     docmapData, isLoading, isComputing, checkingCache, fetchedAt, threshold, setThreshold,
     wordClouds, setWordClouds,
@@ -121,15 +122,11 @@ export function VisualizationTab() {
     mode, setMode, kgData, kgLoading, fetchKG,
     extraction, startExtraction, cancelExtraction,
   } = useVisualization()
-  const { settings } = useSettings()
-  const docmapEnabled = !!settings?.plugins_enabled?.docmap
-  const kgEnabled = !!settings?.plugins_enabled?.knowledge_graph
 
-  // Auto-set mode based on which plugins are enabled
+  // Lock mode to what the parent tab specifies
   useEffect(() => {
-    if (!docmapEnabled && kgEnabled) setMode("knowledge")
-    else if (docmapEnabled && !kgEnabled) setMode("similarity")
-  }, [docmapEnabled, kgEnabled, setMode])
+    setMode(fixedMode)
+  }, [fixedMode, setMode])
 
   const { scopes } = useScopes()
   const { tags: availableTags } = useTags()
@@ -457,13 +454,10 @@ export function VisualizationTab() {
         wordCloudLabel={wordCloudLabel}
         onTermClick={handleTermClick}
         mode={mode}
-        onModeChange={setMode}
         kgData={kgData}
         extraction={extraction}
         onStartExtraction={startExtraction}
         onCancelExtraction={cancelExtraction}
-        docmapEnabled={docmapEnabled}
-        kgEnabled={kgEnabled}
       />
 
       <div ref={containerRef} className="flex-1 min-w-0 min-h-0 relative bg-background">

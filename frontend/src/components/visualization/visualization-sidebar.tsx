@@ -30,13 +30,10 @@ export function VisualizationSidebar({
   wordCloudLabel,
   onTermClick,
   mode,
-  onModeChange,
   kgData,
   extraction,
   onStartExtraction,
   onCancelExtraction,
-  docmapEnabled,
-  kgEnabled,
 }: {
   scopes: Scope[]
   selectedScopeIds: Set<string>
@@ -58,38 +55,15 @@ export function VisualizationSidebar({
   wordCloudLabel: string
   onTermClick: (term: string) => void
   mode: GraphMode
-  onModeChange: (mode: GraphMode) => void
   kgData: KGData | null
   extraction: { running: boolean; progress: number; message: string; result: string; files_done: number; files_total: number }
   onStartExtraction: () => void
   onCancelExtraction: () => void
-  docmapEnabled: boolean
-  kgEnabled: boolean
 }) {
   return (
     <AppSidebar
       header={
         <div className="space-y-3">
-          {/* Mode toggle — only shown when both plugins are enabled */}
-          {docmapEnabled && kgEnabled && (
-            <div className="flex rounded-md border overflow-hidden">
-              <button
-                type="button"
-                className={`flex-1 text-xs py-1.5 px-2 transition-colors ${mode === "similarity" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
-                onClick={() => onModeChange("similarity")}
-              >
-                Doc Map
-              </button>
-              <button
-                type="button"
-                className={`flex-1 text-xs py-1.5 px-2 transition-colors ${mode === "knowledge" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
-                onClick={() => onModeChange("knowledge")}
-              >
-                Knowledge
-              </button>
-            </div>
-          )}
-
           {mode === "similarity" && (
             <>
               <ScopeTagFilter

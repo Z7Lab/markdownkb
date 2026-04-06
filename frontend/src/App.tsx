@@ -9,7 +9,7 @@ import { LLMStatusIndicator } from "@/components/llm-status-indicator"
 import { IndexEventProvider } from "@/hooks/use-index-events"
 import { SettingsProvider, useSettings } from "@/hooks/use-settings"
 import { NavigationProvider } from "@/lib/navigation"
-import { MessageSquare, Globe, FolderOpen, Lightbulb, Network } from "lucide-react"
+import { MessageSquare, Globe, FolderOpen, Lightbulb, Network, Share2 } from "lucide-react"
 import { SetupBanner } from "@/components/setup-banner"
 import { LlmSetupNudge } from "@/components/llm-setup-nudge"
 
@@ -28,7 +28,8 @@ const routeToTab: Record<string, string> = {
   "/": "chat",
   "/search": "search",
   "/planner": "planner",
-  "/graph": "graph",
+  "/docmap": "docmap",
+  "/knowledge-graph": "knowledge-graph",
   "/files": "files",
   "/settings": "settings",
 }
@@ -37,21 +38,30 @@ const tabToRoute: Record<string, string> = {
   chat: "/",
   search: "/search",
   planner: "/planner",
-  graph: "/graph",
+  docmap: "/docmap",
+  "knowledge-graph": "/knowledge-graph",
   files: "/files",
   settings: "/settings",
 }
 
-function VisualizationTabTrigger() {
+function DocMapTabTrigger() {
   const { settings } = useSettings()
-  const docmap = settings?.plugins_enabled?.docmap
-  const kg = settings?.plugins_enabled?.knowledge_graph
-  if (!docmap && !kg) return null
-  const label = docmap && kg ? "Graph" : kg ? "Knowledge Graph" : "Doc Map"
+  if (!settings?.plugins_enabled?.docmap) return null
   return (
-    <TabsTrigger value="graph">
+    <TabsTrigger value="docmap">
+      <Share2 className="h-4 w-4" />
+      Doc Map
+    </TabsTrigger>
+  )
+}
+
+function KnowledgeGraphTabTrigger() {
+  const { settings } = useSettings()
+  if (!settings?.plugins_enabled?.knowledge_graph) return null
+  return (
+    <TabsTrigger value="knowledge-graph">
       <Network className="h-4 w-4" />
-      {label}
+      Knowledge Graph
     </TabsTrigger>
   )
 }
@@ -106,7 +116,8 @@ export function App() {
                   <Lightbulb className="h-4 w-4" />
                   Planner
                 </TabsTrigger>
-                <VisualizationTabTrigger />
+                <DocMapTabTrigger />
+                <KnowledgeGraphTabTrigger />
                 <TabsTrigger value="files">
                   <FolderOpen className="h-4 w-4" />
                   Files
@@ -135,10 +146,17 @@ export function App() {
                   </Suspense>
                 </ErrorBoundary>
               </TabsContent>
-              <TabsContent value="graph" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
-                <ErrorBoundary fallbackMessage="Graph encountered an error">
+              <TabsContent value="docmap" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
+                <ErrorBoundary fallbackMessage="Doc Map encountered an error">
                   <Suspense fallback={<TabFallback />}>
-                    <VisualizationTab />
+                    <VisualizationTab fixedMode="similarity" />
+                  </Suspense>
+                </ErrorBoundary>
+              </TabsContent>
+              <TabsContent value="knowledge-graph" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
+                <ErrorBoundary fallbackMessage="Knowledge Graph encountered an error">
+                  <Suspense fallback={<TabFallback />}>
+                    <VisualizationTab fixedMode="knowledge" />
                   </Suspense>
                 </ErrorBoundary>
               </TabsContent>
