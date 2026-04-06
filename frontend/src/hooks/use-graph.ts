@@ -60,8 +60,8 @@ export function useGraph() {
         // Check both with and without word clouds
         const mw = `&min_weight=${MIN_WEIGHT}`
         const [withWc, withoutWc] = await Promise.all([
-          api.get<{ cached: boolean }>(`/api/graph/status?word_clouds=true${mw}`, controller.signal),
-          api.get<{ cached: boolean }>(`/api/graph/status?word_clouds=false${mw}`, controller.signal),
+          api.get<{ cached: boolean }>(`/api/docmap/status?word_clouds=true${mw}`, controller.signal),
+          api.get<{ cached: boolean }>(`/api/docmap/status?word_clouds=false${mw}`, controller.signal),
         ])
         if (controller.signal.aborted || graphDataRef.current) return
 
@@ -70,7 +70,7 @@ export function useGraph() {
           // Prefer the one that's cached; if both, prefer with word clouds
           const useWc = withWc.cached
           setIsLoading(true)
-          const data = await api.get<GraphData>(`/api/graph/data${buildQs(null, useWc)}`, controller.signal)
+          const data = await api.get<GraphData>(`/api/docmap/data${buildQs(null, useWc)}`, controller.signal)
           if (controller.signal.aborted) return
           graphDataRef.current = data
           lastScopeRef.current = null
@@ -114,13 +114,13 @@ export function useGraph() {
 
     try {
       // Start the data fetch first, then begin progress polling
-      const dataPromise = api.get<GraphData>(`/api/graph/data${buildQs(scopeIds, wc, adHocTags)}`)
+      const dataPromise = api.get<GraphData>(`/api/docmap/data${buildQs(scopeIds, wc, adHocTags)}`)
 
       // Brief delay so the data request claims a connection before polls compete
       await new Promise(r => setTimeout(r, 50))
       pollRef.current = setInterval(async () => {
         try {
-          const p = await api.get<GraphProgress>("/api/graph/progress")
+          const p = await api.get<GraphProgress>("/api/docmap/progress")
           if (p.phase !== "idle") {
             setProgress(p)
           }
@@ -165,7 +165,7 @@ export function useGraph() {
       if (entityTypes) params.set("entity_types", entityTypes)
       if (relTypes) params.set("rel_types", relTypes)
       const qs = params.toString()
-      const data = await api.get<KGData>(`/api/graph/kg/data${qs ? `?${qs}` : ""}`)
+      const data = await api.get<KGData>(`/api/knowledge-graph/data${qs ? `?${qs}` : ""}`)
       setKgData(data)
     } catch (err) {
       toast.error(`Failed to load knowledge graph: ${(err as Error).message}`)
@@ -200,7 +200,7 @@ export function useGraph() {
     if (extractionPollRef.current) clearInterval(extractionPollRef.current)
     extractionPollRef.current = setInterval(async () => {
       try {
-        const s = await api.get<ExtractionStatus>("/api/graph/kg/extract/status")
+        const s = await api.get<ExtractionStatus>("/api/knowledge-graph/extract/status")
         setExtraction(s)
         if (!s.running) {
           if (extractionPollRef.current) clearInterval(extractionPollRef.current)
@@ -224,7 +224,7 @@ export function useGraph() {
   // Check extraction status on mode switch
   useEffect(() => {
     if (mode === "knowledge") {
-      api.get<ExtractionStatus>("/api/graph/kg/extract/status")
+      api.get<ExtractionStatus>("/api/knowledge-graph/extract/status")
         .then((s) => {
           setExtraction(s)
           if (s.running) pollExtraction()
@@ -235,7 +235,7 @@ export function useGraph() {
 
   const startExtraction = useCallback(async () => {
     try {
-      await api.post("/api/graph/kg/extract")
+      await api.post("/api/knowledge-graph/extract")
       setExtraction((e) => ({ ...e, running: true, progress: 0, message: "Starting...", result: "" }))
       pollExtraction()
     } catch (err) {
@@ -245,7 +245,7 @@ export function useGraph() {
 
   const cancelExtraction = useCallback(async () => {
     try {
-      await api.post("/api/graph/kg/extract/cancel")
+      await api.post("/api/knowledge-graph/extract/cancel")
     } catch {
       // ignore
     }

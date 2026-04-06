@@ -25,7 +25,7 @@ export function EdgeDetailPanel({
     let cancelled = false
 
     const params = new URLSearchParams({ source, target, top_k: "5" })
-    api.get<EdgeDetail>(`/api/graph/edge-detail?${params}`)
+    api.get<EdgeDetail>(`/api/docmap/edge-detail?${params}`)
       .then((data) => {
         if (!cancelled) setDetail(data)
       })

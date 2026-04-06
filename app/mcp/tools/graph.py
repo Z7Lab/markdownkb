@@ -1,12 +1,12 @@
-"""MCP tool: compute knowledge graph relationships."""
+"""MCP tool: compute document similarity map."""
 
 from app.config import Settings
 from app.storage.vectorstore import VectorStore
 
 TOOL = {
-    "name": "graph",
+    "name": "docmap",
     "feature_flag": None,
-    "requires_plugin": "graph",
+    "requires_plugin": "docmap",
 }
 
 _mcp = None  # Injected by register_tools()
@@ -17,7 +17,7 @@ def handler(
     top_k: int = 3,
     word_clouds: bool = False,
 ) -> dict:
-    """Compute the knowledge graph showing document relationships.
+    """Compute the document similarity map.
 
     Returns nodes (documents) and edges (similarity links) based on
     chunk-level embedding similarity between documents.

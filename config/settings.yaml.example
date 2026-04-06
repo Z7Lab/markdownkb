@@ -165,8 +165,10 @@ plugins:
   tags:
     enabled: true
     ai_generation: false            # AI-powered tag generation (LLM-based)
-  graph:
+  docmap:
     enabled: true
+  knowledge_graph:
+    enabled: false                  # Requires LLM — extracts entities and relationships from docs
   planner:
     enabled: false
   write_api:

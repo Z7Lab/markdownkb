@@ -3,7 +3,7 @@
 TOOL = {
     "name": "query_knowledge_graph",
     "feature_flag": None,
-    "requires_plugin": "graph",
+    "requires_plugin": "knowledge_graph",
 }
 
 _mcp = None  # Injected by register_tools()

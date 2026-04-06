@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import ForceGraph3D from "react-force-graph-3d"
 import { useGraph } from "@/hooks/use-graph"
+import { useSettings } from "@/hooks/use-settings"
 import { useScopes } from "@/hooks/use-scopes"
 import { useTags } from "@/hooks/use-tags"
 import { useScopeTagFilter } from "@/hooks/use-scope-tag-filter"
@@ -120,6 +121,16 @@ export function GraphTab() {
     mode, setMode, kgData, kgLoading, fetchKG,
     extraction, startExtraction, cancelExtraction,
   } = useGraph()
+  const { settings } = useSettings()
+  const docmapEnabled = !!settings?.plugins_enabled?.docmap
+  const kgEnabled = !!settings?.plugins_enabled?.knowledge_graph
+
+  // Auto-set mode based on which plugins are enabled
+  useEffect(() => {
+    if (!docmapEnabled && kgEnabled) setMode("knowledge")
+    else if (docmapEnabled && !kgEnabled) setMode("similarity")
+  }, [docmapEnabled, kgEnabled, setMode])
+
   const { scopes } = useScopes()
   const { tags: availableTags } = useTags()
   const { lastIndexedAt } = useIndexEvents()
@@ -451,6 +462,8 @@ export function GraphTab() {
         extraction={extraction}
         onStartExtraction={startExtraction}
         onCancelExtraction={cancelExtraction}
+        docmapEnabled={docmapEnabled}
+        kgEnabled={kgEnabled}
       />
 
       <div ref={containerRef} className="flex-1 min-w-0 min-h-0 relative bg-background">

@@ -73,10 +73,10 @@ async def lifespan(server: FastMCP):
         logger.info("TagDB initialized for MCP (tags plugin enabled)")
 
     kgdb = None
-    if settings.plugin_enabled("graph"):
+    if settings.plugin_enabled("knowledge_graph"):
         from app.storage.knowledgegraph import KnowledgeGraphDB
         kgdb = KnowledgeGraphDB(settings.data_directory)
-        logger.info("KnowledgeGraphDB initialized for MCP (graph plugin enabled)")
+        logger.info("KnowledgeGraphDB initialized for MCP (knowledge_graph plugin enabled)")
 
     bucket_service = None
     if settings.plugin_enabled("buckets"):

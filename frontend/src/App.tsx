@@ -44,11 +44,14 @@ const tabToRoute: Record<string, string> = {
 
 function GraphTabTrigger() {
   const { settings } = useSettings()
-  if (!settings?.plugins_enabled?.graph) return null
+  const docmap = settings?.plugins_enabled?.docmap
+  const kg = settings?.plugins_enabled?.knowledge_graph
+  if (!docmap && !kg) return null
+  const label = docmap && kg ? "Graph" : kg ? "Knowledge Graph" : "Doc Map"
   return (
     <TabsTrigger value="graph">
       <Network className="h-4 w-4" />
-      Graph
+      {label}
     </TabsTrigger>
   )
 }
