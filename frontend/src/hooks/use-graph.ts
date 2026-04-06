@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
-import type { GraphData } from "@/lib/types"
+import type { GraphData, KGData } from "@/lib/types"
+
+export type GraphMode = "similarity" | "knowledge"
 
 interface GraphProgress {
   fraction: number
@@ -34,6 +36,9 @@ export function useGraph() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [progress, setProgress] = useState<GraphProgress>({ fraction: 0, phase: "idle" })
+  const [mode, setMode] = useState<GraphMode>("similarity")
+  const [kgData, setKgData] = useState<KGData | null>(null)
+  const [kgLoading, setKgLoading] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const graphDataRef = useRef<GraphData | null>(null)
   const lastScopeRef = useRef<string | null | undefined>(undefined)
@@ -153,6 +158,29 @@ export function useGraph() {
     setSearchTerm("")
   }, [])
 
+  const fetchKG = useCallback(async (entityTypes?: string, relTypes?: string) => {
+    setKgLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (entityTypes) params.set("entity_types", entityTypes)
+      if (relTypes) params.set("rel_types", relTypes)
+      const qs = params.toString()
+      const data = await api.get<KGData>(`/api/graph/kg/data${qs ? `?${qs}` : ""}`)
+      setKgData(data)
+    } catch (err) {
+      toast.error(`Failed to load knowledge graph: ${(err as Error).message}`)
+    } finally {
+      setKgLoading(false)
+    }
+  }, [])
+
+  // Auto-fetch KG data when switching to knowledge mode
+  useEffect(() => {
+    if (mode === "knowledge" && !kgData && !kgLoading) {
+      fetchKG()
+    }
+  }, [mode, kgData, kgLoading, fetchKG])
+
   return {
     graphData,
     isLoading,
@@ -170,5 +198,10 @@ export function useGraph() {
     setSearchTerm,
     fetchGraph,
     progress,
+    mode,
+    setMode,
+    kgData,
+    kgLoading,
+    fetchKG,
   }
 }

@@ -59,6 +59,20 @@ const CLUSTER_COLORS = [
 ]
 
 const UNCLUSTERED_COLOR = "oklch(0.551 0.027 264)" // gray-500
+
+// Entity type to color mapping for KG mode
+const ENTITY_TYPE_COLORS: Record<string, string> = {
+  concept: "oklch(0.585 0.233 277)",     // indigo
+  technology: "oklch(0.715 0.143 215)",  // cyan
+  tool: "oklch(0.765 0.177 163)",        // emerald
+  process: "oklch(0.769 0.188 70.1)",    // amber
+  pattern: "oklch(0.606 0.25 292)",      // violet
+  standard: "oklch(0.702 0.183 55.1)",   // orange
+  organization: "oklch(0.637 0.237 25.3)", // red
+  person: "oklch(0.768 0.233 130)",      // lime
+  metric: "oklch(0.704 0.14 182)",       // teal
+  principle: "oklch(0.656 0.241 354)",   // pink
+}
 const HIGHLIGHT_COLOR = "oklch(0.852 0.199 91.9)"  // yellow-300
 
 import { GRAPH_THEME } from "@/lib/constants"
@@ -103,6 +117,7 @@ export function GraphTab() {
     wordClouds, setWordClouds,
     selectedNodeId, selectNode, clearSelection,
     searchTerm, setSearchTerm, fetchGraph, progress,
+    mode, setMode, kgData, kgLoading, fetchKG,
   } = useGraph()
   const { scopes } = useScopes()
   const { tags: availableTags } = useTags()
@@ -201,6 +216,39 @@ export function GraphTab() {
     }
   }, [graphData, threshold])
 
+  // KG mode: build force graph from entities + relationships
+  const kgForceData = useMemo(() => {
+    if (!kgData || mode !== "knowledge") return { nodes: [], links: [] }
+    const nodes = kgData.entities.map((e) => ({
+      id: `${e.name}::${e.entity_type}`,
+      label: e.display_name,
+      entity_type: e.entity_type,
+      description: e.description,
+      mention_count: e.mention_count,
+      cluster_id: -1,
+      chunk_count: e.mention_count,
+      source_root: "",
+      tags: [] as string[],
+      headings: [] as string[],
+      word_cloud: {} as Record<string, number>,
+    }))
+    const nodeIds = new Set(nodes.map((n) => n.id))
+    const links = kgData.relationships
+      .map((r) => ({
+        source: `${r.source_name}::${r.source_type}`,
+        target: `${r.target_name}::${r.target_type}`,
+        rel_type: r.rel_type,
+        weight: r.confidence,
+      }))
+      .filter((l) => nodeIds.has(l.source) && nodeIds.has(l.target))
+    return { nodes, links }
+  }, [kgData, mode])
+
+  // Which data set to render
+  const activeForceData = mode === "knowledge" ? kgForceData : forceGraphData
+  const activeIsLoading = mode === "knowledge" ? kgLoading : isLoading
+  const hasData = mode === "knowledge" ? (kgData && kgData.entities.length > 0) : (graphData && graphData.nodes.length > 0)
+
   // Re-center camera when the visible node/link set changes (threshold
   // adjustment or new graph data).  We never reset initialFitDone — that
   // would let unrelated re-renders (e.g. word-cloud clicks that change
@@ -289,7 +337,11 @@ export function GraphTab() {
   }, [graphData, selectedNodeId, searchTerm, highlightedNodes])
 
   // Node color callback
-  const nodeColor = useCallback((node: GraphNode) => {
+  const nodeColor = useCallback((node: GraphNode & { entity_type?: string }) => {
+    if (mode === "knowledge" && node.entity_type) {
+      if (hasHighlight && !highlightedNodes.has(node.id)) return colors.dim
+      return ENTITY_TYPE_COLORS[node.entity_type] || UNCLUSTERED_COLOR
+    }
     if (hasHighlight) {
       if (highlightedNodes.has(node.id)) {
         if (node.id === selectedNodeId) return HIGHLIGHT_COLOR
@@ -299,7 +351,7 @@ export function GraphTab() {
     }
     if (node.cluster_id < 0) return UNCLUSTERED_COLOR
     return CLUSTER_COLORS[node.cluster_id % CLUSTER_COLORS.length] || UNCLUSTERED_COLOR
-  }, [hasHighlight, highlightedNodes, selectedNodeId, colors.dim])
+  }, [mode, hasHighlight, highlightedNodes, selectedNodeId, colors.dim])
 
   // Node size: chunk count, enlarged when highlighted
   const nodeVal = useCallback((node: GraphNode) => {
@@ -309,15 +361,22 @@ export function GraphTab() {
   }, [hasHighlight, highlightedNodes])
 
   // Node tooltip — escape user-controlled values to prevent XSS
-  const nodeLabel = useCallback((node: GraphNode) => {
+  const nodeLabel = useCallback((node: GraphNode & { entity_type?: string; description?: string; mention_count?: number }) => {
     const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+    if (mode === "knowledge" && node.entity_type) {
+      const desc = node.description ? `<br/><span style="opacity:0.7">${esc(node.description)}</span>` : ""
+      return `<div style="max-width:350px"><strong>${esc(node.label)}</strong><br/><span style="opacity:0.6">${esc(node.entity_type)}</span>${desc}<br/>${node.mention_count ?? 1} source${(node.mention_count ?? 1) !== 1 ? "s" : ""}</div>`
+    }
     const dir = dirname(node.id)
     const tags = node.tags.length > 0 ? `<br/>Tags: ${esc(node.tags.join(", "))}` : ""
     return `<div style="max-width:350px"><strong>${esc(node.label)}</strong><br/><span style="opacity:0.7">${esc(dir)}</span><br/>${node.chunk_count} chunks${tags}</div>`
-  }, [])
+  }, [mode])
 
   // Link styling
-  const linkColor = useCallback((link: GraphLink) => {
+  const linkColor = useCallback((link: GraphLink & { rel_type?: string }) => {
+    if (mode === "knowledge") {
+      return `rgba(${colors.linkBase},0.35)`
+    }
     if (hasHighlight) {
       const srcId = linkNodeId(link.source)
       const tgtId = linkNodeId(link.target)
@@ -329,7 +388,7 @@ export function GraphTab() {
     const w = typeof link.weight === "number" ? link.weight : 0.5
     const alpha = Math.min(0.6, 0.08 + w * 0.5)
     return `rgba(${colors.linkBase},${alpha.toFixed(2)})`
-  }, [hasHighlight, highlightedNodes, colors])
+  }, [mode, hasHighlight, highlightedNodes, colors])
 
   const linkWidth = useCallback((link: GraphLink) => {
     const w = typeof link.weight === "number" ? link.weight : 0.5
@@ -378,13 +437,16 @@ export function GraphTab() {
         onSpreadChange={setSpread}
         searchTerm={searchTerm}
         onSearchChange={(term) => { setSearchTerm(term); selectNode(null) }}
-        onRefresh={() => fetchGraph(scopeIdsParam, true, wordClouds, adHocTagsParam)}
-        isLoading={isLoading}
+        onRefresh={mode === "knowledge" ? () => fetchKG() : () => fetchGraph(scopeIdsParam, true, wordClouds, adHocTagsParam)}
+        isLoading={activeIsLoading}
         wordCloudsEnabled={wordClouds}
         onWordCloudsChange={setWordClouds}
         activeWordCloud={activeWordCloud}
         wordCloudLabel={wordCloudLabel}
         onTermClick={handleTermClick}
+        mode={mode}
+        onModeChange={setMode}
+        kgData={kgData}
       />
 
       <div ref={containerRef} className="flex-1 min-w-0 min-h-0 relative bg-background">
@@ -405,14 +467,17 @@ export function GraphTab() {
         )}
 
         {/* Stats bar */}
-        {graphData && !isLoading && (
+        {!activeIsLoading && hasData && (
           <div className="absolute top-3 left-3 z-10 text-xs text-muted-foreground bg-background/80 rounded px-2 py-1">
-            {forceGraphData.nodes.length}/{graphData.stats.doc_count} docs · {forceGraphData.links.length} edges
+            {mode === "knowledge"
+              ? `${kgForceData.nodes.length} entities · ${kgForceData.links.length} relationships`
+              : `${forceGraphData.nodes.length}/${graphData?.stats.doc_count ?? 0} docs · ${forceGraphData.links.length} edges`
+            }
           </div>
         )}
 
         {/* Loading state with progress */}
-        {isLoading && (
+        {activeIsLoading && (
           <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/50">
             <div className="flex flex-col items-center gap-3 text-muted-foreground w-64">
               <div className="flex items-center gap-2">
@@ -435,10 +500,10 @@ export function GraphTab() {
         )}
 
         {/* Not yet built */}
-        {!isLoading && !checkingCache && !graphData && (
+        {!activeIsLoading && !checkingCache && !hasData && mode === "similarity" && !graphData && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center text-muted-foreground space-y-3">
-              <p className="text-sm font-medium">Knowledge graph not built yet</p>
+              <p className="text-sm font-medium">Similarity graph not built yet</p>
               <p className="text-xs">Build the graph to visualize document relationships</p>
               <Button variant="outline" size="sm" onClick={() => fetchGraph(scopeIdsParam, true, wordClouds, adHocTagsParam)}>
                 Build Graph
@@ -447,8 +512,17 @@ export function GraphTab() {
           </div>
         )}
 
+        {!activeIsLoading && !hasData && mode === "knowledge" && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center text-muted-foreground space-y-3">
+              <p className="text-sm font-medium">Knowledge graph is empty</p>
+              <p className="text-xs">Re-index your documents to extract entities and relationships</p>
+            </div>
+          </div>
+        )}
+
         {/* Empty state */}
-        {!isLoading && graphData && graphData.nodes.length === 0 && (
+        {!activeIsLoading && graphData && graphData.nodes.length === 0 && mode === "similarity" && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center text-muted-foreground">
               <p className="text-sm">No documents found</p>
@@ -458,7 +532,7 @@ export function GraphTab() {
         )}
 
         {/* WebGL unavailable fallback */}
-        {!webglSupported && graphData && graphData.nodes.length > 0 && (
+        {!webglSupported && hasData && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center text-muted-foreground max-w-md space-y-3">
               <MonitorX className="h-10 w-10 mx-auto text-muted-foreground/60" />
@@ -469,7 +543,7 @@ export function GraphTab() {
                 Try accessing this page from a local browser session.
               </p>
               <p className="text-xs text-muted-foreground/60">
-                {graphData.stats.doc_count} docs · {graphData.stats.chunk_count} chunks · {graphData.stats.edge_count} edges ready to visualize
+                {graphData?.stats.doc_count ?? 0} docs · {graphData?.stats.chunk_count ?? 0} chunks · {graphData?.stats.edge_count ?? 0} edges ready to visualize
               </p>
             </div>
           </div>
@@ -478,10 +552,10 @@ export function GraphTab() {
         {/* 3D Force Graph — react-force-graph-3d uses NodeObject/LinkObject generics
             that don't structurally match our domain types. A single cast on the
             component props is cleaner than per-prop `as never`. */}
-        {webglSupported && graphData && graphData.nodes.length > 0 && (
+        {webglSupported && hasData && (
           <ForceGraph3D
             ref={fgRef as never}
-            graphData={forceGraphData}
+            graphData={activeForceData}
             width={dimensions.width}
             height={dimensions.height}
             backgroundColor={colors.bg}
@@ -498,6 +572,8 @@ export function GraphTab() {
             nodeOpacity={0.9}
             nodeResolution={12}
             linkOpacity={0.6}
+            linkDirectionalArrowLength={mode === "knowledge" ? 6 : 0}
+            linkDirectionalArrowRelPos={1}
             linkDirectionalParticles={0}
             onBackgroundClick={handleBackgroundClick}
             showNavInfo={false}
@@ -519,7 +595,7 @@ export function GraphTab() {
         )}
 
         {/* Zoom controls */}
-        {webglSupported && graphData && graphData.nodes.length > 0 && !isLoading && (
+        {webglSupported && hasData && !activeIsLoading && (
           <GraphControls
             fgRef={fgRef}
             hasSelection={!!selectedNodeId || !!selectedEdge || !!searchTerm}

@@ -287,6 +287,42 @@ export interface GraphData {
   }
 }
 
+// -- Knowledge Graph (Entity Extraction) --
+
+export interface KGEntity {
+  name: string
+  display_name: string
+  entity_type: string
+  description: string
+  mention_count: number
+  source_paths: string[]
+}
+
+export interface KGRelationship {
+  source_name: string
+  source_type: string
+  target_name: string
+  target_type: string
+  rel_type: string
+  description: string
+  confidence: number
+  source_path: string
+}
+
+export interface KGData {
+  entities: KGEntity[]
+  relationships: KGRelationship[]
+  entity_types: string[]
+  relationship_types: string[]
+  stats: {
+    entity_mentions: number
+    unique_entities: number
+    relationships: number
+    source_files: number
+    cached_chunks: number
+  }
+}
+
 export interface ModelEntry {
   id: string
   label: string
