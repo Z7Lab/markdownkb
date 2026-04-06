@@ -56,7 +56,7 @@ _PLUGIN_FLAG_MAP = {
     "search": "search",
     "export": "export",
     "tags": "tags",
-    "graph": "docmap",           # legacy: "graph" maps to renamed "docmap"
+    "docmap": "docmap",
     "knowledge_graph": "knowledge_graph",
     "mcts_planner": "planner",
     "write_api": "write_api",
