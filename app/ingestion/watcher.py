@@ -27,7 +27,6 @@ def _filename(path: str) -> str:
 def reindex_file(
     filepath: str, settings: Settings,
     store: VectorStore, tracking: TrackingDB,
-    kgdb=None,
 ):
     """Re-index a single markdown file, updating the vector store."""
     filepath = str(Path(filepath).resolve())
@@ -39,8 +38,6 @@ def reindex_file(
         logger.info("File deleted, removing from index: %s", filepath)
         store.delete_by_source(filepath)
         tracking.remove_file(filepath)
-        if kgdb is not None:
-            kgdb.delete_by_source(filepath)
         event_bus.publish(IndexEvent(
             type="deleted", path=filepath, filename=_filename(filepath),
         ))
@@ -101,16 +98,6 @@ def reindex_file(
             status="complete", chunk_count=len(chunks),
         )
         logger.info("Re-indexed %s: %d chunks", filepath, len(chunks))
-
-        # Knowledge graph extraction (non-fatal)
-        if kgdb is not None:
-            try:
-                kgdb.delete_by_source(filepath)
-                from app.services.kg_extraction import extract_from_chunks
-                extract_from_chunks(chunks, filepath, kgdb, settings)
-            except Exception:
-                logger.warning("KG extraction failed for %s", filepath, exc_info=True)
-
         event_bus.publish(IndexEvent(
             type="indexed", path=filepath,
             filename=_filename(filepath), chunks=len(chunks),
@@ -130,12 +117,11 @@ class MarkdownHandler(FileSystemEventHandler):
 
     def __init__(
         self, settings: Settings, store: VectorStore,
-        tracking: TrackingDB, kgdb=None,
+        tracking: TrackingDB,
     ):
         self._settings = settings
         self._store = store
         self._tracking = tracking
-        self._kgdb = kgdb
         self._debounce: dict[str, float] = {}
         self._debounce_lock = threading.Lock()
 
@@ -165,7 +151,7 @@ class MarkdownHandler(FileSystemEventHandler):
         if self._should_process(event.src_path):
             reindex_file(
                 event.src_path, self._settings,
-                self._store, self._tracking, self._kgdb,
+                self._store, self._tracking,
             )
 
     def on_modified(self, event: FileSystemEvent):
@@ -175,7 +161,7 @@ class MarkdownHandler(FileSystemEventHandler):
         if self._should_process(event.src_path):
             reindex_file(
                 event.src_path, self._settings,
-                self._store, self._tracking, self._kgdb,
+                self._store, self._tracking,
             )
 
     def on_moved(self, event: FileSystemEvent):
@@ -190,14 +176,12 @@ class MarkdownHandler(FileSystemEventHandler):
             logger.info("File renamed away from .md: %s → %s", src, dest)
             self._store.delete_by_source(src)
             self._tracking.remove_file(src)
-            if self._kgdb is not None:
-                self._kgdb.delete_by_source(src)
             return
 
         # Renamed to .md → treat as new file
         if not src.endswith(".md") and dest.endswith(".md"):
             logger.info("File renamed to .md: %s → %s", src, dest)
-            reindex_file(dest, self._settings, self._store, self._tracking, self._kgdb)
+            reindex_file(dest, self._settings, self._store, self._tracking)
             return
 
         # Both non-.md → ignore
@@ -230,7 +214,7 @@ class MarkdownHandler(FileSystemEventHandler):
             # Not indexed or incomplete: clean up old, index new
             self._store.delete_by_source(src)
             self._tracking.remove_file(src)
-            reindex_file(dest, self._settings, self._store, self._tracking, self._kgdb)
+            reindex_file(dest, self._settings, self._store, self._tracking)
 
     def on_deleted(self, event: FileSystemEvent):
         """Handle file deletion events."""
@@ -241,8 +225,6 @@ class MarkdownHandler(FileSystemEventHandler):
             logger.info("File deleted: %s", resolved)
             self._store.delete_by_source(resolved)
             self._tracking.remove_file(resolved)
-            if self._kgdb is not None:
-                self._kgdb.delete_by_source(resolved)
             event_bus.publish(IndexEvent(
                 type="deleted", path=resolved,
                 filename=_filename(resolved),
@@ -254,15 +236,14 @@ class FileWatcher:
 
     def __init__(
         self, settings: Settings, store: VectorStore,
-        tracking: TrackingDB, kgdb=None,
+        tracking: TrackingDB,
     ):
-        self._handler = MarkdownHandler(settings, store, tracking, kgdb)
+        self._handler = MarkdownHandler(settings, store, tracking)
         self._observer = Observer()
         self._watched: set[str] = set()
         self._settings = settings
         self._store = store
         self._tracking = tracking
-        self._kgdb = kgdb
         self._rescan_timer: threading.Timer | None = None
         self._rescan_interval: float = 60.0
         self._rescan_max_interval: float = 300.0
@@ -342,7 +323,7 @@ class FileWatcher:
     def index_directory(self, path: str):
         """Trigger an initial index for files in a newly added directory."""
         from app.ingestion.indexer import index_directory
-        index_directory(path, self._settings, self._store, self._tracking, kgdb=self._kgdb)
+        index_directory(path, self._settings, self._store, self._tracking)
 
 
 def start_watching(

@@ -38,8 +38,7 @@ def handler(path: str) -> dict:
     if not in_source:
         raise ValueError("File is not within a configured source directory")
 
-    kgdb = deps.get("kgdb")
-    reindex_file(resolved, settings, store, tracking, kgdb=kgdb)
+    reindex_file(resolved, settings, store, tracking)
 
     record = tracking.get_file(resolved)
     return {

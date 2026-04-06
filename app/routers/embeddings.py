@@ -6,7 +6,7 @@ import threading
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.config import Settings
-from app.deps import get_cancel_event, get_kgdb, get_settings, get_store, get_tracking
+from app.deps import get_cancel_event, get_settings, get_store, get_tracking
 from app.embeddings.downloader import (
     install_from_local,
     install_model,
@@ -42,7 +42,6 @@ def _bg_reindex(
     store: VectorStore,
     tracking: TrackingDB,
     cancel_event: threading.Event,
-    kgdb=None,
 ):
     """Run reindex in background thread, updating _switch_status."""
     def on_progress(frac: float, msg: str):
@@ -56,7 +55,6 @@ def _bg_reindex(
             settings, store, tracking,
             progress=on_progress,
             cancel=cancel_event,
-            kgdb=kgdb,
         )
         with _switch_lock:
             _switch_status["result"] = result
@@ -205,7 +203,6 @@ def index(
     store: VectorStore = Depends(get_store),
     tracking: TrackingDB = Depends(get_tracking),
     cancel_event: threading.Event = Depends(get_cancel_event),
-    kgdb=Depends(get_kgdb),
 ):
     """Run indexing. With force=true, clears hashes and reindexes everything."""
     if req.force:
@@ -222,7 +219,6 @@ def index(
         threading.Thread(
             target=_bg_reindex,
             args=(settings, store, tracking, cancel_event),
-            kwargs={"kgdb": kgdb},
             daemon=True,
         ).start()
         return {"status": "reindexing"}
@@ -231,7 +227,7 @@ def index(
     threading.Thread(
         target=run_index,
         args=(settings, store, tracking),
-        kwargs={"cancel": cancel_event, "kgdb": kgdb},
+        kwargs={"cancel": cancel_event},
         daemon=True,
     ).start()
     return {"status": "indexing", "message": "Indexing started in background"}

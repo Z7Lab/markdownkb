@@ -118,6 +118,7 @@ export function GraphTab() {
     selectedNodeId, selectNode, clearSelection,
     searchTerm, setSearchTerm, fetchGraph, progress,
     mode, setMode, kgData, kgLoading, fetchKG,
+    extraction, startExtraction, cancelExtraction,
   } = useGraph()
   const { scopes } = useScopes()
   const { tags: availableTags } = useTags()
@@ -447,6 +448,9 @@ export function GraphTab() {
         mode={mode}
         onModeChange={setMode}
         kgData={kgData}
+        extraction={extraction}
+        onStartExtraction={startExtraction}
+        onCancelExtraction={cancelExtraction}
       />
 
       <div ref={containerRef} className="flex-1 min-w-0 min-h-0 relative bg-background">

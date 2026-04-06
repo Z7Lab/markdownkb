@@ -181,6 +181,76 @@ export function useGraph() {
     }
   }, [mode, kgData, kgLoading, fetchKG])
 
+  // -- KG Extraction --
+  interface ExtractionStatus {
+    running: boolean
+    progress: number
+    message: string
+    result: string
+    files_done: number
+    files_total: number
+  }
+
+  const [extraction, setExtraction] = useState<ExtractionStatus>({
+    running: false, progress: 0, message: "", result: "", files_done: 0, files_total: 0,
+  })
+  const extractionPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const pollExtraction = useCallback(() => {
+    if (extractionPollRef.current) clearInterval(extractionPollRef.current)
+    extractionPollRef.current = setInterval(async () => {
+      try {
+        const s = await api.get<ExtractionStatus>("/api/graph/kg/extract/status")
+        setExtraction(s)
+        if (!s.running) {
+          if (extractionPollRef.current) clearInterval(extractionPollRef.current)
+          extractionPollRef.current = null
+          // Refresh KG data after extraction completes
+          fetchKG()
+        }
+      } catch {
+        // ignore poll errors
+      }
+    }, 2000)
+  }, [fetchKG])
+
+  // Clean up poll on unmount
+  useEffect(() => {
+    return () => {
+      if (extractionPollRef.current) clearInterval(extractionPollRef.current)
+    }
+  }, [])
+
+  // Check extraction status on mode switch
+  useEffect(() => {
+    if (mode === "knowledge") {
+      api.get<ExtractionStatus>("/api/graph/kg/extract/status")
+        .then((s) => {
+          setExtraction(s)
+          if (s.running) pollExtraction()
+        })
+        .catch(() => {})
+    }
+  }, [mode, pollExtraction])
+
+  const startExtraction = useCallback(async () => {
+    try {
+      await api.post("/api/graph/kg/extract")
+      setExtraction((e) => ({ ...e, running: true, progress: 0, message: "Starting...", result: "" }))
+      pollExtraction()
+    } catch (err) {
+      toast.error(`Failed to start extraction: ${(err as Error).message}`)
+    }
+  }, [pollExtraction])
+
+  const cancelExtraction = useCallback(async () => {
+    try {
+      await api.post("/api/graph/kg/extract/cancel")
+    } catch {
+      // ignore
+    }
+  }, [])
+
   return {
     graphData,
     isLoading,
@@ -203,5 +273,8 @@ export function useGraph() {
     kgData,
     kgLoading,
     fetchKG,
+    extraction,
+    startExtraction,
+    cancelExtraction,
   }
 }

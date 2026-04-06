@@ -5,7 +5,7 @@ import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { WordCloud } from "./word-cloud"
-import { RefreshCw, Search, X } from "lucide-react"
+import { RefreshCw, Search, Square, Wand2, X } from "lucide-react"
 import type { GraphMode } from "@/hooks/use-graph"
 import type { KGData, Scope } from "@/lib/types"
 
@@ -32,6 +32,9 @@ export function GraphSidebar({
   mode,
   onModeChange,
   kgData,
+  extraction,
+  onStartExtraction,
+  onCancelExtraction,
 }: {
   scopes: Scope[]
   selectedScopeIds: Set<string>
@@ -55,6 +58,9 @@ export function GraphSidebar({
   mode: GraphMode
   onModeChange: (mode: GraphMode) => void
   kgData: KGData | null
+  extraction: { running: boolean; progress: number; message: string; result: string; files_done: number; files_total: number }
+  onStartExtraction: () => void
+  onCancelExtraction: () => void
 }) {
   return (
     <AppSidebar
@@ -161,24 +167,26 @@ export function GraphSidebar({
             </>
           )}
 
-          {mode === "knowledge" && kgData && (
+          {mode === "knowledge" && (
             <>
-              <div className="text-xs text-muted-foreground space-y-1">
-                <div className="flex justify-between">
-                  <span>Entities</span>
-                  <span className="font-medium text-foreground">{kgData.stats.unique_entities}</span>
+              {kgData && kgData.stats.unique_entities > 0 && (
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <div className="flex justify-between">
+                    <span>Entities</span>
+                    <span className="font-medium text-foreground">{kgData.stats.unique_entities}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Relationships</span>
+                    <span className="font-medium text-foreground">{kgData.stats.relationships}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Source files</span>
+                    <span className="font-medium text-foreground">{kgData.stats.source_files}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span>Relationships</span>
-                  <span className="font-medium text-foreground">{kgData.stats.relationships}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Source files</span>
-                  <span className="font-medium text-foreground">{kgData.stats.source_files}</span>
-                </div>
-              </div>
+              )}
 
-              {kgData.entity_types.length > 0 && (
+              {kgData && kgData.entity_types.length > 0 && (
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-muted-foreground">Entity types</p>
                   <div className="flex flex-wrap gap-1">
@@ -189,7 +197,7 @@ export function GraphSidebar({
                 </div>
               )}
 
-              {kgData.relationship_types.length > 0 && (
+              {kgData && kgData.relationship_types.length > 0 && (
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-muted-foreground">Relationship types</p>
                   <div className="flex flex-wrap gap-1">
@@ -200,21 +208,58 @@ export function GraphSidebar({
                 </div>
               )}
 
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full gap-1.5"
-                onClick={onRefresh}
-                disabled={isLoading}
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
-                Refresh
-              </Button>
+              {/* Extraction controls */}
+              {extraction.running ? (
+                <div className="space-y-2">
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full bg-primary transition-all duration-300"
+                      style={{ width: `${Math.max(extraction.progress * 100, 1)}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {extraction.message} ({extraction.files_done}/{extraction.files_total})
+                  </p>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="w-full gap-1.5"
+                    onClick={onCancelExtraction}
+                  >
+                    <Square className="h-3 w-3" />
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {extraction.result && (
+                    <p className="text-xs text-muted-foreground">{extraction.result}</p>
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 gap-1.5"
+                      onClick={onStartExtraction}
+                    >
+                      <Wand2 className="h-3.5 w-3.5" />
+                      Extract Entities
+                    </Button>
+                    {kgData && kgData.stats.unique_entities > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={onRefresh}
+                        disabled={isLoading}
+                      >
+                        <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
             </>
-          )}
-
-          {mode === "knowledge" && !kgData && (
-            <p className="text-xs text-muted-foreground">Loading knowledge graph...</p>
           )}
         </div>
       }
