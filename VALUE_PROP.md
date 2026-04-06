@@ -2,7 +2,9 @@
 
 ## What It Is
 
-MDKB is a self-hosted knowledge base for markdown documents with RAG chat, semantic search, and an MCP server. You point it at directories of markdown files — personal notes, project docs, standards, guides — and it indexes them into a searchable, chat-queryable knowledge base.
+MDKB is an always-on knowledge backend that turns markdown documentation into a searchable, conversational, agent-accessible knowledge base. You point it at directories of markdown files — personal notes, project docs, standards, guides — and it indexes them into a persistent memory layer that humans and AI agents can query throughout their day.
+
+Unlike build-time tools that produce artifacts you query later, MDKB is a runtime service. It watches your files, indexes changes automatically, serves chat and search, and exposes your knowledge to any MCP-compatible application. The value compounds over time as more documents are indexed, more conversations happen, and more agents connect.
 
 Python (FastAPI) backend, React (Vite + TypeScript + Tailwind) frontend, ChromaDB for vectors, SQLite for everything else. Everything runs on one machine. No cloud dependencies.
 
@@ -10,11 +12,17 @@ Python (FastAPI) backend, React (Vite + TypeScript + Tailwind) frontend, ChromaD
 
 ## Who It's For
 
-**Developers and teams who accumulate markdown.** If you have a `docs/` directory, a `knowledge_docs/` folder, architecture decision records, meeting notes, runbooks, or project documentation scattered across repos — MDKB makes all of it searchable and queryable from one place.
+**Researchers** accumulating papers, notes, and references across projects. Index your research notes, ask questions across all your reading, and give your AI tools access to everything you've written.
 
-**Anyone building with AI agents.** MDKB's MCP server exposes 29+ tools that any MCP-compatible client can call — search, chat, retrieve documents, manage tags, create temporary collections. Claude Code, Claude Desktop, custom agents, or any tool that speaks MCP can use your knowledge base as context.
+**Writers and knowledge workers** maintaining living documentation. MDKB makes your entire body of written knowledge searchable and conversational — not just the document you have open.
 
-**People who want to own their data.** No SaaS, no API keys required for core functionality (Ollama runs locally), no data leaving your network. SQLite + ChromaDB on your filesystem. Back it up with `cp`.
+**Teams** sharing curated guides, standards, and best practices. Scopes let you organize knowledge by project or domain. The MCP server means your team's agents share the same knowledge base.
+
+**Developers** maintaining decision logs, architecture docs, and runbooks. Search across all your documentation from one place, or give Claude Code access to your standards via MCP.
+
+**AI agent operators** who need their agents to have persistent, searchable knowledge. MDKB's 32 MCP tools mean any MCP-compatible client — Claude Code, Claude Desktop, custom orchestrators — can search, chat, plan, and manage your knowledge base.
+
+**People who want to own their data.** No SaaS, no API keys required for core functionality (Ollama runs locally), no data leaving your network. SQLite + ChromaDB on your filesystem.
 
 ---
 
@@ -23,6 +31,8 @@ Python (FastAPI) backend, React (Vite + TypeScript + Tailwind) frontend, ChromaD
 Knowledge accumulates in markdown files across projects, repos, and directories. Over time you have hundreds of documents but no way to search across them semantically, no way to ask questions grounded in what you've written, and no way to give AI agents access to your institutional knowledge.
 
 The typical workarounds — grep, filesystem search, manually pasting docs into chat windows — don't scale. And they don't compose: you can't easily say "search only these project docs" or "chat with just this subset of my knowledge base."
+
+Most tools that address this are build-time — you run them, they produce a snapshot, and you query that snapshot. But knowledge isn't static. Documents change, new ones appear, old ones get revised. You need a system that stays current without manual re-runs — and that serves both the person at the keyboard and the agents running in the background.
 
 ---
 
@@ -42,9 +52,13 @@ The typical workarounds — grep, filesystem search, manually pasting docs into 
 
 ## What Makes It Different
 
-**Plugin-based architecture.** The core is RAG chat — search, graph visualization, planner, tags, export, and buckets are all optional plugins. Enable what you need, disable what you don't. Write your own plugins (a directory with `__init__.py` and a router). External plugins install from GitHub URLs.
+**Always-on, always watching.** MDKB runs as a service. A file watcher detects changes and re-indexes automatically. You edit a document, and it's immediately searchable — no manual re-runs, no stale indexes. This is the persistent memory layer for your work, not a tool you run once.
 
-**MCP-first agent access.** The standalone MCP server (`mcp_server.py`) exposes 29+ tools over stdio or SSE. Any MCP-compatible client — Claude Code, Claude Desktop, custom agents — can search, chat, retrieve full documents, manage tags, create buckets, and trigger indexing. The MCP server imports core services directly (no HTTP proxy), sharing the same vector store and databases as the web UI. MCP tools accept `scope_id` for project-scoped search, and the `chat` tool supports multi-turn conversations via `thread_id`. SSE transport supports API key auth via `X-MDKB-Key` header or `?token=` query param.
+**Markdown-first is a feature, not a limitation.** Indexing an entire codebase or file system produces noise. MDKB indexes curated knowledge — documents that someone chose to create and maintain, whether written by hand, generated by AI, or transcribed from other sources. The signal-to-noise ratio is high by design. Markdown is readable everywhere (IDEs, note apps, wikis, version control), and the plugin architecture means anyone can build ingestion plugins for other formats (PDFs, DOCX, HTML, structured data). The core handles markdown; plugins extend the reach.
+
+**Plugin-based architecture.** The core is RAG chat — search, graph visualization, planner, tags, export, and buckets are all optional plugins. Enable what you need, disable what you don't. Write your own plugins (a directory with `__init__.py` and a router). External plugins install from GitHub URLs. The plugin system is why markdown-first works: the core stays focused while the ecosystem is open for extension.
+
+**MCP-first agent access.** The standalone MCP server (`mcp_server.py`) exposes 32 tools over stdio or SSE. Any MCP-compatible client — Claude Code, Claude Desktop, custom orchestrators, CI pipelines, or any application that speaks the protocol — can search, chat, retrieve full documents, manage tags, create buckets, and trigger indexing. The MCP server imports core services directly (no HTTP proxy), sharing the same vector store and databases as the web UI. This means your knowledge base is not locked inside a browser tab — it's infrastructure that any tool in your stack can query.
 
 **Scoped search — context curation, not just retrieval.** Three mechanisms for controlling what knowledge is active:
 
@@ -99,7 +113,7 @@ This composability is intentional. MDKB doesn't try to be the orchestrator, the 
 ### MCP Server
 | Feature | Status |
 |---|---|
-| 29+ tools (search, chat, documents, tags, buckets, graph, planner) | Built |
+| 32 tools (search, chat, documents, tags, buckets, graph, planner) | Built |
 | stdio + SSE transports | Built |
 | Read-only mode, per-tool gating, plugin-aware tool registration | Built |
 | History tracking (MCP searches/chats appear in web UI sidebar) | Built |
@@ -111,7 +125,8 @@ This composability is intentional. MDKB doesn't try to be the orchestrator, the 
 | Rate limiting (slowapi) | Built |
 | Typed request schemas (Pydantic) | Built |
 | Test suite (pytest, 128+ tests) | Built |
-| Model catalogs (Venice, Ollama) | Built |
+| Model catalogs (Venice, Ollama) with in-app Ollama model pull | Built |
+| First-run LLM setup guidance (Ollama, llama.cpp, cloud providers) | Built |
 
 ---
 
@@ -133,3 +148,5 @@ ChromaDB + SQLite for storage — no separate database to manage. Single port (d
 Most knowledge management tools optimize for ingestion — get everything in, worry about retrieval later. MDKB makes the opposite bet: that retrieval quality and context control matter more than scale. Hybrid search, scoped filtering, temp buckets, and citation tracking all serve the same goal — when you ask a question, the answer should come from the right documents, not just the nearest vectors.
 
 There's a second bet: that the same knowledge base should serve both humans and agents equally. Every feature in the web UI has an equivalent MCP tool or API endpoint. The knowledge base is not a human tool that agents can kind of use, or an agent tool with a dashboard bolted on — it's both, by design.
+
+And there's a third bet: that value compounds. Build-time tools produce snapshots — useful at a point in time, then stale. A runtime service that's always indexing, always serving, always accumulating conversation history and search patterns becomes more valuable every week it runs. More documents indexed means richer retrieval. More conversations mean better institutional memory. More agents connected means broader access. MDKB is infrastructure you build on, not a report you run once.
