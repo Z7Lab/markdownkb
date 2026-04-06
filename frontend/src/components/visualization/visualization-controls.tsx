@@ -2,7 +2,7 @@ import { useCallback } from "react"
 import { Plus, Minus, Maximize, X } from "lucide-react"
 import type { ForceGraphRef } from "@/lib/types"
 
-export function GraphControls({
+export function VisualizationControls({
   fgRef,
   hasSelection,
   onClearSelection,

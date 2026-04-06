@@ -17,7 +17,7 @@ const SearchTab = lazy(() => import("@/components/search/search-tab").then(m => 
 const FilesTab = lazy(() => import("@/components/browse/files-tab").then(m => ({ default: m.FilesTab })))
 const PlannerTab = lazy(() => import("@/components/planner/planner-tab").then(m => ({ default: m.PlannerTab })))
 const SettingsTab = lazy(() => import("@/components/settings/settings-tab").then(m => ({ default: m.SettingsTab })))
-const GraphTab = lazy(() => import("@/components/graph/graph-tab").then(m => ({ default: m.GraphTab })))
+const VisualizationTab = lazy(() => import("@/components/visualization/visualization-tab").then(m => ({ default: m.VisualizationTab })))
 
 function TabFallback() {
   return <div className="flex-1 flex items-center justify-center text-muted-foreground">Loading...</div>
@@ -42,7 +42,7 @@ const tabToRoute: Record<string, string> = {
   settings: "/settings",
 }
 
-function GraphTabTrigger() {
+function VisualizationTabTrigger() {
   const { settings } = useSettings()
   const docmap = settings?.plugins_enabled?.docmap
   const kg = settings?.plugins_enabled?.knowledge_graph
@@ -106,7 +106,7 @@ export function App() {
                   <Lightbulb className="h-4 w-4" />
                   Planner
                 </TabsTrigger>
-                <GraphTabTrigger />
+                <VisualizationTabTrigger />
                 <TabsTrigger value="files">
                   <FolderOpen className="h-4 w-4" />
                   Files
@@ -138,7 +138,7 @@ export function App() {
               <TabsContent value="graph" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
                 <ErrorBoundary fallbackMessage="Graph encountered an error">
                   <Suspense fallback={<TabFallback />}>
-                    <GraphTab />
+                    <VisualizationTab />
                   </Suspense>
                 </ErrorBoundary>
               </TabsContent>

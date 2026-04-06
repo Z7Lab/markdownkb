@@ -1,18 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import ForceGraph3D from "react-force-graph-3d"
-import { useGraph } from "@/hooks/use-graph"
+import { useVisualization } from "@/hooks/use-visualization"
 import { useSettings } from "@/hooks/use-settings"
 import { useScopes } from "@/hooks/use-scopes"
 import { useTags } from "@/hooks/use-tags"
 import { useScopeTagFilter } from "@/hooks/use-scope-tag-filter"
 import { useIndexEvents } from "@/hooks/use-index-events"
-import { GraphSidebar } from "./graph-sidebar"
+import { VisualizationSidebar } from "./visualization-sidebar"
 import { EdgeDetailPanel } from "./edge-detail-panel"
-import { GraphControls } from "./graph-controls"
+import { VisualizationControls } from "./visualization-controls"
 import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
 import { AlertTriangle, Loader2, MonitorX } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import type { ForceGraphRef, GraphNode } from "@/lib/types"
+import type { ForceGraphRef, DocMapNode } from "@/lib/types"
 import { dirname } from "@/lib/utils"
 
 function detectWebGL(): boolean {
@@ -112,15 +112,15 @@ function useContainerDimensions() {
 // TODO: Extract useIsDark, useContainerDimensions to hooks/ directory.
 // Consider splitting ForceGraph3D rendering into a dedicated wrapper component
 // to reduce this file's complexity (549 lines, 8 useState, 5 useEffect, 9 useCallback, 3 useMemo).
-export function GraphTab() {
+export function VisualizationTab() {
   const {
-    graphData, isLoading, isComputing, checkingCache, fetchedAt, threshold, setThreshold,
+    docmapData, isLoading, isComputing, checkingCache, fetchedAt, threshold, setThreshold,
     wordClouds, setWordClouds,
     selectedNodeId, selectNode, clearSelection,
-    searchTerm, setSearchTerm, fetchGraph, progress,
+    searchTerm, setSearchTerm, fetchDocMap, progress,
     mode, setMode, kgData, kgLoading, fetchKG,
     extraction, startExtraction, cancelExtraction,
-  } = useGraph()
+  } = useVisualization()
   const { settings } = useSettings()
   const docmapEnabled = !!settings?.plugins_enabled?.docmap
   const kgEnabled = !!settings?.plugins_enabled?.knowledge_graph
@@ -162,22 +162,22 @@ export function GraphTab() {
     if (scopeChanged || tagsChanged) {
       prevScopeRef.current = scopeIdsParam
       prevTagsRef.current = adHocTagsParam
-      fetchGraph(scopeIdsParam, true, wordClouds, adHocTagsParam)
+      fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam)
     }
-  }, [fetchGraph, scopeIdsParam, adHocTagsParam, wordClouds])
+  }, [fetchDocMap, scopeIdsParam, adHocTagsParam, wordClouds])
 
   // Staleness
   const isStale = !!(lastIndexedAt && fetchedAt && lastIndexedAt > fetchedAt)
 
   // Build set of highlighted node IDs
   const highlightedNodes = useMemo(() => {
-    if (!graphData) return new Set<string>()
+    if (!docmapData) return new Set<string>()
     const set = new Set<string>()
 
     if (searchTerm) {
       const terms = searchTerm.toLowerCase().split(/\s+/).filter(Boolean)
       if (terms.length > 0) {
-        for (const node of graphData.nodes) {
+        for (const node of docmapData.nodes) {
           const label = node.label.toLowerCase()
           const tags = node.tags.map(t => t.toLowerCase())
           const headings = node.headings.map(h => h.toLowerCase())
@@ -193,7 +193,7 @@ export function GraphTab() {
       }
     } else if (selectedNodeId) {
       set.add(selectedNodeId)
-      for (const edge of graphData.edges) {
+      for (const edge of docmapData.edges) {
         if (edge.weight >= threshold) {
           if (edge.source === selectedNodeId) set.add(edge.target)
           if (edge.target === selectedNodeId) set.add(edge.source)
@@ -201,14 +201,14 @@ export function GraphTab() {
       }
     }
     return set
-  }, [graphData, searchTerm, selectedNodeId, threshold])
+  }, [docmapData, searchTerm, selectedNodeId, threshold])
 
   const hasHighlight = highlightedNodes.size > 0
 
   // Filter edges by threshold and remove disconnected nodes
-  const forceGraphData = useMemo(() => {
-    if (!graphData) return { nodes: [], links: [] }
-    const links = graphData.edges
+  const forceDocMapData = useMemo(() => {
+    if (!docmapData) return { nodes: [], links: [] }
+    const links = docmapData.edges
       .filter(e => e.weight >= threshold)
       .map(e => ({
         source: e.source,
@@ -221,12 +221,12 @@ export function GraphTab() {
       connectedIds.add(link.target)
     }
     return {
-      nodes: graphData.nodes
+      nodes: docmapData.nodes
         .filter(n => connectedIds.has(n.id))
         .map(n => ({ ...n })),
       links,
     }
-  }, [graphData, threshold])
+  }, [docmapData, threshold])
 
   // KG mode: build force graph from entities + relationships
   const kgForceData = useMemo(() => {
@@ -257,29 +257,29 @@ export function GraphTab() {
   }, [kgData, mode])
 
   // Which data set to render
-  const activeForceData = mode === "knowledge" ? kgForceData : forceGraphData
+  const activeForceData = mode === "knowledge" ? kgForceData : forceDocMapData
   const activeIsLoading = mode === "knowledge" ? kgLoading : isLoading
-  const hasData = mode === "knowledge" ? (kgData && kgData.entities.length > 0) : (graphData && graphData.nodes.length > 0)
+  const hasData = mode === "knowledge" ? (kgData && kgData.entities.length > 0) : (docmapData && docmapData.nodes.length > 0)
 
   // Re-center camera when the visible node/link set changes (threshold
   // adjustment or new graph data).  We never reset initialFitDone — that
   // would let unrelated re-renders (e.g. word-cloud clicks that change
   // highlight callbacks) trigger an unwanted fit-to-screen via onEngineStop.
   // Instead we set a pendingRecenter flag consumed by onEngineStop.
-  const prevNodeCount = useRef(forceGraphData.nodes.length)
-  const prevLinkCount = useRef(forceGraphData.links.length)
+  const prevNodeCount = useRef(forceDocMapData.nodes.length)
+  const prevLinkCount = useRef(forceDocMapData.links.length)
   useEffect(() => {
     if (
-      forceGraphData.nodes.length !== prevNodeCount.current
-      || forceGraphData.links.length !== prevLinkCount.current
+      forceDocMapData.nodes.length !== prevNodeCount.current
+      || forceDocMapData.links.length !== prevLinkCount.current
     ) {
-      prevNodeCount.current = forceGraphData.nodes.length
-      prevLinkCount.current = forceGraphData.links.length
+      prevNodeCount.current = forceDocMapData.nodes.length
+      prevLinkCount.current = forceDocMapData.links.length
       if (initialFitDone.current) {
         pendingRecenter.current = true
       }
     }
-  }, [forceGraphData])
+  }, [forceDocMapData])
 
   // Configure d3 forces — spread slider scales all distances
   useEffect(() => {
@@ -311,14 +311,14 @@ export function GraphTab() {
     } else {
       spreadInitialized.current = true
     }
-  }, [forceGraphData, spread])
+  }, [forceDocMapData, spread])
 
   // Active word cloud based on selection state
   const { activeWordCloud, wordCloudLabel } = useMemo(() => {
-    if (!graphData) return { activeWordCloud: {}, wordCloudLabel: "Terms" }
+    if (!docmapData) return { activeWordCloud: {}, wordCloudLabel: "Terms" }
 
     if (selectedNodeId) {
-      const node = graphData.nodes.find(n => n.id === selectedNodeId)
+      const node = docmapData.nodes.find(n => n.id === selectedNodeId)
       if (node) {
         return {
           activeWordCloud: node.word_cloud,
@@ -329,7 +329,7 @@ export function GraphTab() {
 
     if (searchTerm && highlightedNodes.size > 0) {
       const merged: Record<string, number> = {}
-      for (const node of graphData.nodes) {
+      for (const node of docmapData.nodes) {
         if (highlightedNodes.has(node.id)) {
           for (const [term, w] of Object.entries(node.word_cloud)) {
             merged[term] = (merged[term] || 0) + w
@@ -343,13 +343,13 @@ export function GraphTab() {
     }
 
     return {
-      activeWordCloud: graphData.global_word_cloud,
+      activeWordCloud: docmapData.global_word_cloud,
       wordCloudLabel: "Terms: All documents",
     }
-  }, [graphData, selectedNodeId, searchTerm, highlightedNodes])
+  }, [docmapData, selectedNodeId, searchTerm, highlightedNodes])
 
   // Node color callback
-  const nodeColor = useCallback((node: GraphNode & { entity_type?: string }) => {
+  const nodeColor = useCallback((node: DocMapNode & { entity_type?: string }) => {
     if (mode === "knowledge" && node.entity_type) {
       if (hasHighlight && !highlightedNodes.has(node.id)) return colors.dim
       return ENTITY_TYPE_COLORS[node.entity_type] || UNCLUSTERED_COLOR
@@ -366,14 +366,14 @@ export function GraphTab() {
   }, [mode, hasHighlight, highlightedNodes, selectedNodeId, colors.dim])
 
   // Node size: chunk count, enlarged when highlighted
-  const nodeVal = useCallback((node: GraphNode) => {
+  const nodeVal = useCallback((node: DocMapNode) => {
     const base = Math.max(1, node.chunk_count)
     if (hasHighlight && highlightedNodes.has(node.id)) return base * 2
     return base
   }, [hasHighlight, highlightedNodes])
 
   // Node tooltip — escape user-controlled values to prevent XSS
-  const nodeLabel = useCallback((node: GraphNode & { entity_type?: string; description?: string; mention_count?: number }) => {
+  const nodeLabel = useCallback((node: DocMapNode & { entity_type?: string; description?: string; mention_count?: number }) => {
     const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
     if (mode === "knowledge" && node.entity_type) {
       const desc = node.description ? `<br/><span style="opacity:0.7">${esc(node.description)}</span>` : ""
@@ -408,7 +408,7 @@ export function GraphTab() {
   }, [])
 
   // Node click
-  const handleNodeClick = useCallback((node: GraphNode) => {
+  const handleNodeClick = useCallback((node: DocMapNode) => {
     selectNode(node.id)
     setViewingPath(node.id)
     setSelectedEdge(null)
@@ -436,7 +436,7 @@ export function GraphTab() {
 
   return (
     <div className="flex flex-row h-full overflow-hidden">
-      <GraphSidebar
+      <VisualizationSidebar
         scopes={scopes}
         selectedScopeIds={selectedScopeIds}
         onScopeChange={handleScopeChange}
@@ -449,7 +449,7 @@ export function GraphTab() {
         onSpreadChange={setSpread}
         searchTerm={searchTerm}
         onSearchChange={(term) => { setSearchTerm(term); selectNode(null) }}
-        onRefresh={mode === "knowledge" ? () => fetchKG() : () => fetchGraph(scopeIdsParam, true, wordClouds, adHocTagsParam)}
+        onRefresh={mode === "knowledge" ? () => fetchKG() : () => fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam)}
         isLoading={activeIsLoading}
         wordCloudsEnabled={wordClouds}
         onWordCloudsChange={setWordClouds}
@@ -471,12 +471,12 @@ export function GraphTab() {
         {isStale && (
           <div className="absolute top-3 right-3 z-10 flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-md px-3 py-1.5">
             <AlertTriangle className="h-3.5 w-3.5 text-yellow-500" />
-            <span className="text-xs text-yellow-500">Graph may be outdated</span>
+            <span className="text-xs text-yellow-500">Data may be outdated</span>
             <Button
               variant="ghost"
               size="sm"
               className="h-6 text-xs text-yellow-500"
-              onClick={() => fetchGraph(scopeIdsParam, true, wordClouds, adHocTagsParam)}
+              onClick={() => fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam)}
             >
               Refresh
             </Button>
@@ -488,7 +488,7 @@ export function GraphTab() {
           <div className="absolute top-3 left-3 z-10 text-xs text-muted-foreground bg-background/80 rounded px-2 py-1">
             {mode === "knowledge"
               ? `${kgForceData.nodes.length} entities · ${kgForceData.links.length} relationships`
-              : `${forceGraphData.nodes.length}/${graphData?.stats.doc_count ?? 0} docs · ${forceGraphData.links.length} edges`
+              : `${forceDocMapData.nodes.length}/${docmapData?.stats.doc_count ?? 0} docs · ${forceDocMapData.links.length} edges`
             }
           </div>
         )}
@@ -499,7 +499,7 @@ export function GraphTab() {
             <div className="flex flex-col items-center gap-3 text-muted-foreground w-64">
               <div className="flex items-center gap-2">
                 <Loader2 className="h-5 w-5 animate-spin" />
-                <span>{isComputing ? "Computing graph..." : "Loading graph..."}</span>
+                <span>{isComputing ? (mode === "knowledge" ? "Loading knowledge graph..." : "Computing document map...") : "Loading..."}</span>
               </div>
               {isComputing && progress.phase !== "idle" && (
                 <>
@@ -517,13 +517,13 @@ export function GraphTab() {
         )}
 
         {/* Not yet built */}
-        {!activeIsLoading && !checkingCache && !hasData && mode === "similarity" && !graphData && (
+        {!activeIsLoading && !checkingCache && !hasData && mode === "similarity" && !docmapData && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center text-muted-foreground space-y-3">
-              <p className="text-sm font-medium">Similarity graph not built yet</p>
-              <p className="text-xs">Build the graph to visualize document relationships</p>
-              <Button variant="outline" size="sm" onClick={() => fetchGraph(scopeIdsParam, true, wordClouds, adHocTagsParam)}>
-                Build Graph
+              <p className="text-sm font-medium">Document map not built yet</p>
+              <p className="text-xs">Build the document map to visualize document relationships</p>
+              <Button variant="outline" size="sm" onClick={() => fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam)}>
+                Build Doc Map
               </Button>
             </div>
           </div>
@@ -533,13 +533,13 @@ export function GraphTab() {
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center text-muted-foreground space-y-3">
               <p className="text-sm font-medium">Knowledge graph is empty</p>
-              <p className="text-xs">Re-index your documents to extract entities and relationships</p>
+              <p className="text-xs">Use "Extract Entities" in the sidebar to build the knowledge graph</p>
             </div>
           </div>
         )}
 
         {/* Empty state */}
-        {!activeIsLoading && graphData && graphData.nodes.length === 0 && mode === "similarity" && (
+        {!activeIsLoading && docmapData && docmapData.nodes.length === 0 && mode === "similarity" && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center text-muted-foreground">
               <p className="text-sm">No documents found</p>
@@ -555,12 +555,12 @@ export function GraphTab() {
               <MonitorX className="h-10 w-10 mx-auto text-muted-foreground/60" />
               <p className="text-sm font-medium">WebGL is not available</p>
               <p className="text-xs leading-relaxed">
-                The 3D knowledge graph requires WebGL, which needs hardware GPU access.
+                The 3D visualization requires WebGL, which needs hardware GPU access.
                 This can happen with remote desktop sessions or systems without a GPU driver.
                 Try accessing this page from a local browser session.
               </p>
               <p className="text-xs text-muted-foreground/60">
-                {graphData?.stats.doc_count ?? 0} docs · {graphData?.stats.chunk_count ?? 0} chunks · {graphData?.stats.edge_count ?? 0} edges ready to visualize
+                {docmapData?.stats.doc_count ?? 0} docs · {docmapData?.stats.chunk_count ?? 0} chunks · {docmapData?.stats.edge_count ?? 0} edges ready to visualize
               </p>
             </div>
           </div>
@@ -613,7 +613,7 @@ export function GraphTab() {
 
         {/* Zoom controls */}
         {webglSupported && hasData && !activeIsLoading && (
-          <GraphControls
+          <VisualizationControls
             fgRef={fgRef}
             hasSelection={!!selectedNodeId || !!selectedEdge || !!searchTerm}
             onClearSelection={handleBackgroundClick}

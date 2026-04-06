@@ -239,7 +239,7 @@ export interface ForceGraphRef {
   cameraPosition: (pos?: { x: number; y: number; z: number }, lookAt?: unknown, transitionMs?: number) => { x: number; y: number; z: number }
 }
 
-export interface GraphNode {
+export interface DocMapNode {
   id: string
   label: string
   cluster_id: number
@@ -250,7 +250,7 @@ export interface GraphNode {
   word_cloud: Record<string, number>
 }
 
-export interface GraphEdge {
+export interface DocMapEdge {
   source: string
   target: string
   weight: number
@@ -268,17 +268,17 @@ export interface EdgeDetail {
   }[]
 }
 
-export interface GraphCluster {
+export interface DocMapCluster {
   id: number
   label: string
   doc_count: number
   word_cloud: Record<string, number>
 }
 
-export interface GraphData {
-  nodes: GraphNode[]
-  edges: GraphEdge[]
-  clusters: GraphCluster[]
+export interface DocMapData {
+  nodes: DocMapNode[]
+  edges: DocMapEdge[]
+  clusters: DocMapCluster[]
   global_word_cloud: Record<string, number>
   stats: {
     doc_count: number

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react"
 
 /**
  * Shared hook for scope, ad-hoc tag, and bucket filter state.
- * Used by chat-tab, search-tab, and graph-tab to avoid duplicating
+ * Used by chat-tab, search-tab, and visualization-tab to avoid duplicating
  * the selectedScopeIds / selectedTags / param-derivation pattern.
  */
 export function useScopeTagFilter() {

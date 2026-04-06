@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
-import type { GraphData, KGData } from "@/lib/types"
+import type { DocMapData, KGData } from "@/lib/types"
 
 export type GraphMode = "similarity" | "knowledge"
 
@@ -25,8 +25,8 @@ function buildQs(scopeIds?: string | null, wordClouds = true, adHocTags?: string
   return qs ? `?${qs}` : ""
 }
 
-export function useGraph() {
-  const [graphData, setGraphData] = useState<GraphData | null>(null)
+export function useVisualization() {
+  const [docmapData, setDocMapData] = useState<DocMapData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isComputing, setIsComputing] = useState(false)
   const [checkingCache, setCheckingCache] = useState(true)
@@ -40,7 +40,7 @@ export function useGraph() {
   const [kgData, setKgData] = useState<KGData | null>(null)
   const [kgLoading, setKgLoading] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const graphDataRef = useRef<GraphData | null>(null)
+  const docmapDataRef = useRef<DocMapData | null>(null)
   const lastScopeRef = useRef<string | null | undefined>(undefined)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -63,23 +63,23 @@ export function useGraph() {
           api.get<{ cached: boolean }>(`/api/docmap/status?word_clouds=true${mw}`, controller.signal),
           api.get<{ cached: boolean }>(`/api/docmap/status?word_clouds=false${mw}`, controller.signal),
         ])
-        if (controller.signal.aborted || graphDataRef.current) return
+        if (controller.signal.aborted || docmapDataRef.current) return
 
         const hasCached = withWc.cached || withoutWc.cached
         if (hasCached) {
           // Prefer the one that's cached; if both, prefer with word clouds
           const useWc = withWc.cached
           setIsLoading(true)
-          const data = await api.get<GraphData>(`/api/docmap/data${buildQs(null, useWc)}`, controller.signal)
+          const data = await api.get<DocMapData>(`/api/docmap/data${buildQs(null, useWc)}`, controller.signal)
           if (controller.signal.aborted) return
-          graphDataRef.current = data
+          docmapDataRef.current = data
           lastScopeRef.current = null
           setWordClouds(useWc)
-          setGraphData(data)
+          setDocMapData(data)
           setFetchedAt(Date.now() / 1000)
         }
       } catch {
-        // Ignore — user can manually build (or request was aborted by fetchGraph)
+        // Ignore — user can manually build (or request was aborted by fetchDocMap)
       } finally {
         if (!controller.signal.aborted) {
           setIsLoading(false)
@@ -90,14 +90,14 @@ export function useGraph() {
     return () => { controller.abort() }
   }, [])
 
-  const fetchGraph = useCallback(async (
+  const fetchDocMap = useCallback(async (
     scopeIds?: string | null,
     force = false,
     wc = true,
     adHocTags?: string[] | null,
   ) => {
     // Skip if we already have data for this scope selection (unless forced)
-    if (!force && graphDataRef.current && lastScopeRef.current === scopeIds) return
+    if (!force && docmapDataRef.current && lastScopeRef.current === scopeIds) return
     lastScopeRef.current = scopeIds ?? null
 
     // Abort any in-flight cache check or previous fetch
@@ -114,7 +114,7 @@ export function useGraph() {
 
     try {
       // Start the data fetch first, then begin progress polling
-      const dataPromise = api.get<GraphData>(`/api/docmap/data${buildQs(scopeIds, wc, adHocTags)}`)
+      const dataPromise = api.get<DocMapData>(`/api/docmap/data${buildQs(scopeIds, wc, adHocTags)}`)
 
       // Brief delay so the data request claims a connection before polls compete
       await new Promise(r => setTimeout(r, 50))
@@ -130,8 +130,8 @@ export function useGraph() {
       }, 1000)
 
       const data = await dataPromise
-      graphDataRef.current = data
-      setGraphData(data)
+      docmapDataRef.current = data
+      setDocMapData(data)
       setFetchedAt(Date.now() / 1000)
       setSelectedNodeId(null)
       setSearchTerm("")
@@ -252,7 +252,7 @@ export function useGraph() {
   }, [])
 
   return {
-    graphData,
+    docmapData,
     isLoading,
     isComputing,
     checkingCache,
@@ -266,7 +266,7 @@ export function useGraph() {
     clearSelection,
     searchTerm,
     setSearchTerm,
-    fetchGraph,
+    fetchDocMap,
     progress,
     mode,
     setMode,

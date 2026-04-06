@@ -6,10 +6,10 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { WordCloud } from "./word-cloud"
 import { RefreshCw, Search, Square, Wand2, X } from "lucide-react"
-import type { GraphMode } from "@/hooks/use-graph"
+import type { GraphMode } from "@/hooks/use-visualization"
 import type { KGData, Scope } from "@/lib/types"
 
-export function GraphSidebar({
+export function VisualizationSidebar({
   scopes,
   selectedScopeIds,
   onScopeChange,

@@ -9,7 +9,7 @@ export const ASCII_BANNER = `
 `.trim()
 
 /**
- * Theme-aware colors for WebGL canvas rendering (graph-tab).
+ * Theme-aware colors for WebGL canvas rendering (visualization-tab).
  * WebGL cannot read CSS custom properties, so these are kept as raw values.
  * Update these when Tailwind theme colors change.
  */
