@@ -1,6 +1,64 @@
 # Knowledge Graph
 
-The Graph tab visualizes relationships between indexed documents as an interactive 3D force-directed graph. Documents are nodes, and edges represent semantic similarity between them.
+The graph plugin provides two complementary views of your knowledge base:
+
+1. **Knowledge Graph** — Entities (concepts, tools, processes, etc.) extracted from your documents with typed relationships (uses, is-a, part-of, etc.). Built via LLM extraction during indexing.
+2. **Document Similarity Graph** — Documents as nodes, edges as semantic similarity. Built from embedding vectors.
+
+## Knowledge Graph (Entity Extraction)
+
+When documents are indexed, MDKB uses the configured LLM to extract entities and typed relationships from each chunk. These are stored in a separate SQLite database (`mdkb_kg.db`) that survives embedding model switches.
+
+### Entity Types
+
+Extracted entities are classified into types: `concept`, `technology`, `tool`, `process`, `pattern`, `standard`, `organization`, `person`, `metric`, `principle`.
+
+### Relationship Types
+
+Relationships between entities are typed: `uses`, `is-a`, `part-of`, `relates-to`, `implements`, `depends-on`, `produces`, `defines`, `contradicts`, `extends`, `requires`, `enables`, `measures`, `applies-to`.
+
+### How Extraction Works
+
+1. During indexing, each chunk is hashed (SHA-256). Chunks that have already been extracted are skipped.
+2. Chunks are batched (3 per LLM call) and sent with a structured extraction prompt requesting JSON output.
+3. The LLM returns entities and relationships, which are upserted into the KG database.
+4. Entities with the same name and type across different documents are merged — the `mention_count` tracks how many source files reference each entity.
+
+### Provenance and Cleanup
+
+Every entity and relationship links back to its `source_path`. When a document is deleted or re-indexed:
+- All entities and relationships from that source file are deleted first
+- Re-extraction runs on the new content
+- Cascade deletion via foreign keys ensures no orphaned relationships
+
+### Storage
+
+The knowledge graph uses its own SQLite database (`data/mdkb_kg.db`), separate from the main tracking database. This means:
+- **Embedding model switches** do not affect KG data (they only clear ChromaDB and the tracking table)
+- **Force reindex** re-extracts KG data for all files
+- **KG clear** (`POST /api/graph/kg/clear`) wipes the KG; re-index to rebuild
+
+### API Endpoints
+
+| Endpoint | Description |
+|---|---|
+| `GET /api/graph/kg/data` | All entities and relationships, with optional type filters |
+| `GET /api/graph/kg/entity?name=X` | Single entity with all incoming/outgoing relationships |
+| `GET /api/graph/kg/path?source=X&target=Y` | BFS shortest path between two entities |
+| `GET /api/graph/kg/stats` | Entity and relationship counts |
+| `POST /api/graph/kg/clear` | Clear all KG data |
+
+### MCP Tools
+
+| Tool | Description |
+|---|---|
+| `query_knowledge_graph` | Query entities and relationships by type |
+| `get_kg_entity` | Get entity details with all connections |
+| `find_relationship_path` | Find shortest path between two concepts |
+
+---
+
+## Document Similarity Graph
 
 ## How It Works
 

@@ -68,3 +68,8 @@ def get_conversation_history(request: Request):
 def get_tagdb(request: Request):
     """Return the TagDB instance, or None if the tags plugin is disabled."""
     return getattr(request.app.state, "tagdb", None)
+
+
+def get_kgdb(request: Request):
+    """Return the KnowledgeGraphDB instance, or None if graph plugin is disabled."""
+    return getattr(request.app.state, "kgdb", None)

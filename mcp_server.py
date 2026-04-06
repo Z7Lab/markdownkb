@@ -72,6 +72,12 @@ async def lifespan(server: FastMCP):
         tagdb = TagDB(settings.data_directory)
         logger.info("TagDB initialized for MCP (tags plugin enabled)")
 
+    kgdb = None
+    if settings.plugin_enabled("graph"):
+        from app.storage.knowledgegraph import KnowledgeGraphDB
+        kgdb = KnowledgeGraphDB(settings.data_directory)
+        logger.info("KnowledgeGraphDB initialized for MCP (graph plugin enabled)")
+
     bucket_service = None
     if settings.plugin_enabled("buckets"):
         from app.plugins.buckets.bucketdb import BucketDB
@@ -109,8 +115,11 @@ async def lifespan(server: FastMCP):
         "chatdb": chatdb,
         "searchdb": searchdb,
         "bucket_service": bucket_service,
+        "kgdb": kgdb,
     }
 
+    if kgdb:
+        kgdb.close()
     if chatdb:
         chatdb.close()
     if searchdb:

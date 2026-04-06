@@ -32,8 +32,9 @@ mdkb is a chat-with-your-docs tool with a Python backend and React frontend. The
 │             │                           │               │
 │  ┌──────────▼───────────────────────────▼───────────┐   │
 │  │  Storage Layer                                   │   │
-│  │  ChromaDB (vectors) │ SQLite ×7 (tracking,       │   │
-│  │    chat, search, plans, scopes, tags, buckets)   │   │
+│  │  ChromaDB (vectors) │ SQLite ×8 (tracking,       │   │
+│  │    chat, search, plans, scopes, tags, buckets,   │   │
+│  │    knowledge graph)                              │   │
 │  └──────────────────────────────────────────────────┘   │
 │                                                         │
 │  ┌──────────────────┐  ┌────────────────────────────┐   │
@@ -164,7 +165,7 @@ Note: `planner_service` and `graph_service` live in core because they are reusab
 
 ## Storage
 
-mdkb uses one vector database and eight SQLite databases:
+mdkb uses one vector database and nine SQLite databases:
 
 | Database | File | Purpose |
 |----------|------|---------|
@@ -177,6 +178,9 @@ mdkb uses one vector database and eight SQLite databases:
 | **ScopeDB** | `data/scopes.db` | Named scopes (folder + tag filters) |
 | **TagDB** | `data/tags.db` | File-to-tag mappings (owned by tags plugin) |
 | **BucketDB** | `data/buckets.db` | Temporary bucket metadata (owned by buckets plugin) |
+| **KnowledgeGraphDB** | `data/mdkb_kg.db` | Entities, typed relationships, extraction cache (owned by graph plugin) |
+
+The knowledge graph database is intentionally separate from the tracking database. Embedding model switches clear ChromaDB vectors and tracking state, but KG data (which is LLM-extracted, not embedding-dependent) survives intact.
 
 SQLite databases use `PRAGMA user_version` for schema migrations. Each database class carries a `_MIGRATIONS` list that is applied on open. Plugin-owned databases (e.g. TagDB) follow the same patterns but are created by the plugin's `on_startup` hook rather than in core startup.
 

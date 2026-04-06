@@ -42,7 +42,8 @@ def _classify_files(files, tracking, incomplete):
 
 
 def _index_file(fi: FileInfo, settings: Settings,
-                store: VectorStore, tracking: TrackingDB) -> int:
+                store: VectorStore, tracking: TrackingDB,
+                kgdb=None) -> int:
     """Index a single file. Returns chunk count, raises on failure."""
     tracking.upsert_file(
         fi.path, fi.source_root, fi.content_hash,
@@ -68,6 +69,17 @@ def _index_file(fi: FileInfo, settings: Settings,
         metadatas = [c.metadata for c in batch]
         store.add(ids, texts, embeddings, metadatas)
 
+    # Knowledge graph extraction (non-fatal — failures are logged)
+    if kgdb is not None:
+        try:
+            kgdb.delete_by_source(fi.path)
+            from app.services.kg_extraction import extract_from_chunks
+            extracted = extract_from_chunks(chunks, fi.path, kgdb, settings)
+            if extracted:
+                logger.info("KG: extracted %d entities from %s", extracted, fi.relative_path)
+        except Exception:
+            logger.warning("KG extraction failed for %s", fi.relative_path, exc_info=True)
+
     # Extract file-level tags from first chunk's frontmatter metadata
     file_tags = ""
     if chunks:
@@ -90,6 +102,7 @@ def run_index(
     tracking: TrackingDB,
     progress: Callable[[float, str], None] | None = None,
     cancel: threading.Event | None = None,
+    kgdb=None,
 ) -> str:
     """Smart index: skip unchanged, reindex changed, clean deleted.
 
@@ -115,6 +128,8 @@ def run_index(
     )
     for path in removed:
         store.delete_by_source(path)
+        if kgdb is not None:
+            kgdb.delete_by_source(path)
         event_bus.publish(IndexEvent(
             type="deleted", path=path, filename=Path(path).name,
         ))
@@ -145,7 +160,7 @@ def run_index(
         ))
 
         try:
-            chunk_count = _index_file(fi, settings, store, tracking)
+            chunk_count = _index_file(fi, settings, store, tracking, kgdb=kgdb)
             total_chunks += chunk_count
             event_bus.publish(IndexEvent(
                 type="indexed", path=fi.path,
@@ -188,6 +203,7 @@ class ReindexError(Exception):
 def reindex_file(
     path: str, settings: Settings,
     store: VectorStore, tracking: TrackingDB,
+    kgdb=None,
 ) -> str:
     """Re-index a single file and return a status message.
 
@@ -222,7 +238,7 @@ def reindex_file(
         source_root=source_root,
     )
     try:
-        chunks = _index_file(fi, settings, store, tracking)
+        chunks = _index_file(fi, settings, store, tracking, kgdb=kgdb)
         return f"Indexed: {p.name} ({chunks} chunks)"
     except (OSError, ValueError, RuntimeError) as exc:
         tracking.mark_error(str(p), str(exc))
@@ -234,6 +250,7 @@ def index_directory(
     settings: Settings,
     store: VectorStore,
     tracking: TrackingDB,
+    kgdb=None,
 ) -> str:
     """Index only files in a single directory (not all sources)."""
     files = scan_sources([path], settings.global_ignore)
@@ -246,7 +263,7 @@ def index_directory(
     errors = 0
     for fi in to_index:
         try:
-            total_chunks += _index_file(fi, settings, store, tracking)
+            total_chunks += _index_file(fi, settings, store, tracking, kgdb=kgdb)
             event_bus.publish(IndexEvent(
                 type="indexed", path=fi.path,
                 filename=fi.relative_path, chunks=total_chunks,

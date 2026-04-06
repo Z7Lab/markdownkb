@@ -120,7 +120,7 @@ async def lifespan(app: FastAPI):
     # Start file watcher if enabled
     app.state.watcher = None
     if settings.core_enabled("file_watcher"):
-        watcher = FileWatcher(settings, store, tracking)
+        watcher = FileWatcher(settings, store, tracking, kgdb=getattr(app.state, "kgdb", None))
         watcher.start()
         app.state.watcher = watcher
         logger.info("File watcher started")

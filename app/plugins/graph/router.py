@@ -6,7 +6,7 @@ import threading
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.config import Settings
-from app.deps import get_retriever, get_scopedb, get_settings, get_tracking
+from app.deps import get_kgdb, get_retriever, get_scopedb, get_settings, get_tracking
 from app.events import event_bus
 from app.rag.retriever import Retriever
 from app.ratelimit import STANDARD, limiter
@@ -176,3 +176,94 @@ _invalidation_thread = threading.Thread(
     target=_invalidation_worker, daemon=True, name="graph-cache-invalidation",
 )
 _invalidation_thread.start()
+
+
+# -- Knowledge Graph endpoints --
+
+
+@router.get("/kg/data")
+@limiter.limit(STANDARD)
+def kg_data(
+    request: Request,
+    entity_types: str | None = Query(None, description="Comma-separated entity types"),
+    rel_types: str | None = Query(None, description="Comma-separated relationship types"),
+    kgdb=Depends(get_kgdb),
+):
+    """Return knowledge graph entities and relationships for visualization."""
+    if kgdb is None:
+        raise HTTPException(503, "Knowledge graph not initialized")
+
+    et = [t.strip() for t in entity_types.split(",")] if entity_types else None
+    rt = [t.strip() for t in rel_types.split(",")] if rel_types else None
+
+    entities = kgdb.get_all_entities(entity_types=et)
+    relationships = kgdb.get_all_relationships(rel_types=rt)
+
+    return {
+        "entities": entities,
+        "relationships": relationships,
+        "entity_types": kgdb.get_entity_types(),
+        "relationship_types": kgdb.get_relationship_types(),
+        "stats": kgdb.get_stats(),
+    }
+
+
+@router.get("/kg/entity")
+@limiter.limit(STANDARD)
+def kg_entity(
+    request: Request,
+    name: str = Query(..., description="Entity name"),
+    kgdb=Depends(get_kgdb),
+):
+    """Return a single entity with all its relationships."""
+    if kgdb is None:
+        raise HTTPException(503, "Knowledge graph not initialized")
+
+    entity = kgdb.get_entity(name)
+    if entity is None:
+        raise HTTPException(404, f"Entity not found: {name}")
+    return entity
+
+
+@router.get("/kg/path")
+@limiter.limit(STANDARD)
+def kg_path(
+    request: Request,
+    source: str = Query(..., description="Source entity name"),
+    target: str = Query(..., description="Target entity name"),
+    max_hops: int = Query(6, ge=1, le=20),
+    kgdb=Depends(get_kgdb),
+):
+    """Find the shortest path between two entities."""
+    if kgdb is None:
+        raise HTTPException(503, "Knowledge graph not initialized")
+
+    path = kgdb.find_path(source, target, max_hops=max_hops)
+    if path is None:
+        return {"path": None, "message": f"No path found between '{source}' and '{target}'"}
+    return {"path": path}
+
+
+@router.get("/kg/stats")
+@limiter.limit(STANDARD)
+def kg_stats(
+    request: Request,
+    kgdb=Depends(get_kgdb),
+):
+    """Return knowledge graph statistics."""
+    if kgdb is None:
+        return {"entity_mentions": 0, "unique_entities": 0, "relationships": 0, "source_files": 0, "cached_chunks": 0}
+    return kgdb.get_stats()
+
+
+@router.post("/kg/clear")
+@limiter.limit(STANDARD)
+def kg_clear(
+    request: Request,
+    kgdb=Depends(get_kgdb),
+):
+    """Clear all knowledge graph data. Re-index to rebuild."""
+    if kgdb is None:
+        raise HTTPException(503, "Knowledge graph not initialized")
+    kgdb.clear()
+    return {"status": "cleared"}

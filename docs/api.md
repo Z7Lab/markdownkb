@@ -277,6 +277,23 @@ Requires `plugins.graph.enabled: true`. Plugin: `app/plugins/graph/`.
 
 Accepts optional `scope_ids`, `ad_hoc_tags[]`, `word_clouds`, and `min_weight` query parameters. Supports both scope and tag filtering.
 
+### Knowledge Graph (Entity Extraction)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/graph/kg/data` | All entities and relationships (accepts `entity_types`, `rel_types` filters) |
+| GET | `/api/graph/kg/entity` | Single entity with all connections (`?name=X`) |
+| GET | `/api/graph/kg/path` | BFS shortest path (`?source=X&target=Y&max_hops=6`) |
+| GET | `/api/graph/kg/stats` | Entity/relationship counts |
+| POST | `/api/graph/kg/clear` | Clear all KG data (re-index to rebuild) |
+
+### Ollama Model Management
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/settings/ollama/status` | Check Ollama reachability and get starter model suggestions |
+| POST | `/api/settings/ollama/pull` | Pull a model from Ollama (SSE progress streaming) |
+
 ## Tags
 
 Requires the `tags` feature flag. Plugin: `app/plugins/tags/`.

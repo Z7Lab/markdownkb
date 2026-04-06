@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.config import Settings
-from app.deps import get_retriever, get_settings, get_store, get_tagdb, get_tracking
+from app.deps import get_kgdb, get_retriever, get_settings, get_store, get_tagdb, get_tracking
 from app.ingestion.indexer import ReindexError, reindex_file
 from app.ingestion.scanner import discover_sources
 from app.rag.retriever import Retriever
@@ -278,11 +278,12 @@ def index_file(
     settings: Settings = Depends(get_settings),
     tracking: TrackingDB = Depends(get_tracking),
     store: VectorStore = Depends(get_store),
+    kgdb=Depends(get_kgdb),
 ):
     """Index a single file that hasn't been indexed yet."""
     tracking.set_include_rag(req.path, True)
     try:
-        result = reindex_file(req.path, settings, store, tracking)
+        result = reindex_file(req.path, settings, store, tracking, kgdb=kgdb)
     except ReindexError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
     return {"status": "ok", "message": result}
@@ -296,13 +297,14 @@ def reindex_single_file(
     settings: Settings = Depends(get_settings),
     tracking: TrackingDB = Depends(get_tracking),
     store: VectorStore = Depends(get_store),
+    kgdb=Depends(get_kgdb),
 ):
     """Re-embed a single file's chunks."""
     record = tracking.get_file(req.path)
     if not record:
         raise HTTPException(status_code=404, detail="File not tracked")
     try:
-        result = reindex_file(req.path, settings, store, tracking)
+        result = reindex_file(req.path, settings, store, tracking, kgdb=kgdb)
     except ReindexError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
     return {"status": "ok", "message": result}

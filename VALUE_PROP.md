@@ -60,6 +60,8 @@ Most tools that address this are build-time — you run them, they produce a sna
 
 **MCP-first agent access.** The standalone MCP server (`mcp_server.py`) exposes 32 tools over stdio or SSE. Any MCP-compatible client — Claude Code, Claude Desktop, custom orchestrators, CI pipelines, or any application that speaks the protocol — can search, chat, retrieve full documents, manage tags, create buckets, and trigger indexing. The MCP server imports core services directly (no HTTP proxy), sharing the same vector store and databases as the web UI. This means your knowledge base is not locked inside a browser tab — it's infrastructure that any tool in your stack can query.
 
+**Knowledge graph with entity extraction.** MDKB extracts concepts, tools, processes, and other entities from your documents during indexing, building a real knowledge graph with typed relationships (uses, is-a, part-of, depends-on, etc.). Agents can traverse relationships, find connections between concepts, and discover shortest paths between ideas — queries that embedding similarity alone can't answer. The KG data is stored separately from embeddings, so it survives model switches and accumulates as your knowledge base grows.
+
 **Scoped search — context curation, not just retrieval.** Three mechanisms for controlling what knowledge is active:
 
 - **Tags and scopes.** Tag documents, create named scopes (folder + tag filter presets), and apply them to search and chat. "Search my infrastructure docs tagged with networking" is a scope.
@@ -104,7 +106,7 @@ This composability is intentional. MDKB doesn't try to be the orchestrator, the 
 |---|---|---|
 | Search | Search history, versions, compare, AI summaries, deep research (MCTS) | Built |
 | Tags | Tag storage, CRUD, folder auto-tagging, AI tag generation | Built |
-| Graph | Knowledge graph visualization (3D force-directed, clustering) | Built |
+| Graph | Knowledge graph with entity extraction + typed relationships, document similarity visualization | Built |
 | Planner | MCTS-powered implementation plan generation | Built |
 | Buckets | Temporary scoped collections with independent vector storage | Built |
 | Export | Conversation export (markdown, JSON) | Built |
@@ -113,7 +115,7 @@ This composability is intentional. MDKB doesn't try to be the orchestrator, the 
 ### MCP Server
 | Feature | Status |
 |---|---|
-| 32 tools (search, chat, documents, tags, buckets, graph, planner) | Built |
+| 35 tools (search, chat, documents, tags, buckets, knowledge graph, planner) | Built |
 | stdio + SSE transports | Built |
 | Read-only mode, per-tool gating, plugin-aware tool registration | Built |
 | History tracking (MCP searches/chats appear in web UI sidebar) | Built |
