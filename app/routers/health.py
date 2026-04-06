@@ -41,11 +41,26 @@ def health(request: Request, store: VectorStore = Depends(get_store)):
 def llm_health(request: Request, settings: Settings = Depends(get_settings)):
     """Lightweight LLM health check (for status polling)."""
     active_cfg = settings.get_active_llm_config()
+    configured = bool(active_cfg.get("model"))
+    provider = settings.active_provider
+    api_base = active_cfg.get("api_base", "")
+
+    # Lightweight reachability probe for local providers.
+    # Cloud providers are assumed reachable when configured (avoids API costs).
+    reachable = False
+    if configured:
+        if "ollama" in provider.lower() and api_base:
+            from app.plugins.catalogs.ollama.catalog import is_reachable
+            reachable = is_reachable(api_base)
+        else:
+            reachable = configured  # trust cloud config
+
     return {
-        "provider": settings.active_provider,
+        "provider": provider,
         "model": active_cfg.get("model", ""),
-        "api_base": active_cfg.get("api_base", ""),
-        "configured": bool(active_cfg.get("model")),
+        "api_base": api_base,
+        "configured": configured,
+        "reachable": reachable,
     }
 
 

@@ -11,6 +11,7 @@ import { SettingsProvider, useSettings } from "@/hooks/use-settings"
 import { NavigationProvider } from "@/lib/navigation"
 import { MessageSquare, Globe, FolderOpen, Lightbulb, Network } from "lucide-react"
 import { SetupBanner } from "@/components/setup-banner"
+import { LlmSetupNudge } from "@/components/llm-setup-nudge"
 
 const SearchTab = lazy(() => import("@/components/search/search-tab").then(m => ({ default: m.SearchTab })))
 const FilesTab = lazy(() => import("@/components/browse/files-tab").then(m => ({ default: m.FilesTab })))
@@ -77,6 +78,7 @@ export function App() {
         <NavigationProvider value={{ setActiveTab: handleTabChange }}>
           <div className="h-screen flex flex-col overflow-hidden">
             <SetupBanner />
+            <LlmSetupNudge onNavigateSettings={() => handleTabChange("settings")} />
             <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
             <header className="shrink-0 z-20 bg-background border-b px-6 py-3 flex items-center justify-between">
               <div>

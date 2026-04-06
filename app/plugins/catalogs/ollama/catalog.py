@@ -9,6 +9,7 @@ Ollama model names are already user-friendly (e.g. ``qwen3:8b``).
 
 import logging
 import time
+from collections.abc import Iterator
 
 import httpx
 
@@ -16,6 +17,13 @@ logger = logging.getLogger(__name__)
 
 _CACHE_TTL = 30  # seconds — shorter than Venice since Ollama is local
 _cache: dict = {"models": [], "api_base": "", "ts": 0.0}
+
+# Models recommended for first-time users (small, capable, general-purpose).
+STARTER_MODELS = [
+    {"name": "qwen3:8b", "description": "Fast, multilingual, 8B params"},
+    {"name": "llama3.1:8b", "description": "Meta's general-purpose 8B model"},
+    {"name": "gemma3:4b", "description": "Google's lightweight 4B model"},
+]
 
 
 def _fetch_models(api_base: str) -> list[dict]:
@@ -64,6 +72,49 @@ def get_model_entries(api_base: str = "") -> list[dict]:
         {"id": f"ollama/{m['name']}", "label": m["name"]}
         for m in _fetch_models(api_base)
     ]
+
+
+def is_reachable(api_base: str) -> bool:
+    """Check whether an Ollama instance is responding at *api_base*."""
+    if not api_base:
+        return False
+    try:
+        resp = httpx.get(f"{api_base.rstrip('/')}/api/tags", timeout=3)
+        return resp.status_code == 200
+    except httpx.HTTPError:
+        return False
+
+
+def pull_model(model_name: str, api_base: str) -> Iterator[dict]:
+    """Pull (download) a model from Ollama, yielding progress dicts.
+
+    Each yielded dict has at minimum ``{"status": "..."}``.  During layer
+    downloads Ollama also provides ``completed`` and ``total`` byte counts.
+    The final dict has ``{"status": "success"}``.
+
+    Raises ``httpx.HTTPError`` on connection / HTTP failures.
+    """
+    bare = model_name.split("/", 1)[-1] if "/" in model_name else model_name
+
+    with httpx.stream(
+        "POST",
+        f"{api_base.rstrip('/')}/api/pull",
+        json={"name": bare, "stream": True},
+        timeout=httpx.Timeout(connect=10, read=600, write=10, pool=10),
+    ) as resp:
+        resp.raise_for_status()
+        for line in resp.iter_lines():
+            if not line:
+                continue
+            try:
+                import json
+                chunk = json.loads(line)
+            except ValueError:
+                continue
+            yield chunk
+
+    # Invalidate cache so the model list refreshes on next fetch.
+    _cache["ts"] = 0.0
 
 
 def get_model_info(model_id: str, api_base: str = "") -> dict | None:

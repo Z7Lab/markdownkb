@@ -1,10 +1,30 @@
-import { useCallback, useState } from "react"
-import { api } from "@/lib/api"
+import { useCallback, useRef, useState } from "react"
+import { api, getApiKey } from "@/lib/api"
+import { parseSSEStream } from "@/lib/sse"
 import type { ModelEntry, ModelInfo } from "@/lib/types"
+
+export interface OllamaPullProgress {
+  pulling: boolean
+  model: string
+  percent: number
+  status: string
+  error: string | null
+  done: boolean
+}
+
+interface OllamaStatus {
+  reachable: boolean
+  api_base: string
+  starter_models: { name: string; description: string }[]
+}
 
 export function useProviderSettings(reload: () => Promise<boolean>) {
   const [providerStatus, setProviderStatus] = useState("")
   const [modelStatus, setModelStatus] = useState("")
+  const [pullProgress, setPullProgress] = useState<OllamaPullProgress>({
+    pulling: false, model: "", percent: 0, status: "", error: null, done: false,
+  })
+  const pullAbortRef = useRef<AbortController | null>(null)
 
   const saveProvider = useCallback(
     async (name: string, model: string, apiBase: string, _apiKey: string = "") => {
@@ -86,6 +106,70 @@ export function useProviderSettings(reload: () => Promise<boolean>) {
     [],
   )
 
+  const fetchOllamaStatus = useCallback(async () => {
+    return api.get<OllamaStatus>("/api/settings/ollama/status")
+  }, [])
+
+  const pullOllamaModel = useCallback(
+    async (modelName: string, apiBase: string = "") => {
+      pullAbortRef.current?.abort()
+      const controller = new AbortController()
+      pullAbortRef.current = controller
+
+      setPullProgress({ pulling: true, model: modelName, percent: 0, status: "Starting pull...", error: null, done: false })
+
+      try {
+        const headers: Record<string, string> = { "Content-Type": "application/json" }
+        const key = getApiKey()
+        if (key) headers["X-MDKB-Key"] = key
+
+        const res = await fetch("/api/settings/ollama/pull", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ model_name: modelName, api_base: apiBase }),
+          signal: controller.signal,
+        })
+
+        if (!res.ok) {
+          const text = await res.text()
+          setPullProgress((p) => ({ ...p, pulling: false, error: `HTTP ${res.status}: ${text}` }))
+          return
+        }
+
+        const reader = res.body?.getReader()
+        if (!reader) {
+          setPullProgress((p) => ({ ...p, pulling: false, error: "No response body" }))
+          return
+        }
+
+        await parseSSEStream(reader, (event, data) => {
+          if (event === "progress") {
+            setPullProgress((p) => ({
+              ...p,
+              status: data.status as string,
+              percent: data.percent as number,
+            }))
+          } else if (event === "done") {
+            setPullProgress((p) => ({ ...p, pulling: false, done: true, status: "success", percent: 100 }))
+          } else if (event === "error") {
+            setPullProgress((p) => ({ ...p, pulling: false, error: data.message as string }))
+          }
+        })
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") {
+          setPullProgress((p) => ({ ...p, pulling: false, error: String(err) }))
+        }
+      }
+    },
+    [],
+  )
+
+  const cancelPull = useCallback(() => {
+    pullAbortRef.current?.abort()
+    pullAbortRef.current = null
+    setPullProgress((p) => ({ ...p, pulling: false, status: "Cancelled" }))
+  }, [])
+
   return {
     providerStatus,
     modelStatus,
@@ -95,5 +179,9 @@ export function useProviderSettings(reload: () => Promise<boolean>) {
     pingModel,
     saveLlmParams,
     fetchModelInfo,
+    pullProgress,
+    pullOllamaModel,
+    cancelPull,
+    fetchOllamaStatus,
   }
 }

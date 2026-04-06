@@ -8,9 +8,15 @@ from fastapi.responses import StreamingResponse
 from app.config import Settings
 from app.deps import get_settings
 from app.ratelimit import HEAVY, LLM, STANDARD, limiter
+from app.plugins.catalogs.ollama.catalog import (
+    STARTER_MODELS as OLLAMA_STARTER_MODELS,
+    is_reachable as ollama_is_reachable,
+    pull_model as ollama_pull_model,
+)
 from app.schemas import (
     LlmParamsRequest,
     ModelInfoRequest,
+    OllamaPullRequest,
     ProviderSettingsRequest,
     RefreshModelsRequest,
     TestConnectionRequest,
@@ -166,3 +172,69 @@ def test_prompt(
 def model_info(request: Request, req: ModelInfoRequest):
     """Get detailed information about a model."""
     return get_model_capabilities(req.model, req.api_base)
+
+
+# -- Ollama management --
+
+
+@router.get("/settings/ollama/status")
+@limiter.limit(STANDARD)
+def ollama_status(request: Request, settings: Settings = Depends(get_settings)):
+    """Check Ollama reachability and return starter model suggestions."""
+    # Find the Ollama provider config for its api_base.
+    api_base = ""
+    for p in settings.llm_providers:
+        if "ollama" in p.get("name", "").lower():
+            api_base = p.get("api_base", "")
+            break
+    reachable = ollama_is_reachable(api_base) if api_base else False
+    return {
+        "reachable": reachable,
+        "api_base": api_base,
+        "starter_models": OLLAMA_STARTER_MODELS,
+    }
+
+
+@router.post("/settings/ollama/pull")
+@limiter.limit(HEAVY)
+def pull_ollama_model(
+    request: Request,
+    req: OllamaPullRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """Pull (download) a model from Ollama, streaming progress via SSE."""
+    # Resolve api_base from request or from the Ollama provider config.
+    api_base = req.api_base
+    if not api_base:
+        for p in settings.llm_providers:
+            if "ollama" in p.get("name", "").lower():
+                api_base = p.get("api_base", "")
+                break
+    if not api_base:
+        raise HTTPException(400, "No Ollama API base configured")
+
+    import httpx as _httpx
+
+    def generate():
+        try:
+            for chunk in ollama_pull_model(req.model_name, api_base):
+                status = chunk.get("status", "")
+                completed = chunk.get("completed", 0)
+                total = chunk.get("total", 0)
+                percent = (completed / total * 100) if total else 0.0
+                yield sse("progress", {
+                    "status": status,
+                    "completed": completed,
+                    "total": total,
+                    "percent": round(percent, 1),
+                })
+                if status == "success":
+                    yield sse("done", {"status": "success", "model": req.model_name})
+        except _httpx.HTTPError as e:
+            logger.error("Ollama pull failed for %s: %s", req.model_name, e)
+            yield sse("error", {"message": f"Pull failed: {e}"})
+        except (RuntimeError, OSError) as e:
+            logger.error("Ollama pull error for %s: %s", req.model_name, e)
+            yield sse("error", {"message": str(e)})
+
+    return StreamingResponse(generate(), media_type="text/event-stream")

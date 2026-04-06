@@ -16,8 +16,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Eye, EyeOff, HelpCircle } from "lucide-react"
+import { Download, Eye, EyeOff, HelpCircle, Loader2, X } from "lucide-react"
 import type { AppSettings, ModelEntry, ModelInfo } from "@/lib/types"
+import type { OllamaPullProgress } from "@/hooks/use-provider-settings"
 import { TestPrompt } from "./test-prompt"
 import { GenerationParams } from "./generation-params"
 
@@ -31,6 +32,10 @@ export function LlmConfig({
   onPingModel,
   onRefreshModels,
   onFetchModelInfo,
+  pullProgress,
+  onPullModel,
+  onCancelPull,
+  onFetchOllamaStatus,
 }: {
   settings: AppSettings
   providerStatus: string
@@ -41,6 +46,10 @@ export function LlmConfig({
   onPingModel: (name: string, model: string, apiBase: string, apiKey: string, signal?: AbortSignal) => Promise<void>
   onRefreshModels: (name: string, apiBase: string) => Promise<{ models: ModelEntry[]; status: string }>
   onFetchModelInfo: (model: string, apiBase: string) => Promise<ModelInfo>
+  pullProgress: OllamaPullProgress
+  onPullModel: (modelName: string, apiBase?: string) => Promise<void>
+  onCancelPull: () => void
+  onFetchOllamaStatus: () => Promise<{ reachable: boolean; api_base: string; starter_models: { name: string; description: string }[] }>
 }) {
   const [provider, setProvider] = useState(settings.active_provider)
   const [model, setModel] = useState(settings.active_model)
@@ -81,6 +90,23 @@ export function LlmConfig({
   const pingAbortRef = useRef<AbortController | null>(null)
 
   const isOllama = provider.toLowerCase().includes("ollama")
+  const [pullModelName, setPullModelName] = useState("")
+  const [ollamaStatus, setOllamaStatus] = useState<{ reachable: boolean; starter_models: { name: string; description: string }[] } | null>(null)
+
+  useEffect(() => {
+    if (!isOllama) { setOllamaStatus(null); return }
+    onFetchOllamaStatus()
+      .then((s) => setOllamaStatus({ reachable: s.reachable, starter_models: s.starter_models }))
+      .catch(() => setOllamaStatus(null))
+  }, [isOllama, onFetchOllamaStatus])
+
+  // After a successful pull, refresh the model list
+  useEffect(() => {
+    if (pullProgress.done) {
+      handleRefresh()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pullProgress.done])
 
   useEffect(() => {
     let cancelled = false
@@ -218,6 +244,14 @@ export function LlmConfig({
             onChange={(e) => setApiBase(e.target.value)}
             placeholder="Leave empty for default"
           />
+          {!isOllama && !provider.toLowerCase().includes("anthropic") && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Works with any OpenAI-compatible server — llama.cpp (<code className="text-[10px]">:8080/v1</code>),
+              LM Studio (<code className="text-[10px]">:1234/v1</code>),
+              vLLM (<code className="text-[10px]">:8000/v1</code>).
+              Use <code className="text-[10px]">openai/model-name</code> as the model ID.
+            </p>
+          )}
         </div>
 
         <div>
@@ -294,10 +328,10 @@ export function LlmConfig({
                   {customMode ? "Choose from list" : "Type manually"}
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-64">
+              <TooltipContent side="bottom" className="max-w-72">
                 {customMode
                   ? "Switch back to picking a model from the dropdown list."
-                  : "Type a LiteLLM model ID directly, e.g. openai/gpt-4o. For OpenAI-compatible APIs (Venice, Together, etc.) use openai/<model-name> with a custom API Base."}
+                  : "Type a model ID directly, e.g. openai/gpt-4o. For any OpenAI-compatible server (llama.cpp, vLLM, LM Studio, etc.) use openai/<model-name> with a custom API Base URL."}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -343,6 +377,81 @@ export function LlmConfig({
             </div>
           )}
         </div>
+
+        {isOllama && ollamaStatus?.reachable && (
+          <div className="border rounded-md p-3 space-y-3">
+            <div className="text-sm font-medium">Pull a Model from Ollama</div>
+            <div className="flex gap-2">
+              <Input
+                value={pullModelName}
+                onChange={(e) => setPullModelName(e.target.value)}
+                placeholder="e.g. qwen3:8b"
+                className="flex-1"
+                disabled={pullProgress.pulling}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => pullModelName.trim() && onPullModel(pullModelName.trim())}
+                disabled={pullProgress.pulling || !pullModelName.trim()}
+              >
+                {pullProgress.pulling ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                <span className="ml-1">{pullProgress.pulling ? "Pulling..." : "Pull"}</span>
+              </Button>
+              {pullProgress.pulling && (
+                <Button size="sm" variant="ghost" onClick={onCancelPull}>
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            {ollamaStatus.starter_models.length > 0 && !pullProgress.pulling && (
+              <div className="flex flex-wrap gap-1.5">
+                <span className="text-xs text-muted-foreground mr-1">Suggested:</span>
+                {ollamaStatus.starter_models.map((m) => (
+                  <button
+                    key={m.name}
+                    type="button"
+                    className="text-xs px-2 py-0.5 rounded-full border hover:bg-accent transition-colors"
+                    onClick={() => setPullModelName(m.name)}
+                    title={m.description}
+                  >
+                    {m.name}
+                  </button>
+                ))}
+              </div>
+            )}
+            {pullProgress.pulling && (
+              <div className="space-y-1">
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full bg-primary transition-all duration-300"
+                    style={{ width: `${Math.max(pullProgress.percent, 1)}%` }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">{pullProgress.status} — {pullProgress.percent.toFixed(0)}%</p>
+              </div>
+            )}
+            {pullProgress.done && !pullProgress.pulling && (
+              <p className="text-xs text-green-600">Model pulled successfully. Select it from the dropdown above.</p>
+            )}
+            {pullProgress.error && (
+              <p className="text-xs text-destructive">{pullProgress.error}</p>
+            )}
+          </div>
+        )}
+
+        {isOllama && ollamaStatus && !ollamaStatus.reachable && (
+          <div className="border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 rounded-md p-3">
+            <p className="text-sm text-amber-800 dark:text-amber-200">
+              Cannot reach Ollama at <code className="text-xs">{apiBase || "unknown"}</code>.
+              Make sure Ollama is installed and running.
+            </p>
+          </div>
+        )}
 
         <div className="flex gap-2">
           <Button onClick={() => onSave(provider, model, apiBase, apiKey)}>

@@ -78,6 +78,10 @@ export function SettingsTab() {
     switchEmbeddingModel,
     toggleIntelligentSearch,
     setLogLevel,
+    pullProgress,
+    pullOllamaModel,
+    cancelPull,
+    fetchOllamaStatus,
   } = useSettings()
 
   const { errorCount, clearErrors } = useIndexEvents()
@@ -143,6 +147,10 @@ export function SettingsTab() {
                 onPingModel={pingModel}
                 onRefreshModels={refreshModels}
                 onFetchModelInfo={fetchModelInfo}
+                pullProgress={pullProgress}
+                onPullModel={pullOllamaModel}
+                onCancelPull={cancelPull}
+                onFetchOllamaStatus={fetchOllamaStatus}
               />
             )}
             {activeSection === "search" && (
