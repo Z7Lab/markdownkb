@@ -196,7 +196,7 @@ A scope requires at least one folder or tag. When resolved, folder filtering res
 
 Search, Chat, and Planner endpoints accept an optional `scope_id` field in their request bodies. When provided, retrieval is restricted to the scope's folders and/or tags.
 
-MCP tools (`retrieve`, `retrieve_documents`, `chat`, `plan`, `deep_research`) also accept a `scope_id` parameter for the same behavior. Use the `list_scopes` MCP tool to discover available scopes. See [MCP Server](mcp-server.md#scope-support) for details.
+MCP tools (`search`, `search_documents`, `chat`, `plan`, `deep_research`) also accept a `scope_id` parameter for the same behavior. Use the `list_scopes` MCP tool to discover available scopes. See [MCP Server](mcp-server.md#scope-support) for details.
 
 ## Embeddings & Indexing
 

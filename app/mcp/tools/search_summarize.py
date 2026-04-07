@@ -4,7 +4,7 @@ from app.config import Settings
 from app.rag.retriever import Retriever
 
 TOOL = {
-    "name": "summarize",
+    "name": "search_summarize",
     "feature_flag": None,
     "requires_plugin": "search",
 }

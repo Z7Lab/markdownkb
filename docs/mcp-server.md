@@ -22,8 +22,8 @@ make mcp
 | Tool | Maps to | Plugin | Write | Description |
 |------|---------|--------|-------|-------------|
 | `health` | `app/routers/health` | core | | Server health, chunk count, active LLM provider |
-| `retrieve` | `app/rag/retriever` | core | | Hybrid vector + keyword search, returns chunks |
-| `retrieve_documents` | `app/rag/retriever` | core | | Search and return full document content (deduplicated by file) |
+| `search` | `app/rag/retriever` | core | | Hybrid vector + keyword search, returns chunks |
+| `search_documents` | `app/rag/retriever` | core | | Search and return full document content (deduplicated by file) |
 | `enhance_query` | `app/services/query_service` | core | | Extract keywords and expand acronyms for better retrieval |
 | `chat` | `app/routers/chat` | core | | RAG-grounded Q&A using the configured LLM |
 | `get_file` | `app/routers/files` | core | | Read the full content of an indexed file |
@@ -36,7 +36,7 @@ make mcp
 | `deep_research` | `app/services/deep_research` | core | | Multi-angle MCTS research synthesis |
 | `index_file` | `app/ingestion/` | core | yes | Re-index a single markdown file |
 | `save_file` | `app/routers/files` | core | yes | Save a markdown file to a watched source directory |
-| `summarize` | `app/services/` | search | | Search and return an LLM-generated summary |
+| `search_summarize` | `app/services/` | search | | Search and return an LLM-generated summary |
 | `plan` | `app/services/planner_service` | planner | | Generate an implementation plan using MCTS |
 | `list_tags` | `app/plugins/tags/tagdb` | tags | | List all tags with file counts, or tags for a specific file |
 | `generate_tags` | `app/lib/tag_generator/` | tags | yes | Generate tags for a file using AI |
@@ -61,32 +61,32 @@ make mcp
 - `save_file` has an additional feature flag: `mcp.save_document` must also be true
 - **Bucket write exemption:** when `mcp.allow_bucket_writes: true`, bucket write tools (`bucket_create`, `bucket_delete`, `bucket_add`) are allowed even with `read_only: true`. Buckets are ephemeral and isolated — they don't touch the main knowledge base.
 
-### retrieve
+### search
 
 ```
-retrieve(query: "authentication flow", top_k: 5)
+search(query: "authentication flow", top_k: 5)
 → {results: [{content, source, score}, ...], total}
 
-retrieve(query: "authentication flow", top_k: 5, tags: ["security", "backend"])
+search(query: "authentication flow", top_k: 5, tags: ["security", "backend"])
 → {results: [...], total, tags_filter: ["security", "backend"]}
 
-retrieve(query: "authentication flow", scope_id: "abc123def456")
+search(query: "authentication flow", scope_id: "abc123def456")
 → {results: [...], total, scope_id: "abc123def456"}
 ```
 
 Optionally filter results by tags (OR logic — documents matching any tag are included), scope, or both. Use `list_tags` to discover available tags and `list_scopes` to discover available scopes. When both `scope_id` and `tags` are provided, they are combined.
 
-### retrieve_documents
+### search_documents
 
 ```
-retrieve_documents(query: "authentication flow", top_k: 3, max_chars: 15000)
+search_documents(query: "authentication flow", top_k: 3, max_chars: 15000)
 → {documents: [{path, title, content, score}, ...], total_chars}
 
-retrieve_documents(query: "authentication flow", scope_id: "abc123def456")
+search_documents(query: "authentication flow", scope_id: "abc123def456")
 → {documents: [...], total_chars, scope_id: "abc123def456"}
 ```
 
-Unlike `retrieve` which returns individual chunks, this returns the **full content** of the top matching files (deduplicated by source path). Ideal for embedding complete documents into prompts. The `max_chars` budget prevents oversized responses — documents are included in score order until the budget is exhausted, with truncation if needed. Accepts `scope_id` and `tags` for filtering.
+Unlike `search` which returns individual chunks, this returns the **full content** of the top matching files (deduplicated by source path). Ideal for embedding complete documents into prompts. The `max_chars` budget prevents oversized responses — documents are included in score order until the budget is exhausted, with truncation if needed. Accepts `scope_id` and `tags` for filtering.
 
 ### plan
 
@@ -331,7 +331,7 @@ To add a new MCP tool, create a new `.py` file in `app/mcp/tools/` following the
 
 ### Scope Support
 
-The `retrieve`, `retrieve_documents`, `chat`, `plan`, and `deep_research` tools accept an optional `scope_id` parameter. Scopes are named filter presets (folder paths + tags) managed via `POST /api/scopes`. Use the `list_scopes` tool to discover available scopes.
+The `search`, `search_documents`, `chat`, `plan`, and `deep_research` tools accept an optional `scope_id` parameter. Scopes are named filter presets (folder paths + tags) managed via `POST /api/scopes`. Use the `list_scopes` tool to discover available scopes.
 
 Scope resolution is handled by `app/mcp/scope.py`, which resolves the scope ID to `folders_filter` and `allowed_paths` parameters for the Retriever. Tag resolution calls `TagDB.get_paths_for_tags()` directly (not through the `tag_utils` callback which is only registered in the FastAPI process).
 

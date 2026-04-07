@@ -1,11 +1,11 @@
-"""MCP tool: retrieve from the knowledge base via hybrid search."""
+"""MCP tool: search the knowledge base via hybrid vector + keyword search."""
 
 from app.mcp.history import record_search
 from app.mcp.scope import resolve_mcp_scope
 from app.rag.retriever import Retriever
 
 TOOL = {
-    "name": "retrieve",
+    "name": "search",
     "feature_flag": None,
 }
 
@@ -80,7 +80,7 @@ def handler(query: str, top_k: int = 5, tags: list[str] | None = None,
     ]
 
     record_search(
-        ctx, query, formatted, tool_name="retrieve",
+        ctx, query, formatted, tool_name="search",
         result_details=result_details, result_data=result_data,
     )
 
