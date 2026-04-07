@@ -134,6 +134,11 @@ async def lifespan(server: FastMCP):
     logger.info("MCP server shutdown")
 
 
+_settings_init = Settings.get()
+_allowed_hosts = _settings_init.mcp_features.get("allowed_hosts", [])
+if not isinstance(_allowed_hosts, list):
+    _allowed_hosts = []
+
 mcp = FastMCP(
     "mdkb",
     instructions=(
@@ -144,6 +149,7 @@ mcp = FastMCP(
     lifespan=lifespan,
     transport_security=TransportSecuritySettings(
         enable_dns_rebinding_protection=True,
+        allowed_hosts=[str(h) for h in _allowed_hosts],
     ),
 )
 
