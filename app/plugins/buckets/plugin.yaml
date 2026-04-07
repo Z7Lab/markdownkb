@@ -4,7 +4,7 @@ description: Temporary scoped document collections with independent vector stora
 version: 1.0.0
 author: mdkb
 icon: database
-category: search
+category: core
 feature_flag: buckets
 requires: []
 
@@ -27,5 +27,11 @@ endpoints:
   - method: POST
     path: /api/buckets/{bucket_id}/chat
     description: RAG chat scoped to a bucket
+  - method: POST
+    path: /api/buckets/{bucket_id}/add
+    description: Add documents to an existing bucket
+  - method: GET
+    path: /api/buckets/{bucket_id}/files
+    description: List files and chunk counts in a bucket
 
 config: {}

@@ -1,10 +1,10 @@
 name: tags
 display_name: Tags
 description: Tag storage, CRUD, folder-based auto-tagging, and optional AI-powered tag generation.
-version: 2.0.0
+version: 1.0.0
 author: mdkb
 icon: tags
-category: ai
+category: core
 feature_flag: tags
 requires: []
 
@@ -26,12 +26,17 @@ endpoints:
     description: Apply auto-tag assignments from preview
   - method: POST
     path: /api/tags/generate
-    description: Generate AI tags for a markdown file (requires mcp_tag_generator)
+    description: Generate AI tags for a markdown file (requires LLM)
   - method: POST
     path: /api/tags/apply
-    description: Apply tags to a file's frontmatter (requires mcp_tag_generator)
+    description: Apply tags to a file's frontmatter
   - method: POST
     path: /api/tags/bulk
-    description: Bulk-tag files in a directory (requires mcp_tag_generator)
+    description: Bulk-tag files in a directory
 
-config: {}
+config:
+  ai_generation:
+    type: boolean
+    default: false
+    label: AI Tag Generation
+    description: Enable LLM-powered tag generation for documents

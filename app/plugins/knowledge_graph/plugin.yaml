@@ -3,7 +3,7 @@ display_name: Knowledge Graph
 description: Entity extraction and typed relationships from your documents using LLM. Builds a queryable knowledge graph with concepts, tools, processes, and their connections.
 version: 1.0.0
 author: mdkb
-icon: brain
+icon: network
 category: visualization
 feature_flag: knowledge_graph
 requires: []
@@ -30,6 +30,12 @@ endpoints:
   - method: POST
     path: /api/knowledge-graph/extract/cancel
     description: Cancel running extraction
+  - method: GET
+    path: /api/knowledge-graph/file-entity-counts
+    description: Entity count per file
+  - method: POST
+    path: /api/knowledge-graph/extract-file
+    description: Extract entities from a single file
   - method: POST
     path: /api/knowledge-graph/clear
     description: Clear all knowledge graph data
