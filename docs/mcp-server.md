@@ -22,11 +22,11 @@ make mcp
 | Tool | Maps to | Plugin | Write | Description |
 |------|---------|--------|-------|-------------|
 | `health` | `app/routers/health` | core | | Server health, chunk count, active LLM provider |
-| `search` | `app/rag/retriever` | core | | Hybrid vector + keyword search, returns chunks |
+| `search` | `app/rag/retriever` | core | | Hybrid vector + keyword search, returns chunks with source paths. Use `get_file` to read full docs. |
 | `search_documents` | `app/rag/retriever` | core | | Search and return full document content (deduplicated by file) |
 | `enhance_query` | `app/services/query_service` | core | | Extract keywords and expand acronyms for better retrieval |
-| `chat` | `app/routers/chat` | core | | RAG-grounded Q&A using the configured LLM |
-| `get_file` | `app/routers/files` | core | | Read the full content of an indexed file |
+| `chat` | `app/routers/chat` | core | | RAG Q&A — answer includes `sources` list of file paths used as context |
+| `get_file` | `app/routers/files` | core | | Read a file by path — use after `search` or `chat` to read cited sources in full |
 | `list_files` | `app/routers/files` | core | | List all indexed files (optionally filter by status) |
 | `list_threads` | `app/routers/threads` | core | | List recent chat threads |
 | `list_sources` | `app/routers/sources` | core | | List configured source directories |

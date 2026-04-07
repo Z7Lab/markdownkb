@@ -14,10 +14,11 @@ _mcp = None  # Injected by register_tools()
 
 
 def handler(path: str, page: int | None = None, page_size: int = 5000) -> dict:
-    """Read the content of a file by its path.
+    """Read the full content of a file by its path.
 
-    The file must be within a configured source directory.  If the file
-    is indexed, its status and chunk count are included in the response.
+    Use this to read complete documents — for example, after ``search``
+    or ``chat`` returns a source path you want to read in full. The file
+    must be within a configured source directory.
 
     Supports pagination for large files via ``page`` and ``page_size``
     (measured in lines).  When ``page`` is omitted the full content is

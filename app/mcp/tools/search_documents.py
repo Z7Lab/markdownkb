@@ -27,10 +27,11 @@ def handler(query: str, top_k: int = 3, max_chars: int = 15000,
             scope_id: str | None = None) -> dict:
     """Search and return full documents matching a query.
 
-    Searches the knowledge base for relevant chunks, deduplicates by
-    source file, then returns the full content of the top matching
-    documents.  Use this when you need complete documents for context
-    rather than individual chunks.
+    Unlike ``search`` which returns individual chunks, this returns the
+    full content of the top matching files — deduplicated by source path.
+    Use this when you need complete documents for context rather than
+    individual chunks. Each result includes a ``path`` that can also be
+    passed to ``get_file(path)`` for paginated reading of large files.
 
     Args:
         query: Search query string.

@@ -18,7 +18,9 @@ def handler(message: str, scope_id: str | None = None,
     """Ask a question and get an answer grounded in your knowledge base.
 
     Uses RAG to find relevant documents and generate a contextual response
-    via the configured LLM.
+    via the configured LLM. The response includes a ``sources`` list of
+    file paths that were used as context — use ``get_file(path)`` to read
+    any cited source in full.
 
     Args:
         message: Question or message to answer.

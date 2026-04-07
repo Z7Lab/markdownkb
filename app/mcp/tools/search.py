@@ -16,8 +16,10 @@ def handler(query: str, top_k: int = 5, tags: list[str] | None = None,
             scope_id: str | None = None) -> dict:
     """Search the knowledge base using hybrid vector + keyword search.
 
-    Returns ranked results with document content, source paths, and
-    relevance scores.  Optionally filter results by scope, tags, or both.
+    Returns ranked chunk-level results with content, source file paths,
+    and relevance scores. Each result includes a ``source`` path — use
+    ``get_file(path)`` to read the full document. For full-document
+    results instead of chunks, use ``search_documents``.
 
     Args:
         query: Search query string.
