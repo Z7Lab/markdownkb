@@ -200,13 +200,122 @@ A valid plugin must have:
 2. The `FEATURE_FLAG` must match the plugin directory name
 3. `plugin.yaml` is recommended but not required
 
+## Plugin-Owned Databases
+
+Plugins that need persistent storage should create their own SQLite database in `on_startup` and store the instance on `app.state`. Follow the pattern used by tags, buckets, and knowledge_graph:
+
+```python
+def on_startup(app) -> None:
+    from .my_db import MyDB
+    settings = app.state.settings
+    db = MyDB(settings.data_directory)  # creates data/my_plugin.db
+    app.state.my_db = db
+
+def on_shutdown(app) -> None:
+    db = getattr(app.state, "my_db", None)
+    if db:
+        db.close()
+```
+
+Access in your router via `request.app.state.my_db`. Do not use `app/deps.py` — that's for core dependencies. Plugin resources live on `app.state` and are accessed directly.
+
+## MCP Tool Integration
+
+Plugins can provide MCP tools. Create tool files in `app/mcp/tools/` with `requires_plugin` set to your plugin name:
+
+```python
+# app/mcp/tools/my_tool.py
+TOOL = {
+    "name": "my_tool",
+    "feature_flag": None,
+    "requires_plugin": "my_plugin",
+}
+
+_mcp = None  # Injected by register_tools()
+
+def handler(query: str) -> dict:
+    """Description shown to MCP clients."""
+    ctx = _mcp.get_context()
+    deps = ctx.request_context.lifespan_context
+    # Access plugin resources from MCP lifespan context
+    my_db = deps.get("my_db")
+    ...
+```
+
+When your plugin is disabled, the MCP tool is automatically excluded from registration. If your plugin owns a database, you also need to initialize it in the MCP server's lifespan (`mcp_server.py`) — the MCP server runs as a separate process and doesn't share `app.state` with the FastAPI app.
+
+## Background Processing
+
+For long-running operations, use a background thread with module-level status tracking. Follow the pattern used by the knowledge_graph extraction runner:
+
+```python
+import threading
+
+_status = {"running": False, "progress": 0.0, "message": "", "result": ""}
+_lock = threading.Lock()
+
+def _bg_work(args):
+    try:
+        # ... do work, update _status with _lock ...
+        pass
+    finally:
+        with _lock:
+            _status["running"] = False
+
+@router.post("/my-plugin/start")
+def start(request: Request):
+    with _lock:
+        if _status["running"]:
+            raise HTTPException(409, "Already running")
+        _status["running"] = True
+        _status["cancel"] = threading.Event()
+    threading.Thread(target=_bg_work, daemon=True).start()
+    return {"status": "started"}
+
+@router.get("/my-plugin/status")
+def status(request: Request):
+    with _lock:
+        return dict(_status)
+```
+
+The frontend polls the status endpoint and shows progress. See `knowledge_graph/router.py` for the full pattern with cancellation support.
+
+## README Convention
+
+Every plugin should have a `README.md` in its directory. This is for developers browsing the source — it's not shown in the UI. Cover:
+
+- What the plugin does
+- Prerequisites (system dependencies, other plugins)
+- Endpoints
+- MCP tools (if any)
+- Configuration options
+- Storage (databases, caches)
+
+## Categories
+
+The `category` field in `plugin.yaml` determines how plugins are grouped in the Settings UI:
+
+| Category | Use for |
+|----------|---------|
+| `core` | Essential functionality (tags, buckets) |
+| `search` | Search and discovery features |
+| `ai` | LLM-powered features (planner) |
+| `visualization` | Graph and visualization (docmap, knowledge_graph) |
+| `integration` | External system integration (converter, write_api) |
+| `export` | Data export features |
+| `advanced` | Power-user features |
+
 ## Reference Plugins
 
 Study the builtin plugins as examples:
 
 | Plugin | Complexity | Good example of |
 |--------|-----------|-----------------|
-| `export` | Simple | Minimal plugin with one endpoint, no config |
-| `tags` | Medium | Plugin-owned database, lifecycle hooks, core dispatcher integration |
-| `search` | Complex | Multiple endpoints, SSE streaming, deep config |
-| `graph` | Complex | Background computation, caching, progress events |
+| `export` | Simple | Minimal plugin — one endpoint, no config, no database |
+| `write_api` | Simple | File I/O plugin, integration category |
+| `tags` | Medium | Plugin-owned database, lifecycle hooks, config schema, core integration via hook registration |
+| `search` | Complex | Multiple endpoints, SSE streaming, rich config schema |
+| `docmap` | Complex | Background computation with caching and progress, event bus integration |
+| `knowledge_graph` | Complex | Plugin-owned database, background extraction with cancel, per-file operations, MCP tools |
+| `converter` | Medium | System dependency declaration, background processing, no database |
+| `buckets` | Complex | Plugin-owned database + service layer, ChromaDB collections, expiration/cleanup |
