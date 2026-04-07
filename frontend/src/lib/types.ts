@@ -137,6 +137,8 @@ export interface AppSettings {
   search_summary_prompt: string
   default_search_summary_prompt: string
   embedding_model: string
+  embedding_provider?: string
+  embedding_remote_config?: { model: string; api_base: string; api_type: string } | null
   intelligent_search_enabled: boolean
   top_k: number
   default_top_k: number

@@ -1,6 +1,44 @@
 # Embedding Models
 
-mdkb uses ONNX-based embedding models for semantic search. All models run locally on CPU — no GPU or external API required.
+mdkb supports two embedding providers:
+
+- **Local (default)** — ONNX models running on CPU. No external dependencies.
+- **Remote** — Ollama or any OpenAI-compatible embedding API on another machine.
+
+Configure the provider in Settings > Embedding Model, or in `config/settings.yaml` under the `embeddings:` section.
+
+## Remote Embeddings
+
+Point to an Ollama instance or OpenAI-compatible endpoint to offload embedding work to a faster machine.
+
+### Ollama
+
+1. On the remote machine, install Ollama and pull an embedding model:
+   ```bash
+   ollama pull nomic-embed-text
+   ```
+2. In mdkb Settings > Embedding Model, select "Remote (Ollama / API)"
+3. Set API Base to the Ollama URL (e.g. `http://192.168.x.x:11434`)
+4. Set Model to `nomic-embed-text`
+5. Click "Test Connection" to verify, then "Save"
+
+### OpenAI-compatible API
+
+Any endpoint serving `POST /v1/embeddings` works. Set API Type to "OpenAI-compatible" and configure the API Base and model name.
+
+### Config example
+
+```yaml
+embeddings:
+  provider: remote
+  api_base: http://<your-server-ip>:11434
+  remote_model: nomic-embed-text
+  api_type: ollama          # or "openai"
+```
+
+## Local ONNX Models
+
+Local models run on CPU with no external API required.
 
 ## Auto-Download
 

@@ -71,13 +71,17 @@ Each immediate subdirectory of `path` is treated as a project. If any files matc
 
 | Key | Code default | Recommended | Description |
 |-----|-------------|-------------|-------------|
-| `embeddings.model` | `all-MiniLM-L6-v2` | `bge-small-en-v1.5` | Embedding model (ONNX, no PyTorch) |
+| `embeddings.provider` | `local` | `local` | `local` (ONNX on CPU) or `remote` (Ollama/OpenAI-compatible API) |
+| `embeddings.model` | `all-MiniLM-L6-v2` | `bge-small-en-v1.5` | Local ONNX embedding model |
+| `embeddings.api_base` | — | — | Remote embedding API URL (when provider is `remote`) |
+| `embeddings.remote_model` | `nomic-embed-text` | — | Model name on the remote server |
+| `embeddings.api_type` | `ollama` | — | `ollama` or `openai` (OpenAI-compatible) |
 | `embeddings.chunk_size` | `512` | `1500` | Max characters per chunk |
 | `embeddings.chunk_overlap` | `50` | `150` | Overlap between consecutive chunks |
 
 The code defaults (512/50) are conservative fallbacks. The recommended values (1500/150) are set in `settings.yaml.example` and optimized for `bge-small-en-v1.5` (1500 chars &asymp; 375 tokens, within the model's 512-token window). After changing chunk settings, re-index all files for the new values to take effect.
 
-Three embedding models are available: `all-MiniLM-L6-v2`, `all-MiniLM-L12-v2`, and `bge-small-en-v1.5`. Install and switch between them from the **Settings** tab. See [embedding-models.md](embedding-models.md) for details.
+Three local ONNX embedding models are available: `all-MiniLM-L6-v2`, `all-MiniLM-L12-v2`, and `bge-small-en-v1.5`. Alternatively, set `provider: remote` to offload embeddings to an Ollama instance or OpenAI-compatible API on another machine. See [embedding-models.md](embedding-models.md) for details.
 
 For a detailed explanation of how chunking works — header splitting, paragraph boundaries, breadcrumbs, frontmatter extraction, and how to structure files for best search quality — see [chunking.md](chunking.md).
 

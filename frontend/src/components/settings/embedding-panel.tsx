@@ -1,14 +1,19 @@
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import { Download, FolderOpen, Loader2, RefreshCw, Square, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { api } from "@/lib/api"
 import type { EmbeddingModel } from "@/lib/types"
 
 export function EmbeddingPanel({
   models,
   activeModel,
+  provider: initialProvider,
+  remoteConfig: initialRemoteConfig,
   status,
   switching,
   onInstall,
@@ -19,6 +24,8 @@ export function EmbeddingPanel({
 }: {
   models: EmbeddingModel[]
   activeModel: string
+  provider: string
+  remoteConfig: { model: string; api_base: string; api_type: string } | null
   status: string
   switching: boolean
   onInstall: (modelId: string) => Promise<void>
@@ -31,6 +38,44 @@ export function EmbeddingPanel({
   const [confirmReindex, setConfirmReindex] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [installing, setInstalling] = useState<string | null>(null)
+
+  const [provider, setProvider] = useState(initialProvider || "local")
+  const [remoteModel, setRemoteModel] = useState(initialRemoteConfig?.model || "nomic-embed-text")
+  const [remoteApiBase, setRemoteApiBase] = useState(initialRemoteConfig?.api_base || "")
+  const [remoteApiType, setRemoteApiType] = useState(initialRemoteConfig?.api_type || "ollama")
+  const [testStatus, setTestStatus] = useState("")
+  const [saving, setSaving] = useState(false)
+
+  const handleSaveProvider = useCallback(async () => {
+    setSaving(true)
+    try {
+      await api.put("/api/settings/embedding-provider", {
+        provider,
+        remote_model: remoteModel,
+        api_base: remoteApiBase,
+        api_type: remoteApiType,
+      })
+      setTestStatus("Saved")
+    } catch (err) {
+      setTestStatus(`Error: ${(err as Error).message}`)
+    } finally {
+      setSaving(false)
+    }
+  }, [provider, remoteModel, remoteApiBase, remoteApiType])
+
+  const handleTestRemote = useCallback(async () => {
+    setTestStatus("Testing...")
+    try {
+      const res = await api.post<{ ok: boolean; message: string; dimensions?: number }>("/api/settings/embedding-models/test-remote", {
+        model: remoteModel,
+        api_base: remoteApiBase,
+        api_type: remoteApiType,
+      })
+      setTestStatus(res.message)
+    } catch (err) {
+      setTestStatus(`Error: ${(err as Error).message}`)
+    }
+  }, [remoteModel, remoteApiBase, remoteApiType])
 
   async function handleInstall(modelId: string) {
     setInstalling(modelId)
@@ -51,7 +96,87 @@ export function EmbeddingPanel({
         <CardHeader>
           <CardTitle className="text-base">Embedding Model</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium">Provider</label>
+              <div className="flex rounded-md border overflow-hidden mt-1">
+                <button
+                  type="button"
+                  className={`flex-1 text-xs py-2 px-3 transition-colors ${provider === "local" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
+                  onClick={() => setProvider("local")}
+                >
+                  Local (ONNX)
+                </button>
+                <button
+                  type="button"
+                  className={`flex-1 text-xs py-2 px-3 transition-colors ${provider === "remote" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
+                  onClick={() => setProvider("remote")}
+                >
+                  Remote (Ollama / API)
+                </button>
+              </div>
+            </div>
+
+            {provider === "remote" && (
+              <div className="space-y-3 p-3 border rounded-md">
+                <div>
+                  <label className="text-sm font-medium">API Type</label>
+                  <Select value={remoteApiType} onValueChange={setRemoteApiType}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ollama">Ollama</SelectItem>
+                      <SelectItem value="openai">OpenAI-compatible</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">API Base</label>
+                  <Input
+                    value={remoteApiBase}
+                    onChange={(e) => setRemoteApiBase(e.target.value)}
+                    placeholder={remoteApiType === "ollama" ? "http://192.168.x.x:11434" : "http://localhost:8080/v1"}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {remoteApiType === "ollama"
+                      ? "Ollama instance URL. The embedding model must be pulled on that server."
+                      : "Any OpenAI-compatible embedding endpoint."}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Model</label>
+                  <Input
+                    value={remoteModel}
+                    onChange={(e) => setRemoteModel(e.target.value)}
+                    placeholder="nomic-embed-text"
+                    className="mt-1"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={handleTestRemote}>
+                    Test Connection
+                  </Button>
+                  <Button size="sm" onClick={handleSaveProvider} disabled={saving || !remoteApiBase}>
+                    {saving ? "Saving..." : "Save"}
+                  </Button>
+                </div>
+                {testStatus && (
+                  <pre className="text-xs bg-muted p-2 rounded whitespace-pre-wrap">{testStatus}</pre>
+                )}
+              </div>
+            )}
+
+            {provider === "local" && initialProvider === "remote" && (
+              <div className="flex justify-end">
+                <Button size="sm" onClick={handleSaveProvider} disabled={saving}>
+                  Switch to Local
+                </Button>
+              </div>
+            )}
+          </div>
           {models.map((m) => {
             const isActive = m.model_id === activeModel
             return (

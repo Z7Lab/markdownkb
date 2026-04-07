@@ -29,12 +29,12 @@ import { SetupBanner } from "@/components/setup-banner"
 import { Library, Archive } from "lucide-react"
 
 const sections = [
-  { id: "llm", label: "LLM Provider", icon: Cpu },
+  { id: "llm", label: "Chat Model", icon: Cpu },
+  { id: "embeddings", label: "Embedding Model", icon: Layers },
   { id: "search", label: "Retrieval", icon: Search },
   { id: "sources", label: "Sources", icon: FolderCog },
   { id: "scopes", label: "Scopes", icon: Library },
   { id: "buckets", label: "Buckets", icon: Archive, plugin: "buckets" },
-  { id: "embeddings", label: "Embeddings", icon: Layers },
   { id: "features", label: "Plugins", icon: ToggleRight },
   { id: "prompt", label: "System Prompt", icon: MessageSquareText },
   { id: "database", label: "Database", icon: Database },
@@ -195,6 +195,8 @@ export function SettingsTab() {
               <EmbeddingPanel
                 models={embeddingModels}
                 activeModel={settings.embedding_model}
+                provider={settings.embedding_provider ?? "local"}
+                remoteConfig={settings.embedding_remote_config ?? null}
                 status={embeddingStatus}
                 switching={embeddingSwitching}
                 onInstall={installEmbeddingModel}

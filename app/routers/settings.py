@@ -61,6 +61,8 @@ def get_settings_endpoint(request: Request, settings: Settings = Depends(get_set
         "search_summary_prompt": settings.search_summary_prompt,
         "default_search_summary_prompt": settings.default_search_summary_prompt,
         "embedding_model": settings.embedding_model,
+        "embedding_provider": settings.embedding_provider,
+        "embedding_remote_config": settings.embedding_remote_config,
         "intelligent_search_enabled": settings.intelligent_search_enabled,
         "top_k": settings.top_k,
         "default_top_k": settings.default_top_k,
