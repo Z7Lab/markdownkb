@@ -53,23 +53,19 @@ export function SearchSidebar({
             New Search
           </Button>
 
-          {/* Filters */}
-          <div className="space-y-1.5">
-            <ScopeTagFilter
-              scopes={scopes}
-              selectedScopeIds={selectedScopeIds}
-              onScopeChange={onScopeChange}
-              availableTags={availableTags}
-              selectedTags={selectedAdHocTags}
-              onTagChange={onAdHocTagChange}
-            />
-
-            <BucketSelector
-              buckets={buckets}
-              selectedBucketId={selectedBucketId}
-              onBucketChange={onBucketChange}
-            />
-          </div>
+          <ScopeTagFilter
+            scopes={scopes}
+            selectedScopeIds={selectedScopeIds}
+            onScopeChange={onScopeChange}
+            availableTags={availableTags}
+            selectedTags={selectedAdHocTags}
+            onTagChange={onAdHocTagChange}
+          />
+          <BucketSelector
+            buckets={buckets}
+            selectedBucketId={selectedBucketId}
+            onBucketChange={onBucketChange}
+          />
         </div>
       }
     >
@@ -87,9 +83,6 @@ export function SearchSidebar({
           ) : (
             <Search className="h-3 w-3 shrink-0 text-muted-foreground" />
           )
-        }
-        renderMeta={(s) =>
-          s.folder ? <>{` · ${s.folder.split("/").pop()}`}</> : null
         }
         onSelect={onLoadSearch}
         onRename={onRenameSearch}

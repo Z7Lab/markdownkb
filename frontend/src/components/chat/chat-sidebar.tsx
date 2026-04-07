@@ -54,6 +54,14 @@ export function ChatSidebar({
     <AppSidebar
       header={
         <div className="space-y-2">
+          <Button
+            onClick={onNewChat}
+            variant="outline"
+            className="w-full justify-start gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            New Chat
+          </Button>
           <ModelPicker />
           <ScopeTagFilter
             scopes={scopes}
@@ -68,14 +76,6 @@ export function ChatSidebar({
             selectedBucketId={selectedBucketId}
             onBucketChange={onBucketChange}
           />
-          <Button
-            onClick={onNewChat}
-            variant="outline"
-            className="w-full justify-start gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            New Chat
-          </Button>
         </div>
       }
     >

@@ -54,6 +54,14 @@ export function PlannerSidebar({
     <AppSidebar
       header={
         <div className="space-y-2">
+          <Button
+            onClick={onNewPlan}
+            variant="outline"
+            className="w-full justify-start gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            New Plan
+          </Button>
           <ScopeTagFilter
             scopes={scopes}
             selectedScopeIds={selectedScopeIds}
@@ -67,14 +75,6 @@ export function PlannerSidebar({
             selectedBucketId={selectedBucketId}
             onBucketChange={onBucketChange}
           />
-          <Button
-            onClick={onNewPlan}
-            variant="outline"
-            className="w-full justify-start gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            New Plan
-          </Button>
         </div>
       }
     >
