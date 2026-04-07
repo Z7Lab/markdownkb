@@ -84,6 +84,7 @@ class _RemoteEmbeddingTestRequest(BaseModel):
     model: str = "nomic-embed-text"
     api_base: str
     api_type: str = "ollama"
+    api_key: str = ""
 
 
 class _EmbeddingProviderRequest(BaseModel):
@@ -91,6 +92,7 @@ class _EmbeddingProviderRequest(BaseModel):
     remote_model: str = "nomic-embed-text"
     api_base: str = ""
     api_type: str = "ollama"
+    api_key: str = ""
 
 
 @router.post("/settings/embedding-models/test-remote")
@@ -98,7 +100,7 @@ class _EmbeddingProviderRequest(BaseModel):
 def test_remote_embedding_endpoint(request: Request, req: _RemoteEmbeddingTestRequest):
     """Test a remote embedding endpoint."""
     from app.embeddings.remote import test_remote_embedding
-    return test_remote_embedding(req.model, req.api_base, req.api_type)
+    return test_remote_embedding(req.model, req.api_base, req.api_type, api_key=req.api_key)
 
 
 @router.put("/settings/embedding-provider")

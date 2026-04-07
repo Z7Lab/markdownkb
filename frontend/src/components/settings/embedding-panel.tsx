@@ -43,6 +43,7 @@ export function EmbeddingPanel({
   const [remoteModel, setRemoteModel] = useState(initialRemoteConfig?.model || "nomic-embed-text")
   const [remoteApiBase, setRemoteApiBase] = useState(initialRemoteConfig?.api_base || "")
   const [remoteApiType, setRemoteApiType] = useState(initialRemoteConfig?.api_type || "ollama")
+  const [remoteApiKey, setRemoteApiKey] = useState("")
   const [testStatus, setTestStatus] = useState("")
   const [saving, setSaving] = useState(false)
 
@@ -54,6 +55,7 @@ export function EmbeddingPanel({
         remote_model: remoteModel,
         api_base: remoteApiBase,
         api_type: remoteApiType,
+        api_key: remoteApiKey,
       })
       setTestStatus("Saved")
     } catch (err) {
@@ -70,6 +72,7 @@ export function EmbeddingPanel({
         model: remoteModel,
         api_base: remoteApiBase,
         api_type: remoteApiType,
+        api_key: remoteApiKey,
       })
       setTestStatus(res.message)
     } catch (err) {
@@ -151,10 +154,25 @@ export function EmbeddingPanel({
                   <Input
                     value={remoteModel}
                     onChange={(e) => setRemoteModel(e.target.value)}
-                    placeholder="nomic-embed-text"
+                    placeholder={remoteApiType === "ollama" ? "nomic-embed-text" : "text-embedding-3-small"}
                     className="mt-1"
                   />
                 </div>
+                {remoteApiType === "openai" && (
+                  <div>
+                    <label className="text-sm font-medium">API Key</label>
+                    <Input
+                      type="password"
+                      value={remoteApiKey}
+                      onChange={(e) => setRemoteApiKey(e.target.value)}
+                      placeholder="Enter API key or set EMBEDDING_API_KEY env var"
+                      className="mt-1"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Required for OpenAI, Venice, and other authenticated providers.
+                    </p>
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" onClick={handleTestRemote}>
                     Test Connection

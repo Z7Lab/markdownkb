@@ -160,12 +160,12 @@ class _EmbedderManager:
             self._remote_config = None
         return self._embedder
 
-    def get_remote(self, model: str, api_base: str, api_type: str = "ollama"):
+    def get_remote(self, model: str, api_base: str, api_type: str = "ollama", api_key: str = ""):
         """Return a remote embedder for the given endpoint."""
         from app.embeddings.remote import RemoteEmbedder
-        config = {"model": model, "api_base": api_base, "api_type": api_type}
+        config = {"model": model, "api_base": api_base, "api_type": api_type, "api_key": api_key}
         if self._remote_embedder is None or self._remote_config != config:
-            self._remote_embedder = RemoteEmbedder(model, api_base, api_type)
+            self._remote_embedder = RemoteEmbedder(model, api_base, api_type, api_key=api_key)
             self._remote_config = config
             self._embedder = None
             self._model_id = None
@@ -196,6 +196,7 @@ def embed_texts(
             remote_config["model"],
             remote_config["api_base"],
             remote_config.get("api_type", "ollama"),
+            api_key=remote_config.get("api_key", ""),
         )
         return embedder.embed(texts)
     return _manager.get_local(model_id).embed(texts)
@@ -211,6 +212,7 @@ def embed_query(
             remote_config["model"],
             remote_config["api_base"],
             remote_config.get("api_type", "ollama"),
+            api_key=remote_config.get("api_key", ""),
         )
         return embedder.embed([query])[0]
     embedder = _manager.get_local(model_id)

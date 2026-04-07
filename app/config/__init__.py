@@ -282,10 +282,16 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
         api_base = emb.get("api_base", "")
         if not api_base:
             return None
+        # Resolve API key: check secrets, then env, then config
+        api_type = emb.get("api_type", "ollama")
+        api_key = ""
+        if api_type == "openai":
+            api_key = self.resolve_provider_key("embedding") or emb.get("api_key", "")
         return {
             "model": emb.get("remote_model", "nomic-embed-text"),
             "api_base": api_base,
-            "api_type": emb.get("api_type", "ollama"),
+            "api_type": api_type,
+            "api_key": api_key,
         }
 
     # Fallback model definitions used when settings.yaml has no models list
