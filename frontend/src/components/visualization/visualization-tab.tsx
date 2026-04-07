@@ -258,25 +258,21 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
   const activeIsLoading = mode === "knowledge" ? kgLoading : isLoading
   const hasData = mode === "knowledge" ? (kgData && kgData.entities.length > 0) : (docmapData && docmapData.nodes.length > 0)
 
-  // Re-center camera when the visible node/link set changes (threshold
-  // adjustment or new graph data).  We never reset initialFitDone — that
-  // would let unrelated re-renders (e.g. word-cloud clicks that change
-  // highlight callbacks) trigger an unwanted fit-to-screen via onEngineStop.
-  // Instead we set a pendingRecenter flag consumed by onEngineStop.
-  const prevNodeCount = useRef(forceDocMapData.nodes.length)
-  const prevLinkCount = useRef(forceDocMapData.links.length)
+  // Track whether the graph data has been completely replaced (new fetch),
+  // vs just filtered (threshold change). Only recenter on a full data
+  // replacement — threshold changes keep the user's camera position.
+  const prevDataId = useRef<string | null>(null)
   useEffect(() => {
-    if (
-      forceDocMapData.nodes.length !== prevNodeCount.current
-      || forceDocMapData.links.length !== prevLinkCount.current
-    ) {
-      prevNodeCount.current = forceDocMapData.nodes.length
-      prevLinkCount.current = forceDocMapData.links.length
-      if (initialFitDone.current) {
+    // Use docmapData identity (not forceDocMapData) to detect new fetches.
+    // Threshold changes recompute forceDocMapData but docmapData stays the same.
+    const dataId = docmapData ? `${docmapData.stats.doc_count}:${docmapData.stats.chunk_count}` : null
+    if (dataId !== prevDataId.current) {
+      prevDataId.current = dataId
+      if (initialFitDone.current && dataId !== null) {
         pendingRecenter.current = true
       }
     }
-  }, [forceDocMapData])
+  }, [docmapData])
 
   // Configure d3 forces — spread slider scales all distances
   useEffect(() => {

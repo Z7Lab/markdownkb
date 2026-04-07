@@ -54,10 +54,31 @@ def graph_data(
     scopedb: ScopeDB = Depends(get_scopedb),
     tracking: TrackingDB = Depends(get_tracking),
 ):
-    """Return the full knowledge graph (nodes, edges, clusters, word clouds)."""
+    """Return the document similarity map (nodes, edges, clusters, word clouds)."""
     ids = parse_scope_ids(scope_ids) or ([scope_id] if scope_id else None)
     scope_folders, scope_tags = resolve_scopes(ids, scopedb)
-    allowed = resolve_tag_paths(scope_tags, ad_hoc_tags)
+    tag_paths = resolve_tag_paths(scope_tags, ad_hoc_tags)
+
+    # When scopes combine folders AND tags, use OR logic: show docs from
+    # the selected folders PLUS docs matching the selected tags.  Without
+    # this, tag-based scopes filter out all folder-matched docs.
+    # When only tags are active (no folders), pass tag_paths as the filter.
+    # When only folders are active (no tags), pass None (no path filter).
+    if scope_folders and tag_paths is not None:
+        # Union: get all files from the folder scopes, add tag-matched files
+        all_tracked = tracking.get_all_files()
+        folder_paths = {
+            f["path"] for f in all_tracked
+            if any(f["path"].startswith(d + "/") or f["path"] == d for d in scope_folders)
+        }
+        allowed = folder_paths | tag_paths
+        # Pass no folder filter to ChromaDB — we filter by allowed_paths instead
+        scope_folders = None
+    elif tag_paths is not None:
+        allowed = tag_paths
+    else:
+        allowed = None
+
     key = _cache_key(scope_folders, scope_tags, ad_hoc_tags, top_k, word_clouds, min_weight)
 
     with _cache_lock:
@@ -90,15 +111,29 @@ def graph_stats(
     """Lightweight stats without computing the full graph."""
     ids = parse_scope_ids(scope_ids) or ([scope_id] if scope_id else None)
     scope_folders, scope_tags = resolve_scopes(ids, scopedb)
+    tag_paths = resolve_tag_paths(scope_tags, None)
 
-    if scope_folders:
-        raw = retriever.store.get_all_with_embeddings(scope_folders)
-        all_meta = raw["metadatas"]
+    all_meta = retriever.store.get_all_metadatas()
+
+    # Build allowed set using same OR logic as /data endpoint
+    if scope_folders and tag_paths is not None:
+        all_tracked = tracking.get_all_files()
+        folder_paths = {
+            f["path"] for f in all_tracked
+            if any(f["path"].startswith(d + "/") or f["path"] == d for d in scope_folders)
+        }
+        allowed = folder_paths | tag_paths
+    elif scope_folders:
+        all_tracked = tracking.get_all_files()
+        allowed = {
+            f["path"] for f in all_tracked
+            if any(f["path"].startswith(d + "/") or f["path"] == d for d in scope_folders)
+        }
+    elif tag_paths is not None:
+        allowed = tag_paths
     else:
-        all_meta = retriever.store.get_all_metadatas()
+        allowed = None
 
-    # Apply tag filtering via tracking DB paths
-    allowed = resolve_tag_paths(scope_tags, None)
     if allowed is not None:
         all_meta = [
             m for m in all_meta
