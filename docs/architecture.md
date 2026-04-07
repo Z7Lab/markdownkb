@@ -300,7 +300,7 @@ plugins:
 
 Plugins read their config via `Settings.get_plugin_config("name")` (which filters out the `enabled` key) and define their own defaults internally. A generic API (`GET/PUT /api/settings/plugins/{name}`) allows reading and updating any plugin's config without changes to core code.
 
-Current builtin plugins: `search` (search with history and AI summaries), `export` (conversation export), `graph` (knowledge graph visualization), `planner` (MCTS plan generation), `tags` (tag storage, CRUD, auto-tagging, and optional AI generation), `write_api` (document creation via HTTP), `buckets` (temporary scoped document collections with independent vector storage, search, and chat).
+Current builtin plugins: `search` (search with history and AI summaries), `export` (conversation export), `docmap` (document similarity visualization), `knowledge_graph` (entity extraction and typed relationships), `planner` (MCTS plan generation), `tags` (tag storage, CRUD, auto-tagging, and optional AI generation), `write_api` (document creation via HTTP), `buckets` (temporary scoped document collections with independent vector storage, search, and chat), `converter` (batch file-to-markdown conversion via Pandoc).
 
 **Deep Research** is not a plugin with its own routes — it's a shared service (`app/services/deep_research.py`) that uses the MCTS engine (`app/planner/`) to run multi-angle research synthesis. It is consumed by the search plugin (via the `deep_research` flag on the summarize endpoint) and can be used by any other plugin. Gated by `core.deep_research`. Its config lives under `services.deep_research`.
 

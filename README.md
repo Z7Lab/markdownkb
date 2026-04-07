@@ -110,16 +110,17 @@ mdkb includes a command-line interface for indexing and search without starting 
 
 | Document | Description |
 |----------|-------------|
+| [Getting Started](docs/getting-started.md) | Install, configure, first search and chat |
+| [Local LLM Setup](docs/local-llm-setup.md) | Step-by-step Ollama install and model setup |
+| [API Key Setup](docs/api-key-setup.md) | When you need a key, how to set one |
 | [Configuration](docs/configuration.md) | All settings, feature flags, `.env` vs `settings.yaml` |
 | [API Reference](docs/api.md) | Full endpoint listing |
-| [Architecture](docs/architecture.md) | System overview, data flow, storage, pipelines |
-| [CLI](docs/cli.md) | Command-line interface |
-| [Embedding Models](docs/embedding-models.md) | Available models, switching, storage |
-| [Ollama Remote Setup](docs/ollama-remote-setup.md) | Running Ollama on a separate machine |
-| [MCP Tools](docs/mcp-tools.md) | File browsing, terminal, AI tag generation |
-| [MCP Server](docs/mcp-server.md) | Standalone MCP server for external clients |
-| [MCTS Planner](docs/planner.md) | Planning engine, scoring, skill reviews |
+| [MCP Server](docs/mcp-server.md) | 32 MCP tools, transports, authentication |
+| [Architecture](docs/architecture.md) | System overview, data flow, storage, plugins |
+| [Embedding Models](docs/embedding-models.md) | Local ONNX and remote embedding (Ollama, cloud) |
+| [Knowledge Graph](docs/knowledge-graph.md) | Entity extraction and document similarity |
 | [Security](SECURITY.md) | Threat model, feature flags, vulnerability reporting |
+| [All Documentation](docs/README.md) | Full documentation index |
 
 ## Project Structure
 

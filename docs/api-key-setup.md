@@ -1,0 +1,96 @@
+# API Key Setup
+
+mdkb can require an API key on all `/api/*` endpoints. This guide explains when you need one, what it protects, and how to set it up.
+
+## When Do You Need an API Key?
+
+**Local-only use (default):** No key needed. mdkb binds to localhost by default — only your machine can access it.
+
+**Network-exposed use:** Set a key. If you've changed `MDKB_HOST=0.0.0.0` in `.env` to access mdkb from other machines, anyone on your network can read, write, and delete from your knowledge base without a key.
+
+The mdkb UI shows a banner when no API key is configured and the server is network-exposed. This is the situation that needs a key.
+
+## What Does It Protect?
+
+The API key protects all `/api/*` endpoints except `/api/health`. This includes:
+
+- **Reading:** search, chat, file content, knowledge graph queries
+- **Writing:** index files, create buckets, update tags, save documents
+- **Deleting:** unindex files, delete buckets, clear databases
+- **MCP:** SSE transport connections (stdio is local-only and doesn't need auth)
+
+Without a key, all of these are open to anyone who can reach the server.
+
+## How to Set a Key
+
+### Option 1: Docker Secret (recommended)
+
+```bash
+# Generate a random key
+openssl rand -hex 16 > secrets/mdkb_api_key
+
+# Or set your own
+echo -n "your-chosen-key" > secrets/mdkb_api_key
+```
+
+Restart the container: `make restart`
+
+### Option 2: Environment Variable
+
+In `.env`:
+
+```
+MDKB_API_KEY=your-key-here
+```
+
+Then `make down && make up`.
+
+### Option 3: Generate from the UI
+
+When the setup banner appears, click "Generate API Key". This creates a key, saves it to `secrets/mdkb_api_key`, and configures the current browser session automatically. Copy the key — it won't be shown again.
+
+## Using the Key
+
+### Browser
+
+The mdkb web UI stores the key in localStorage after you set it. No manual header needed.
+
+### REST API
+
+Include the key in the `X-MDKB-Key` header:
+
+```bash
+curl -H "X-MDKB-Key: your-key" http://localhost:9713/api/search \
+  -d '{"query": "authentication"}'
+```
+
+### MCP (SSE transport)
+
+Two options:
+
+**Header:** `X-MDKB-Key: your-key`
+
+**Query parameter:** `http://localhost:9715/sse?token=your-key`
+
+The query parameter method works with MCP clients that don't support custom headers.
+
+### MCP (stdio transport)
+
+Not applicable — stdio runs locally and doesn't use HTTP.
+
+## What Happens Without a Key
+
+- All endpoints are open (no authentication)
+- The UI shows a warning banner when network-exposed
+- Everything works — the key is optional but recommended for network use
+
+## Key Rotation
+
+To change the key, update the secrets file or environment variable and restart. Active browser sessions using the old key will get 401 errors — users need to enter the new key.
+
+## Security Recommendations
+
+- Use Docker secrets (file-based) over environment variables — env vars are visible in `docker inspect`
+- Generate a random key (`openssl rand -hex 16`) rather than choosing one
+- If exposing mdkb on a network, also consider HTTPS via a reverse proxy (nginx, Caddy)
+- The API key is a shared secret, not per-user auth — all users share the same key
