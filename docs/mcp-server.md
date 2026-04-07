@@ -41,10 +41,10 @@ make mcp
 | `list_tags` | `app/plugins/tags/tagdb` | tags | | List all tags with file counts, or tags for a specific file |
 | `generate_tags` | `app/lib/tag_generator/` | tags | yes | Generate tags for a file using AI |
 | `update_tags` | `app/plugins/tags/tagdb` | tags | yes | Set, add, or remove tags on a file |
-| `graph` | `app/services/graph_service` | graph | | Compute document similarity graph — nodes, edges, clusters |
-| `query_knowledge_graph` | `app/storage/knowledgegraph` | graph | | Query entities and typed relationships (filter by type) |
-| `get_kg_entity` | `app/storage/knowledgegraph` | graph | | Get entity details with all incoming/outgoing relationships |
-| `find_relationship_path` | `app/storage/knowledgegraph` | graph | | BFS shortest path between two entities |
+| `docmap` | `app/services/graph_service` | docmap | | Compute document similarity map — nodes, edges, clusters |
+| `query_knowledge_graph` | `app/storage/knowledgegraph` | knowledge_graph | | Query entities and typed relationships (filter by type) |
+| `get_kg_entity` | `app/storage/knowledgegraph` | knowledge_graph | | Get entity details with all incoming/outgoing relationships |
+| `find_relationship_path` | `app/storage/knowledgegraph` | knowledge_graph | | BFS shortest path between two entities |
 | `export_chat` | `app/storage/chatdb` | export | | Export chat conversations as markdown or JSON |
 | `bucket_create` | `app/plugins/buckets/` | buckets | yes | Create a temporary bucket from source paths |
 | `bucket_list` | `app/plugins/buckets/` | buckets | | List all temporary buckets with metadata |

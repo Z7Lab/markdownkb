@@ -1,13 +1,13 @@
 # Architecture
 
-mdkb is a chat-with-your-docs tool with a Python backend and React frontend. The core experience is RAG chat — everything else (search, graph, planner) is an optional plugin. This document explains how the pieces fit together.
+mdkb is a chat-with-your-docs tool with a Python backend and React frontend. The core experience is RAG chat — everything else (search, doc map, knowledge graph, planner) is an optional plugin. This document explains how the pieces fit together.
 
 ## System Overview
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  React SPA (Vite + TypeScript + Shadcn/ui)              │
-│  Tabs: Chat │ Search │ Planner │ Graph │ Browse │ Settings │
+│  Tabs: Chat │ Search │ Planner │ Doc Map │ Knowledge Graph │ Browse │ Settings │
 └────────────────────────┬────────────────────────────────┘
                          │ HTTP/SSE (/api/*)
 ┌────────────────────────▼────────────────────────────────┐
@@ -18,7 +18,8 @@ mdkb is a chat-with-your-docs tool with a Python backend and React frontend. The
 │  │  settings │ embeddings │ scopes │ plugins         │   │
 │  ├──────────────────────────────────────────────────┤   │
 │  │  Plugins (auto-discovered, feature-gated)        │   │
-│  │  search │ export │ graph │ planner │ tags │ ...  │   │
+│  │  search │ export │ docmap │ knowledge_graph │    │   │
+│  │  planner │ tags │ buckets │ write_api │ ...    │   │
 │  └──────────┬───────────────────────────┬───────────┘   │
 │             │                           │               │
 │  ┌──────────▼──────────┐  ┌─────────────▼───────────┐   │
@@ -101,9 +102,9 @@ Core is everything that loads regardless of plugin settings. Plugins add HTTP en
 | `query_service` | Query enhancement — keyword extraction, term expansion |
 | `planner_service` | MCTS planner orchestration (HTTP endpoint is in the planner plugin) |
 | `deep_research` | Multi-angle research synthesis using MCTS (consumed by search plugin) |
-| `graph_service` | Knowledge graph computation (HTTP endpoint is in the graph plugin) |
+| `graph_service` | Document similarity computation (HTTP endpoint is in the docmap plugin) |
 
-Note: `planner_service` and `graph_service` live in core because they are reusable — the plugins just add the HTTP + UI layer on top.
+Note: `planner_service` and `graph_service` live in core because they are reusable — the docmap and knowledge_graph plugins add the HTTP + UI layer on top.
 
 ### Ingestion Pipeline (`app/ingestion/`)
 
@@ -178,7 +179,7 @@ mdkb uses one vector database and nine SQLite databases:
 | **ScopeDB** | `data/scopes.db` | Named scopes (folder + tag filters) |
 | **TagDB** | `data/tags.db` | File-to-tag mappings (owned by tags plugin) |
 | **BucketDB** | `data/buckets.db` | Temporary bucket metadata (owned by buckets plugin) |
-| **KnowledgeGraphDB** | `data/mdkb_kg.db` | Entities, typed relationships, extraction cache (owned by graph plugin) |
+| **KnowledgeGraphDB** | `data/mdkb_kg.db` | Entities, typed relationships, extraction cache (owned by knowledge_graph plugin) |
 
 The knowledge graph database is intentionally separate from the tracking database. Embedding model switches clear ChromaDB vectors and tracking state, but KG data (which is LLM-extracted, not embedding-dependent) survives intact.
 

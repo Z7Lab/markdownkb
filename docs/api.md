@@ -263,29 +263,36 @@ Requires `plugins.planner.enabled: true`. Plugin: `app/plugins/planner/`.
 | DELETE | `/api/planner/plans/{id}` | Delete a saved plan |
 | GET | `/api/planner/skills` | List available agent skills |
 
+## Doc Map
+
+Requires `plugins.docmap.enabled: true`. Plugin: `app/plugins/docmap/`.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/docmap/data` | Compute document similarity map (nodes, edges, clusters, word clouds) |
+| GET | `/api/docmap/stats` | Doc map statistics (doc count, chunk count) |
+| GET | `/api/docmap/status` | Check if cached data is available (no computation) |
+| GET | `/api/docmap/edge-detail` | Chunk-level similarity detail for a document pair |
+| GET | `/api/docmap/progress` | Current computation progress |
+
+Accepts optional `scope_ids`, `ad_hoc_tags[]`, `word_clouds`, and `min_weight` query parameters. Supports both scope and tag filtering. Filters out files with `include_rag=false`.
+
 ## Knowledge Graph
 
-Requires `plugins.graph.enabled: true`. Plugin: `app/plugins/graph/`.
+Requires `plugins.knowledge_graph.enabled: true`. Plugin: `app/plugins/knowledge_graph/`.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/graph/data` | Compute similarity graph (nodes, edges, clusters, word clouds) |
-| GET | `/api/graph/stats` | Graph statistics (doc count, chunk count) |
-| GET | `/api/graph/status` | Check if cached graph data is available (no computation) |
-| GET | `/api/graph/edge-detail` | Chunk-level similarity detail for a document pair |
-| GET | `/api/graph/progress` | Current graph computation progress |
-
-Accepts optional `scope_ids`, `ad_hoc_tags[]`, `word_clouds`, and `min_weight` query parameters. Supports both scope and tag filtering.
-
-### Knowledge Graph (Entity Extraction)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/graph/kg/data` | All entities and relationships (accepts `entity_types`, `rel_types` filters) |
-| GET | `/api/graph/kg/entity` | Single entity with all connections (`?name=X`) |
-| GET | `/api/graph/kg/path` | BFS shortest path (`?source=X&target=Y&max_hops=6`) |
-| GET | `/api/graph/kg/stats` | Entity/relationship counts |
-| POST | `/api/graph/kg/clear` | Clear all KG data (re-index to rebuild) |
+| GET | `/api/knowledge-graph/data` | All entities and relationships (accepts `entity_types`, `rel_types` filters) |
+| GET | `/api/knowledge-graph/entity` | Single entity with all connections (`?name=X`) |
+| GET | `/api/knowledge-graph/path` | BFS shortest path (`?source=X&target=Y&max_hops=6`) |
+| GET | `/api/knowledge-graph/stats` | Entity/relationship counts |
+| GET | `/api/knowledge-graph/file-entity-counts` | Entity count per file |
+| POST | `/api/knowledge-graph/extract` | Start background entity extraction |
+| GET | `/api/knowledge-graph/extract/status` | Extraction progress |
+| POST | `/api/knowledge-graph/extract/cancel` | Cancel running extraction |
+| POST | `/api/knowledge-graph/extract-file` | Extract entities from a single file (`?path=X`) |
+| POST | `/api/knowledge-graph/clear` | Clear all KG data |
 
 ### Ollama Model Management
 
