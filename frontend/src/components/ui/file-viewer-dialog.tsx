@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { api } from "@/lib/api"
 import {
   AlertDialog,
@@ -8,10 +8,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Input } from "@/components/ui/input"
 import { Markdown } from "@/components/ui/markdown"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Pencil, Copy, ChevronLeft, ChevronRight } from "lucide-react"
+import { Pencil, Copy, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Search, X } from "lucide-react"
+import { useTextSearch } from "@/hooks/use-text-search"
 import { toast } from "sonner"
 import { copyToClipboard } from "@/lib/utils"
 import { TagEditDialog } from "@/components/tags/tag-edit-dialog"
@@ -245,6 +247,22 @@ export function FileViewerDialog({
     })
   }
 
+  const textSearch = useTextSearch()
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Focus search input when opened
+  useEffect(() => {
+    if (textSearch.isOpen) {
+      setTimeout(() => searchInputRef.current?.focus(), 50)
+    }
+  }, [textSearch.isOpen])
+
+  // Clear search when file changes
+  useEffect(() => {
+    textSearch.close()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [path])
+
   const filename = path?.split("/").pop() ?? ""
   const isMarkdown = filename.endsWith(".md")
   // Only strip frontmatter on page 1 of markdown files; otherwise show raw content
@@ -351,14 +369,67 @@ export function FileViewerDialog({
               </Button>
             </div>
           )}
+          {/* Find in file bar */}
+          {textSearch.isOpen && (
+            <div className="flex items-center gap-2 px-6 py-2 border-b bg-muted/30">
+              <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <Input
+                ref={searchInputRef}
+                value={textSearch.query}
+                onChange={(e) => textSearch.setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    if (e.shiftKey) textSearch.prevMatch()
+                    else textSearch.nextMatch()
+                  }
+                  if (e.key === "Escape") textSearch.close()
+                }}
+                placeholder="Find in file..."
+                className="h-7 text-xs flex-1"
+              />
+              {textSearch.matchCount > 0 && (
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {textSearch.currentMatch} of {textSearch.matchCount}
+                </span>
+              )}
+              {textSearch.query && textSearch.matchCount === 0 && (
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  No matches
+                </span>
+              )}
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={textSearch.prevMatch} disabled={textSearch.matchCount === 0}>
+                <ChevronUp className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={textSearch.nextMatch} disabled={textSearch.matchCount === 0}>
+                <ChevronDown className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={textSearch.close}>
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
+
+          {/* Search toggle button (when search is closed) */}
+          {!textSearch.isOpen && !loading && content && (
+            <div className="flex justify-end px-6 py-1">
+              <Button variant="ghost" size="sm" className="h-6 text-xs text-muted-foreground" onClick={textSearch.open}>
+                <Search className="h-3 w-3 mr-1" />
+                Find
+              </Button>
+            </div>
+          )}
+
           <ScrollArea className="flex-1 min-h-0 border rounded-md p-4">
-            {loading ? (
-              <p className="text-sm text-muted-foreground animate-pulse">
-                Loading...
-              </p>
-            ) : (
-              <Markdown>{content}</Markdown>
-            )}
+            <div ref={textSearch.containerRef}>
+              {loading ? (
+                <p className="text-sm text-muted-foreground animate-pulse">
+                  Loading...
+                </p>
+              ) : (
+                <Markdown>{content}</Markdown>
+              )}
+            </div>
           </ScrollArea>
           <AlertDialogFooter className="flex items-center justify-between sm:justify-between">
             <div className="flex items-center gap-1">
