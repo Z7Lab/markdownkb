@@ -37,6 +37,8 @@ embeddings:
   # api_base: http://192.168.x.x:11434     # Ollama on another machine
   # remote_model: nomic-embed-text          # Model name on the remote server
   # api_type: ollama                        # "ollama" or "openai" (OpenAI-compatible API)
+  # For authenticated providers (Venice, OpenAI, etc.), set the API key via:
+  #   secrets/embedding_api_key file (preferred) or EMBEDDING_API_KEY env var
 
   # Available models — the active model is auto-downloaded on first startup.
   # Add your own ONNX sentence-transformer models here.

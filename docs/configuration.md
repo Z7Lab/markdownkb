@@ -76,6 +76,7 @@ Each immediate subdirectory of `path` is treated as a project. If any files matc
 | `embeddings.api_base` | — | — | Remote embedding API URL (when provider is `remote`) |
 | `embeddings.remote_model` | `nomic-embed-text` | — | Model name on the remote server |
 | `embeddings.api_type` | `ollama` | — | `ollama` or `openai` (OpenAI-compatible) |
+| `embeddings.api_key` | — | — | API key for authenticated providers. Prefer `secrets/embedding_api_key` or `EMBEDDING_API_KEY` env var. |
 | `embeddings.chunk_size` | `512` | `1500` | Max characters per chunk |
 | `embeddings.chunk_overlap` | `50` | `150` | Overlap between consecutive chunks |
 

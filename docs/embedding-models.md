@@ -22,18 +22,38 @@ Point to an Ollama instance or OpenAI-compatible endpoint to offload embedding w
 4. Set Model to `nomic-embed-text`
 5. Click "Test Connection" to verify, then "Save"
 
-### OpenAI-compatible API
+### OpenAI-compatible API (Venice, OpenAI, Together, Voyage, etc.)
 
-Any endpoint serving `POST /v1/embeddings` works. Set API Type to "OpenAI-compatible" and configure the API Base and model name.
+Any endpoint serving `POST /v1/embeddings` works — including cloud providers like Venice, OpenAI, Together, and Voyage.
 
-### Config example
+1. In mdkb Settings > Embedding Model, select "Remote (Ollama / API)"
+2. Set API Type to "OpenAI-compatible"
+3. Set API Base to the provider's URL (e.g. `https://api.venice.ai/api/v1`)
+4. Set Model to the embedding model name (e.g. `text-embedding-3-small`)
+5. Enter your API Key (required for authenticated providers)
+6. Click "Test Connection" to verify, then "Save"
 
+API keys can also be configured via Docker secrets (`secrets/embedding_api_key`) or environment variable (`EMBEDDING_API_KEY`), following the same pattern as chat model API keys.
+
+### Config examples
+
+**Ollama (local network, no auth):**
 ```yaml
 embeddings:
   provider: remote
   api_base: http://<your-server-ip>:11434
   remote_model: nomic-embed-text
-  api_type: ollama          # or "openai"
+  api_type: ollama
+```
+
+**Venice (cloud, authenticated):**
+```yaml
+embeddings:
+  provider: remote
+  api_base: https://api.venice.ai/api/v1
+  remote_model: text-embedding-3-small
+  api_type: openai
+  # API key via secrets/embedding_api_key or EMBEDDING_API_KEY env var
 ```
 
 ## Local ONNX Models
