@@ -1,0 +1,25 @@
+name: converter
+display_name: File Converter
+description: Batch convert documents (DOCX, PDF, HTML, etc.) to markdown using Pandoc. Save to watched directories or buckets for indexing.
+version: 1.0.0
+author: mdkb
+icon: file-edit
+category: integration
+feature_flag: converter
+requires: []
+
+endpoints:
+  - method: GET
+    path: /api/converter/formats
+    description: List supported input formats
+  - method: POST
+    path: /api/converter/convert
+    description: Start batch conversion of files in a directory
+  - method: GET
+    path: /api/converter/status
+    description: Current conversion progress
+  - method: POST
+    path: /api/converter/cancel
+    description: Cancel running conversion
+
+config: {}
