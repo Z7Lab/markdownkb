@@ -97,6 +97,30 @@ config:
 | `integer` | Number input | `min`, `max` |
 | `string` | Text input | — |
 
+**System dependencies:**
+
+Plugins that require external system binaries (not Python packages) can declare them in the manifest. The Settings UI checks availability and shows a warning with install instructions when dependencies are missing.
+
+```yaml
+system_dependencies:
+  - name: pandoc
+    binary: pandoc
+    required: true
+    install_hint: "apt install pandoc"
+  - name: pdftotext
+    binary: pdftotext
+    required: false
+    install_hint: "apt install poppler-utils (optional)"
+```
+
+| Field | Description |
+|-------|-------------|
+| `binary` | The executable name to check for on the system PATH |
+| `required` | If true, the plugin cannot function without it |
+| `install_hint` | Shown to the user when the dependency is missing |
+
+The plugin should also check at runtime (e.g. `shutil.which("pandoc")`) and return clear errors from its endpoints when dependencies are missing, since the manifest check only runs when the Settings page loads.
+
 Without a manifest, the plugin still works but appears in the UI with limited metadata (name derived from the directory, no config form).
 
 ## Plugin Configuration

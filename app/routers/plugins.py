@@ -91,10 +91,38 @@ _CORE_FEATURES = {
 }
 
 
+def _check_system_dependencies(manifest: dict) -> list[dict]:
+    """Check system_dependencies from a plugin manifest.
+
+    Returns a list of dependency status dicts with keys:
+    name, binary, required, available, install_hint.
+    """
+    import shutil
+
+    deps = manifest.get("system_dependencies", [])
+    if not deps:
+        return []
+
+    results = []
+    for dep in deps:
+        binary = dep.get("binary", "")
+        results.append({
+            "name": dep.get("name", binary),
+            "binary": binary,
+            "required": dep.get("required", True),
+            "available": shutil.which(binary) is not None if binary else False,
+            "install_hint": dep.get("install_hint", ""),
+        })
+    return results
+
+
 def _build_plugin_response(entry: dict, settings: Settings) -> dict:
     """Build a rich plugin info dict from a registry entry."""
     manifest = entry.get("manifest") or {}
     feature_flag = entry.get("feature_flag") or manifest.get("feature_flag", "")
+
+    dep_status = _check_system_dependencies(manifest)
+    missing_required = [d for d in dep_status if d["required"] and not d["available"]]
 
     result = {
         "name": entry["name"],
@@ -113,6 +141,8 @@ def _build_plugin_response(entry: dict, settings: Settings) -> dict:
         "config": settings.get_plugin_config(entry["name"]),
         "requires": manifest.get("requires", []),
         "has_manifest": bool(manifest),
+        "system_dependencies": dep_status,
+        "dependencies_met": len(missing_required) == 0,
     }
     return result
 

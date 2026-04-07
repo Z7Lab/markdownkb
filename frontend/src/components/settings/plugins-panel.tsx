@@ -126,6 +126,18 @@ function PluginCard({
         {plugin.description && (
           <p className="text-sm text-muted-foreground">{plugin.description}</p>
         )}
+        {plugin.system_dependencies?.length > 0 && !plugin.dependencies_met && (
+          <div className="text-xs space-y-1 mt-1 p-2 rounded border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
+            <p className="font-medium text-amber-800 dark:text-amber-200">Missing system dependencies:</p>
+            {plugin.system_dependencies.filter((d) => !d.available).map((d) => (
+              <div key={d.binary} className="text-amber-700 dark:text-amber-300">
+                <span className="font-mono">{d.binary}</span>
+                {!d.required && <span className="text-amber-600 dark:text-amber-400"> (optional)</span>}
+                {d.install_hint && <span className="text-amber-600 dark:text-amber-400"> — {d.install_hint}</span>}
+              </div>
+            ))}
+          </div>
+        )}
         {plugin.endpoints.length > 0 && (
           <Collapsible open={endpointsOpen} onOpenChange={setEndpointsOpen}>
             <CollapsibleTrigger asChild>

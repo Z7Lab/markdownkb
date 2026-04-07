@@ -13,6 +13,14 @@ export interface ConfigFieldSchema {
   max?: number
 }
 
+export interface SystemDependency {
+  name: string
+  binary: string
+  required: boolean
+  available: boolean
+  install_hint: string
+}
+
 export interface PluginInfo {
   name: string
   display_name: string
@@ -30,6 +38,8 @@ export interface PluginInfo {
   config: Record<string, unknown>
   requires: string[]
   has_manifest: boolean
+  system_dependencies: SystemDependency[]
+  dependencies_met: boolean
 }
 
 export interface CoreFeature {

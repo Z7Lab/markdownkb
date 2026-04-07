@@ -301,6 +301,17 @@ Requires `plugins.knowledge_graph.enabled: true`. Plugin: `app/plugins/knowledge
 | GET | `/api/settings/ollama/status` | Check Ollama reachability and get starter model suggestions |
 | POST | `/api/settings/ollama/pull` | Pull a model from Ollama (SSE progress streaming) |
 
+## File Converter
+
+Requires `plugins.converter.enabled: true`. Plugin: `app/plugins/converter/`. Requires Pandoc installed on the system.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/converter/formats` | List supported formats and check tool availability |
+| POST | `/api/converter/convert` | Start batch conversion (source_dir, dest_dir, optional format filter) |
+| GET | `/api/converter/status` | Conversion progress (running, files done/total, errors) |
+| POST | `/api/converter/cancel` | Cancel running conversion |
+
 ## Tags
 
 Requires the `tags` feature flag. Plugin: `app/plugins/tags/`.

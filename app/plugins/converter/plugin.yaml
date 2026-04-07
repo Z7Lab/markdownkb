@@ -8,6 +8,18 @@ category: integration
 feature_flag: converter
 requires: []
 
+# System binaries this plugin needs. Checked at runtime — the UI shows
+# a warning when any are missing.
+system_dependencies:
+  - name: pandoc
+    binary: pandoc
+    required: true
+    install_hint: "apt install pandoc (or brew install pandoc on macOS)"
+  - name: pdftotext
+    binary: pdftotext
+    required: false
+    install_hint: "apt install poppler-utils (optional, improves PDF conversion)"
+
 endpoints:
   - method: GET
     path: /api/converter/formats
