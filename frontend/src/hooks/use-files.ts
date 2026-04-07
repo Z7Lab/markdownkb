@@ -27,9 +27,17 @@ export function useFiles() {
   const refresh = useCallback(async (silent = false): Promise<TrackedFile[] | null> => {
     try {
       setError(null)
-      const res = await api.get<PaginatedResponse<TrackedFile>>("/api/files")
-      setFiles(res.items)
-      return res.items
+      const [res, entityRes] = await Promise.all([
+        api.get<PaginatedResponse<TrackedFile>>("/api/files"),
+        api.get<{ counts: Record<string, number> }>("/api/knowledge-graph/file-entity-counts").catch(() => null),
+      ])
+      const counts = entityRes?.counts ?? {}
+      const items = res.items.map((f) => ({
+        ...f,
+        entity_count: counts[f.path] ?? undefined,
+      }))
+      setFiles(items)
+      return items
     } catch (err) {
       const msg = (err as Error).message
       setError(msg)
@@ -165,5 +173,18 @@ export function useFiles() {
     }
   }, [refresh])
 
-  return { files, busyPaths, error, refresh, toggleRag, unindexFile, indexFile, reindexFile, indexAll, unindexSource, updateTags, bulkUpdateTags }
+  const extractEntities = useCallback(async (path: string) => {
+    addBusy(path)
+    try {
+      const res = await api.post<{ entities: number }>(`/api/knowledge-graph/extract-file?path=${encodeURIComponent(path)}`)
+      toast.success(`Extracted ${res.entities} entities from ${path.split("/").pop()}`)
+      await refresh()
+    } catch (err) {
+      toast.error(`Failed to extract entities: ${(err as Error).message}`)
+    } finally {
+      removeBusy(path)
+    }
+  }, [refresh, addBusy, removeBusy])
+
+  return { files, busyPaths, error, refresh, toggleRag, unindexFile, indexFile, reindexFile, indexAll, unindexSource, updateTags, bulkUpdateTags, extractEntities }
 }

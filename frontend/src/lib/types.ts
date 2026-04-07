@@ -93,6 +93,7 @@ export interface TrackedFile {
   include_rag: number
   tags: string
   indexed_at: string | null
+  entity_count?: number
 }
 
 export interface Provider {

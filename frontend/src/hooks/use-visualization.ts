@@ -51,23 +51,23 @@ export function useVisualization() {
     }
   }, [])
 
-  // On mount, check if server has cached graph data and load it transparently
+  // On mount, check for cached data or in-progress build
   useEffect(() => {
     const controller = new AbortController()
     abortRef.current = controller
     ;(async () => {
       try {
-        // Check both with and without word clouds
+        // Check cache and build progress in parallel
         const mw = `&min_weight=${MIN_WEIGHT}`
-        const [withWc, withoutWc] = await Promise.all([
+        const [withWc, withoutWc, prog] = await Promise.all([
           api.get<{ cached: boolean }>(`/api/docmap/status?word_clouds=true${mw}`, controller.signal),
           api.get<{ cached: boolean }>(`/api/docmap/status?word_clouds=false${mw}`, controller.signal),
+          api.get<{ fraction: number; phase: string }>("/api/docmap/progress", controller.signal),
         ])
         if (controller.signal.aborted || docmapDataRef.current) return
 
         const hasCached = withWc.cached || withoutWc.cached
         if (hasCached) {
-          // Prefer the one that's cached; if both, prefer with word clouds
           const useWc = withWc.cached
           setIsLoading(true)
           const data = await api.get<DocMapData>(`/api/docmap/data${buildQs(null, useWc)}`, controller.signal)
@@ -77,17 +77,47 @@ export function useVisualization() {
           setWordClouds(useWc)
           setDocMapData(data)
           setFetchedAt(Date.now() / 1000)
+        } else if (prog.phase !== "idle") {
+          // A build is in progress from a previous tab visit — resume polling
+          setIsLoading(true)
+          setIsComputing(true)
+          setProgress(prog)
+          pollRef.current = setInterval(async () => {
+            try {
+              const p = await api.get<{ fraction: number; phase: string }>("/api/docmap/progress")
+              if (p.phase === "idle") {
+                // Build finished — fetch the cached result
+                if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
+                setProgress({ fraction: 0, phase: "idle" })
+                setIsComputing(false)
+                try {
+                  const data = await api.get<DocMapData>(`/api/docmap/data${buildQs(null, wordClouds)}`)
+                  docmapDataRef.current = data
+                  lastScopeRef.current = null
+                  setDocMapData(data)
+                  setFetchedAt(Date.now() / 1000)
+                } finally {
+                  setIsLoading(false)
+                }
+              } else {
+                setProgress(p)
+              }
+            } catch {
+              // ignore poll errors
+            }
+          }, 1000)
         }
       } catch {
-        // Ignore — user can manually build (or request was aborted by fetchDocMap)
+        // Ignore — user can manually build (or request was aborted)
       } finally {
-        if (!controller.signal.aborted) {
+        if (!controller.signal.aborted && !pollRef.current) {
           setIsLoading(false)
           setCheckingCache(false)
         }
       }
     })()
     return () => { controller.abort() }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchDocMap = useCallback(async (

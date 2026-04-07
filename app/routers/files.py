@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.config import Settings
 from app.deps import get_retriever, get_settings, get_store, get_tagdb, get_tracking
+from app.events import IndexEvent, event_bus
 from app.ingestion.indexer import ReindexError, reindex_file
 from app.ingestion.scanner import discover_sources
 from app.rag.retriever import Retriever
@@ -249,6 +250,9 @@ def toggle_rag(
     if not record:
         raise HTTPException(status_code=404, detail="File not tracked")
     tracking.set_include_rag(req.path, req.include)
+    event_bus.publish(IndexEvent(
+        type="rag_toggled", path=req.path, filename=Path(req.path).name,
+    ))
     return {"status": "ok", "include_rag": req.include}
 
 

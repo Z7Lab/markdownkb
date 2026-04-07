@@ -45,6 +45,7 @@ def compute_graph(
     word_clouds: bool = True,
     min_weight: float = 0.0,
     allowed_paths: set[str] | None = None,
+    excluded_paths: set[str] | None = None,
 ) -> dict:
     """Compute the full knowledge graph from chunk embeddings.
 
@@ -95,6 +96,13 @@ def compute_graph(
         docs = {
             path: doc for path, doc in docs.items()
             if path in allowed_paths
+        }
+
+    # Exclude files where include_rag is false
+    if excluded_paths:
+        docs = {
+            path: doc for path, doc in docs.items()
+            if path not in excluded_paths
         }
 
     doc_paths = list(docs.keys())

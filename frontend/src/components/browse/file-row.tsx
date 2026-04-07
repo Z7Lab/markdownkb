@@ -19,6 +19,8 @@ interface FileRowProps {
   onUnindexFile: (path: string) => void
   onViewFile: (path: string) => void
   onUpdateTags: (path: string, tags: string[]) => void
+  kgEnabled?: boolean
+  onExtractEntities?: (path: string) => void
 }
 
 function parseTags(raw: string): string[] {
@@ -38,6 +40,8 @@ export const FileRow = React.memo(function FileRow({
   onUnindexFile,
   onViewFile,
   onUpdateTags,
+  kgEnabled,
+  onExtractEntities,
 }: FileRowProps) {
   const [editingTags, setEditingTags] = useState(false)
   const [newTag, setNewTag] = useState("")
@@ -163,6 +167,11 @@ export const FileRow = React.memo(function FileRow({
       <div className="px-2 py-2 text-center">
         {file.chunk_count}
       </div>
+      {kgEnabled && (
+        <div className="px-2 py-2 text-center text-muted-foreground">
+          {file.entity_count != null ? file.entity_count : "—"}
+        </div>
+      )}
       <div className="px-2 py-2 text-muted-foreground text-xs truncate" title={file.indexed_at ? new Date(utc(file.indexed_at)).toLocaleString() : undefined}>
         {file.indexed_at
           ? new Date(utc(file.indexed_at)).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
@@ -177,6 +186,8 @@ export const FileRow = React.memo(function FileRow({
           onIndexFile={() => onIndexFile(file.path)}
           onReindexFile={() => onReindexFile(file.path)}
           onUnindexFile={() => onUnindexFile(file.path)}
+          onExtractEntities={onExtractEntities ? () => onExtractEntities(file.path) : undefined}
+          kgEnabled={kgEnabled}
           variant="buttons-only"
         />
       </div>

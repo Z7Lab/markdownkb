@@ -213,6 +213,48 @@ def kg_stats(request: Request):
     return kgdb.get_stats()
 
 
+@router.get("/file-entity-counts")
+@limiter.limit(STANDARD)
+def kg_file_entity_counts(request: Request):
+    """Return entity counts per file: {path: count}."""
+    kgdb = getattr(request.app.state, "kgdb", None)
+    if kgdb is None:
+        return {"counts": {}}
+    return {"counts": kgdb.get_entity_counts_by_file()}
+
+
+@router.post("/extract-file")
+@limiter.limit(STANDARD)
+def kg_extract_file(
+    request: Request,
+    path: str = Query(..., description="File path to extract entities from"),
+    settings: Settings = Depends(get_settings),
+):
+    """Extract entities from a single file (synchronous, fast for one file)."""
+    from app.ingestion.parser import parse_and_chunk
+    from app.services.kg_extraction import extract_from_chunks
+
+    kgdb = _get_kgdb(request)
+    tracking = request.app.state.tracking
+
+    record = tracking.get_file(path)
+    if not record:
+        raise HTTPException(404, "File not tracked")
+    if record["status"] != "complete":
+        raise HTTPException(400, "File must be indexed before extracting entities")
+
+    chunks = parse_and_chunk(
+        path, record["source_root"],
+        settings.chunk_size, settings.chunk_overlap,
+    )
+    if not chunks:
+        return {"status": "ok", "entities": 0, "path": path}
+
+    kgdb.delete_by_source(path)
+    count = extract_from_chunks(chunks, path, kgdb, settings)
+    return {"status": "ok", "entities": count, "path": path}
+
+
 @router.post("/clear")
 @limiter.limit(STANDARD)
 def kg_clear(request: Request):

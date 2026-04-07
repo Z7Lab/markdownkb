@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { useFiles } from "@/hooks/use-files"
+import { useSettings } from "@/hooks/use-settings"
 import { useTableSort } from "@/hooks/use-table-sort"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -43,6 +44,8 @@ const getValue = (f: TrackedFile, key: string): string | number | null => {
       return f.status
     case "chunks":
       return f.chunk_count
+    case "entities":
+      return f.entity_count ?? 0
     case "indexed":
       return f.indexed_at || ""
     default:
@@ -51,9 +54,13 @@ const getValue = (f: TrackedFile, key: string): string | number | null => {
 }
 
 // Column IDs and default sizes as percentages (must sum to 100)
-const COL_IDS = ["file", "folder", "tags", "rag", "status", "chunks", "indexed", "actions"] as const
-const DEFAULT_LAYOUT: Record<string, number> = {
+const BASE_COL_IDS = ["file", "folder", "tags", "rag", "status", "chunks", "indexed", "actions"]
+const BASE_LAYOUT: Record<string, number> = {
   file: 20, folder: 20, tags: 12, rag: 8, status: 8, chunks: 6, indexed: 12, actions: 14,
+}
+const KG_COL_IDS = ["file", "folder", "tags", "rag", "status", "chunks", "entities", "indexed", "actions"]
+const KG_LAYOUT: Record<string, number> = {
+  file: 18, folder: 18, tags: 11, rag: 7, status: 7, chunks: 5, entities: 6, indexed: 11, actions: 17,
 }
 
 function SortHeader({
@@ -142,6 +149,8 @@ function VirtualizedFileList({
   onUnindexFile,
   onViewFile,
   onUpdateTags,
+  kgEnabled,
+  onExtractEntities,
 }: {
   files: TrackedFile[]
   allFilesEmpty: boolean
@@ -155,6 +164,8 @@ function VirtualizedFileList({
   onUnindexFile: (path: string) => void
   onViewFile: (path: string) => void
   onUpdateTags: (path: string, tags: string[]) => Promise<void>
+  kgEnabled: boolean
+  onExtractEntities: (path: string) => void
 }) {
   const parentRef = useRef<HTMLDivElement>(null)
 
@@ -205,6 +216,8 @@ function VirtualizedFileList({
                 onReindexFile={onReindexFile}
                 onUnindexFile={onUnindexFile}
                 onViewFile={onViewFile}
+                kgEnabled={kgEnabled}
+                onExtractEntities={onExtractEntities}
                 onUpdateTags={onUpdateTags}
               />
             </div>
@@ -218,7 +231,11 @@ function VirtualizedFileList({
 // TODO: Extract toolbar/action bar into sub-component, filtering logic into
 // a dedicated hook, and move dialog state closer to dialogs to reduce complexity.
 export function FilesTab() {
-  const { files, busyPaths, refresh, toggleRag, unindexFile, indexFile, reindexFile, indexAll, unindexSource, updateTags, bulkUpdateTags } = useFiles()
+  const { files, busyPaths, refresh, toggleRag, unindexFile, indexFile, reindexFile, indexAll, unindexSource, updateTags, bulkUpdateTags, extractEntities } = useFiles()
+  const { settings } = useSettings()
+  const kgEnabled = !!settings?.plugins_enabled?.knowledge_graph
+  const COL_IDS = kgEnabled ? KG_COL_IDS : BASE_COL_IDS
+  const DEFAULT_LAYOUT = kgEnabled ? KG_LAYOUT : BASE_LAYOUT
   const { isIndexing, lastIndexedAt } = useIndexEvents()
   const [filterText, setFilterText] = useState("")
   const [refreshing, setRefreshing] = useState(false)
@@ -462,6 +479,16 @@ export function FilesTab() {
                 </SortHeader>
               </ResizablePanel>
               <ResizableHandle />
+              {kgEnabled && (
+                <>
+                  <ResizablePanel id="entities" defaultSize={DEFAULT_LAYOUT.entities} minSize={4}>
+                    <SortHeader sortKey="entities" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort} className="justify-center">
+                      Entities
+                    </SortHeader>
+                  </ResizablePanel>
+                  <ResizableHandle />
+                </>
+              )}
               <ResizablePanel id="indexed" defaultSize={DEFAULT_LAYOUT.indexed} minSize={6}>
                 <SortHeader sortKey="indexed" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort}>
                   Last Indexed
@@ -490,6 +517,8 @@ export function FilesTab() {
             onUnindexFile={setPendingUnindex}
             onViewFile={setViewingPath}
             onUpdateTags={updateTags}
+            kgEnabled={kgEnabled}
+            onExtractEntities={extractEntities}
           />
         </div>
 

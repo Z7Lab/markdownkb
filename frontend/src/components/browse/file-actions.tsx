@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { Plus, RefreshCw, Trash2 } from "lucide-react"
+import { Plus, RefreshCw, Trash2, Wand2 } from "lucide-react"
 
 interface FileActionsProps {
   status: string
@@ -11,6 +11,8 @@ interface FileActionsProps {
   onIndexFile: () => void
   onReindexFile: () => void
   onUnindexFile: () => void
+  onExtractEntities?: () => void
+  kgEnabled?: boolean
   variant?: "toggle-only" | "buttons-only" | "full"
   layout?: "row" | "column"
 }
@@ -23,6 +25,8 @@ export function FileActions({
   onIndexFile,
   onReindexFile,
   onUnindexFile,
+  onExtractEntities,
+  kgEnabled = false,
   variant = "full",
   layout = "row",
 }: FileActionsProps) {
@@ -112,6 +116,22 @@ export function FileActions({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Remove from index</TooltipContent>
+            </Tooltip>
+          )}
+          {kgEnabled && isIndexed && onExtractEntities && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  disabled={busy}
+                  onClick={onExtractEntities}
+                >
+                  <Wand2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Extract entities</TooltipContent>
             </Tooltip>
           )}
         </div>

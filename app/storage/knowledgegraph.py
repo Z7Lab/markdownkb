@@ -372,6 +372,21 @@ class KnowledgeGraphDB:
 
         return None
 
+    def get_entity_counts_by_file(self) -> dict[str, int]:
+        """Return entity count per source file: {source_path: count}."""
+        rows = self._conn.execute(
+            "SELECT source_path, COUNT(*) as c FROM kg_entities GROUP BY source_path"
+        ).fetchall()
+        return {r["source_path"]: r["c"] for r in rows}
+
+    def get_entity_count_for_file(self, source_path: str) -> int:
+        """Return entity count for a single file."""
+        row = self._conn.execute(
+            "SELECT COUNT(*) as c FROM kg_entities WHERE source_path = ?",
+            (source_path,),
+        ).fetchone()
+        return row["c"]
+
     def get_entity_types(self) -> list[str]:
         """Return all distinct entity types."""
         rows = self._conn.execute(
