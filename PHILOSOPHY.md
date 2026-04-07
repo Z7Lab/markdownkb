@@ -98,7 +98,35 @@ Most RAG systems focus on retrieval quality — better embeddings, better chunki
 
 A perfect retrieval system returning vague, outdated, or poorly structured documents produces vague, outdated, or poorly structured results. The leverage is in what goes into the knowledge base: well-structured process documents, accurate architecture descriptions, tested subagent instructions, and curated findings from real work.
 
-Focus on the input side. The retrieval side is a solved problem. The input side is where the value is created.
+Focus on the input side. Retrieval is good enough that the bottleneck has shifted — better embeddings won't save you from bad documents. The input side is where the value is created.
+
+## The Trust Boundary
+
+The compounding loop has a failure mode: it can compound errors.
+
+AI-generated documentation can be confidently wrong. A model that misunderstands an architectural decision will produce a clean, well-structured markdown file explaining something that isn't true. If that file enters the knowledge base unchecked, future agents retrieve it, trust it, and build on it. The error propagates.
+
+This means human review is the quality gate. Not every document needs line-by-line review, but the curation process — what goes in, what gets updated, what gets removed — is what determines whether the knowledge base is trustworthy. Confidence in the KB comes from the discipline of maintaining it, not from the source of the content.
+
+Three practical implications:
+
+**Treat AI-generated docs as drafts until reviewed.** The model produces the first version. A human reads it, corrects it, and promotes it to the knowledge base. This is fast — reviewing is much cheaper than writing from scratch — but the review step is non-negotiable for anything that will influence future work.
+
+**Version history is your safety net.** When a document turns out to be wrong, you need to know when it changed and what it said before. Git gives you this for free if you're already versioning markdown alongside code.
+
+**Staleness is a form of inaccuracy.** A document that was correct six months ago may be actively harmful today if the system it describes has changed. Regular curation — updating or removing stale documents as part of ongoing work — matters more than getting the initial write perfect.
+
+## Shared Memory Across Agents
+
+The compounding loop gets more powerful when it's not just one agent reading and writing — it's many.
+
+A knowledge base that serves a single chat session is a personal notebook. A knowledge base that serves multiple specialized agents — a code reviewer, a planner, a research synthesizer, a deployment assistant — is shared infrastructure. Each agent contributes knowledge from its domain and benefits from knowledge contributed by others.
+
+This changes what the knowledge base needs to be. It's not a flat collection of files — it needs scoping (which agents see which knowledge), isolation (temporary collections for investigation without polluting the permanent base), and a standard protocol so any tool in the stack can query it without custom integration.
+
+The architecture is: one knowledge backend, many consumers. A human browses it in a web UI. A coding agent queries it via MCP. An orchestration system pulls context from it before dispatching work. A review agent checks its findings against what's documented. They all read from and write to the same base, which means knowledge captured by any one of them is immediately available to all of them.
+
+This is where the economics compound fastest. A frontier model spends expensive tokens figuring out how your plugin system works. It documents what it found. Now every other agent — including cheap local models — can retrieve that documentation instead of re-deriving it. The expensive inference happens once. The cheap retrieval happens indefinitely.
 
 ## The Real Cost of Forgetting
 
