@@ -21,7 +21,7 @@ import { useState, type KeyboardEvent as ReactKeyboardEvent } from "react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useScopeTagFilter } from "@/hooks/use-scope-tag-filter"
 import { useBuckets } from "@/hooks/use-buckets"
-import { ASCII_BANNER } from "@/lib/constants"
+import { EmptyHero } from "@/components/ui/empty-hero"
 
 export function SearchTab() {
   const { scopes } = useScopes()
@@ -106,10 +106,7 @@ export function SearchTab() {
         {/* Empty state - positioned higher on screen */}
         {results.length === 0 && !summary && !loading && (
           <div className="flex flex-col items-center justify-start flex-1 gap-6 p-4 pt-[20vh]">
-            {/* ASCII Art Banner */}
-            <pre className="text-[0.45rem] leading-[0.6rem] text-primary/80 font-mono whitespace-pre">
-              {ASCII_BANNER}
-            </pre>
+            <EmptyHero icon={Search} label="Search" />
 
             {/* Search bar */}
             <div className="flex flex-col gap-1.5 w-full max-w-2xl">

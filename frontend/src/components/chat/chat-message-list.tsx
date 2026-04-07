@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FileViewerDialog } from "@/components/ui/file-viewer-dialog";
+import { EmptyHero } from "@/components/ui/empty-hero";
+import { MessageSquare } from "lucide-react";
 import type { ChatMessage } from "@/lib/types";
 import { ChatMessage as ChatMessageComponent } from "./chat-message";
 
@@ -22,8 +24,9 @@ export function ChatMessageList({
 
   if (messages.length === 0) {
     return (
-      <div className="flex-1 min-h-0 flex items-center justify-center text-muted-foreground">
-        Ask your knowledge base a question to get started.
+      <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-4">
+        <EmptyHero icon={MessageSquare} label="Chat" />
+        <p className="text-sm text-muted-foreground">Ask your knowledge base a question to get started.</p>
       </div>
     );
   }

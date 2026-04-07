@@ -15,15 +15,7 @@ import { SourceList } from "@/components/ui/source-badge"
 import { PlannerSkillReview } from "./planner-skill-review"
 import { Loader2, Lightbulb, Square, Save, Download } from "lucide-react"
 import { useEffect, useRef, useState, type KeyboardEvent } from "react"
-
-const ASCII_BANNER = `
-███╗   ███╗██████╗ ██╗  ██╗██████╗     ██████╗ ██╗      █████╗ ███╗   ██╗
-████╗ ████║██╔══██╗██║ ██╔╝██╔══██╗    ██╔══██╗██║     ██╔══██╗████╗  ██║
-██╔████╔██║██║  ██║█████╔╝ ██████╔╝    ██████╔╝██║     ███████║██╔██╗ ██║
-██║╚██╔╝██║██║  ██║██╔═██╗ ██╔══██╗    ██╔═══╝ ██║     ██╔══██║██║╚██╗██║
-██║ ╚═╝ ██║██████╔╝██║  ██╗██████╔╝    ██║     ███████╗██║  ██║██║ ╚████║
-╚═╝     ╚═╝╚═════╝ ╚═╝  ╚═╝╚═════╝     ╚═╝     ╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝
-`.trim()
+import { EmptyHero } from "@/components/ui/empty-hero"
 
 export function PlannerTab() {
   const {
@@ -114,9 +106,7 @@ export function PlannerTab() {
         {/* Empty state */}
         {!hasResults && !isPlanning && (
           <div className="flex flex-col items-center justify-start flex-1 gap-6 p-4 pt-[20vh]">
-            <pre className="text-[0.45rem] leading-[0.6rem] text-primary/80 font-mono whitespace-pre">
-              {ASCII_BANNER}
-            </pre>
+            <EmptyHero icon={Lightbulb} label="Planner" />
 
             <div className="flex gap-2 w-full max-w-2xl">
               <Input
