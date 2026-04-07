@@ -58,12 +58,13 @@ def _index_file(fi: FileInfo, settings: Settings,
         tracking.mark_complete(fi.path, 0)
         return 0
 
-    # Capture model ID once per file to avoid mid-file model switches
+    # Capture model ID and remote config once per file
     embedding_model = settings.embedding_model
+    remote_config = settings.embedding_remote_config
     for start in range(0, len(chunks), BATCH_SIZE):
         batch = chunks[start:start + BATCH_SIZE]
         texts = [c.content for c in batch]
-        embeddings = embed_texts(texts, embedding_model)
+        embeddings = embed_texts(texts, embedding_model, remote_config=remote_config)
         ids = [c.chunk_id for c in batch]
         metadatas = [c.metadata for c in batch]
         store.add(ids, texts, embeddings, metadatas)

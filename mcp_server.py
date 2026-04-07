@@ -85,6 +85,7 @@ async def lifespan(server: FastMCP):
         bucketdb = BucketDB(settings.data_directory)
         bucket_service = BucketService(
             bucketdb, settings.persist_directory, settings.embedding_model,
+            remote_config=settings.embedding_remote_config,
         )
         bucket_service.cleanup_expired()
         logger.info("BucketService initialized for MCP (buckets plugin enabled)")

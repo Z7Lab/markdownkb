@@ -19,10 +19,11 @@ logger = logging.getLogger(__name__)
 class BucketService:
     """Manages bucket lifecycle: create, search, chat, delete, cleanup."""
 
-    def __init__(self, bucketdb: BucketDB, chromadb_dir: str, embedding_model: str):
+    def __init__(self, bucketdb: BucketDB, chromadb_dir: str, embedding_model: str, remote_config: dict | None = None):
         self._db = bucketdb
         self._chromadb_dir = chromadb_dir
         self._embedding_model = embedding_model
+        self._remote_config = remote_config
 
     @property
     def db(self) -> BucketDB:
@@ -107,7 +108,7 @@ class BucketService:
 
         # Embed and store in ChromaDB
         if all_docs:
-            embeddings = embed_texts(all_docs, self._embedding_model)
+            embeddings = embed_texts(all_docs, self._embedding_model, remote_config=self._remote_config)
             store = self._get_store(bucket_id)
             store.add(all_ids, all_docs, embeddings, all_metas)
             logger.info(
@@ -181,7 +182,7 @@ class BucketService:
                 all_metas.append(chunk.metadata)
 
         if all_docs:
-            embeddings = embed_texts(all_docs, self._embedding_model)
+            embeddings = embed_texts(all_docs, self._embedding_model, remote_config=self._remote_config)
             store.add(all_ids, all_docs, embeddings, all_metas)
 
         # Update metadata counts

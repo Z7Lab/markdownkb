@@ -21,7 +21,7 @@ def on_startup(app) -> None:
     app.state.bucketdb = bucketdb
 
     chromadb_dir = str(settings.persist_directory)
-    svc = BucketService(bucketdb, chromadb_dir, settings.embedding_model)
+    svc = BucketService(bucketdb, chromadb_dir, settings.embedding_model, remote_config=settings.embedding_remote_config)
     app.state.bucket_service = svc
 
     # Clean up expired buckets on startup

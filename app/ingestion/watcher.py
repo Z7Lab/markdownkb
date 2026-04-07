@@ -85,7 +85,7 @@ def reindex_file(
             return
 
         texts = [c.content for c in chunks]
-        embeddings = embed_texts(texts, settings.embedding_model)
+        embeddings = embed_texts(texts, settings.embedding_model, remote_config=settings.embedding_remote_config)
         ids = [c.chunk_id for c in chunks]
         metadatas = [c.metadata for c in chunks]
 

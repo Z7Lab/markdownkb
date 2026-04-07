@@ -138,14 +138,16 @@ class ONNXEmbedder:
 
 
 class _EmbedderManager:
-    """Manages the active embedder singleton with model switching."""
+    """Manages the active embedder singleton — local ONNX or remote API."""
 
     def __init__(self):
         self._embedder: ONNXEmbedder | None = None
+        self._remote_embedder = None  # RemoteEmbedder | None
         self._model_id: str | None = None
+        self._remote_config: dict | None = None
 
-    def get(self, model_id: str) -> ONNXEmbedder:
-        """Return the embedder for the given model, loading if needed."""
+    def get_local(self, model_id: str) -> ONNXEmbedder:
+        """Return a local ONNX embedder for the given model."""
         if self._embedder is None or self._model_id != model_id:
             if not is_installed(model_id):
                 raise RuntimeError(
@@ -154,12 +156,27 @@ class _EmbedderManager:
                 )
             self._embedder = ONNXEmbedder(model_id)
             self._model_id = model_id
+            self._remote_embedder = None
+            self._remote_config = None
         return self._embedder
+
+    def get_remote(self, model: str, api_base: str, api_type: str = "ollama"):
+        """Return a remote embedder for the given endpoint."""
+        from app.embeddings.remote import RemoteEmbedder
+        config = {"model": model, "api_base": api_base, "api_type": api_type}
+        if self._remote_embedder is None or self._remote_config != config:
+            self._remote_embedder = RemoteEmbedder(model, api_base, api_type)
+            self._remote_config = config
+            self._embedder = None
+            self._model_id = None
+        return self._remote_embedder
 
     def clear(self):
         """Unload the current model to free memory."""
         self._embedder = None
+        self._remote_embedder = None
         self._model_id = None
+        self._remote_config = None
 
 
 _manager = _EmbedderManager()
@@ -167,16 +184,36 @@ _manager = _EmbedderManager()
 
 def embed_texts(
     texts: list[str], model_id: str = "all-MiniLM-L6-v2",
+    remote_config: dict | None = None,
 ) -> list[list[float]]:
-    """Embed a list of text strings into vectors."""
-    return _manager.get(model_id).embed(texts)
+    """Embed a list of text strings into vectors.
+
+    If remote_config is provided (with keys model, api_base, api_type),
+    uses a remote API. Otherwise uses the local ONNX model.
+    """
+    if remote_config and remote_config.get("api_base"):
+        embedder = _manager.get_remote(
+            remote_config["model"],
+            remote_config["api_base"],
+            remote_config.get("api_type", "ollama"),
+        )
+        return embedder.embed(texts)
+    return _manager.get_local(model_id).embed(texts)
 
 
 def embed_query(
     query: str, model_id: str = "all-MiniLM-L6-v2",
+    remote_config: dict | None = None,
 ) -> list[float]:
     """Embed a single query string into a vector."""
-    embedder = _manager.get(model_id)
+    if remote_config and remote_config.get("api_base"):
+        embedder = _manager.get_remote(
+            remote_config["model"],
+            remote_config["api_base"],
+            remote_config.get("api_type", "ollama"),
+        )
+        return embedder.embed([query])[0]
+    embedder = _manager.get_local(model_id)
     text = embedder._query_prefix + query if embedder._query_prefix else query
     return embedder.embed([text])[0]
 

@@ -264,6 +264,30 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
         """Set the embedding model name."""
         self._data.setdefault("embeddings", {})["model"] = value
 
+    @property
+    def embedding_provider(self) -> str:
+        """Return 'local' (ONNX) or 'remote' (Ollama/OpenAI-compatible)."""
+        return self._data.get("embeddings", {}).get("provider", "local")
+
+    @embedding_provider.setter
+    def embedding_provider(self, value: str):
+        self._data.setdefault("embeddings", {})["provider"] = value
+
+    @property
+    def embedding_remote_config(self) -> dict | None:
+        """Return remote embedding config or None if provider is local."""
+        if self.embedding_provider != "remote":
+            return None
+        emb = self._data.get("embeddings", {})
+        api_base = emb.get("api_base", "")
+        if not api_base:
+            return None
+        return {
+            "model": emb.get("remote_model", "nomic-embed-text"),
+            "api_base": api_base,
+            "api_type": emb.get("api_type", "ollama"),
+        }
+
     # Fallback model definitions used when settings.yaml has no models list
     _DEFAULT_MODELS = [
         {

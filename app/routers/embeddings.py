@@ -4,6 +4,7 @@ import logging
 import threading
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
 
 from app.config import Settings
 from app.deps import get_cancel_event, get_settings, get_store, get_tracking
@@ -74,7 +75,47 @@ def list_embedding_models(request: Request, settings: Settings = Depends(get_set
     return {
         "models": list_models_with_status(),
         "active_model": settings.embedding_model,
+        "provider": settings.embedding_provider,
+        "remote_config": settings.embedding_remote_config,
     }
+
+
+class _RemoteEmbeddingTestRequest(BaseModel):
+    model: str = "nomic-embed-text"
+    api_base: str
+    api_type: str = "ollama"
+
+
+class _EmbeddingProviderRequest(BaseModel):
+    provider: str  # "local" or "remote"
+    remote_model: str = "nomic-embed-text"
+    api_base: str = ""
+    api_type: str = "ollama"
+
+
+@router.post("/settings/embedding-models/test-remote")
+@limiter.limit(STANDARD)
+def test_remote_embedding_endpoint(request: Request, req: _RemoteEmbeddingTestRequest):
+    """Test a remote embedding endpoint."""
+    from app.embeddings.remote import test_remote_embedding
+    return test_remote_embedding(req.model, req.api_base, req.api_type)
+
+
+@router.put("/settings/embedding-provider")
+@limiter.limit(STANDARD)
+def save_embedding_provider(
+    request: Request,
+    req: _EmbeddingProviderRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """Save embedding provider config (local or remote)."""
+    settings.embedding_provider = req.provider
+    emb = settings._data.setdefault("embeddings", {})
+    emb["api_base"] = req.api_base
+    emb["remote_model"] = req.remote_model
+    emb["api_type"] = req.api_type
+    settings.save()
+    return {"status": "saved", "provider": req.provider}
 
 
 @router.get("/settings/embedding-models/status")

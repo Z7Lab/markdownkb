@@ -64,7 +64,7 @@ class Retriever:
             return []
 
         # Vector search
-        query_embedding = embed_query(query, self._settings.embedding_model)
+        query_embedding = embed_query(query, self._settings.embedding_model, remote_config=self._settings.embedding_remote_config)
 
         where = None
         if folders_filter and len(folders_filter) == 1:

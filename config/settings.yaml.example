@@ -26,11 +26,17 @@ global_ignore:
 - '**/build/**'
 - '**/dist/**'
 
-# Embedding model settings (ONNX, runs locally on CPU)
+# Embedding model settings
 embeddings:
+  provider: local        # "local" (ONNX on CPU) or "remote" (Ollama/OpenAI-compatible API)
   model: all-MiniLM-L6-v2
   chunk_size: 1500       # ~375-500 tokens; use 512 chars for small corpora
   chunk_overlap: 150     # 10% overlap for context continuity
+
+  # Remote embedding (when provider: remote)
+  # api_base: http://192.168.x.x:11434     # Ollama on another machine
+  # remote_model: nomic-embed-text          # Model name on the remote server
+  # api_type: ollama                        # "ollama" or "openai" (OpenAI-compatible API)
 
   # Available models — the active model is auto-downloaded on first startup.
   # Add your own ONNX sentence-transformer models here.
