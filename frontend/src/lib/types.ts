@@ -40,8 +40,8 @@ export interface ScoreChange {
 export interface SavedSearch {
   id: string
   query: string
-  folder: string | null
-  tag: string | null
+  folder?: string | null
+  tag?: string | null
   summary: string | null
   source: string | null
   result_paths: string[]

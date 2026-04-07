@@ -215,12 +215,10 @@ export function streamPlan(
 export function streamSearchSummary(
   query: string,
   callbacks: SummaryCallbacks,
-  options?: { top_k?: number; folder?: string | null; tag?: string | null; search_id?: string | null; scope_ids?: string | null; ad_hoc_tags?: string[] | null; deep_research?: boolean; deep_research_iterations?: number },
+  options?: { top_k?: number; search_id?: string | null; scope_ids?: string | null; ad_hoc_tags?: string[] | null; deep_research?: boolean; deep_research_iterations?: number },
 ): AbortController {
   const body: Record<string, unknown> = { query }
   if (options?.top_k) body.top_k = options.top_k
-  if (options?.folder) body.folder = options.folder
-  if (options?.tag) body.tag = options.tag
   if (options?.search_id) body.search_id = options.search_id
   if (options?.scope_ids) body.scope_ids = options.scope_ids
   if (options?.ad_hoc_tags && options.ad_hoc_tags.length > 0) body.ad_hoc_tags = options.ad_hoc_tags

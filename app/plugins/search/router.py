@@ -137,7 +137,7 @@ def search(
         result_paths = [r["metadata"]["source_path"] for r in results if r.get("metadata", {}).get("source_path")]
         result_details = [{"path": r["metadata"]["source_path"], "score": r["score"]} for r in results]
         search_id = searchdb.save_search(
-            req.query, req.folder, req.tag,
+            req.query, None, None,
             result_paths=result_paths,
             result_count=len(results),
             result_details=result_details,
@@ -181,9 +181,7 @@ def search(
     chunk_results = retriever.search(
         search_query,
         top_k=chunk_fetch_limit,
-        folder_filter=req.folder,
         folders_filter=scope_folders or None,
-        tag_filter=req.tag,
         allowed_paths=allowed,
     )
 
@@ -234,8 +232,8 @@ def search(
     # Auto-save search to history with full result data
     search_id = searchdb.save_search(
         req.query,
-        req.folder,
-        req.tag,
+        None,
+        None,
         result_paths=result_paths,
         result_count=result_count,
         result_details=result_details,
@@ -336,8 +334,6 @@ def compare_historical_search(
     chunk_results = retriever.search(
         search_query,
         top_k=chunk_fetch_limit,
-        folder_filter=search_record.get("folder"),
-        tag_filter=search_record.get("tag"),
     )
     if cmp_phrases:
         chunk_results = [r for r in chunk_results if all(p in r.document.lower() for p in cmp_phrases)]
@@ -485,9 +481,7 @@ def summarize_search(
     results = retriever.search(
         sum_search_q,
         top_k=top_k,
-        folder_filter=req.folder,
         folders_filter=scope_folders or None,
-        tag_filter=req.tag,
         allowed_paths=allowed,
     )
 

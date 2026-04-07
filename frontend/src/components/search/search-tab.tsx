@@ -39,9 +39,7 @@ export function SearchTab() {
 
   const {
     query, setQuery,
-    folder, setFolder,
-    tag, setTag,
-    results, folders, tags,
+    results,
     loading, loadingHistorical, error, search,
     searches, activeSearchId,
     renameSearch, deleteSearch, loadSearch,
@@ -89,18 +87,12 @@ export function SearchTab() {
       <SearchSidebar
         searches={searches}
         activeSearchId={activeSearchId}
-        folders={folders}
-        tags={tags}
         scopes={scopes}
-        selectedFolder={folder}
-        selectedTag={tag}
         selectedScopeIds={selectedScopeIds}
         onNewSearch={newSearch}
         onLoadSearch={loadSearch}
         onRenameSearch={renameSearch}
         onDeleteSearch={deleteSearch}
-        onFolderChange={setFolder}
-        onTagChange={setTag}
         onScopeChange={handleScopeChange}
         availableTags={availableTags}
         selectedAdHocTags={selectedAdHocTags}
@@ -184,22 +176,6 @@ export function SearchTab() {
                         Documents were re-indexed after this search. Re-query for fresh results.
                       </TooltipContent>
                     </Tooltip>
-                  )}
-
-                  {/* Folder/Tag filters */}
-                  {(folder || tag) && (
-                    <div className="flex items-center gap-1">
-                      {folder && (
-                        <Badge variant="outline" className="text-xs">
-                          📁 {folder.split("/").pop()}
-                        </Badge>
-                      )}
-                      {tag && (
-                        <Badge variant="outline" className="text-xs">
-                          🏷️ {tag}
-                        </Badge>
-                      )}
-                    </div>
                   )}
 
                   {/* Deep research toggle */}

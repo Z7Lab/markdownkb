@@ -31,11 +31,7 @@ const INITIAL_HISTORICAL: HistoricalMeta = {
 
 export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null, bucketId?: string | null) {
   const [query, setQuery] = useState("")
-  const [folder, setFolder] = useState<string | null>(null)
-  const [tag, setTag] = useState<string | null>(null)
   const [results, setResults] = useState<SearchResult[]>([])
-  const [folders, setFolders] = useState<string[]>([])
-  const [tags, setTags] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingHistorical, setLoadingHistorical] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -65,13 +61,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
   useEffect(() => {
     const cancelRetry = retryWithBackoff(async () => {
       try {
-        const [foldersRes, tagsRes, searchesRes] = await Promise.all([
-          api.get<PaginatedResponse<string>>("/api/folders"),
-          api.get<PaginatedResponse<string>>("/api/tags"),
-          api.get<PaginatedResponse<SavedSearch>>("/api/searches?limit=100"),
-        ])
-        setFolders(foldersRes.items)
-        setTags(tagsRes.items)
+        const searchesRes = await api.get<PaginatedResponse<SavedSearch>>("/api/searches?limit=100")
         setSearches(searchesRes.items)
         return true
       } catch (err) {
@@ -112,7 +102,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
   /** Start streaming an AI summary for the given query */
   const startSummary = useCallback((
     searchQuery: string,
-    options: { folder?: string | null; tag?: string | null; search_id?: string | null },
+    options: { search_id?: string | null },
   ) => {
     setIsSummarizing(true)
     setSummaryStatus(null)
@@ -166,8 +156,6 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
     try {
       const res = await api.post<SearchResponse>("/api/search", {
         query: query.trim(),
-        folder: folder || undefined,
-        tag: tag || undefined,
         scope_ids: scopeIds || undefined,
         ad_hoc_tags: adHocTags && adHocTags.length > 0 ? adHocTags : undefined,
         bucket_id: bucketId || undefined,
@@ -181,7 +169,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
         toast.warning("Intelligent search unavailable (LLM offline), using standard search")
       }
 
-      startSummary(query.trim(), { folder, tag, search_id: res.search_id })
+      startSummary(query.trim(), { search_id: res.search_id })
     } catch (err) {
       const msg = (err as Error).message
       setError(msg)
@@ -189,7 +177,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
     } finally {
       setLoading(false)
     }
-  }, [query, folder, tag, scopeIds, adHocTags, bucketId, refreshSearches, resetSummary, startSummary])
+  }, [query, scopeIds, adHocTags, bucketId, refreshSearches, resetSummary, startSummary])
 
   const search = useCallback(() => executeSearch(), [executeSearch])
 
@@ -218,8 +206,6 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
 
   const loadSearch = useCallback(async (saved: SavedSearch) => {
     setQuery(saved.query)
-    setFolder(saved.folder)
-    setTag(saved.tag)
     setActiveSearchId(saved.id)
 
     summaryControllerRef.current?.abort()
@@ -269,8 +255,6 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
     await loadSearch({
       id: version.id,
       query: version.query,
-      folder: folder,
-      tag: tag,
       summary: version.summary,
       source: null,
       result_paths: [],
@@ -279,7 +263,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
       last_viewed_at: null,
       created_at: version.created_at,
     })
-  }, [loadSearch, folder, tag])
+  }, [loadSearch])
 
   const fetchVersions = useCallback(async (searchId: string): Promise<SearchVersion[]> => {
     try {
@@ -303,14 +287,12 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
   const generateSummary = useCallback(async () => {
     if (!query.trim()) return
     resetSummary()
-    startSummary(query.trim(), { folder, tag, search_id: activeSearchId || undefined })
-  }, [query, folder, tag, activeSearchId, resetSummary, startSummary])
+    startSummary(query.trim(), { search_id: activeSearchId || undefined })
+  }, [query, activeSearchId, resetSummary, startSummary])
 
   const newSearch = useCallback(() => {
     summaryControllerRef.current?.abort()
     setQuery("")
-    setFolder(null)
-    setTag(null)
     setResults([])
     setSummary("")
     setSummarySources([])
@@ -324,8 +306,8 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
   }, [])
 
   return {
-    query, setQuery, folder, setFolder, tag, setTag,
-    results, folders, tags, loading, loadingHistorical, error, search,
+    query, setQuery,
+    results, loading, loadingHistorical, error, search,
     searches, activeSearchId, renameSearch, deleteSearch, loadSearch,
     summary, summarySources, summaryStatus, isSummarizing, stopSummary, generateSummary,
     deepResearch, setDeepResearch,

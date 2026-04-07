@@ -10,8 +10,6 @@ class SearchRequest(BaseModel):
 
     query: str = Field(..., min_length=1, max_length=500)
     top_k: int | None = Field(None, ge=1, le=50)
-    folder: str | None = None
-    tag: str | None = None
     scope_id: str | None = None
     scope_ids: str | None = None  # Comma-separated scope IDs (multi-select)
     ad_hoc_tags: list[str] | None = None  # Ad-hoc tag filter (OR logic)
@@ -24,8 +22,6 @@ class SummarizeRequest(BaseModel):
 
     query: str = Field(..., min_length=1, max_length=500)
     top_k: int | None = Field(None, ge=1, le=50)
-    folder: str | None = None
-    tag: str | None = None
     scope_id: str | None = None
     scope_ids: str | None = None
     ad_hoc_tags: list[str] | None = None
