@@ -393,7 +393,9 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
 
     def plugin_enabled(self, name: str) -> bool:
         """Check whether plugin *name* is enabled via ``plugins.<name>.enabled``."""
-        cfg = self._data.get("plugins", {}).get(name, {})
+        cfg = self._data.get("plugins", {}).get(name)
+        if not isinstance(cfg, dict):
+            return bool(cfg) if cfg is not None else False
         return cfg.get("enabled", False)
 
     def set_plugin_enabled(self, name: str, enabled: bool) -> None:
