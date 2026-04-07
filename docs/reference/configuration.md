@@ -82,9 +82,9 @@ Each immediate subdirectory of `path` is treated as a project. If any files matc
 
 The code defaults (512/50) are conservative fallbacks. The recommended values (1500/150) are set in `settings.yaml.example` and optimized for `bge-small-en-v1.5` (1500 chars &asymp; 375 tokens, within the model's 512-token window). After changing chunk settings, re-index all files for the new values to take effect.
 
-Three local ONNX embedding models are available: `all-MiniLM-L6-v2`, `all-MiniLM-L12-v2`, and `bge-small-en-v1.5`. Alternatively, set `provider: remote` to offload embeddings to an Ollama instance or OpenAI-compatible API on another machine. See [embedding-models.md](embedding-models.md) for details.
+Three local ONNX embedding models are available: `all-MiniLM-L6-v2`, `all-MiniLM-L12-v2`, and `bge-small-en-v1.5`. Alternatively, set `provider: remote` to offload embeddings to an Ollama instance or OpenAI-compatible API on another machine. See [embedding-models.md](../how-to/embedding-models.md) for details.
 
-For a detailed explanation of how chunking works — header splitting, paragraph boundaries, breadcrumbs, frontmatter extraction, and how to structure files for best search quality — see [chunking.md](chunking.md).
+For a detailed explanation of how chunking works — header splitting, paragraph boundaries, breadcrumbs, frontmatter extraction, and how to structure files for best search quality — see [chunking.md](../explanation/chunking.md).
 
 ## LLM Providers
 

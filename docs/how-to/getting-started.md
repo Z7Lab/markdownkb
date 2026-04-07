@@ -87,13 +87,13 @@ mdkb exposes 32 MCP tools over stdio or SSE. Any MCP-compatible client can searc
 **Claude Desktop / Claude Code:**
 Add mdkb as an MCP server pointing to `http://localhost:9715/sse` (SSE transport) or run `python mcp_server.py` (stdio).
 
-See [MCP Server](mcp-server.md) for the full tool reference and setup instructions.
+See [MCP Server](../reference/mcp-server.md) for the full tool reference and setup instructions.
 
 ## What's Next
 
-- **[Configuration](configuration.md)** — all settings, feature flags, secrets
+- **[Configuration](../reference/configuration.md)** — all settings, feature flags, secrets
 - **[Embedding Models](embedding-models.md)** — choose and configure embedding models
-- **[Architecture](architecture.md)** — how the system works
+- **[Architecture](../reference/architecture.md)** — how the system works
 - **[Plugins](plugin-development.md)** — enable features and build your own
-- **[API Reference](api.md)** — full endpoint listing
-- **[Security](../SECURITY.md)** — API key setup, network exposure, feature flags
+- **[API Reference](../reference/api.md)** — full endpoint listing
+- **[Security](../../SECURITY.md)** — API key setup, network exposure, feature flags

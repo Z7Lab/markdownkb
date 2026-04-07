@@ -95,7 +95,7 @@ Embeddings are separate from the chat model. By default, mdkb uses a local ONNX 
 
 ## Remote Ollama (Different Machine)
 
-If Ollama runs on a different machine on your network, see [Ollama Remote Setup](ollama-remote-setup.md) for network configuration, security, and SSH tunneling.
+If Ollama runs on a different machine on your network, see [Ollama Remote Setup](../thirdparty/ollama-remote-setup.md) for network configuration, security, and SSH tunneling.
 
 ## Troubleshooting
 

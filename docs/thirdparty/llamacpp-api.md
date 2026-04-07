@@ -446,4 +446,4 @@ ss -tlnp | grep 8080
 
 - [OpenAI API Reference](https://platform.openai.com/docs/api-reference/chat) - Full API specification
 - [llama.cpp Documentation](https://github.com/ggml-org/llama.cpp/blob/master/docs/docker.md)
-- [mdkb Configuration Guide](configuration.md)
+- [mdkb Configuration Guide](../reference/configuration.md)

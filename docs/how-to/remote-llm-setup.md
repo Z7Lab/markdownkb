@@ -463,7 +463,7 @@ retrieval:
 
 ## Additional Resources
 
-- [Ollama Remote Setup Guide](ollama-remote-setup.md)
-- [llama.cpp Setup Guide](llamacpp-setup.md)
-- [llama.cpp API Reference](llamacpp-api.md)
-- [Performance Benchmarking](llm-benchmarking.md)
+- [Ollama Remote Setup Guide](../thirdparty/ollama-remote-setup.md)
+- [llama.cpp Setup Guide](../thirdparty/llamacpp-setup.md)
+- [llama.cpp API Reference](../thirdparty/llamacpp-api.md)
+- [Performance Benchmarking](../reference/llm-benchmarking.md)

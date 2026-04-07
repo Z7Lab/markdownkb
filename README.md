@@ -86,7 +86,7 @@ make clean      # stop container and remove image
 
 ## Configuration
 
-Edit `config/settings.yaml` or use the **Settings** tab in the UI. See [docs/configuration.md](docs/configuration.md) for the full reference (all settings, feature flags, `.env` vs `settings.yaml` precedence).
+Edit `config/settings.yaml` or use the **Settings** tab in the UI. See [docs/reference/configuration.md](docs/reference/configuration.md) for the full reference (all settings, feature flags, `.env` vs `settings.yaml` precedence).
 
 ## LLM Setup
 
@@ -94,33 +94,33 @@ mdkb calls LLMs over the network — it doesn't run them locally.
 
 **Anthropic / OpenAI / Venice:** Add your API key to `secrets/<provider>_api_key` (see `secrets/README.md`) or set the `<PROVIDER>_API_KEY` environment variable.
 
-**Ollama on another machine:** See [docs/ollama-remote-setup.md](docs/ollama-remote-setup.md).
+**Ollama on another machine:** See [docs/thirdparty/ollama-remote-setup.md](docs/thirdparty/ollama-remote-setup.md).
 
 ## API
 
 Interactive docs (Swagger UI) at `http://localhost:9713/docs` — always up to date.
 
-See [docs/api.md](docs/api.md) for the full endpoint reference.
+See [docs/reference/api.md](docs/reference/api.md) for the full endpoint reference.
 
 ## CLI
 
-mdkb includes a command-line interface for indexing and search without starting the web server. See [docs/cli.md](docs/cli.md).
+mdkb includes a command-line interface for indexing and search without starting the web server. See [docs/reference/cli.md](docs/reference/cli.md).
 
 ## Documentation
 
 | Document | Description |
 |----------|-------------|
-| [Getting Started](docs/getting-started.md) | Install, configure, first search and chat |
-| [Local LLM Setup](docs/local-llm-setup.md) | Step-by-step Ollama install and model setup |
-| [API Key Setup](docs/api-key-setup.md) | When you need a key, how to set one |
-| [Configuration](docs/configuration.md) | All settings, feature flags, `.env` vs `settings.yaml` |
-| [API Reference](docs/api.md) | Full endpoint listing |
-| [MCP Server](docs/mcp-server.md) | 32 MCP tools, transports, authentication |
-| [Architecture](docs/architecture.md) | System overview, data flow, storage, plugins |
-| [Embedding Models](docs/embedding-models.md) | Local ONNX and remote embedding (Ollama, cloud) |
-| [Knowledge Graph](docs/knowledge-graph.md) | Entity extraction and document similarity |
+| [Getting Started](docs/how-to/getting-started.md) | Install, configure, first search and chat |
+| [Local LLM Setup](docs/how-to/local-llm-setup.md) | Step-by-step Ollama install and model setup |
+| [API Key Setup](docs/how-to/api-key-setup.md) | When you need a key, how to set one |
+| [Configuration](docs/reference/configuration.md) | All settings, feature flags, `.env` vs `settings.yaml` |
+| [API Reference](docs/reference/api.md) | Full endpoint listing |
+| [MCP Server](docs/reference/mcp-server.md) | 32 MCP tools, transports, authentication |
+| [Architecture](docs/reference/architecture.md) | System overview, data flow, storage, plugins |
+| [Embedding Models](docs/how-to/embedding-models.md) | Local ONNX and remote embedding (Ollama, cloud) |
+| [Knowledge Graph](docs/explanation/knowledge-graph.md) | Entity extraction and document similarity |
 | [Security](SECURITY.md) | Threat model, feature flags, vulnerability reporting |
-| [All Documentation](docs/README.md) | Full documentation index |
+| [All Documentation](docs/README.md) | Full documentation index (Diataxis) |
 
 ## Project Structure
 
