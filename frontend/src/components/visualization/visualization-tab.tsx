@@ -151,15 +151,18 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
 
   const prevScopeRef = useRef(scopeIdsParam)
   const prevTagsRef = useRef(adHocTagsParam)
+  const prevWordCloudsRef = useRef(wordClouds)
 
-  // Re-fetch when scope or tag selection changes (not on initial mount)
+  // Re-fetch when scope, tag, or word cloud selection changes (not on initial mount)
   useEffect(() => {
     const scopeChanged = prevScopeRef.current !== scopeIdsParam
     const tagsChanged = JSON.stringify(prevTagsRef.current) !== JSON.stringify(adHocTagsParam)
-    if (scopeChanged || tagsChanged) {
+    const wcChanged = prevWordCloudsRef.current !== wordClouds
+    if (scopeChanged || tagsChanged || wcChanged) {
       prevScopeRef.current = scopeIdsParam
       prevTagsRef.current = adHocTagsParam
-      fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam)
+      prevWordCloudsRef.current = wordClouds
+      fetchDocMap(scopeIdsParam, wcChanged, wordClouds, adHocTagsParam)
     }
   }, [fetchDocMap, scopeIdsParam, adHocTagsParam, wordClouds])
 
@@ -258,17 +261,18 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
   const activeIsLoading = mode === "knowledge" ? kgLoading : isLoading
   const hasData = mode === "knowledge" ? (kgData && kgData.entities.length > 0) : (docmapData && docmapData.nodes.length > 0)
 
-  // Track whether the graph data has been completely replaced (new fetch),
-  // vs just filtered (threshold change). Only recenter on a full data
-  // replacement — threshold changes keep the user's camera position.
+  // Track whether the graph structure has changed (different documents),
+  // vs cosmetic changes (threshold slider, word cloud toggle).
+  // Only recenter when the node set actually changes.
   const prevDataId = useRef<string | null>(null)
   useEffect(() => {
-    // Use docmapData identity (not forceDocMapData) to detect new fetches.
-    // Threshold changes recompute forceDocMapData but docmapData stays the same.
     const dataId = docmapData ? `${docmapData.stats.doc_count}:${docmapData.stats.chunk_count}` : null
     if (dataId !== prevDataId.current) {
+      const isFirstData = prevDataId.current === null
       prevDataId.current = dataId
-      if (initialFitDone.current && dataId !== null) {
+      // Only recenter when doc/chunk counts change (scope switch, reindex),
+      // not on initial load or word cloud toggles (same doc set).
+      if (!isFirstData && initialFitDone.current && dataId !== null) {
         pendingRecenter.current = true
       }
     }
@@ -304,7 +308,10 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
     } else {
       spreadInitialized.current = true
     }
-  }, [forceDocMapData, spread])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- forceDocMapData intentionally excluded;
+  // force config depends only on spread. Including forceDocMapData causes reheat on every
+  // threshold change, which resets the camera via onEngineStop.
+  }, [spread])
 
   // Active word cloud based on selection state
   const { activeWordCloud, wordCloudLabel } = useMemo(() => {
