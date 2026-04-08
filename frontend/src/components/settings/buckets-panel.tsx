@@ -5,7 +5,8 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { Database, Plus, Trash2, Clock } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Database, Plus, Trash2, Clock, Infinity } from "lucide-react"
 import { useBuckets, type Bucket, type CreateBucketParams } from "@/hooks/use-buckets"
 
 
@@ -16,7 +17,7 @@ function formatExpiry(expiresAt: string | null): string {
 }
 
 export function BucketsPanel() {
-  const { buckets, createBucket, deleteBucket } = useBuckets()
+  const { buckets, createBucket, deleteBucket, updateExpiration } = useBuckets()
   const [name, setName] = useState("")
   const [sourcePath, setSourcePath] = useState("")
   const [sourceGlob, setSourceGlob] = useState("**/*.md")
@@ -128,32 +129,61 @@ export function BucketsPanel() {
               {buckets.map((b) => (
                 <div
                   key={b.id}
-                  className="flex items-start justify-between gap-2 p-2 rounded border text-xs"
+                  className="p-2 rounded border text-xs space-y-2"
                 >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <Database className="h-3 w-3 text-muted-foreground shrink-0" />
-                      <span className="font-medium truncate">{b.name}</span>
-                    </div>
-                    <div className="text-muted-foreground mt-0.5 space-x-2">
-                      <span>{b.file_count} files</span>
-                      <span>{b.chunk_count} chunks</span>
-                    </div>
-                    {b.expires_at && (
-                      <div className="text-muted-foreground mt-0.5 flex items-center gap-1">
-                        <Clock className="h-2.5 w-2.5" />
-                        <span>Expires: {formatExpiry(b.expires_at)}</span>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <Database className="h-3 w-3 text-muted-foreground shrink-0" />
+                        <span className="font-medium truncate">{b.name}</span>
                       </div>
-                    )}
+                      <div className="text-muted-foreground mt-0.5 space-x-2">
+                        <span>{b.file_count} files</span>
+                        <span>{b.chunk_count} chunks</span>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => setDeleteTarget(b)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                    onClick={() => setDeleteTarget(b)}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground shrink-0">Expiration:</span>
+                    <Select
+                      value="__pick__"
+                      onValueChange={async (v) => {
+                        if (v === "permanent") await updateExpiration(b.id, null)
+                        else if (v === "1h") await updateExpiration(b.id, 3600)
+                        else if (v === "24h") await updateExpiration(b.id, 86400)
+                        else if (v === "7d") await updateExpiration(b.id, 604800)
+                      }}
+                    >
+                      <SelectTrigger className="h-6 text-[11px] w-36">
+                        <SelectValue placeholder={b.expires_at ? formatExpiry(b.expires_at) : "Permanent"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__pick__" disabled className="text-muted-foreground">
+                          {b.expires_at ? `Current: ${formatExpiry(b.expires_at)}` : "Currently permanent"}
+                        </SelectItem>
+                        <SelectItem value="permanent">
+                          <span className="flex items-center gap-1"><Infinity className="h-2.5 w-2.5" /> Permanent</span>
+                        </SelectItem>
+                        <SelectItem value="1h">
+                          <span className="flex items-center gap-1"><Clock className="h-2.5 w-2.5" /> 1 hour</span>
+                        </SelectItem>
+                        <SelectItem value="24h">
+                          <span className="flex items-center gap-1"><Clock className="h-2.5 w-2.5" /> 24 hours</span>
+                        </SelectItem>
+                        <SelectItem value="7d">
+                          <span className="flex items-center gap-1"><Clock className="h-2.5 w-2.5" /> 7 days</span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               ))}
             </div>
