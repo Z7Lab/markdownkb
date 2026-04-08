@@ -10,7 +10,7 @@ The Settings class is composed from domain-specific mixins:
 Settings layout (post-migration)::
 
     core:        # behaviour toggles that aren't plugins
-    mcp:         # MCP tool enable flags (filesystem, terminal)
+    mcp:         # MCP tool enable flags (read_only, save_document, etc.)
     plugins:     # each plugin: enabled + its config together
       search:
         enabled: true
@@ -47,10 +47,7 @@ _CORE_FLAGS = frozenset({
     "deep_research", "agent_skills", "diagnostics",
 })
 
-_MCP_FLAGS = {
-    "mcp_filesystem": "filesystem",
-    "mcp_terminal": "terminal",
-}
+_MCP_FLAGS: dict[str, str] = {}
 
 # Old feature-flag name → plugin directory name
 _PLUGIN_FLAG_MAP = {

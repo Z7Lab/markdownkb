@@ -1,5 +1,0 @@
-# MCP Filesystem Tool Configuration
-# Browse directories and read files through MCP protocol
-
-max_depth: 3  # Maximum directory depth for browsing
-max_file_size: 1000000  # Maximum file size to read (bytes)

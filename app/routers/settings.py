@@ -92,7 +92,7 @@ _KNOWN_CORE_FLAGS = frozenset({
     "deep_research", "agent_skills", "diagnostics",
 })
 
-_KNOWN_MCP_FLAGS = frozenset({"filesystem", "terminal"})
+_KNOWN_MCP_FLAGS: frozenset[str] = frozenset()
 
 
 @router.put("/settings/core")

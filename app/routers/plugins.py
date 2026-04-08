@@ -78,18 +78,6 @@ _CORE_FEATURES = {
         "icon": "gauge",
         "category": "advanced",
     },
-    "mcp_filesystem": {
-        "display_name": "MCP Filesystem",
-        "description": "Allow the AI planner to explore the filesystem.",
-        "icon": "folder-search",
-        "category": "mcp",
-    },
-    "mcp_terminal": {
-        "display_name": "MCP Terminal",
-        "description": "Allow the AI planner to run shell commands.",
-        "icon": "terminal",
-        "category": "mcp",
-    },
 }
 
 

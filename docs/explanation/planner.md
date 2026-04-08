@@ -30,7 +30,7 @@ The tradeoff is time — MCTS makes multiple LLM calls (one per expansion). A 3-
 
 ## How It Works
 
-The planner runs a 5-phase pipeline:
+The planner runs a 4-phase pipeline:
 
 ```
 User Request
@@ -39,16 +39,13 @@ User Request
 Phase 1: Research ─────────── Search KB (top_k=10)
     │
     ▼
-Phase 2: Explore ──────────── Browse filesystem via MCP (optional)
-    │
-    ▼
-Phase 3: Generate Approaches ─ LLM produces N distinct approaches
+Phase 2: Generate Approaches ─ LLM produces N distinct approaches
     │                           Each scored on 4 dimensions
     ▼
-Phase 4: Iterate ──────────── UCB1 selects best approach, LLM expands
+Phase 3: Iterate ──────────── UCB1 selects best approach, LLM expands
     │                           Repeat M times, score & backpropagate
     ▼
-Phase 5: Extract Best Plan ── Follow highest-scoring path through tree
+Phase 4: Extract Best Plan ── Follow highest-scoring path through tree
     │
     ▼
 (Optional) Skill Reviews ──── Specialist agents review & refine plan
@@ -58,21 +55,7 @@ Phase 5: Extract Best Plan ── Follow highest-scoring path through tree
 
 The retriever searches your knowledge base for documents relevant to the request. This grounds everything that follows in your actual docs and code — the planner never generates in a vacuum.
 
-### Phase 2: Filesystem Exploration
-
-If the `mcp.filesystem` flag is enabled in settings, the planner browses directories referenced in the research results (up to 5 directories, 2 levels deep). This gives the LLM structural context — what files exist, how the project is organized.
-
-This is implemented via an internal HTTP endpoint (`app/lib/filesystem/`) that provides directory listing, file reading, and pattern search. It's not an MCP tool that external agents call — it's used by the planner internally.
-
-There's also an optional `mcp.terminal` flag that allows the planner to execute safe, allowlisted shell commands (e.g. `ls`, `find`, `wc`). Both are disabled by default and controlled in `config/settings.yaml` under `mcp:`:
-
-```yaml
-mcp:
-  filesystem: false   # planner filesystem exploration
-  terminal: false     # planner safe command execution
-```
-
-### Phase 3: Generate Approaches
+### Phase 2: Generate Approaches
 
 The LLM generates N distinct implementation approaches (default 3). Each approach is scored on four dimensions:
 
@@ -85,13 +68,13 @@ The LLM generates N distinct implementation approaches (default 3). Each approac
 
 User patterns (React, FastAPI, TypeScript, etc.) are extracted automatically from your indexed documents.
 
-### Phase 4: Iterate
+### Phase 3: Iterate
 
 The planner uses UCB1 (Upper Confidence Bound) to balance exploration vs exploitation — it picks the most promising approach but also considers under-explored ones. Each iteration expands the selected approach into more detailed implementation steps, scores the result, and backpropagates the score up the tree.
 
 Default: 3 iterations. Configurable via the `iterations` parameter.
 
-### Phase 5: Extract Best Plan
+### Phase 4: Extract Best Plan
 
 The tree is traversed following the highest-scoring path from root to leaf. All node content along this path is concatenated into the final implementation plan.
 
@@ -164,12 +147,9 @@ plugins:
 
 core:
   agent_skills: false       # Enable skill review system
-
-mcp:
-  filesystem: false         # Enable filesystem exploration during planning
 ```
 
-The planner also depends on having an active LLM provider and indexed documents in the knowledge base. Planning quality scales with how much relevant content is indexed.
+The planner depends on having an active LLM provider and indexed documents in the knowledge base. Planning quality scales with how much relevant content is indexed.
 
 ## Deep Research
 

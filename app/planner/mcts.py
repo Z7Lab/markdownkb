@@ -2,11 +2,9 @@
 
 import logging
 import re
-from pathlib import Path
 from typing import Any
 
 from app.config import Settings
-from app.lib.filesystem import format_tree
 from app.planner.nodes import PlanNode
 from app.planner.scoring import score_approach, extract_user_patterns
 from app.rag.llm import get_completion
@@ -54,7 +52,6 @@ class MCTSPlanner:
         self._settings = settings or Settings.get()
         self._user_patterns: list[str] = []
         self._exploration_log: list[str] = []
-        self._exploration_context = ""
         self._research_results: list[dict] = []
         self._folders_filter = folders_filter
         self._allowed_paths = allowed_paths
@@ -73,26 +70,18 @@ class MCTSPlanner:
         logger.info("MCTS Phase 1: Research")
         self._research_results = self._research(request)
 
-        # Phase 2: Explore -- if MCP is enabled, explore filesystem
-        self._exploration_context = ""
-        if self._settings.mcp_enabled("filesystem"):
-            logger.info("MCTS Phase 2: Filesystem exploration")
-            self._exploration_context = self._explore_filesystem(
-                self._research_results
-            )
-
-        # Phase 3: Generate approaches
-        logger.info("MCTS Phase 3: Generate approaches")
+        # Phase 2: Generate approaches
+        logger.info("MCTS Phase 2: Generate approaches")
         root = PlanNode(content=request, node_type="root")
         self._expand(root, request, n_approaches)
 
-        # Phase 4: Evaluate and refine
-        logger.info("MCTS Phase 4: Evaluate and refine")
+        # Phase 3: Evaluate and refine
+        logger.info("MCTS Phase 3: Evaluate and refine")
         for i in range(iterations):
             logger.info("  Iteration %d/%d", i + 1, iterations)
             self._iterate(root, request)
 
-        # Phase 5: Extract best plan
+        # Phase 4: Extract best plan
         best_plan = root.flatten_plan()
         best_path = root.get_best_path()
 
@@ -161,36 +150,6 @@ class MCTSPlanner:
             for r in results
         ]
 
-    def _explore_filesystem(
-        self, research_results: list[dict]
-    ) -> str:
-        """Explore directories referenced in research results."""
-        explored: list[str] = []
-
-        paths_to_explore: set[str] = set()
-        for r in research_results:
-            source = r["metadata"].get("source_path", "")
-            if source:
-                parent = str(Path(source).parent)
-                paths_to_explore.add(parent)
-
-        for path in list(paths_to_explore)[:5]:
-            try:
-                tree = format_tree(path, max_depth=2)
-                explored.append(f"Directory: {path}\n{tree}")
-                self._exploration_log.append(
-                    f"Explored directory: {path}"
-                )
-            except (
-                FileNotFoundError, NotADirectoryError,
-                PermissionError,
-            ) as e:
-                self._exploration_log.append(
-                    f"Failed to explore {path}: {e}"
-                )
-
-        return "\n\n".join(explored)
-
     def _build_context(
         self, research_results: list[dict]
     ) -> tuple[str, list[dict]]:
@@ -202,12 +161,6 @@ class MCTSPlanner:
             f"[{m.get('source_path', 'unknown')}]\n{d}"
             for d, m in zip(documents, metadatas)
         )
-
-        if self._exploration_context:
-            context += (
-                "\n\nFilesystem exploration:\n"
-                + self._exploration_context
-            )
 
         return context, metadatas
 

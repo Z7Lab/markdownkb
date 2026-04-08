@@ -80,15 +80,7 @@ def stream_planner(
     yield sse("status", {"phase": "research", "message": "Searching knowledge base..."})
     planner._research_results = planner._research(request)
 
-    # Phase 2: Filesystem exploration (optional)
-    planner._exploration_context = ""
-    if settings.mcp_enabled("filesystem"):
-        yield sse("status", {"phase": "explore", "message": "Exploring filesystem..."})
-        planner._exploration_context = planner._explore_filesystem(
-            planner._research_results,
-        )
-
-    # Phase 3: Generate approaches
+    # Phase 2: Generate approaches
     yield sse("status", {"phase": "expand", "message": f"Generating {n_approaches} approaches (waiting for LLM)..."})
     from app.planner.nodes import PlanNode
     root = PlanNode(content=request, node_type="root")
@@ -103,7 +95,7 @@ def stream_planner(
             "score": round(child.score, 3),
         })
 
-    # Phase 4: Iterate
+    # Phase 3: Iterate
     for i in range(iterations):
         yield sse("status", {
             "phase": "iterate",

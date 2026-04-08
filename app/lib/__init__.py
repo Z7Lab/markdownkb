@@ -1,1 +1,1 @@
-"""Reusable library modules for filesystem, terminal, and tag generation."""
+"""Reusable library modules for tag generation."""

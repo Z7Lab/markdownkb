@@ -14,7 +14,6 @@ import {
   Download,
   Eye,
   FileEdit,
-  FolderSearch,
   Gauge,
   GitBranch,
   Loader2,
@@ -26,7 +25,6 @@ import {
   Settings,
   Stethoscope,
   Tags,
-  Terminal,
   Trash2,
   Wand2,
   ExternalLink,
@@ -55,8 +53,6 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "wand-2": Wand2,
   stethoscope: Stethoscope,
   gauge: Gauge,
-  "folder-search": FolderSearch,
-  terminal: Terminal,
   "toggle-right": Settings,
 }
 
