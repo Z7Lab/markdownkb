@@ -92,9 +92,11 @@ For a detailed explanation of how chunking works — header splitting, paragraph
 |-----|---------|-------------|
 | `llm.providers` | anthropic, openai, ollama | LLM backends with `name`, `model`, `api_base` |
 | `llm.active_provider` | `ollama` | Which provider to use |
-| `llm.temperature` | `0.3` | Response randomness (0.0–2.0) |
-| `llm.max_tokens` | `2048` | Max output tokens |
-| `llm.num_ctx` | (unset) | Ollama context window override. Leave unset for the model's built-in default. Set higher (e.g. `32768`) to use more context for longer documents. Only applies to Ollama providers. |
+| `llm.temperature` | `0.3` | Response randomness (0.0–2.0). Stored per-provider. |
+| `llm.max_tokens` | `2048` | Max output tokens. Stored per-provider. |
+| `llm.num_ctx` | (unset) | Ollama context window (total input + output). Leave unset for model default. Stored per-provider in `extra_body.num_ctx`. |
+
+Generation parameters (temperature, max_tokens, num_ctx) are stored **per-provider** — each entry in `llm.providers` has its own values. The Settings UI shows the selected provider's parameters and saves to that provider's entry. See [Chat > Configuration](../explanation/chat.md#configuration) for how max_tokens and num_ctx interact.
 
 Model names use the format `provider/model` (e.g. `ollama/qwen3:8b`, `anthropic/claude-sonnet-4-20250514`). For OpenAI-compatible APIs (Venice, Together, etc.) use `openai/<model-name>` with a custom `api_base`.
 

@@ -534,10 +534,11 @@ export function LlmConfig({
         <TestPrompt provider={provider} model={model} apiBase={apiBase} apiKey={apiKey} />
 
         <GenerationParams
-          initialTemperature={settings.temperature}
-          initialMaxTokens={settings.max_tokens}
-          initialNumCtx={settings.num_ctx ?? null}
+          initialTemperature={activeProvider?.temperature ?? settings.temperature}
+          initialMaxTokens={activeProvider?.max_tokens ?? settings.max_tokens}
+          initialNumCtx={activeProvider?.num_ctx ?? settings.num_ctx ?? null}
           isOllama={isOllama}
+          isCloud={provider === "anthropic" || provider === "venice" || provider === "openai"}
           modelInfo={modelInfo}
           onSave={onSaveLlmParams}
         />

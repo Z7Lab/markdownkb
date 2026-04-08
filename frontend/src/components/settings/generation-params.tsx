@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Slider } from "@/components/ui/slider"
@@ -9,6 +9,7 @@ export function GenerationParams({
   initialMaxTokens,
   initialNumCtx,
   isOllama,
+  isCloud,
   modelInfo,
   onSave,
 }: {
@@ -16,6 +17,8 @@ export function GenerationParams({
   initialMaxTokens: number
   initialNumCtx: number | null
   isOllama: boolean
+  /** True for cloud APIs (Anthropic, Venice, OpenAI) where only max_tokens matters */
+  isCloud: boolean
   modelInfo: ModelInfo | null
   onSave: (temperature: number, maxTokens: number, numCtx: number | null) => Promise<void>
 }) {
@@ -23,6 +26,19 @@ export function GenerationParams({
   const [maxTokens, setMaxTokens] = useState(initialMaxTokens)
   const [numCtx, setNumCtx] = useState<string>(initialNumCtx?.toString() ?? "")
   const [dirty, setDirty] = useState(false)
+
+  // Reset values when provider changes (initialMaxTokens/initialNumCtx change)
+  useEffect(() => {
+    setTemperature(initialTemperature)
+    setMaxTokens(initialMaxTokens)
+    setNumCtx(initialNumCtx?.toString() ?? "")
+    setDirty(false)
+  }, [initialTemperature, initialMaxTokens, initialNumCtx])
+
+  const numCtxVal = numCtx ? Number(numCtx) : null
+  const ctxWarning = isOllama && numCtxVal && maxTokens > numCtxVal
+    ? `max_tokens (${maxTokens}) exceeds context window (${numCtxVal}). Output will be truncated.`
+    : null
 
   return (
     <div className="border-t pt-4 mt-4 space-y-4">
@@ -46,7 +62,9 @@ export function GenerationParams({
       </div>
 
       <div className="space-y-1">
-        <label htmlFor="llm-max-tokens" className="text-sm text-muted-foreground">Max Output Tokens</label>
+        <label htmlFor="llm-max-tokens" className="text-sm text-muted-foreground">
+          Max Output Tokens
+        </label>
         <Input
           id="llm-max-tokens"
           type="number"
@@ -56,16 +74,22 @@ export function GenerationParams({
           onChange={(e) => { setMaxTokens(Number(e.target.value)); setDirty(true) }}
         />
         <p className="text-xs text-muted-foreground">
-          Maximum tokens in the LLM response.
+          {isOllama ? (
+            <>Maximum tokens in the response. Must fit within the context window (num_ctx) along with the input.</>
+          ) : (
+            <>Maximum tokens in the LLM response.</>
+          )}
           {modelInfo?.max_output_tokens != null && (
-            <> Model supports up to <strong>{(modelInfo.max_output_tokens / 1000).toFixed(0)}K</strong>.</>
+            <> Model supports up to <strong>{(modelInfo.max_output_tokens / 1000).toFixed(0)}K</strong> output tokens.</>
           )}
         </p>
       </div>
 
       {isOllama && (
         <div className="space-y-1">
-          <label htmlFor="llm-num-ctx" className="text-sm text-muted-foreground">Context Window (num_ctx)</label>
+          <label htmlFor="llm-num-ctx" className="text-sm text-muted-foreground">
+            Context Window (num_ctx)
+          </label>
           <Input
             id="llm-num-ctx"
             type="number"
@@ -76,10 +100,21 @@ export function GenerationParams({
             placeholder="Model default"
           />
           <p className="text-xs text-muted-foreground">
-            Ollama context window size. Leave empty for model default (usually 2048-4096).
-            Set higher (e.g. 32768) for longer documents.
+            Total context size for Ollama — includes both input (your documents + conversation) and output (the response).
+            Leave empty for model default. Set higher (e.g. 8192 or 32768) for longer conversations and more document context.
+            More context = more RAM usage.
           </p>
+          {ctxWarning && (
+            <p className="text-xs text-amber-600">{ctxWarning}</p>
+          )}
         </div>
+      )}
+
+      {!isOllama && !isCloud && (
+        <p className="text-xs text-muted-foreground">
+          For local servers (llama.cpp, LM Studio), context window is configured on the server, not here.
+          Use <code className="text-[10px]">-c</code> flag for llama.cpp or the server settings in LM Studio.
+        </p>
       )}
 
       <Button

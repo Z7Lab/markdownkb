@@ -89,13 +89,25 @@ When `core.diagnostics` is enabled in settings, chat messages show additional me
 
 ## Configuration
 
-Chat behavior is controlled by several settings:
+Chat behavior is controlled by generation and retrieval settings. Generation parameters are **per-provider** — each provider (Ollama, Venice, etc.) stores its own temperature, max_tokens, and num_ctx. Switching providers in Settings shows that provider's saved values.
+
+### Generation Parameters
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `temperature` | 0.3 | Response randomness. Lower = more focused and deterministic. Higher = more creative. |
+| `max_tokens` | 2048 | Maximum tokens in the LLM response (output limit). |
+| `num_ctx` | model default | **Ollama only.** Total context window (input + output). More context = more RAM. |
+
+**How max_tokens and num_ctx relate (Ollama):** `num_ctx` is the total context window — your documents, conversation history, AND the response all must fit within it. `max_tokens` limits just the response portion. If `num_ctx` is 4096 and your input uses 3000 tokens, the response is capped at ~1096 tokens regardless of the `max_tokens` setting. Set `num_ctx` higher (8192, 32768) if you need longer responses or more document context.
+
+**Cloud providers (Anthropic, Venice, OpenAI):** Only `max_tokens` applies. Context window is managed by the provider.
+
+**Local servers (llama.cpp, LM Studio):** Context window is configured on the server (`-c` flag for llama.cpp). `max_tokens` limits the response.
+
+### Retrieval Parameters
 
 ```yaml
-llm:
-  temperature: 0.3        # LLM creativity (lower = more focused)
-  max_tokens: 2048         # Maximum response length
-
 retrieval:
   top_k: 10               # Chunks retrieved per query
   score_threshold: 0.25   # Minimum relevance score
