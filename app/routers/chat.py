@@ -114,15 +114,24 @@ def chat_stream(
         source_map: dict[str, str] = {}
         last_yielded = ""
         try:
+            # Determine retrieval mode:
+            # - bucket only (no scope): use bucket retriever, no filters
+            # - scope only (no bucket): use main retriever with scope filters
+            # - both: use main retriever with scope filters + bucket retriever merged
+            has_scope = bool(scope_folders or allowed)
+            bucket_only = bucket_retriever and not has_scope
+            combined = bucket_retriever and has_scope
+
             for partial in chat_respond(
                 req.message,
-                bucket_retriever or retriever,
+                bucket_retriever if bucket_only else retriever,
                 settings,
                 chatdb=chatdb,
                 thread_id=thread_id,
-                folders_filter=scope_folders or None if not bucket_retriever else None,
-                allowed_paths=allowed if not bucket_retriever else None,
-                exclude_patterns=exclude_patterns if not bucket_retriever else None,
+                folders_filter=scope_folders if not bucket_only else None,
+                allowed_paths=allowed if not bucket_only else None,
+                exclude_patterns=exclude_patterns if not bucket_only else None,
+                bucket_retriever=bucket_retriever if combined else None,
                 sources_out=sources,
                 source_map_out=source_map,
                 conversation_history=conv_history,

@@ -110,6 +110,16 @@ With all sources visible, a large knowledge base produces a dense graph where ev
 
 The combination of scoping (which documents to include) and thresholding (which connections to show) lets you go from "all 900 documents" to "the 12 infrastructure docs with strong similarity to each other" in two interactions.
 
+## Bucket Overlay
+
+When a bucket is selected alongside a scope (or "All sources"), the Doc Map visualizes both your permanent documents and the bucket's documents in the same graph. Bucket nodes are colored distinctly so you can visually identify which nodes are from your knowledge base and which are from the bucket.
+
+Edges between permanent and bucket nodes show content overlap — where the external material connects to things you already know. This is especially useful for:
+
+- **Evaluating new material** — load vendor docs into a bucket, overlay with your architecture scope, and see which vendor concepts cluster near your existing patterns
+- **Research discovery** — import conference notes or papers as a bucket, overlay with your research scope, and find where new ideas connect to your existing work
+- **Gap analysis** — if bucket nodes cluster far from your permanent nodes, those topics aren't covered in your existing knowledge base
+
 ## How It Differs from Knowledge Graph
 
 - **Doc Map** shows **document-to-document similarity** computed from embeddings. Edges mean "these documents have similar content." No LLM involved.

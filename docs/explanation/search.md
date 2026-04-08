@@ -92,6 +92,17 @@ When viewing a historical search, mdkb compares the stored results against what 
 
 This helps you decide whether to re-query for fresher results.
 
+## Bucket Search
+
+When a bucket is selected in the sidebar:
+
+- **Bucket only** (no scope) — search returns results from the bucket's documents only.
+- **Bucket + scope** — search returns merged results from both the bucket and your permanent knowledge base. Results are tagged by source so you can tell which came from the bucket and which from your docs.
+
+Combined search is useful for finding overlaps: "What in these vendor docs relates to what I already know about caching?" — results from both collections, ranked together.
+
+See [Buckets](buckets.md#bucket--scope-combined) for more use cases.
+
 ## Query Enhancement
 
 When `retrieval.intelligent_search.enabled` is true, the search query is enhanced by the LLM before retrieval:

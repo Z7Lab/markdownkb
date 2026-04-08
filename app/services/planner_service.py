@@ -28,12 +28,14 @@ def run_planner(
     folders_filter: list[str] | None = None,
     allowed_paths: set[str] | None = None,
     exclude_patterns: list[str] | None = None,
+    bucket_retriever: Retriever | None = None,
 ) -> dict[str, Any]:
     """Run the MCTS planner and optionally refine with skill reviews."""
     planner = MCTSPlanner(retriever, settings)
     planner._folders_filter = folders_filter
     planner._allowed_paths = allowed_paths
     planner._exclude_patterns = exclude_patterns
+    planner._bucket_retriever = bucket_retriever
     result = planner.plan(request, iterations, n_approaches)
 
     if skill_names and settings.core_enabled("agent_skills"):
@@ -59,6 +61,7 @@ def stream_planner(
     folders_filter: list[str] | None = None,
     allowed_paths: set[str] | None = None,
     exclude_patterns: list[str] | None = None,
+    bucket_retriever: Retriever | None = None,
 ) -> Generator[str, None, None]:
     """Stream planner progress as SSE events.
 
@@ -69,6 +72,7 @@ def stream_planner(
     planner._folders_filter = folders_filter
     planner._allowed_paths = allowed_paths
     planner._exclude_patterns = exclude_patterns
+    planner._bucket_retriever = bucket_retriever
     planner._exploration_log = []
     planner._user_patterns = extract_user_patterns(retriever)
 

@@ -4,6 +4,7 @@ import { useVisualization } from "@/hooks/use-visualization"
 import { useScopes } from "@/hooks/use-scopes"
 import { useTags } from "@/hooks/use-tags"
 import { useScopeTagFilter } from "@/hooks/use-scope-tag-filter"
+import { useBuckets } from "@/hooks/use-buckets"
 import { useIndexEvents } from "@/hooks/use-index-events"
 import { VisualizationSidebar } from "./visualization-sidebar"
 import { EdgeDetailPanel } from "./edge-detail-panel"
@@ -74,6 +75,7 @@ const ENTITY_TYPE_COLORS: Record<string, string> = {
   principle: "oklch(0.656 0.241 354)",   // pink
 }
 const HIGHLIGHT_COLOR = "oklch(0.852 0.199 91.9)"  // yellow-300
+const BUCKET_COLOR = "oklch(0.685 0.169 237)"      // sky-500 — distinct from cluster palette
 
 import { GRAPH_THEME } from "@/lib/constants"
 
@@ -146,25 +148,31 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
   const {
     selectedScopeIds, selectedTags,
     scopeIdsParam, adHocTagsParam,
+    selectedBucketId,
     handleScopeChange, handleTagChange,
+    handleBucketChange,
   } = useScopeTagFilter()
+  const { buckets } = useBuckets()
 
   const prevScopeRef = useRef(scopeIdsParam)
   const prevTagsRef = useRef(adHocTagsParam)
   const prevWordCloudsRef = useRef(wordClouds)
+  const prevBucketRef = useRef(selectedBucketId)
 
-  // Re-fetch when scope, tag, or word cloud selection changes (not on initial mount)
+  // Re-fetch when scope, tag, bucket, or word cloud selection changes
   useEffect(() => {
     const scopeChanged = prevScopeRef.current !== scopeIdsParam
     const tagsChanged = JSON.stringify(prevTagsRef.current) !== JSON.stringify(adHocTagsParam)
     const wcChanged = prevWordCloudsRef.current !== wordClouds
-    if (scopeChanged || tagsChanged || wcChanged) {
+    const bucketChanged = prevBucketRef.current !== selectedBucketId
+    if (scopeChanged || tagsChanged || wcChanged || bucketChanged) {
       prevScopeRef.current = scopeIdsParam
       prevTagsRef.current = adHocTagsParam
       prevWordCloudsRef.current = wordClouds
-      fetchDocMap(scopeIdsParam, wcChanged, wordClouds, adHocTagsParam)
+      prevBucketRef.current = selectedBucketId
+      fetchDocMap(scopeIdsParam, wcChanged || bucketChanged, wordClouds, adHocTagsParam, selectedBucketId)
     }
-  }, [fetchDocMap, scopeIdsParam, adHocTagsParam, wordClouds])
+  }, [fetchDocMap, scopeIdsParam, adHocTagsParam, wordClouds, selectedBucketId])
 
   // Staleness
   const isStale = !!(lastIndexedAt && fetchedAt && lastIndexedAt > fetchedAt)
@@ -351,8 +359,8 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
     }
   }, [docmapData, selectedNodeId, searchTerm, highlightedNodes])
 
-  // Node color callback
-  const nodeColor = useCallback((node: DocMapNode & { entity_type?: string }) => {
+  // Node color callback — bucket nodes get a distinct color
+  const nodeColor = useCallback((node: DocMapNode & { entity_type?: string; _bucket?: boolean }) => {
     if (mode === "knowledge" && node.entity_type) {
       if (hasHighlight && !highlightedNodes.has(node.id)) return colors.dim
       return ENTITY_TYPE_COLORS[node.entity_type] || UNCLUSTERED_COLOR
@@ -360,10 +368,12 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
     if (hasHighlight) {
       if (highlightedNodes.has(node.id)) {
         if (node.id === selectedNodeId) return HIGHLIGHT_COLOR
+        if (node._bucket) return BUCKET_COLOR
         return CLUSTER_COLORS[((node.cluster_id % CLUSTER_COLORS.length) + CLUSTER_COLORS.length) % CLUSTER_COLORS.length] || UNCLUSTERED_COLOR
       }
       return colors.dim
     }
+    if (node._bucket) return BUCKET_COLOR
     if (node.cluster_id < 0) return UNCLUSTERED_COLOR
     return CLUSTER_COLORS[node.cluster_id % CLUSTER_COLORS.length] || UNCLUSTERED_COLOR
   }, [mode, hasHighlight, highlightedNodes, selectedNodeId, colors.dim])
@@ -446,13 +456,16 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
         availableTags={availableTags}
         selectedTags={selectedTags}
         onTagChange={handleTagChange}
+        buckets={buckets}
+        selectedBucketId={selectedBucketId}
+        onBucketChange={handleBucketChange}
         threshold={threshold}
         onThresholdChange={setThreshold}
         spread={spread}
         onSpreadChange={setSpread}
         searchTerm={searchTerm}
         onSearchChange={(term) => { setSearchTerm(term); selectNode(null) }}
-        onRefresh={mode === "knowledge" ? () => fetchKG() : () => fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam)}
+        onRefresh={mode === "knowledge" ? () => fetchKG() : () => fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam, selectedBucketId)}
         isLoading={activeIsLoading}
         wordCloudsEnabled={wordClouds}
         onWordCloudsChange={setWordClouds}
@@ -476,7 +489,7 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
               variant="ghost"
               size="sm"
               className="h-6 text-xs text-yellow-500"
-              onClick={() => fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam)}
+              onClick={() => fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam, selectedBucketId)}
             >
               Refresh
             </Button>
@@ -488,7 +501,7 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
           <div className="absolute top-3 left-3 z-10 text-xs text-muted-foreground bg-background/80 rounded px-2 py-1">
             {mode === "knowledge"
               ? `${kgForceData.nodes.length} entities · ${kgForceData.links.length} relationships`
-              : `${forceDocMapData.nodes.length}/${docmapData?.stats.doc_count ?? 0} docs · ${forceDocMapData.links.length} edges`
+              : `${forceDocMapData.nodes.length}/${docmapData?.stats.doc_count ?? 0} docs${docmapData?.stats.bucket_doc_count ? ` (${docmapData.stats.bucket_doc_count} from bucket)` : ""} · ${forceDocMapData.links.length} edges`
             }
           </div>
         )}
@@ -522,7 +535,7 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
             <div className="text-center text-muted-foreground space-y-3">
               <p className="text-sm font-medium">Document map not built yet</p>
               <p className="text-xs">Build the document map to visualize document relationships</p>
-              <Button variant="outline" size="sm" onClick={() => fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam)}>
+              <Button variant="outline" size="sm" onClick={() => fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam, selectedBucketId)}>
                 Build Doc Map
               </Button>
             </div>

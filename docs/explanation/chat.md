@@ -66,7 +66,12 @@ Scope and tag selections persist across tab switches (stored in localStorage), s
 
 ## Bucket Chat
 
-When the buckets plugin is enabled and a bucket is selected in the sidebar, chat uses that bucket's independent vector store instead of the main knowledge base. This lets you have isolated conversations scoped to a temporary document collection — useful for analyzing imported documents without mixing them with your permanent knowledge base.
+When the buckets plugin is enabled and a bucket is selected in the sidebar:
+
+- **Bucket only** (no scope selected) — chat retrieves from the bucket's documents only. Good for focused conversations about the bucket's content.
+- **Bucket + scope** — chat retrieves from both the bucket AND your permanent knowledge base (filtered by the scope). Results are merged and the LLM has context from both. This is the most powerful mode — ask questions that compare or synthesize across both document sets. For example: "How does this vendor's auth approach compare to what we already do?"
+
+See [Buckets](buckets.md#bucket--scope-combined) for detailed use cases.
 
 ## Model Picker
 

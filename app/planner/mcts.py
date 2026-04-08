@@ -59,6 +59,7 @@ class MCTSPlanner:
         self._folders_filter = folders_filter
         self._allowed_paths = allowed_paths
         self._exclude_patterns: list[str] | None = None
+        self._bucket_retriever = None
 
     def plan(self, request: str, iterations: int = 3,
              n_approaches: int = 3) -> dict[str, Any]:
@@ -141,6 +142,12 @@ class MCTSPlanner:
             allowed_paths=self._allowed_paths,
             exclude_patterns=self._exclude_patterns,
         )
+        # Merge bucket results for combined scope+bucket queries
+        if self._bucket_retriever:
+            bucket_results = self._bucket_retriever.search(request, top_k=10)
+            for r in bucket_results:
+                r.metadata["_bucket"] = "true"
+            results = sorted(results + bucket_results, key=lambda r: r.score, reverse=True)[:10]
         self._exploration_log.append(
             f"Searched knowledge base for: '{request}' -- "
             f"found {len(results)} results"

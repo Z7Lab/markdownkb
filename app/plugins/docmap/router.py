@@ -51,6 +51,7 @@ def graph_data(
     top_k: int = 3,
     word_clouds: bool = True,
     min_weight: float = 0.5,
+    bucket_id: str | None = None,
     retriever: Retriever = Depends(get_retriever),
     settings: Settings = Depends(get_settings),
     scopedb: ScopeDB = Depends(get_scopedb),
@@ -92,7 +93,10 @@ def graph_data(
         scope_folders = None  # filtering via allowed_paths now
     allowed = apply_exclude_patterns(allowed, exclude_patterns)
 
+    # Include bucket_id in cache key
+    cache_bucket = bucket_id or ""
     key = _cache_key(scope_folders, scope_tags, ad_hoc_tags, top_k, word_clouds, min_weight, exclude_patterns)
+    key = key + (cache_bucket,)
 
     with _cache_lock:
         if key in _graph_cache:
@@ -104,6 +108,34 @@ def graph_data(
         word_clouds=word_clouds, min_weight=min_weight,
         allowed_paths=allowed, excluded_paths=excluded,
     )
+
+    # Merge bucket documents into the graph with _bucket tag
+    if bucket_id:
+        bucket_service = getattr(request.app.state, "bucket_service", None)
+        if bucket_service:
+            record = bucket_service.db.resolve(bucket_id)
+            if record:
+                bucket_store = bucket_service._get_store(record["id"])
+                bucket_graph = compute_graph(
+                    bucket_store, None, top_k,
+                    word_clouds=word_clouds, min_weight=min_weight,
+                )
+                # Tag bucket nodes
+                for node in bucket_graph["nodes"]:
+                    node["_bucket"] = True
+                # Merge nodes and edges
+                result["nodes"].extend(bucket_graph["nodes"])
+                result["edges"].extend(bucket_graph["edges"])
+                # Merge word clouds
+                for term, weight in bucket_graph.get("global_word_cloud", {}).items():
+                    result["global_word_cloud"][term] = max(
+                        result["global_word_cloud"].get(term, 0), weight
+                    )
+                # Update stats
+                result["stats"]["doc_count"] += bucket_graph["stats"]["doc_count"]
+                result["stats"]["chunk_count"] += bucket_graph["stats"]["chunk_count"]
+                result["stats"]["edge_count"] += bucket_graph["stats"]["edge_count"]
+                result["stats"]["bucket_doc_count"] = bucket_graph["stats"]["doc_count"]
 
     with _cache_lock:
         _graph_cache[key] = result

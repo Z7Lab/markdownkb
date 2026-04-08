@@ -253,6 +253,7 @@ export interface DocMapNode {
   tags: string[]
   headings: string[]
   word_cloud: Record<string, number>
+  _bucket?: boolean
 }
 
 export interface DocMapEdge {
@@ -289,6 +290,7 @@ export interface DocMapData {
     doc_count: number
     chunk_count: number
     edge_count: number
+    bucket_doc_count?: number
   }
 }
 

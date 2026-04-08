@@ -13,7 +13,7 @@ interface GraphProgress {
 /** Server-side minimum edge weight — edges below this are never sent. */
 const MIN_WEIGHT = 0.6
 
-function buildQs(scopeIds?: string | null, wordClouds = true, adHocTags?: string[] | null): string {
+function buildQs(scopeIds?: string | null, wordClouds = true, adHocTags?: string[] | null, bucketId?: string | null): string {
   const params = new URLSearchParams()
   if (scopeIds) params.set("scope_ids", scopeIds)
   if (!wordClouds) params.set("word_clouds", "false")
@@ -21,6 +21,7 @@ function buildQs(scopeIds?: string | null, wordClouds = true, adHocTags?: string
   if (adHocTags && adHocTags.length > 0) {
     for (const t of adHocTags) params.append("ad_hoc_tags", t)
   }
+  if (bucketId) params.set("bucket_id", bucketId)
   const qs = params.toString()
   return qs ? `?${qs}` : ""
 }
@@ -121,18 +122,22 @@ export function useVisualization() {
   }, [])
 
   const lastTagsRef = useRef<string | null>(null)
+  const lastBucketRef = useRef<string | null>(null)
 
   const fetchDocMap = useCallback(async (
     scopeIds?: string | null,
     force = false,
     wc = true,
     adHocTags?: string[] | null,
+    bucketId?: string | null,
   ) => {
-    // Skip if we already have data for this exact scope+tag selection (unless forced)
+    // Skip if we already have data for this exact scope+tag+bucket selection (unless forced)
     const tagsKey = adHocTags ? adHocTags.sort().join(",") : null
-    if (!force && docmapDataRef.current && lastScopeRef.current === scopeIds && lastTagsRef.current === tagsKey) return
+    const bucketKey = bucketId ?? null
+    if (!force && docmapDataRef.current && lastScopeRef.current === scopeIds && lastTagsRef.current === tagsKey && lastBucketRef.current === bucketKey) return
     lastScopeRef.current = scopeIds ?? null
     lastTagsRef.current = tagsKey
+    lastBucketRef.current = bucketKey
 
     // Abort any in-flight cache check or previous fetch
     abortRef.current?.abort()
@@ -148,7 +153,7 @@ export function useVisualization() {
 
     try {
       // Start the data fetch first, then begin progress polling
-      const dataPromise = api.get<DocMapData>(`/api/docmap/data${buildQs(scopeIds, wc, adHocTags)}`)
+      const dataPromise = api.get<DocMapData>(`/api/docmap/data${buildQs(scopeIds, wc, adHocTags, bucketId)}`)
 
       // Brief delay so the data request claims a connection before polls compete
       await new Promise(r => setTimeout(r, 50))

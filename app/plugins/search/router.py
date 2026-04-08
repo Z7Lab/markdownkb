@@ -112,50 +112,25 @@ def search(
     tracking: TrackingDB = Depends(get_tracking),
 ):
     """Search the vector database with optional intelligent query enhancement."""
-    # Bucket-scoped search: delegate to BucketService if bucket_id is set
+    cfg = _cfg(settings)
+    ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
+    scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
+    allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
+
+    # Resolve bucket retriever if bucket_id is set
+    bucket_retriever = None
     if req.bucket_id:
         bucket_service = getattr(request.app.state, "bucket_service", None)
         if bucket_service is None:
             from fastapi import HTTPException
             raise HTTPException(status_code=503, detail="Buckets plugin not initialized")
-        top_k = req.top_k if req.top_k is not None else settings.top_k
-        bucket_result = bucket_service.search(req.bucket_id, req.query, top_k, settings)
-        # Wrap in SearchResponse format for the frontend
-        results = [
-            {
-                "document": r["content"],
-                "metadata": {"source_path": r["source"]},
-                "score": r["score"],
-                "snippets": [{"text": r["content"], "score": r["score"], "heading": ""}],
-                "chunk_count": 1,
-                "score_min": r["score"],
-                "score_max": r["score"],
-                "score_avg": r["score"],
-            }
-            for r in bucket_result["results"]
-        ]
-        result_paths = [r["metadata"]["source_path"] for r in results if r.get("metadata", {}).get("source_path")]
-        result_details = [{"path": r["metadata"]["source_path"], "score": r["score"]} for r in results]
-        search_id = searchdb.save_search(
-            req.query, None, None,
-            result_paths=result_paths,
-            result_count=len(results),
-            result_details=result_details,
-            result_data=results,
-            parent_id=req.parent_id,
-        )
-        return {
-            "results": results,
-            "search_id": search_id,
-            "query": req.query,
-            "is_historical": False,
-            "bucket_id": req.bucket_id,
-        }
+        record = bucket_service.db.resolve(req.bucket_id)
+        if not record:
+            raise HTTPException(status_code=404, detail=f"Bucket not found: {req.bucket_id}")
+        bucket_retriever = bucket_service._get_retriever(record["id"], settings)
 
-    cfg = _cfg(settings)
-    ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
-    scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
-    allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
+    has_scope = bool(scope_folders or allowed)
+    bucket_only = bucket_retriever and not has_scope
     # Extract "quoted phrases" for exact post-filtering when enabled
     exact_phrases: list[str] = []
     if cfg["exact_phrase_matching"]:
@@ -178,13 +153,26 @@ def search(
     # Fetch more chunks to ensure file diversity
     multiplier = cfg["exact_phrase_multiplier"] if exact_phrases else cfg["chunk_multiplier"]
     chunk_fetch_limit = top_k * multiplier
-    chunk_results = retriever.search(
-        search_query,
-        top_k=chunk_fetch_limit,
-        folders_filter=scope_folders or None,
-        allowed_paths=allowed,
-        exclude_patterns=exclude_patterns or None,
-    )
+
+    if bucket_only:
+        chunk_results = bucket_retriever.search(search_query, top_k=chunk_fetch_limit)
+        # Tag bucket results
+        for r in chunk_results:
+            r.metadata["_bucket"] = "true"
+    else:
+        chunk_results = retriever.search(
+            search_query,
+            top_k=chunk_fetch_limit,
+            folders_filter=scope_folders or None,
+            allowed_paths=allowed,
+            exclude_patterns=exclude_patterns or None,
+        )
+        # Merge bucket results when both scope and bucket are active
+        if bucket_retriever and not bucket_only:
+            bucket_chunks = bucket_retriever.search(search_query, top_k=chunk_fetch_limit)
+            for r in bucket_chunks:
+                r.metadata["_bucket"] = "true"
+            chunk_results = sorted(chunk_results + bucket_chunks, key=lambda r: r.score, reverse=True)
 
     # Post-filter: if quoted phrases were used, only keep chunks containing them
     if exact_phrases:

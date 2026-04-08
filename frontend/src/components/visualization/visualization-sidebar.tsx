@@ -1,5 +1,7 @@
 import { AppSidebar } from "@/components/ui/app-sidebar"
 import { ScopeTagFilter } from "@/components/scope-tag-filter"
+import { BucketSelector } from "@/components/bucket-selector"
+import type { Bucket } from "@/hooks/use-buckets"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
@@ -16,6 +18,9 @@ export function VisualizationSidebar({
   availableTags,
   selectedTags,
   onTagChange,
+  buckets,
+  selectedBucketId,
+  onBucketChange,
   threshold,
   onThresholdChange,
   spread,
@@ -41,6 +46,9 @@ export function VisualizationSidebar({
   availableTags: string[]
   selectedTags: Set<string>
   onTagChange: (tags: Set<string>) => void
+  buckets: Bucket[]
+  selectedBucketId: string | null
+  onBucketChange: (id: string | null) => void
   threshold: number
   onThresholdChange: (v: number) => void
   spread: number
@@ -73,6 +81,11 @@ export function VisualizationSidebar({
                 availableTags={availableTags}
                 selectedTags={selectedTags}
                 onTagChange={onTagChange}
+              />
+              <BucketSelector
+                buckets={buckets}
+                selectedBucketId={selectedBucketId}
+                onBucketChange={onBucketChange}
               />
 
               <div className="space-y-1.5">

@@ -62,17 +62,31 @@ Sources accept absolute paths to files or directories. The `glob` pattern defaul
 
 ## Using a Bucket
 
-Select a bucket from the sidebar dropdown in Chat, Search, or Planner. When a bucket is active:
+Select a bucket from the sidebar dropdown in Chat, Search, Planner, or Doc Map.
 
-- **Chat** answers questions using only the bucket's documents
-- **Search** returns results from only the bucket's documents
-- **Planner** generates plans grounded in only the bucket's documents
+### Bucket Only
 
-Scope and tag filters are bypassed when a bucket is active — the bucket IS the scope.
+When a bucket is active with no scope selected, retrieval is limited to the bucket's documents. This is for focused work — understanding new material in isolation before mixing it with your existing knowledge.
+
+### Bucket + Scope (Combined)
+
+When both a bucket and a scope are active, results come from **both** — your permanent knowledge base (filtered by the scope) and the bucket's documents. Results are tagged by source so you can tell which answers come from your docs and which come from the bucket.
+
+This is the most powerful mode. Use cases:
+
+**Vendor evaluation.** Load vendor API docs into a bucket. Select your "Architecture" scope. Chat: "How does this vendor's authentication approach compare to what we already do?" The LLM has context from both — the vendor's docs and your architecture patterns — and can compare them directly.
+
+**Research synthesis.** Load research papers or conference notes into a bucket. Select your "Research" scope. Search: "What in these new papers overlaps with my existing work?" Results come from both collections, ranked by relevance.
+
+**Migration planning.** Load the new framework's documentation into a bucket. Select the scope covering your current implementation. Planner: "Plan a migration from our current auth system to the new one." The planner has context from both the destination (bucket) and the origin (scope).
+
+**Team knowledge sharing.** A colleague exports a bucket of their project docs. You import it. Select your own project scope alongside the imported bucket. Chat: "Where do our two projects handle caching differently?" — finds differences across both document sets.
+
+**Doc Map overlap discovery.** Select a scope and a bucket in the Doc Map tab. Your permanent documents appear in their usual cluster colors. Bucket documents appear in a distinct color. Edges between them show where the external material connects to your existing knowledge — which vendor concepts cluster near which of your documents, which research papers relate to which of your notes.
 
 ### Comparing Against Your Knowledge Base
 
-A powerful workflow:
+A simpler workflow when you don't need combined results:
 
 1. Create a bucket with external docs (vendor API, new framework, research papers)
 2. Chat with the bucket to understand the new material
