@@ -51,6 +51,7 @@ Background and reasoning. Read when you want to understand why, not how.
 | [Search & AI Summaries](explanation/search.md) | Search tab features — results, AI summaries, deep research, history, versioning |
 | [Retrieval & Hybrid Search](explanation/retrieval.md) | How search works — vector similarity, BM25 keywords, score fusion, tuning |
 | [Chunking & Indexing](explanation/chunking.md) | How files are split into chunks, heading structure, search quality |
+| [Doc Map](explanation/docmap.md) | 3D document similarity visualization — sliders, clustering, word clouds, interaction |
 | [Knowledge Graph](explanation/knowledge-graph.md) | Entity extraction, typed relationships, document similarity |
 | [Planner](explanation/planner.md) | MCTS-based implementation planner with skill reviews |
 | [Philosophy](explanation/philosophy.md) | The markdown-first paradigm — why tokens are value |
