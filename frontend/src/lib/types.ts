@@ -230,6 +230,7 @@ export interface Scope {
   name: string
   folders: string[]
   tags: string[]
+  exclude_patterns: string[]
   created_at: string
 }
 

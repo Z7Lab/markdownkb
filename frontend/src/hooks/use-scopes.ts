@@ -20,9 +20,9 @@ export function useScopes() {
     refresh()
   }, [refresh])
 
-  const createScope = useCallback(async (name: string, folders: string[], tags: string[] = []) => {
+  const createScope = useCallback(async (name: string, folders: string[], tags: string[] = [], excludePatterns: string[] = []) => {
     try {
-      const res = await api.post<{ id: string }>("/api/scopes", { name, folders, tags })
+      const res = await api.post<{ id: string }>("/api/scopes", { name, folders, tags, exclude_patterns: excludePatterns })
       await refresh()
       return res.id
     } catch (err) {
@@ -31,9 +31,9 @@ export function useScopes() {
     }
   }, [refresh])
 
-  const updateScope = useCallback(async (id: string, name: string, folders: string[], tags: string[] = []) => {
+  const updateScope = useCallback(async (id: string, name: string, folders: string[], tags: string[] = [], excludePatterns: string[] = []) => {
     try {
-      await api.put(`/api/scopes/${id}`, { name, folders, tags })
+      await api.put(`/api/scopes/${id}`, { name, folders, tags, exclude_patterns: excludePatterns })
       await refresh()
       return true
     } catch (err) {

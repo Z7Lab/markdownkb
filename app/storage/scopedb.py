@@ -36,21 +36,30 @@ class ScopeDB:
         logger.info("ScopeDB opened: %s", db_path)
 
     def _migrate(self):
-        """Add tags column if missing (pre-existing DBs)."""
+        """Add columns missing from older schema versions."""
         cols = [r[1] for r in self._conn.execute("PRAGMA table_info(scopes)")]
         if "tags" not in cols:
             self._conn.execute(
                 "ALTER TABLE scopes ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'"
             )
             logger.info("ScopeDB: migrated — added tags column")
+        if "exclude_patterns" not in cols:
+            self._conn.execute(
+                "ALTER TABLE scopes ADD COLUMN exclude_patterns TEXT NOT NULL DEFAULT '[]'"
+            )
+            logger.info("ScopeDB: migrated — added exclude_patterns column")
 
-    def create(self, name: str, folders: list[str], tags: list[str] | None = None) -> str:
+    def create(
+        self, name: str, folders: list[str],
+        tags: list[str] | None = None,
+        exclude_patterns: list[str] | None = None,
+    ) -> str:
         """Create a scope and return its ID."""
         scope_id = uuid.uuid4().hex[:12]
         with self._lock:
             self._conn.execute(
-                "INSERT INTO scopes (id, name, folders, tags) VALUES (?, ?, ?, ?)",
-                (scope_id, name, json.dumps(folders), json.dumps(tags or [])),
+                "INSERT INTO scopes (id, name, folders, tags, exclude_patterns) VALUES (?, ?, ?, ?, ?)",
+                (scope_id, name, json.dumps(folders), json.dumps(tags or []), json.dumps(exclude_patterns or [])),
             )
             self._conn.commit()
         return scope_id
@@ -59,13 +68,14 @@ class ScopeDB:
         d = dict(row)
         d["folders"] = json.loads(d["folders"])
         d["tags"] = json.loads(d.get("tags") or "[]")
+        d["exclude_patterns"] = json.loads(d.get("exclude_patterns") or "[]")
         return d
 
     def list_scopes(self) -> list[dict]:
         """Return all scopes, newest first."""
         with self._lock:
             rows = self._conn.execute(
-                "SELECT id, name, folders, tags, created_at FROM scopes ORDER BY created_at DESC",
+                "SELECT id, name, folders, tags, exclude_patterns, created_at FROM scopes ORDER BY created_at DESC",
             ).fetchall()
         return [self._row_to_dict(r) for r in rows]
 
@@ -73,19 +83,23 @@ class ScopeDB:
         """Return a single scope by ID."""
         with self._lock:
             row = self._conn.execute(
-                "SELECT id, name, folders, tags, created_at FROM scopes WHERE id = ?",
+                "SELECT id, name, folders, tags, exclude_patterns, created_at FROM scopes WHERE id = ?",
                 (scope_id,),
             ).fetchone()
         if not row:
             return None
         return self._row_to_dict(row)
 
-    def update(self, scope_id: str, name: str, folders: list[str], tags: list[str] | None = None) -> bool:
+    def update(
+        self, scope_id: str, name: str, folders: list[str],
+        tags: list[str] | None = None,
+        exclude_patterns: list[str] | None = None,
+    ) -> bool:
         """Update a scope. Returns True if it existed."""
         with self._lock:
             cursor = self._conn.execute(
-                "UPDATE scopes SET name = ?, folders = ?, tags = ? WHERE id = ?",
-                (name, json.dumps(folders), json.dumps(tags or []), scope_id),
+                "UPDATE scopes SET name = ?, folders = ?, tags = ?, exclude_patterns = ? WHERE id = ?",
+                (name, json.dumps(folders), json.dumps(tags or []), json.dumps(exclude_patterns or []), scope_id),
             )
             self._conn.commit()
         return cursor.rowcount > 0

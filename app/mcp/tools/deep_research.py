@@ -49,7 +49,7 @@ def handler(
     settings: Settings = deps["settings"]
 
     # Resolve scope into folder filter + allowed paths
-    folders_filter, allowed_paths = resolve_mcp_scope(ctx, scope_id)
+    folders_filter, allowed_paths, exclude_patterns = resolve_mcp_scope(ctx, scope_id)
 
     # Run MCTS planner to explore research angles
     planner = MCTSPlanner(retriever, settings,
@@ -65,7 +65,7 @@ def handler(
     # Get chunks for context (scoped to match the MCTS search)
     chunks = retriever.search(
         query, top_k=10,
-        folders_filter=folders_filter, allowed_paths=allowed_paths,
+        folders_filter=folders_filter, allowed_paths=allowed_paths, exclude_patterns=exclude_patterns,
     )
     context = format_context(chunks)
     sources = list(dict.fromkeys(

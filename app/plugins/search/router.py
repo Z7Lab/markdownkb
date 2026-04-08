@@ -154,7 +154,7 @@ def search(
 
     cfg = _cfg(settings)
     ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
-    scope_folders, scope_tags = resolve_scopes(ids, scopedb)
+    scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
     allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
     # Extract "quoted phrases" for exact post-filtering when enabled
     exact_phrases: list[str] = []
@@ -183,6 +183,7 @@ def search(
         top_k=chunk_fetch_limit,
         folders_filter=scope_folders or None,
         allowed_paths=allowed,
+        exclude_patterns=exclude_patterns or None,
     )
 
     # Post-filter: if quoted phrases were used, only keep chunks containing them
@@ -432,7 +433,7 @@ def summarize_search(
     """Generate AI summary of search results with streaming response."""
     cfg = _cfg(settings)
     ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
-    scope_folders, scope_tags = resolve_scopes(ids, scopedb)
+    scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
     allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
     top_k = req.top_k if req.top_k is not None else settings.top_k
 
@@ -483,6 +484,7 @@ def summarize_search(
         top_k=top_k,
         folders_filter=scope_folders or None,
         allowed_paths=allowed,
+        exclude_patterns=exclude_patterns or None,
     )
 
     # Post-filter for exact phrase matches

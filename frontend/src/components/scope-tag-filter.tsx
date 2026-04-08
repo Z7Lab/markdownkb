@@ -2,7 +2,7 @@ import { useMemo } from "react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { SidebarSection } from "@/components/ui/sidebar-section"
-import { Layers, Tag, FolderCog } from "lucide-react"
+import { Layers, Tag } from "lucide-react"
 import type { Scope } from "@/lib/types"
 
 export function ScopeTagFilter({
@@ -20,16 +20,7 @@ export function ScopeTagFilter({
   selectedTags: Set<string>
   onTagChange: (tags: Set<string>) => void
 }) {
-  const allScopesSelected = scopes.length > 0 && selectedScopeIds.size === scopes.length
   const noScopesSelected = selectedScopeIds.size === 0
-
-  function toggleAllScopes() {
-    if (allScopesSelected) {
-      onScopeChange(new Set())
-    } else {
-      onScopeChange(new Set(scopes.map((s) => s.id)))
-    }
-  }
 
   function toggleScope(id: string) {
     const next = new Set(selectedScopeIds)
@@ -79,51 +70,30 @@ export function ScopeTagFilter({
           <div className="space-y-0.5 pl-2">
             <label className="flex items-center gap-2 px-1 py-1 rounded hover:bg-accent cursor-pointer text-xs">
               <Checkbox
-                checked={allScopesSelected}
-                onCheckedChange={toggleAllScopes}
+                checked={noScopesSelected}
+                onCheckedChange={() => onScopeChange(new Set())}
               />
               <span className={noScopesSelected ? "text-foreground" : "text-muted-foreground"}>
-                {noScopesSelected ? "All sources" : "Select all"}
+                All sources
               </span>
             </label>
-            {(() => {
-              const folderScopes = scopes.filter(s => s.folders.length > 0 && s.tags.length === 0)
-              const tagScopes = scopes.filter(s => s.folders.length === 0 && s.tags.length > 0)
-              const mixedScopes = scopes.filter(s => s.folders.length > 0 && s.tags.length > 0)
-              const groups: { label: string; icon: typeof FolderCog; items: Scope[] }[] = []
-              if (folderScopes.length > 0) groups.push({ label: "Folder", icon: FolderCog, items: folderScopes })
-              if (tagScopes.length > 0) groups.push({ label: "Tag", icon: Tag, items: tagScopes })
-              if (mixedScopes.length > 0) groups.push({ label: "Mixed", icon: Layers, items: mixedScopes })
-              const showHeaders = groups.length > 1
-              return groups.map((group) => (
-                <div key={group.label}>
-                  {showHeaders && (
-                    <div className="flex items-center gap-1.5 px-1 pt-1.5 pb-0.5">
-                      <group.icon className="h-2.5 w-2.5 text-muted-foreground/60" />
-                      <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">{group.label}</span>
-                    </div>
-                  )}
-                  {group.items.map((s) => (
-                    <label
-                      key={s.id}
-                      className="flex items-center gap-2 px-1 py-1 rounded hover:bg-accent cursor-pointer text-xs"
-                    >
-                      <Checkbox
-                        checked={selectedScopeIds.has(s.id)}
-                        onCheckedChange={() => toggleScope(s.id)}
-                      />
-                      <span className="truncate flex-1">{s.name}</span>
-                      {!showHeaders && s.folders.length > 0 && (
-                        <FolderCog className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
-                      )}
-                      {!showHeaders && s.tags.length > 0 && (
-                        <Tag className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
-                      )}
-                    </label>
-                  ))}
-                </div>
-              ))
-            })()}
+            {scopes.map((s) => (
+              <label
+                key={s.id}
+                className="flex items-center gap-2 px-1 py-1 rounded hover:bg-accent cursor-pointer text-xs"
+              >
+                <Checkbox
+                  checked={selectedScopeIds.has(s.id)}
+                  onCheckedChange={() => toggleScope(s.id)}
+                />
+                <span className="truncate flex-1">{s.name}</span>
+                {s.exclude_patterns.length > 0 && (
+                  <span className="text-[10px] text-destructive/60 shrink-0" title={`Excludes: ${s.exclude_patterns.join(", ")}`}>
+                    {s.exclude_patterns.length} excl.
+                  </span>
+                )}
+              </label>
+            ))}
           </div>
         )}
       </SidebarSection>

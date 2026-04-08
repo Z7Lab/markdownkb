@@ -36,7 +36,7 @@ def handler(query: str, top_k: int = 5, tags: list[str] | None = None,
     retriever: Retriever = deps["retriever"]
 
     # Resolve scope + ad-hoc tags into folder filter and allowed paths
-    folders_filter, allowed_paths = resolve_mcp_scope(
+    folders_filter, allowed_paths, exclude_patterns = resolve_mcp_scope(
         ctx, scope_id, ad_hoc_tags=tags,
     )
 
@@ -51,7 +51,7 @@ def handler(query: str, top_k: int = 5, tags: list[str] | None = None,
 
     results = retriever.search(
         query, top_k=top_k,
-        folders_filter=folders_filter, allowed_paths=allowed_paths,
+        folders_filter=folders_filter, allowed_paths=allowed_paths, exclude_patterns=exclude_patterns,
     )
     formatted = [
         {

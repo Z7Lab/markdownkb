@@ -42,7 +42,7 @@ def handler(
     settings: Settings = deps["settings"]
 
     # Resolve scope into folder filter + allowed paths
-    folders_filter, allowed_paths = resolve_mcp_scope(ctx, scope_id)
+    folders_filter, allowed_paths, exclude_patterns = resolve_mcp_scope(ctx, scope_id)
 
     result = run_planner(
         request,

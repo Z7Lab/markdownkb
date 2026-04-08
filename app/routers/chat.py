@@ -86,7 +86,7 @@ def chat_stream(
 ):
     # Multi-scope: prefer scope_ids, fall back to single scope_id
     ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
-    scope_folders, scope_tags = resolve_scopes(ids, scopedb)
+    scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
     allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
 
     # Bucket-scoped chat: use a bucket-specific retriever
@@ -122,6 +122,7 @@ def chat_stream(
                 thread_id=thread_id,
                 folders_filter=scope_folders or None if not bucket_retriever else None,
                 allowed_paths=allowed if not bucket_retriever else None,
+                exclude_patterns=exclude_patterns if not bucket_retriever else None,
                 sources_out=sources,
                 source_map_out=source_map,
                 conversation_history=conv_history,

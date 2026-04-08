@@ -22,11 +22,11 @@ def resolve_mcp_scope(
     scope_id: str | None,
     *,
     ad_hoc_tags: list[str] | None = None,
-) -> tuple[list[str] | None, set[str] | None]:
+) -> tuple[list[str] | None, set[str] | None, list[str] | None]:
     """Resolve a scope_id (and optional ad-hoc tags) for an MCP tool.
 
-    Returns ``(folders_filter, allowed_paths)`` ready to pass to
-    ``Retriever.search()``, ``chat_respond()``, ``run_planner()``, etc.
+    Returns ``(folders_filter, allowed_paths, exclude_patterns)`` ready
+    to pass to ``Retriever.search()``, ``chat_respond()``, etc.
 
     Raises ``ValueError`` if the scope_id is not found.
     """
@@ -35,9 +35,10 @@ def resolve_mcp_scope(
 
     folders_filter = None
     scope_tags: list[str] | None = None
+    exclude_patterns: list[str] = []
 
     if scope_id and scopedb:
-        folders_filter, scope_tags = resolve_scopes_raw([scope_id], scopedb)
+        folders_filter, scope_tags, exclude_patterns = resolve_scopes_raw([scope_id], scopedb)
 
     # Merge scope tags + ad-hoc tags, then resolve to file paths via TagDB
     all_tags: set[str] = set()
@@ -52,4 +53,4 @@ def resolve_mcp_scope(
         if tagdb is not None:
             allowed_paths = tagdb.get_paths_for_tags(all_tags)
 
-    return folders_filter, allowed_paths
+    return folders_filter, allowed_paths, exclude_patterns or None

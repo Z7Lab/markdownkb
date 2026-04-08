@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Plus, Pencil, Trash2, X, Check, Tag } from "lucide-react"
+import { Plus, Pencil, Trash2, X, Check, Tag, Ban } from "lucide-react"
 
 export function ScopesPanel({ folders, availableTags }: { folders: string[]; availableTags: string[] }) {
   const { scopes, createScope, updateScope, deleteScope } = useScopes()
@@ -15,6 +15,8 @@ export function ScopesPanel({ folders, availableTags }: { folders: string[]; ava
   const [selectedFolders, setSelectedFolders] = useState<Set<string>>(new Set())
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
   const [newTag, setNewTag] = useState("")
+  const [excludePatterns, setExcludePatterns] = useState<string[]>([])
+  const [newExclude, setNewExclude] = useState("")
 
   function startCreate() {
     setIsCreating(true)
@@ -22,14 +24,16 @@ export function ScopesPanel({ folders, availableTags }: { folders: string[]; ava
     setName("")
     setSelectedFolders(new Set())
     setSelectedTags(new Set())
+    setExcludePatterns([])
   }
 
-  function startEdit(scope: { id: string; name: string; folders: string[]; tags: string[] }) {
+  function startEdit(scope: { id: string; name: string; folders: string[]; tags: string[]; exclude_patterns: string[] }) {
     setEditingId(scope.id)
     setIsCreating(false)
     setName(scope.name)
     setSelectedFolders(new Set(scope.folders))
     setSelectedTags(new Set(scope.tags))
+    setExcludePatterns(scope.exclude_patterns || [])
   }
 
   function cancel() {
@@ -39,6 +43,8 @@ export function ScopesPanel({ folders, availableTags }: { folders: string[]; ava
     setSelectedFolders(new Set())
     setSelectedTags(new Set())
     setNewTag("")
+    setExcludePatterns([])
+    setNewExclude("")
   }
 
   async function save() {
@@ -46,11 +52,23 @@ export function ScopesPanel({ folders, availableTags }: { folders: string[]; ava
     const folderList = Array.from(selectedFolders)
     const tagList = Array.from(selectedTags)
     if (editingId) {
-      await updateScope(editingId, name.trim(), folderList, tagList)
+      await updateScope(editingId, name.trim(), folderList, tagList, excludePatterns)
     } else {
-      await createScope(name.trim(), folderList, tagList)
+      await createScope(name.trim(), folderList, tagList, excludePatterns)
     }
     cancel()
+  }
+
+  function addExclude() {
+    const pat = newExclude.trim()
+    if (pat && !excludePatterns.includes(pat)) {
+      setExcludePatterns([...excludePatterns, pat])
+      setNewExclude("")
+    }
+  }
+
+  function removeExclude(pat: string) {
+    setExcludePatterns(excludePatterns.filter((p) => p !== pat))
   }
 
   function toggleFolder(folder: string) {
@@ -181,6 +199,37 @@ export function ScopesPanel({ folders, availableTags }: { folders: string[]; ava
                 </div>
               )}
             </div>
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground font-medium">
+                Exclude patterns (optional):
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Glob patterns to exclude from this scope. Matched against the full file path and filename.
+              </p>
+              <div className="flex gap-1.5">
+                <Input
+                  value={newExclude}
+                  onChange={(e) => setNewExclude(e.target.value)}
+                  placeholder="e.g. agent-reviewed-* or **/archive/**"
+                  className="h-8 text-xs"
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addExclude() } }}
+                />
+                <Button size="sm" variant="outline" className="h-8 px-2" onClick={addExclude} disabled={!newExclude.trim()}>
+                  <Plus className="h-3 w-3" />
+                </Button>
+              </div>
+              {excludePatterns.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {excludePatterns.map((p) => (
+                    <Badge key={p} variant="outline" className="text-xs gap-1 cursor-pointer text-destructive border-destructive/30" onClick={() => removeExclude(p)}>
+                      <Ban className="h-2.5 w-2.5" />
+                      {p}
+                      <X className="h-2.5 w-2.5" />
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="flex gap-2 pt-1">
               <Button
                 size="sm"
@@ -223,6 +272,12 @@ export function ScopesPanel({ folders, availableTags }: { folders: string[]; ava
                   <Badge key={t} variant="outline" className="text-xs font-normal gap-1">
                     <Tag className="h-2.5 w-2.5" />
                     {t}
+                  </Badge>
+                ))}
+                {(scope.exclude_patterns || []).map((p) => (
+                  <Badge key={p} variant="outline" className="text-xs font-normal gap-1 text-destructive border-destructive/30">
+                    <Ban className="h-2.5 w-2.5" />
+                    {p}
                   </Badge>
                 ))}
               </div>

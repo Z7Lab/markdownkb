@@ -142,6 +142,7 @@ def chat_respond(message: str, retriever: Retriever,
                  folders_filter: list[str] | None = None,
                  scope_tags: list[str] | None = None,
                  allowed_paths: set[str] | None = None,
+                 exclude_patterns: list[str] | None = None,
                  sources_out: list[str] | None = None,
                  source_map_out: dict[str, str] | None = None,
                  conversation_history: ConversationHistory | None = None) -> Generator:
@@ -153,7 +154,7 @@ def chat_respond(message: str, retriever: Retriever,
     search_query = rewrite_query(message, settings)
     results = retriever.search(
         search_query, folders_filter=folders_filter, scope_tags=scope_tags,
-        allowed_paths=allowed_paths,
+        allowed_paths=allowed_paths, exclude_patterns=exclude_patterns,
     )
 
     if not results:

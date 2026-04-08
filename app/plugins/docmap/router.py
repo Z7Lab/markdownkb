@@ -10,7 +10,7 @@ from app.deps import get_retriever, get_scopedb, get_settings, get_tracking
 from app.events import event_bus
 from app.rag.retriever import Retriever
 from app.ratelimit import STANDARD, limiter
-from app.scope_utils import parse_scope_ids, resolve_scopes
+from app.scope_utils import apply_exclude_patterns, parse_scope_ids, resolve_scopes
 from app.tag_utils import resolve_tag_paths
 from app.services.graph_service import compute_edge_detail, compute_graph, graph_progress
 from app.storage.scopedb import ScopeDB
@@ -32,11 +32,13 @@ def _cache_key(
     top_k: int,
     word_clouds: bool = True,
     min_weight: float = 0.0,
+    exclude_patterns: list[str] | None = None,
 ) -> tuple:
     roots = frozenset(source_roots) if source_roots else frozenset()
     tags = frozenset(scope_tags) if scope_tags else frozenset()
     adhoc = frozenset(ad_hoc_tags) if ad_hoc_tags else frozenset()
-    return (roots, tags, adhoc, top_k, word_clouds, min_weight)
+    excludes = frozenset(exclude_patterns) if exclude_patterns else frozenset()
+    return (roots, tags, adhoc, top_k, word_clouds, min_weight, excludes)
 
 
 @router.get("/data")
@@ -56,7 +58,7 @@ def graph_data(
 ):
     """Return the document similarity map (nodes, edges, clusters, word clouds)."""
     ids = parse_scope_ids(scope_ids) or ([scope_id] if scope_id else None)
-    scope_folders, scope_tags = resolve_scopes(ids, scopedb)
+    scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
     tag_paths = resolve_tag_paths(scope_tags, ad_hoc_tags)
 
     # When scopes combine folders AND tags, use OR logic: show docs from
@@ -79,7 +81,18 @@ def graph_data(
     else:
         allowed = None
 
-    key = _cache_key(scope_folders, scope_tags, ad_hoc_tags, top_k, word_clouds, min_weight)
+    # Apply scope exclude patterns — if we have excludes but no allowed set yet,
+    # build the path set from folders so we can filter it
+    if exclude_patterns and allowed is None and scope_folders:
+        all_tracked = tracking.get_all_files()
+        allowed = {
+            f["path"] for f in all_tracked
+            if any(f["path"].startswith(d + "/") or f["path"] == d for d in scope_folders)
+        }
+        scope_folders = None  # filtering via allowed_paths now
+    allowed = apply_exclude_patterns(allowed, exclude_patterns)
+
+    key = _cache_key(scope_folders, scope_tags, ad_hoc_tags, top_k, word_clouds, min_weight, exclude_patterns)
 
     with _cache_lock:
         if key in _graph_cache:
@@ -110,7 +123,7 @@ def graph_stats(
 ):
     """Lightweight stats without computing the full graph."""
     ids = parse_scope_ids(scope_ids) or ([scope_id] if scope_id else None)
-    scope_folders, scope_tags = resolve_scopes(ids, scopedb)
+    scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
     tag_paths = resolve_tag_paths(scope_tags, None)
 
     all_meta = retriever.store.get_all_metadatas()
@@ -164,7 +177,7 @@ def graph_status(
 ):
     """Check if cached graph data is available (no computation)."""
     ids = parse_scope_ids(scope_ids) or ([scope_id] if scope_id else None)
-    scope_folders, scope_tags = resolve_scopes(ids, scopedb)
+    scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
     key = _cache_key(scope_folders, scope_tags, ad_hoc_tags, top_k, word_clouds, min_weight)
     with _cache_lock:
         return {"cached": key in _graph_cache}

@@ -46,7 +46,8 @@ class Retriever:
     def search(self, query: str, top_k: int | None = None,
                folders_filter: list[str] | None = None,
                scope_tags: list[str] | None = None,
-               allowed_paths: set[str] | None = None) -> list[SearchResult]:
+               allowed_paths: set[str] | None = None,
+               exclude_patterns: list[str] | None = None) -> list[SearchResult]:
         """Search using vector similarity and optional BM25.
 
         Args:
@@ -54,6 +55,8 @@ class Retriever:
                             Uses ChromaDB ``$in`` operator.
             scope_tags: Tags from a scope definition (ChromaDB metadata).
             allowed_paths: Pre-resolved file paths from tracking DB tags.
+            exclude_patterns: Glob patterns to exclude from results (matched
+                against source_path and its basename via fnmatch).
         """
         k = top_k or self._settings.top_k
 
@@ -101,6 +104,18 @@ class Retriever:
             results = [
                 r for r in results
                 if r.metadata.get("source_path", "") in allowed_paths
+            ]
+
+        # Apply scope exclude patterns (fnmatch against source_path)
+        if exclude_patterns:
+            from fnmatch import fnmatch
+            results = [
+                r for r in results
+                if not any(
+                    fnmatch(r.metadata.get("source_path", ""), pat)
+                    or fnmatch(r.metadata.get("source_path", "").rsplit("/", 1)[-1], pat)
+                    for pat in exclude_patterns
+                )
             ]
 
         # Exclude files where include_rag is toggled off

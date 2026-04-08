@@ -41,7 +41,7 @@ def handler(message: str, scope_id: str | None = None,
     chatdb = deps.get("chatdb")
 
     # Resolve scope into folder filter + allowed paths
-    folders_filter, allowed_paths = resolve_mcp_scope(ctx, scope_id)
+    folders_filter, allowed_paths, exclude_patterns = resolve_mcp_scope(ctx, scope_id)
 
     # Thread support: create or reuse thread when ChatDB is available
     actual_thread_id = thread_id
@@ -60,6 +60,7 @@ def handler(message: str, scope_id: str | None = None,
         thread_id=actual_thread_id,
         folders_filter=folders_filter,
         allowed_paths=allowed_paths,
+        exclude_patterns=exclude_patterns,
         sources_out=sources, source_map_out=source_map,
     ):
         response = chunk

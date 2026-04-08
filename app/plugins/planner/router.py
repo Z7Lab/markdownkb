@@ -34,7 +34,7 @@ def plan(
 ):
     """Generate an implementation plan using MCTS."""
     ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
-    scope_folders, scope_tags = resolve_scopes(ids, scopedb)
+    scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
     allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
 
     # Bucket-scoped planning: use a bucket-specific retriever
@@ -56,6 +56,7 @@ def plan(
             skill_names=req.skill_names,
             folders_filter=scope_folders if not bucket_retriever else None,
             allowed_paths=allowed if not bucket_retriever else None,
+            exclude_patterns=exclude_patterns if not bucket_retriever else None,
         )
     except RuntimeError as e:
         logger.error("Planner error: %s", e)
@@ -75,7 +76,7 @@ def plan_stream(
 ):
     """Stream plan generation progress as SSE events."""
     ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
-    scope_folders, scope_tags = resolve_scopes(ids, scopedb)
+    scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
     allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
 
     # Bucket-scoped planning: use a bucket-specific retriever
@@ -98,6 +99,7 @@ def plan_stream(
                 skill_names=req.skill_names,
                 folders_filter=scope_folders if not bucket_retriever else None,
                 allowed_paths=allowed if not bucket_retriever else None,
+                exclude_patterns=exclude_patterns if not bucket_retriever else None,
             )
         except RuntimeError as e:
             logger.error("Planner stream error: %s", e)
