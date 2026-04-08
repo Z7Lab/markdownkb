@@ -104,6 +104,28 @@ A local model querying a local knowledge base keeps your thinking where it belon
 
 This matters most for the people with the most valuable knowledge to query: researchers with unpublished findings, businesses with proprietary playbooks, developers with hard-won architectural decisions. The more valuable your knowledge base, the more reason to keep it under your own roof.
 
+## Convert, Don't Connect
+
+A common pattern in RAG systems is to connect to external data sources — Notion, Google Drive, Slack, Confluence — and query them in place. The system becomes an adapter layer sitting on top of other people's platforms, borrowing their data at query time.
+
+mdkb deliberately doesn't do this. The design is: convert your documents to markdown and own them, rather than maintaining live connections to services you don't control.
+
+The difference matters:
+
+**Connecting** means your knowledge base is only as available as those services. If Notion has an outage, your knowledge base has holes. If you cancel a subscription, years of indexed knowledge disappear. If an API changes, your connector breaks. You don't own the data — you're renting access to it. You can't version it in git, you can't curate it offline, you can't hand someone a folder of files and say "here's everything I know about X."
+
+**Converting** means you have the files. Plain text markdown on your filesystem. No API keys required to access your own knowledge. No vendor dependency. The source service could shut down tomorrow and your knowledge base is unaffected. You can version the files, diff them, edit them, move them between machines, back them up however you want.
+
+This is why the converter plugin exists — it takes documents in any format (DOCX, PDF, HTML, EPUB, and others via Pandoc) and produces markdown files that you keep. It's not a workaround for a missing connector feature. It's the deliberate choice: your knowledge should live as files you own, not as API calls to someone else's platform.
+
+The friction of converting is a feature. It forces a decision about what's worth keeping. Not everything in your Notion workspace belongs in your knowledge base — most of it is transient. The act of selecting, converting, and curating is what turns a pile of documents into a knowledge base worth querying.
+
+If a document is worth querying for years, it's worth owning as a file.
+
+Sharing follows the same principle. Buckets — scoped collections of documents — can be exported and imported as archives of plain markdown files. When you share a bucket, the recipient gets files in one expected format, not a link to a platform they need an account on. They can import the bucket into their own knowledge base, review the contents, promote what's worth keeping into their permanent collection, and discard the rest. No accounts, no permissions, no format conversion on the receiving end. Knowledge transfers as files, the same way it's stored.
+
+Because buckets are temporary and independently searchable, they're also a tool for synthesis. Download someone's shared bucket or convert a batch of external documents into one, and you have a scoped collection you can query against your existing permanent knowledge base. Ask "what in this bucket overlaps with what I already know?" or "what's new here that I don't have?" The bucket is ephemeral — it exists for the duration of the analysis — but the insights you extract from comparing it against your own documents can be captured as new markdown and promoted into your permanent collection. Temporary input, permanent output. The bucket is disposable; the knowledge you derive from it isn't.
+
 ## The Input Side Matters More Than the Retrieval Side
 
 Most RAG systems focus on retrieval quality — better embeddings, better chunking, better ranking. These matter, but they're secondary to the quality of what gets retrieved.
