@@ -330,7 +330,7 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
             "huggingface_repo": "BAAI/bge-small-en-v1.5",
             "dimensions": 384,
             "max_seq_length": 512,
-            "description": "Best retrieval quality (33MB). Longer context.",
+            "description": "Best retrieval quality (133MB). 512 token context.",
             "query_prefix": "Represent this sentence for searching relevant passages: ",
         },
     ]
