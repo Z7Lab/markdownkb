@@ -16,7 +16,14 @@ Your query is converted to a numerical vector (embedding) using the same model t
 
 ### BM25 Keyword Matching
 
-BM25 (Best Matching 25) is a classic information retrieval algorithm that scores documents by term frequency — how often your query words appear in each chunk, weighted by how rare those words are across all documents.
+BM25 (Best Matching 25) is a ranking algorithm from classical information retrieval — the same family of algorithms that powered search engines before neural networks. It scores each chunk based on two factors:
+
+- **Term frequency (TF)** — how often your query words appear in the chunk. More occurrences = higher score, but with diminishing returns (the 10th mention of "MCTS" doesn't help as much as the 2nd).
+- **Inverse document frequency (IDF)** — how rare the word is across all chunks. Common words like "the" or "system" contribute little. Rare words like "MCTS" or "backpropagate" contribute a lot, because a chunk containing a rare term is more likely to be specifically about that topic.
+
+BM25 also normalizes for document length — a 200-word chunk that mentions "MCTS" three times scores higher than a 2000-word chunk that mentions it three times, because the shorter chunk is more focused.
+
+mdkb uses the `rank-bm25` library with whole-word tokenization (not subword) to avoid false positives from partial matches.
 
 **What it's good at:** Finding exact keyword matches, proper nouns, technical terms, acronyms. A query for "MCTS" finds every chunk that contains "MCTS" regardless of surrounding context.
 
