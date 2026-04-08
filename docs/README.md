@@ -14,6 +14,7 @@ Task-oriented. Follow these when you're trying to get something done.
 | [Embedding Models](how-to/embedding-models.md) | Choose and configure local ONNX or remote embedding (Ollama, cloud) |
 | [Remote LLM Setup](how-to/remote-llm-setup.md) | Connect Docker mdkb to remote Ollama or llama.cpp servers |
 | [Scopes and Filtering](how-to/scopes-and-filtering.md) | Named filter presets — folders, tags, exclude patterns, persistent sidebar state |
+| [AI Tagging](how-to/ai-tagging.md) | LLM-powered tag generation — preview, apply, bulk, manual tagging |
 | [Plugin Development](how-to/plugin-development.md) | Build custom plugins — structure, manifest, databases, MCP tools |
 
 ## Third-Party Integration
@@ -37,7 +38,6 @@ Look things up mid-task. Structured for scanning, not reading top-to-bottom.
 | [Configuration](reference/configuration.md) | All settings keys, feature flags, `.env` vs `settings.yaml` precedence |
 | [API](reference/api.md) | Full REST endpoint listing for all features |
 | [MCP Server](reference/mcp-server.md) | 32 MCP tools, transports (stdio/SSE), authentication, scope support |
-| [Embedded Tools](reference/embedded-tools.md) | Optional embedded tools — filesystem, terminal, AI tag generation |
 | [CLI](reference/cli.md) | Command-line interface (index, search, add-source, stats) |
 | [LLM Benchmarking](reference/llm-benchmarking.md) | Measuring tokens/second for Ollama and llama.cpp |
 

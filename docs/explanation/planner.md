@@ -60,7 +60,17 @@ The retriever searches your knowledge base for documents relevant to the request
 
 ### Phase 2: Filesystem Exploration
 
-If the `mcp_filesystem` feature flag is enabled, the planner browses directories referenced in the research results (up to 5 directories, 2 levels deep). This gives the LLM structural context — what files exist, how the project is organized.
+If the `mcp.filesystem` flag is enabled in settings, the planner browses directories referenced in the research results (up to 5 directories, 2 levels deep). This gives the LLM structural context — what files exist, how the project is organized.
+
+This is implemented via an internal HTTP endpoint (`app/lib/filesystem/`) that provides directory listing, file reading, and pattern search. It's not an MCP tool that external agents call — it's used by the planner internally.
+
+There's also an optional `mcp.terminal` flag that allows the planner to execute safe, allowlisted shell commands (e.g. `ls`, `find`, `wc`). Both are disabled by default and controlled in `config/settings.yaml` under `mcp:`:
+
+```yaml
+mcp:
+  filesystem: false   # planner filesystem exploration
+  terminal: false     # planner safe command execution
+```
 
 ### Phase 3: Generate Approaches
 
