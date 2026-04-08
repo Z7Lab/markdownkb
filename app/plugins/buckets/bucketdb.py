@@ -70,6 +70,16 @@ class BucketDB:
             self._conn.commit()
         return cursor.rowcount > 0
 
+    def update_expiration(self, bucket_id: str, expires_at: str | None) -> bool:
+        """Update bucket expiration. Pass None to make permanent."""
+        with self._lock:
+            cursor = self._conn.execute(
+                "UPDATE buckets SET expires_at = ? WHERE id = ?",
+                (expires_at, bucket_id),
+            )
+            self._conn.commit()
+        return cursor.rowcount > 0
+
     def delete(self, bucket_id: str) -> bool:
         """Delete a bucket by ID. Returns True if a row was deleted."""
         with self._lock:

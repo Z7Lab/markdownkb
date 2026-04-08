@@ -78,12 +78,26 @@ export function useBuckets() {
     [buckets, refresh, selectedBucketId],
   )
 
+  const updateExpiration = useCallback(
+    async (id: string, expiresIn: number | null) => {
+      try {
+        await api.patch(`/api/buckets/${id}`, { expires_in: expiresIn })
+        await refresh()
+        toast.success(expiresIn ? "Expiration updated" : "Bucket set to permanent", { duration: 2000 })
+      } catch (err) {
+        toast.error(`Failed to update: ${(err as Error).message}`)
+      }
+    },
+    [refresh],
+  )
+
   return {
     buckets,
     selectedBucketId,
     setSelectedBucketId,
     createBucket,
     deleteBucket,
+    updateExpiration,
     refresh,
   }
 }

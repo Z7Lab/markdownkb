@@ -1,12 +1,6 @@
 import { SidebarSection } from "@/components/ui/sidebar-section"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Database } from "lucide-react"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import type { Bucket } from "@/hooks/use-buckets"
 
 export function BucketSelector({
@@ -31,26 +25,22 @@ export function BucketSelector({
       count={selectedBucketId ? 1 : 0}
       summary={selectedName}
     >
-      <div className="pl-5">
-        <Select
-          value={selectedBucketId ?? "__none__"}
-          onValueChange={(v) => onBucketChange(v === "__none__" ? null : v)}
-        >
-          <SelectTrigger className="h-7 text-xs">
-            <SelectValue placeholder="All sources" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__">All sources</SelectItem>
-            {buckets.map((b) => (
-              <SelectItem key={b.id} value={b.id}>
-                {b.name}
-                <span className="text-muted-foreground ml-1">
-                  ({b.file_count} files)
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="space-y-0.5 pl-2">
+        {buckets.map((b) => (
+          <label
+            key={b.id}
+            className="flex items-center gap-2 px-1 py-1 rounded hover:bg-accent cursor-pointer text-xs"
+          >
+            <Checkbox
+              checked={selectedBucketId === b.id}
+              onCheckedChange={(checked) => onBucketChange(checked ? b.id : null)}
+            />
+            <span className="truncate flex-1">{b.name}</span>
+            <span className="text-[10px] text-muted-foreground shrink-0">
+              {b.file_count} files
+            </span>
+          </label>
+        ))}
       </div>
     </SidebarSection>
   )

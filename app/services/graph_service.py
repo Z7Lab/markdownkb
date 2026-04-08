@@ -357,6 +357,69 @@ def compute_edge_detail(
     }
 
 
+def compute_cross_edges(
+    store_a: "VectorStore",
+    store_b: "VectorStore",
+    top_k: int = 3,
+    min_weight: float = 0.0,
+    allowed_paths_a: set[str] | None = None,
+    excluded_paths_a: set[str] | None = None,
+) -> list[dict]:
+    """Compute similarity edges between documents in two different stores.
+
+    Used to find connections between bucket documents and main collection
+    documents. Returns edges in the same format as compute_graph.
+    """
+    raw_a = store_a.get_all_with_embeddings()
+    raw_b = store_b.get_all_with_embeddings()
+
+    if not raw_a["ids"] or not raw_b["ids"]:
+        return []
+
+    # Group chunks by source_path for each store
+    def _group_docs(raw):
+        docs = {}
+        for i, chunk_id in enumerate(raw["ids"]):
+            meta = raw["metadatas"][i]
+            path = meta.get("source_path", chunk_id)
+            if path not in docs:
+                docs[path] = []
+            docs[path].append(raw["embeddings"][i])
+        return docs
+
+    docs_a = _group_docs(raw_a)
+    docs_b = _group_docs(raw_b)
+
+    # Apply path filters to store_a (main collection)
+    if allowed_paths_a is not None:
+        docs_a = {p: e for p, e in docs_a.items() if p in allowed_paths_a}
+    if excluded_paths_a:
+        docs_a = {p: e for p, e in docs_a.items() if p not in excluded_paths_a}
+
+    if not docs_a or not docs_b:
+        return []
+
+    # Compute cross-collection pairwise similarity
+    edges = []
+    for path_a, chunks_a in docs_a.items():
+        embs_a = np.array(chunks_a, dtype=np.float32)
+        for path_b, chunks_b in docs_b.items():
+            embs_b = np.array(chunks_b, dtype=np.float32)
+            sim_matrix = embs_a @ embs_b.T
+            flat = sim_matrix.flatten()
+            k = min(top_k, len(flat))
+            top_indices = np.argpartition(flat, -k)[-k:]
+            weight = float(flat[top_indices].mean())
+            if weight >= min_weight:
+                edges.append({
+                    "source": path_a,
+                    "target": path_b,
+                    "weight": round(weight, 4),
+                })
+
+    return edges
+
+
 def _empty_graph() -> dict:
     """Return an empty graph structure."""
     return {

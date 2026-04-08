@@ -75,7 +75,7 @@ const ENTITY_TYPE_COLORS: Record<string, string> = {
   principle: "oklch(0.656 0.241 354)",   // pink
 }
 const HIGHLIGHT_COLOR = "oklch(0.852 0.199 91.9)"  // yellow-300
-const BUCKET_COLOR = "oklch(0.685 0.169 237)"      // sky-500 — distinct from cluster palette
+const BUCKET_COLOR = "#ff3333"  // bright red — must be visible against all cluster colors
 
 import { GRAPH_THEME } from "@/lib/constants"
 
@@ -166,6 +166,9 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
     const wcChanged = prevWordCloudsRef.current !== wordClouds
     const bucketChanged = prevBucketRef.current !== selectedBucketId
     if (scopeChanged || tagsChanged || wcChanged || bucketChanged) {
+      console.log("[docmap] effect: scope=%s tag=%s wc=%s bucket=%s (changed: scope=%s tag=%s wc=%s bucket=%s)",
+        scopeIdsParam, adHocTagsParam, wordClouds, selectedBucketId,
+        scopeChanged, tagsChanged, wcChanged, bucketChanged)
       prevScopeRef.current = scopeIdsParam
       prevTagsRef.current = adHocTagsParam
       prevWordCloudsRef.current = wordClouds
@@ -216,8 +219,10 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
   // Filter edges by threshold and remove disconnected nodes
   const forceDocMapData = useMemo(() => {
     if (!docmapData) return { nodes: [], links: [] }
+    const nodeIds = new Set(docmapData.nodes.map(n => n.id))
+    // Only include edges where BOTH endpoints exist as nodes
     const links = docmapData.edges
-      .filter(e => e.weight >= threshold)
+      .filter(e => e.weight >= threshold && nodeIds.has(e.source) && nodeIds.has(e.target))
       .map(e => ({
         source: e.source,
         target: e.target,
@@ -228,12 +233,15 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
       connectedIds.add(link.source)
       connectedIds.add(link.target)
     }
-    return {
+    const result = {
       nodes: docmapData.nodes
         .filter(n => connectedIds.has(n.id))
         .map(n => ({ ...n })),
       links,
     }
+    console.log("[docmap] forceDocMapData recomputed: %d nodes, %d links (from %d raw nodes, %d raw edges, threshold=%.2f)",
+      result.nodes.length, result.links.length, docmapData.nodes.length, docmapData.edges.length, threshold)
+    return result
   }, [docmapData, threshold])
 
   // KG mode: build force graph from entities + relationships
@@ -266,6 +274,7 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
 
   // Which data set to render
   const activeForceData = mode === "knowledge" ? kgForceData : forceDocMapData
+  console.log("[docmap] activeForceData: %d nodes, %d links (mode=%s)", activeForceData.nodes.length, activeForceData.links.length, mode)
   const activeIsLoading = mode === "knowledge" ? kgLoading : isLoading
   const hasData = mode === "knowledge" ? (kgData && kgData.entities.length > 0) : (docmapData && docmapData.nodes.length > 0)
 
@@ -314,12 +323,13 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
     if (center) {
       center.strength(0.02)
     }
-    // Only reheat when spread actually changed — not when data changed
-    // (data changes already restart the simulation via the graph component)
-    const spreadChanged = prevSpreadRef.current !== spread
     prevSpreadRef.current = spread
-    if (spreadChanged && spreadInitialized.current) {
+    if (spreadInitialized.current) {
+      console.log("[docmap] d3 reheat: nodes=%d, links=%d, fgRef=%s", forceDocMapData.nodes.length, forceDocMapData.links.length, !!fg)
       fg.d3ReheatSimulation()
+      if (initialFitDone.current) {
+        pendingRecenter.current = true
+      }
     }
     spreadInitialized.current = true
   }, [forceDocMapData, spread])
@@ -359,6 +369,26 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
     }
   }, [docmapData, selectedNodeId, searchTerm, highlightedNodes])
 
+  // Log bucket nodes once for debugging
+  const loggedBucketNodes = useRef(false)
+  useEffect(() => {
+    if (docmapData && !loggedBucketNodes.current) {
+      const bn = docmapData.nodes.filter(n => n._bucket)
+      if (bn.length > 0) {
+        console.log("[docmap] bucket nodes in data:", bn.map(n => ({ id: n.id.split("/").pop(), _bucket: n._bucket, cluster_id: n.cluster_id })))
+        loggedBucketNodes.current = true
+      }
+    }
+  }, [docmapData])
+
+  // Also check forceDocMapData
+  useEffect(() => {
+    if (forceDocMapData.nodes.length > 0) {
+      const bn = forceDocMapData.nodes.filter(n => n._bucket)
+      console.log("[docmap] forceDocMapData: %d total nodes, %d bucket nodes", forceDocMapData.nodes.length, bn.length)
+    }
+  }, [forceDocMapData])
+
   // Node color callback — bucket nodes get a distinct color
   const nodeColor = useCallback((node: DocMapNode & { entity_type?: string; _bucket?: boolean }) => {
     if (mode === "knowledge" && node.entity_type) {
@@ -376,11 +406,16 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
     if (node._bucket) return BUCKET_COLOR
     if (node.cluster_id < 0) return UNCLUSTERED_COLOR
     return CLUSTER_COLORS[node.cluster_id % CLUSTER_COLORS.length] || UNCLUSTERED_COLOR
-  }, [mode, hasHighlight, highlightedNodes, selectedNodeId, colors.dim])
+  // Include docmapData in deps so the function ref changes when data changes,
+  // forcing the graph library to re-apply node colors (e.g. bucket vs non-bucket)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, hasHighlight, highlightedNodes, selectedNodeId, colors.dim, docmapData])
 
-  // Node size: chunk count, enlarged when highlighted
+  // Node size: chunk count, enlarged when highlighted or bucket
   const nodeVal = useCallback((node: DocMapNode) => {
     const base = Math.max(1, node.chunk_count)
+    // Make bucket nodes larger so they're visible among hundreds of other nodes
+    if (node._bucket) return Math.max(base * 3, 10)
     if (hasHighlight && highlightedNodes.has(node.id)) return base * 2
     return base
   }, [hasHighlight, highlightedNodes])
@@ -623,11 +658,14 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
             cooldownTicks={200}
             warmupTicks={100}
             onEngineStop={() => {
+              console.log("[docmap] onEngineStop: initialFitDone=%s, pendingRecenter=%s", initialFitDone.current, pendingRecenter.current)
               if (!initialFitDone.current) {
                 initialFitDone.current = true
+                console.log("[docmap] onEngineStop: initial zoomToFit")
                 fgRef.current?.zoomToFit(400, 60)
               } else if (pendingRecenter.current) {
                 pendingRecenter.current = false
+                console.log("[docmap] onEngineStop: recenter zoomToFit")
                 fgRef.current?.zoomToFit(400, 60)
               }
             }}

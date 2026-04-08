@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
-import { Database, Plus, Trash2, FileText, ChevronDown, ChevronRight, Loader2 } from "lucide-react"
+import { Database, Plus, Trash2, FileText, ChevronDown, ChevronRight, Loader2, Clock, Infinity } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { EmptyHero } from "@/components/ui/empty-hero"
 
 interface BucketFile {
@@ -22,10 +23,12 @@ function BucketCard({
   bucket,
   onDelete,
   onViewFile,
+  onUpdateExpiration,
 }: {
   bucket: Bucket
   onDelete: (id: string) => void
   onViewFile: (path: string) => void
+  onUpdateExpiration: (id: string, expiresIn: number | null) => Promise<void>
 }) {
   const [expanded, setExpanded] = useState(false)
   const [files, setFiles] = useState<BucketFile[]>([])
@@ -118,6 +121,50 @@ function BucketCard({
             </div>
           </div>
 
+          {/* Expiration */}
+          <div className="mb-3">
+            <p className="text-xs text-muted-foreground font-medium mb-1">Expiration</p>
+            <div className="flex items-center gap-2">
+              <Select
+                value={bucket.expires_at ? "expires" : "permanent"}
+                onValueChange={async (v) => {
+                  if (v === "permanent") {
+                    await onUpdateExpiration(bucket.id, null)
+                  } else if (v === "1h") {
+                    await onUpdateExpiration(bucket.id, 3600)
+                  } else if (v === "24h") {
+                    await onUpdateExpiration(bucket.id, 86400)
+                  } else if (v === "7d") {
+                    await onUpdateExpiration(bucket.id, 604800)
+                  }
+                }}
+              >
+                <SelectTrigger className="h-7 text-xs w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="permanent">
+                    <span className="flex items-center gap-1"><Infinity className="h-3 w-3" /> Permanent</span>
+                  </SelectItem>
+                  <SelectItem value="1h">
+                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> 1 hour</span>
+                  </SelectItem>
+                  <SelectItem value="24h">
+                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> 24 hours</span>
+                  </SelectItem>
+                  <SelectItem value="7d">
+                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> 7 days</span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              {bucket.expires_at && (
+                <span className="text-[10px] text-muted-foreground">
+                  expires {relativeTime(bucket.expires_at)}
+                </span>
+              )}
+            </div>
+          </div>
+
           {/* Files */}
           {loadingFiles && (
             <div className="flex items-center gap-2 py-4 justify-center text-xs text-muted-foreground">
@@ -170,7 +217,7 @@ function BucketCard({
 }
 
 export function BucketsTab() {
-  const { buckets, createBucket, deleteBucket, refresh } = useBuckets()
+  const { buckets, createBucket, deleteBucket, updateExpiration, refresh } = useBuckets()
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [viewingPath, setViewingPath] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
@@ -296,6 +343,7 @@ export function BucketsTab() {
               bucket={bucket}
               onDelete={setConfirmDelete}
               onViewFile={setViewingPath}
+              onUpdateExpiration={updateExpiration}
             />
           ))}
         </div>

@@ -12,7 +12,7 @@ from app.rag.retriever import Retriever
 from app.ratelimit import STANDARD, limiter
 from app.scope_utils import apply_exclude_patterns, parse_scope_ids, resolve_scopes
 from app.tag_utils import resolve_tag_paths
-from app.services.graph_service import compute_edge_detail, compute_graph, graph_progress
+from app.services.graph_service import compute_cross_edges, compute_edge_detail, compute_graph, graph_progress
 from app.storage.scopedb import ScopeDB
 from app.storage.trackingdb import TrackingDB
 
@@ -59,6 +59,7 @@ def graph_data(
 ):
     """Return the document similarity map (nodes, edges, clusters, word clouds)."""
     ids = parse_scope_ids(scope_ids) or ([scope_id] if scope_id else None)
+    logger.info("docmap/data request: scope_ids=%s, bucket_id=%s, min_weight=%s, word_clouds=%s", scope_ids, bucket_id, min_weight, word_clouds)
     scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
     tag_paths = resolve_tag_paths(scope_tags, ad_hoc_tags)
 
@@ -123,9 +124,22 @@ def graph_data(
                 # Tag bucket nodes
                 for node in bucket_graph["nodes"]:
                     node["_bucket"] = True
-                # Merge nodes and edges
+                # Merge nodes and intra-bucket edges
                 result["nodes"].extend(bucket_graph["nodes"])
                 result["edges"].extend(bucket_graph["edges"])
+
+                # Compute cross-collection edges (bucket ↔ main)
+                # Use a higher threshold for cross-edges — only show strong
+                # connections, otherwise bucket nodes attract everything
+                cross_min_weight = max(min_weight, 0.75)
+                cross_edges = compute_cross_edges(
+                    retriever.store, bucket_store,
+                    top_k=top_k, min_weight=cross_min_weight,
+                    allowed_paths_a=allowed, excluded_paths_a=excluded,
+                )
+                result["edges"].extend(cross_edges)
+                logger.info("docmap: %d cross-collection edges between main and bucket", len(cross_edges))
+
                 # Merge word clouds
                 for term, weight in bucket_graph.get("global_word_cloud", {}).items():
                     result["global_word_cloud"][term] = max(
@@ -134,8 +148,11 @@ def graph_data(
                 # Update stats
                 result["stats"]["doc_count"] += bucket_graph["stats"]["doc_count"]
                 result["stats"]["chunk_count"] += bucket_graph["stats"]["chunk_count"]
-                result["stats"]["edge_count"] += bucket_graph["stats"]["edge_count"]
+                result["stats"]["edge_count"] += len(cross_edges) + bucket_graph["stats"]["edge_count"]
                 result["stats"]["bucket_doc_count"] = bucket_graph["stats"]["doc_count"]
+
+    bucket_nodes = sum(1 for n in result["nodes"] if n.get("_bucket"))
+    logger.info("docmap/data result: %d nodes (%d bucket), %d edges", len(result["nodes"]), bucket_nodes, len(result["edges"]))
 
     with _cache_lock:
         _graph_cache[key] = result

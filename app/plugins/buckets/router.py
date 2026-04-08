@@ -42,6 +42,10 @@ class AddToBucketRequest(BaseModel):
     sources: list[BucketSource] = Field(..., min_length=1)
 
 
+class UpdateBucketRequest(BaseModel):
+    expires_in: int | None = Field(None, description="Seconds from now, or null for permanent")
+
+
 # -- Helpers -----------------------------------------------------------------
 
 def _get_bucket_service(request: Request) -> BucketService:
@@ -102,6 +106,31 @@ def get_bucket(
     if not record:
         raise HTTPException(status_code=404, detail="Bucket not found")
     return record
+
+
+@router.patch("/buckets/{bucket_id}")
+@limiter.limit(STANDARD)
+def update_bucket(
+    request: Request,
+    bucket_id: str,
+    req: UpdateBucketRequest,
+    svc: BucketService = Depends(_get_bucket_service),
+):
+    """Update bucket settings (expiration)."""
+    record = svc.db.resolve(bucket_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Bucket not found")
+
+    from datetime import datetime, timedelta, timezone
+    if req.expires_in is None:
+        expires_at = None
+    elif req.expires_in <= 0:
+        expires_at = None
+    else:
+        expires_at = (datetime.now(timezone.utc) + timedelta(seconds=req.expires_in)).strftime("%Y-%m-%d %H:%M:%S")
+
+    svc.db.update_expiration(record["id"], expires_at)
+    return {"status": "updated", "expires_at": expires_at}
 
 
 @router.get("/buckets/{bucket_id}/files")

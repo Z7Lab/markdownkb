@@ -60,19 +60,25 @@ export function useVisualization() {
       try {
         // Check cache and build progress in parallel
         const mw = `&min_weight=${MIN_WEIGHT}`
+        console.log("[docmap] mount: checking cache...")
         const [withWc, withoutWc, prog] = await Promise.all([
           api.get<{ cached: boolean }>(`/api/docmap/status?word_clouds=true${mw}`, controller.signal),
           api.get<{ cached: boolean }>(`/api/docmap/status?word_clouds=false${mw}`, controller.signal),
           api.get<{ fraction: number; phase: string }>("/api/docmap/progress", controller.signal),
         ])
-        if (controller.signal.aborted || docmapDataRef.current) return
+        if (controller.signal.aborted) { console.log("[docmap] mount: aborted after cache check"); return }
+        if (docmapDataRef.current) { console.log("[docmap] mount: data already set by scope effect, skipping"); return }
 
         const hasCached = withWc.cached || withoutWc.cached
+        console.log("[docmap] mount: cached=%s, wc=%s, prog=%s", hasCached, withWc.cached, prog.phase)
         if (hasCached) {
           const useWc = withWc.cached
           setIsLoading(true)
+          console.log("[docmap] mount: loading cached unscoped data...")
           const data = await api.get<DocMapData>(`/api/docmap/data${buildQs(null, useWc)}`, controller.signal)
-          if (controller.signal.aborted) return
+          if (controller.signal.aborted) { console.log("[docmap] mount: aborted after data fetch"); return }
+          if (docmapDataRef.current) { console.log("[docmap] mount: data already set while fetching, discarding"); return }
+          console.log("[docmap] mount: loaded %d nodes (unscoped)", data.nodes.length)
           docmapDataRef.current = data
           lastScopeRef.current = null
           setWordClouds(useWc)
@@ -134,18 +140,26 @@ export function useVisualization() {
     // Skip if we already have data for this exact scope+tag+bucket selection (unless forced)
     const tagsKey = adHocTags ? adHocTags.sort().join(",") : null
     const bucketKey = bucketId ?? null
-    if (!force && docmapDataRef.current && lastScopeRef.current === scopeIds && lastTagsRef.current === tagsKey && lastBucketRef.current === bucketKey) return
+    if (!force && docmapDataRef.current && lastScopeRef.current === scopeIds && lastTagsRef.current === tagsKey && lastBucketRef.current === bucketKey) {
+      console.log("[docmap] fetchDocMap: skipped (same scope=%s, tags=%s, bucket=%s)", scopeIds, tagsKey, bucketKey)
+      return
+    }
+    console.log("[docmap] fetchDocMap: scope=%s, tags=%s, bucket=%s, force=%s", scopeIds, tagsKey, bucketKey, force)
     lastScopeRef.current = scopeIds ?? null
     lastTagsRef.current = tagsKey
     lastBucketRef.current = bucketKey
 
     // Abort any in-flight cache check or previous fetch
+    console.log("[docmap] fetchDocMap: aborting previous request")
     abortRef.current?.abort()
-    abortRef.current = null
     if (pollRef.current) {
       clearInterval(pollRef.current)
       pollRef.current = null
     }
+
+    // Create a new abort controller for this fetch
+    const controller = new AbortController()
+    abortRef.current = controller
 
     setIsLoading(true)
     setIsComputing(true)
@@ -153,7 +167,7 @@ export function useVisualization() {
 
     try {
       // Start the data fetch first, then begin progress polling
-      const dataPromise = api.get<DocMapData>(`/api/docmap/data${buildQs(scopeIds, wc, adHocTags, bucketId)}`)
+      const dataPromise = api.get<DocMapData>(`/api/docmap/data${buildQs(scopeIds, wc, adHocTags, bucketId)}`, controller.signal)
 
       // Brief delay so the data request claims a connection before polls compete
       await new Promise(r => setTimeout(r, 50))
@@ -169,6 +183,9 @@ export function useVisualization() {
       }, 1000)
 
       const data = await dataPromise
+      if (controller.signal.aborted) return
+      const bucketNodes = data.nodes.filter((n) => n._bucket)
+      console.log("[docmap] fetchDocMap: received %d nodes (%d bucket), %d edges", data.nodes.length, bucketNodes.length, data.edges.length)
       docmapDataRef.current = data
       setDocMapData(data)
       setFetchedAt(Date.now() / 1000)
