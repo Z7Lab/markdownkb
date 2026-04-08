@@ -12,6 +12,7 @@ export function ScopeTagFilter({
   availableTags,
   selectedTags,
   onTagChange,
+  hasBucket = false,
 }: {
   scopes: Scope[]
   selectedScopeIds: Set<string>
@@ -19,6 +20,8 @@ export function ScopeTagFilter({
   availableTags: string[]
   selectedTags: Set<string>
   onTagChange: (tags: Set<string>) => void
+  /** When true, adjusts "All sources" label to indicate bucket-only mode */
+  hasBucket?: boolean
 }) {
   const noScopesSelected = selectedScopeIds.size === 0
 
@@ -74,8 +77,11 @@ export function ScopeTagFilter({
                 onCheckedChange={() => onScopeChange(new Set())}
               />
               <span className={noScopesSelected ? "text-foreground" : "text-muted-foreground"}>
-                All sources
+                {noScopesSelected && hasBucket ? "Bucket only" : "All sources"}
               </span>
+              {noScopesSelected && hasBucket && (
+                <span className="text-[10px] text-muted-foreground/60">no scope active</span>
+              )}
             </label>
             {scopes.map((s) => (
               <label

@@ -81,6 +81,7 @@ export function VisualizationSidebar({
                 availableTags={availableTags}
                 selectedTags={selectedTags}
                 onTagChange={onTagChange}
+                hasBucket={!!selectedBucketId}
               />
               <BucketSelector
                 buckets={buckets}

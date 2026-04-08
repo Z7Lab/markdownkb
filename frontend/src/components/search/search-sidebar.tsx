@@ -60,6 +60,7 @@ export function SearchSidebar({
             availableTags={availableTags}
             selectedTags={selectedAdHocTags}
             onTagChange={onAdHocTagChange}
+            hasBucket={!!selectedBucketId}
           />
           <BucketSelector
             buckets={buckets}

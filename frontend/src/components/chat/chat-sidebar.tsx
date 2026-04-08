@@ -70,6 +70,7 @@ export function ChatSidebar({
             availableTags={availableTags}
             selectedTags={selectedTags}
             onTagChange={onTagChange}
+            hasBucket={!!selectedBucketId}
           />
           <BucketSelector
             buckets={buckets}
