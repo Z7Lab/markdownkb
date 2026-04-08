@@ -13,6 +13,7 @@ Task-oriented. Follow these when you're trying to get something done.
 | [API Key Setup](how-to/api-key-setup.md) | When you need a key, how to set one, how to use it |
 | [Embedding Models](how-to/embedding-models.md) | Choose and configure local ONNX or remote embedding (Ollama, cloud) |
 | [Remote LLM Setup](how-to/remote-llm-setup.md) | Connect Docker mdkb to remote Ollama or llama.cpp servers |
+| [Scopes and Filtering](how-to/scopes-and-filtering.md) | Named filter presets — folders, tags, exclude patterns, persistent sidebar state |
 | [Plugin Development](how-to/plugin-development.md) | Build custom plugins — structure, manifest, databases, MCP tools |
 
 ## Third-Party Integration

@@ -40,8 +40,13 @@ export function SidebarSection({
         ) : (
           <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
         )}
-        <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-        <span className="text-xs font-medium text-muted-foreground">{label}</span>
+        <span className="relative shrink-0">
+          <Icon className={`h-3.5 w-3.5 ${hasSelection ? "text-primary" : "text-muted-foreground"}`} />
+          {hasSelection && !open && (
+            <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-primary" />
+          )}
+        </span>
+        <span className={`text-xs font-medium ${hasSelection ? "text-foreground" : "text-muted-foreground"}`}>{label}</span>
         {hasSelection && !open && summary && (
           <span className="text-[10px] text-muted-foreground/70 truncate min-w-0 flex-1">
             {summary}

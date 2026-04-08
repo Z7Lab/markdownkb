@@ -127,7 +127,7 @@ All files are relative to the data directory (see [Storage](#storage) below).
 | SearchDB | `searches.db` | Search history, versions, AI summaries |
 | PlanDB | `plans.db` | Saved planner plans and metadata |
 | PresetsDB | `presets.db` | Named retrieval setting templates |
-| ScopeDB | `scopes.db` | Named scopes (folder + tag filters) |
+| ScopeDB | `scopes.db` | Named scopes (folder + tag filters + exclude patterns) |
 
 ### RAG (`app/rag/`)
 
@@ -180,7 +180,7 @@ mdkb uses one vector database and nine SQLite databases:
 | **SearchDB** | `searches.db` | Search history, versions, AI summaries |
 | **PlanDB** | `plans.db` | Saved planner plans and metadata |
 | **PresetsDB** | `presets.db` | Named retrieval setting templates |
-| **ScopeDB** | `scopes.db` | Named scopes (folder + tag filters) |
+| **ScopeDB** | `scopes.db` | Named scopes (folder + tag filters + exclude patterns) |
 | **TagDB** | `tags.db` | File-to-tag mappings (owned by tags plugin) |
 | **BucketDB** | `buckets.db` | Temporary bucket metadata (owned by buckets plugin) |
 | **KnowledgeGraphDB** | `mdkb_kg.db` | Entities, typed relationships, extraction cache (owned by knowledge_graph plugin) |
