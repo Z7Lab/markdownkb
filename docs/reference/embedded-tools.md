@@ -1,8 +1,8 @@
-# MCP Tools
+# Embedded Tools (Filesystem, Terminal, Tag Generator)
 
-> **Note**: This document covers the **embedded MCP tool endpoints** — optional HTTP-based tools (filesystem, terminal, tag generator) served by the FastAPI app. These are distinct from the **standalone MCP server** (`mcp_server.py`), which exposes core knowledge base tools (search, chat, deep_research, etc.) over the MCP protocol. See [MCP Server](mcp-server.md) for the standalone server and its tool inventory.
+Optional HTTP-based tools that extend mdkb with file browsing, terminal access, and AI tag generation. These are served by the FastAPI app and used internally by the planner for filesystem exploration and skill reviews. Each is controlled by a feature flag in `config/settings.yaml`.
 
-Optional tools that extend mdkb with file browsing, terminal access, and AI tag generation. Each is controlled by a feature flag in `config/settings.yaml`.
+> These are **not** the MCP tools that agents connect to. For the 32 MCP tools (search, chat, buckets, etc.), see [MCP Server](mcp-server.md).
 
 | Tool | Feature Flag | Description |
 |------|-------------|-------------|
