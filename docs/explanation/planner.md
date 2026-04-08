@@ -12,7 +12,7 @@ Monte Carlo Tree Search is a decision-making algorithm originally developed for 
 
 In game AI, the tree represents possible moves. In mdkb's planner, the tree represents possible **implementation approaches**. Each node is a plan or sub-plan, and the algorithm explores, evaluates, and refines them:
 
-1. **Select** — pick a node to explore, balancing between nodes that scored well (exploitation) and nodes that haven't been tried much (exploration). This is the UCB1 formula: `score + C * sqrt(ln(parent_visits) / visits)`. High-scoring nodes get revisited, but under-explored nodes get a bonus so they're not ignored.
+1. **Select** — pick a node to explore using **UCB1** (Upper Confidence Bound 1). This is the key insight that makes MCTS work: it balances exploitation (revisiting approaches that scored well) against exploration (trying approaches that haven't been explored much). The formula is `score + C * sqrt(ln(parent_visits) / visits)`. The first term favors high-scoring nodes. The second term grows when a node has been visited few times relative to its siblings — giving under-explored approaches a chance even if their initial score was lower. The constant C controls the balance (higher = more exploration). Without UCB1, the algorithm would greedily chase the first good approach and miss better alternatives.
 
 2. **Expand** — from the selected node, generate a new child: a more detailed or refined version of that approach, informed by knowledge base context.
 
