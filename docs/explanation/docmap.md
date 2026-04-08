@@ -112,13 +112,34 @@ The combination of scoping (which documents to include) and thresholding (which 
 
 ## Bucket Overlay
 
-When a bucket is selected alongside a scope (or "All sources"), the Doc Map visualizes both your permanent documents and the bucket's documents in the same graph. Bucket nodes are colored distinctly so you can visually identify which nodes are from your knowledge base and which are from the bucket.
+When a bucket is selected alongside a scope (or "All sources"), the Doc Map visualizes both your permanent documents and the bucket's documents in the same graph.
 
-Edges between permanent and bucket nodes show content overlap — where the external material connects to things you already know. This is especially useful for:
+### How It Works Technically
+
+The backend computes three sets of edges:
+
+1. **Main-to-main edges** — pairwise similarity between your permanent documents (filtered by scope), using the same top-K chunk matching as normal
+2. **Bucket-to-bucket edges** — pairwise similarity within the bucket's documents
+3. **Cross-collection edges** — similarity between every bucket document and every permanent document. These are computed by comparing chunk embeddings across the two separate ChromaDB collections
+
+Cross-collection edges use a **higher similarity threshold** (0.75 vs 0.60 for normal edges). Without this, bucket nodes attract too many weak connections and the graph collapses into an unreadable ball. The higher threshold ensures only genuinely related documents are linked across collections.
+
+### Visual Distinction
+
+- **Permanent document nodes** — colored by cluster (DBSCAN clustering based on embedding similarity)
+- **Bucket nodes** — colored **red** and rendered larger (3x base size) so they're immediately identifiable among hundreds of permanent nodes
+- **Cross-collection edges** — same visual treatment as other edges, but they connect red nodes to cluster-colored nodes, making the overlap pattern visible
+
+### What the Overlay Reveals
+
+When bucket nodes cluster **near** specific permanent nodes, those documents cover similar ground. When bucket nodes cluster **far** from everything, the bucket contains topics not covered in your existing knowledge base.
+
+Use cases:
 
 - **Evaluating new material** — load vendor docs into a bucket, overlay with your architecture scope, and see which vendor concepts cluster near your existing patterns
 - **Research discovery** — import conference notes or papers as a bucket, overlay with your research scope, and find where new ideas connect to your existing work
-- **Gap analysis** — if bucket nodes cluster far from your permanent nodes, those topics aren't covered in your existing knowledge base
+- **Gap analysis** — if bucket nodes float disconnected or cluster alone, those topics are gaps in your permanent knowledge base
+- **Overlap detection** — if bucket nodes sit right on top of existing clusters, you already have that knowledge documented — the bucket content is redundant
 
 ## How It Differs from Knowledge Graph
 
