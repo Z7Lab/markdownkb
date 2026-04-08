@@ -53,6 +53,7 @@ Background and reasoning. Read when you want to understand why, not how.
 | [Chunking & Indexing](explanation/chunking.md) | How files are split into chunks, heading structure, search quality |
 | [Doc Map](explanation/docmap.md) | 3D document similarity visualization — sliders, clustering, word clouds, interaction |
 | [Knowledge Graph](explanation/knowledge-graph.md) | Entity extraction, typed relationships, document similarity |
+| [Buckets](explanation/buckets.md) | Temporary isolated document collections — built-in docs, comparison workflows |
 | [Planner](explanation/planner.md) | MCTS-based implementation planner with skill reviews |
 | [Philosophy](explanation/philosophy.md) | The markdown-first paradigm — why tokens are value |
 | [Value Proposition](explanation/value-proposition.md) | What mdkb is, who it's for, what makes it different |

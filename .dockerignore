@@ -11,7 +11,6 @@ __pycache__/
 .eggs/
 dist/
 build/
-docs/
 tests/
 .env
 config/settings.yaml

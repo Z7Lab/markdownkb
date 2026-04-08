@@ -47,8 +47,9 @@ COPY mcp_server.py ./mcp_server.py
 COPY config/settings.yaml.example ./config/settings.yaml.example
 COPY config/prompts/ ./config/prompts/
 
-# Copy frontend build
+# Copy frontend build and documentation
 COPY --from=frontend-builder /app/frontend/dist/ ./frontend/dist/
+COPY docs/ ./docs/
 
 # Create data and support directories
 RUN mkdir -p /data/chromadb /data/plans /data/plugins /data/secrets /data/models \
