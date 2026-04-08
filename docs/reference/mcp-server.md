@@ -4,6 +4,58 @@ mdkb includes a standalone MCP (Model Context Protocol) server that exposes core
 
 The server runs as a **separate process** alongside the FastAPI app. It imports core services directly (no HTTP proxy), sharing the same `config/settings.yaml`, vector store, and SQLite databases.
 
+## All MCP Tools at a Glance
+
+32 tools organized by category. Core tools are always available; plugin tools appear when their plugin is enabled.
+
+**Search & Retrieval:**
+- `search` — hybrid vector + keyword search, returns chunks with source paths
+- `search_documents` — search and return full document content (deduplicated by file)
+- `search_summarize` — search and return an LLM-generated summary *(search plugin)*
+- `deep_research` — multi-angle MCTS research synthesis
+- `enhance_query` — extract keywords and expand acronyms for better retrieval
+
+**Chat & Conversation:**
+- `chat` — RAG Q&A grounded in your knowledge base, with source citations
+- `list_threads` — list recent chat threads
+- `export_chat` — export conversations as markdown or JSON *(export plugin)*
+
+**Documents & Files:**
+- `get_file` — read a file by path (use after search/chat to read cited sources in full)
+- `list_files` — list all indexed files
+- `index_file` — re-index a single markdown file *(write)*
+- `save_file` — save a markdown file to a watched source directory *(write)*
+
+**Planning:**
+- `plan` — generate an implementation plan using MCTS *(planner plugin)*
+
+**Scopes & Tags:**
+- `list_scopes` — list named scopes (folder + tag filter presets)
+- `list_tags` — list all tags with file counts *(tags plugin)*
+- `generate_tags` — generate tags for a file using AI *(tags plugin, write)*
+- `update_tags` — set, add, or remove tags on a file *(tags plugin, write)*
+
+**Visualization:**
+- `docmap` — compute document similarity map — nodes, edges, clusters *(docmap plugin)*
+- `query_knowledge_graph` — query entities and typed relationships *(knowledge_graph plugin)*
+- `get_kg_entity` — get entity details with relationships *(knowledge_graph plugin)*
+- `find_relationship_path` — BFS shortest path between entities *(knowledge_graph plugin)*
+
+**Buckets (temporary collections):**
+- `bucket_create` — create a bucket from source paths *(buckets plugin, write)*
+- `bucket_list` — list all buckets *(buckets plugin)*
+- `bucket_list_files` — list files in a bucket *(buckets plugin)*
+- `bucket_search` — search within a bucket *(buckets plugin)*
+- `bucket_chat` — RAG chat scoped to a bucket *(buckets plugin)*
+- `bucket_add` — add documents to a bucket *(buckets plugin, write)*
+- `bucket_delete` — delete a bucket *(buckets plugin, write)*
+
+**System:**
+- `health` — server health, chunk count, active LLM provider
+- `list_sources` — list configured source directories
+- `list_models` — list LLM providers and active model
+- `stats` — knowledge base statistics
+
 ## Quick Start
 
 ```bash
@@ -17,7 +69,7 @@ make mcp
 .venv/bin/python mcp_server.py --sse --port 9715
 ```
 
-## Tools
+## Detailed Tool Reference
 
 | Tool | Maps to | Plugin | Write | Description |
 |------|---------|--------|-------|-------------|
