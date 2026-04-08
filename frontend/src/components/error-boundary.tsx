@@ -23,7 +23,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("[mdkb] Error boundary caught:", error, info.componentStack)
+    console.error("[markdownkb] Error boundary caught:", error, info.componentStack)
   }
 
   render() {

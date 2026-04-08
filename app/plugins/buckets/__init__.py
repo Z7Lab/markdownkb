@@ -9,7 +9,7 @@ from app.plugins.buckets.router import router
 logger = logging.getLogger(__name__)
 
 FEATURE_FLAG = "buckets"
-_DOCS_BUCKET_NAME = "mdkb Documentation"
+_DOCS_BUCKET_NAME = "MarkdownKB Documentation"
 
 __all__ = ["FEATURE_FLAG", "router", "on_startup", "on_shutdown"]
 

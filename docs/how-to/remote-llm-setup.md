@@ -1,6 +1,6 @@
-# Connecting mdkb to Remote LLM Servers
+# Connecting MarkdownKB to Remote LLM Servers
 
-This guide explains how to run mdkb in Docker on one machine while connecting to LLM servers (Ollama, llama.cpp, LM Studio, vLLM, or any OpenAI-compatible server) running on another machine.
+This guide explains how to run MarkdownKB in Docker on one machine while connecting to LLM servers (Ollama, llama.cpp, LM Studio, vLLM, or any OpenAI-compatible server) running on another machine.
 
 ---
 
@@ -11,7 +11,7 @@ This guide explains how to run mdkb in Docker on one machine while connecting to
 │  Docker Host Machine    │         │  LLM Server Machine      │
 │                         │         │                          │
 │  ┌────────────────┐    │  HTTP   │  ┌─────────────────┐    │
-│  │ mdkb (Docker)  │────┼────────>│  │ Ollama          │    │
+│  │ markdownkb     │────┼────────>│  │ Ollama          │    │
 │  │                │    │  :11434 │  │ (port 11434)    │    │
 │  │ - Frontend     │    │         │  └─────────────────┘    │
 │  │ - Backend/RAG  │    │    OR   │                          │
@@ -25,9 +25,9 @@ This guide explains how to run mdkb in Docker on one machine while connecting to
 ```
 
 **Key points:**
-- mdkb runs in Docker and only needs network access to the LLM server
+- MarkdownKB runs in Docker and only needs network access to the LLM server
 - The LLM server handles all model inference
-- mdkb stores embeddings/vector DB locally
+- MarkdownKB stores embeddings/vector DB locally
 - Works with both Ollama and llama.cpp servers
 
 ---
@@ -120,7 +120,7 @@ curl http://localhost:8080/health
 
 ---
 
-## mdkb Docker Setup
+## MarkdownKB Docker Setup
 
 ### 1. Configure Connection to Remote LLM
 
@@ -188,7 +188,7 @@ cp .env.example .env
 
 **Edit `.env`:**
 ```bash
-# mdkb ports
+# markdownkb ports
 API_PORT=9713
 FRONTEND_PORT=9714
 
@@ -196,12 +196,12 @@ FRONTEND_PORT=9714
 OLLAMA_API_BASE=http://<your-server-ip>:11434
 
 # Expose to network (optional - defaults to localhost only)
-# MDKB_HOST=0.0.0.0
+# MARKDOWNKB_HOST=0.0.0.0
 ```
 
 **Note:** Environment variables override `settings.yaml` values.
 
-### 3. Start mdkb
+### 3. Start MarkdownKB
 
 ```bash
 # First time setup
@@ -215,9 +215,9 @@ make build && make up
 docker-compose up -d
 ```
 
-**Access mdkb:**
+**Access MarkdownKB:**
 - Local: http://localhost:9713
-- Network (if MDKB_HOST=0.0.0.0): http://<docker-host-ip>:9713
+- Network (if MARKDOWNKB_HOST=0.0.0.0): http://<docker-host-ip>:9713
 
 ---
 
@@ -236,7 +236,7 @@ curl http://<server-ip>:11434/api/tags
 curl http://<server-ip>:8080/v1/models
 ```
 
-### Test 2: From Docker Host (Before Starting mdkb)
+### Test 2: From Docker Host (Before Starting MarkdownKB)
 
 ```bash
 # Test Ollama connection
@@ -251,7 +251,7 @@ curl http://<your-server-ip>:11434/api/generate -d '{
 }' | jq '.response'
 ```
 
-### Test 3: Check mdkb Logs
+### Test 3: Check MarkdownKB Logs
 
 ```bash
 # View logs
@@ -264,7 +264,7 @@ docker-compose logs -f
 # ✓ Successful responses to chat queries
 ```
 
-### Test 4: Use mdkb UI
+### Test 4: Use MarkdownKB UI
 
 1. Open http://localhost:9713
 2. Go to **Chat** tab
@@ -279,7 +279,7 @@ docker-compose logs -f
 
 1. Edit `config/settings.yaml`
 2. Change `active_provider: ollama` to `active_provider: llamacpp`
-3. Restart mdkb:
+3. Restart MarkdownKB:
    ```bash
    make restart
    # or
@@ -309,7 +309,7 @@ ssh -N -L 11434:localhost:11434 user@llm-server-ip
 # Keep this running in background
 ```
 
-**Then in mdkb config:**
+**Then in MarkdownKB config:**
 ```yaml
 api_base: http://localhost:11434  # Goes through tunnel
 ```
@@ -394,9 +394,9 @@ Error: Model 'deepseek-coder-v2:latest' not found
 - Reduce `max_tokens` in settings.yaml
 - Use lower context (`num_ctx 8192` instead of `16384`)
 
-### mdkb Can't Connect
+### MarkdownKB Can't Connect
 
-**Check mdkb logs:**
+**Check MarkdownKB logs:**
 ```bash
 docker-compose logs -f backend
 ```
@@ -439,7 +439,7 @@ retrieval:
 ### For Network
 
 **Use persistent connections:**
-- mdkb already uses HTTP keep-alive
+- MarkdownKB already uses HTTP keep-alive
 - Reduces connection overhead
 
 **Reduce round-trips:**

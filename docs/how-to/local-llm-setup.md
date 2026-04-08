@@ -1,6 +1,6 @@
 # Local LLM Setup
 
-Step-by-step guide for setting up a local LLM with Ollama. After this, mdkb can chat and search using a model running entirely on your machine — no cloud API, no data leaving your network.
+Step-by-step guide for setting up a local LLM with Ollama. After this, MarkdownKB can chat and search using a model running entirely on your machine — no cloud API, no data leaving your network.
 
 ## Install Ollama
 
@@ -46,9 +46,9 @@ ollama pull gemma3:4b
 | `gemma3:4b` | 3 GB | Low memory machines, fast responses |
 | `gemma4:e4b` | 10 GB | Latest generation, best quality at 4B active params |
 
-You can also pull models from the mdkb UI — go to Settings > Chat Model, select Ollama, and use the "Pull Model" section with suggested models.
+You can also pull models from the MarkdownKB UI — go to Settings > Chat Model, select Ollama, and use the "Pull Model" section with suggested models.
 
-## Configure mdkb
+## Configure MarkdownKB
 
 ### From the UI
 
@@ -85,17 +85,17 @@ llm:
 
 ## Verify
 
-In mdkb Settings > Chat Model, click "Ping Model". You should see a success message with response time.
+In MarkdownKB Settings > Chat Model, click "Ping Model". You should see a success message with response time.
 
 Or use the Test Prompt section to send a quick message and confirm the model responds.
 
 ## Embedding Models
 
-Embeddings are separate from the chat model. By default, mdkb uses a local ONNX model for embeddings (no Ollama needed). If you want to use Ollama for embeddings too (e.g. to offload to a faster machine), see [Embedding Models](embedding-models.md#remote-embeddings).
+Embeddings are separate from the chat model. By default, MarkdownKB uses a local ONNX model for embeddings (no Ollama needed). If you want to use Ollama for embeddings too (e.g. to offload to a faster machine), see [Embedding Models](embedding-models.md#remote-embeddings).
 
 ## Alternatives to Ollama
 
-mdkb works with any OpenAI-compatible API. Other local options:
+MarkdownKB works with any OpenAI-compatible API. Other local options:
 
 - **[llama.cpp](../thirdparty/llamacpp-setup.md)** — lower memory than Ollama, native CPU optimizations, full control. Build from source and run `llama-server`.
 - **[LM Studio](https://lmstudio.ai/)** — GUI desktop app, download models from a catalog, one-click local server on port 1234.

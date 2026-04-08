@@ -317,7 +317,7 @@ export function SourcesPanel({
         <CardHeader>
           <CardTitle>Watch Directories</CardTitle>
           <CardDescription>
-            Directories that mdkb monitors for documents. Files in these
+            Directories that MarkdownKB monitors for documents. Files in these
             directories are scanned, chunked, and embedded into the vector
             store for RAG search. Changes are detected automatically via
             file watcher.

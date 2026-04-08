@@ -124,7 +124,7 @@ class TrackingDB:
     """Tracks indexed file states in SQLite."""
 
     def __init__(self, data_dir: str):
-        db_path = Path(data_dir) / "mdkb.db"
+        db_path = Path(data_dir) / "markdownkb.db"
         db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(
             str(db_path), check_same_thread=False,

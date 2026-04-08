@@ -35,7 +35,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends git \
 # Create non-root user (UID/GID match typical host user)
 ARG UID=1000
 ARG GID=1000
-RUN groupadd --gid ${GID} mdkb && useradd --uid ${UID} --gid mdkb mdkb
+RUN groupadd --gid ${GID} markdownkb && useradd --uid ${UID} --gid markdownkb markdownkb
 
 # Install pre-built wheels (no compilers needed)
 COPY --from=python-builder /app/wheels /tmp/wheels
@@ -54,12 +54,12 @@ COPY docs/ ./docs/
 # Create data and support directories
 RUN mkdir -p /data/chromadb /data/plans /data/plugins /data/secrets /data/models \
     /app/docs /app/skills \
-    && chown -R mdkb:mdkb /data /app/docs /app/skills
+    && chown -R markdownkb:markdownkb /data /app/docs /app/skills
 
-# MDKB_DATA_DIR tells the app where persistent state lives.
+# MARKDOWNKB_DATA_DIR tells the app where persistent state lives.
 # Docker mounts a volume to /data; outside Docker the app uses
-# platformdirs (e.g. ~/.local/share/mdkb).
-ENV MDKB_DATA_DIR=/data
+# platformdirs (e.g. ~/.local/share/markdownkb).
+ENV MARKDOWNKB_DATA_DIR=/data
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
@@ -68,6 +68,6 @@ EXPOSE 9713 9715
 # Health checks are defined per-service in compose.yml since this image
 # serves both the FastAPI app (9713) and the MCP server (9715).
 
-USER mdkb
+USER markdownkb
 
 CMD ["python", "-m", "app.main"]

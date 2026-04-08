@@ -2,7 +2,7 @@ name: tags
 display_name: Tags
 description: Tag storage, CRUD, folder-based auto-tagging, and optional AI-powered tag generation.
 version: 1.0.0
-author: mdkb
+author: markdownkb
 icon: tags
 category: core
 feature_flag: tags

@@ -331,5 +331,5 @@ curl http://localhost:8080/health
 
 ## Next Steps
 
-- See [llama.cpp API Guide](llamacpp-api.md) for API usage and mdkb integration
+- See [llama.cpp API Guide](llamacpp-api.md) for API usage and MarkdownKB integration
 - See [Performance Comparison](ollama-remote-setup.md#recommended-models) for model recommendations

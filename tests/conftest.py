@@ -1,4 +1,4 @@
-"""Shared test fixtures for mdkb API tests."""
+"""Shared test fixtures for MarkdownKB API tests."""
 
 import tempfile
 import threading
@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-_TEST_DATA_DIR = tempfile.mkdtemp(prefix="mdkb-test-")
+_TEST_DATA_DIR = tempfile.mkdtemp(prefix="markdownkb-test-")
 
 from app.api import create_app
 
@@ -49,7 +49,7 @@ class FakeSettings:
     llm_temperature: float = 0.3
     llm_max_tokens: int = 2048
     persist_directory: str = field(default_factory=lambda: f"{_TEST_DATA_DIR}/chromadb")
-    collection_name: str = "mdkb"
+    collection_name: str = "markdownkb"
     data_directory: str = field(default_factory=lambda: _TEST_DATA_DIR)
     top_k: int = 5
     score_threshold: float = 0.3

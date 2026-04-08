@@ -2,7 +2,7 @@ name: export
 display_name: Export
 description: Export conversation history as markdown or JSON.
 version: 1.0.0
-author: mdkb
+author: markdownkb
 icon: download
 category: export
 feature_flag: export

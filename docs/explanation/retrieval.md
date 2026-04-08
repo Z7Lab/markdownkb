@@ -1,10 +1,10 @@
 # How Retrieval Works
 
-How mdkb finds relevant documents when you search, chat, or plan. Understanding the retrieval pipeline helps you tune search quality and understand why results appear the way they do.
+How MarkdownKB finds relevant documents when you search, chat, or plan. Understanding the retrieval pipeline helps you tune search quality and understand why results appear the way they do.
 
 ## The Two-Strategy Approach
 
-mdkb uses **hybrid search** — combining two different search strategies that complement each other:
+MarkdownKB uses **hybrid search** — combining two different search strategies that complement each other:
 
 ### Vector Similarity (Semantic Search)
 
@@ -23,7 +23,7 @@ BM25 (Best Matching 25) is a ranking algorithm from classical information retrie
 
 BM25 also normalizes for document length — a 200-word chunk that mentions "MCTS" three times scores higher than a 2000-word chunk that mentions it three times, because the shorter chunk is more focused.
 
-mdkb uses the `rank-bm25` library with whole-word tokenization (not subword) to avoid false positives from partial matches.
+MarkdownKB uses the `rank-bm25` library with whole-word tokenization (not subword) to avoid false positives from partial matches.
 
 **What it's good at:** Finding exact keyword matches, proper nouns, technical terms, acronyms. A query for "MCTS" finds every chunk that contains "MCTS" regardless of surrounding context.
 

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { setApiKey } from "@/lib/api"
 import { ShieldAlert, Copy, Check, X } from "lucide-react"
 
-const DISMISS_KEY = "mdkb-setup-banner-dismissed"
+const DISMISS_KEY = "markdownkb-setup-banner-dismissed"
 
 export function SetupBanner({ forceShow = false }: { forceShow?: boolean }) {
   const [needsSetup, setNeedsSetup] = useState(false)
@@ -33,7 +33,7 @@ export function SetupBanner({ forceShow = false }: { forceShow?: boolean }) {
       const data = await res.json()
       setGeneratedKey(data.api_key)
       setApiKey(data.api_key)
-      localStorage.setItem("mdkb-api-key", data.api_key)
+      localStorage.setItem("markdownkb-api-key", data.api_key)
     } catch {
       // If it fails, the banner stays visible for retry
     } finally {
@@ -80,7 +80,7 @@ export function SetupBanner({ forceShow = false }: { forceShow?: boolean }) {
               </Button>
             </div>
             <p className="text-xs text-green-700 dark:text-green-300">
-              Use the <code className="font-mono">X-MDKB-Key</code> header for API requests.
+              Use the <code className="font-mono">X-MarkdownKB-Key</code> header for API requests.
               This browser session is already configured.
             </p>
           </div>

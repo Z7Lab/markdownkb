@@ -2,7 +2,7 @@ name: buckets
 display_name: Temp Buckets
 description: Temporary scoped document collections with independent vector storage, search, and chat.
 version: 1.0.0
-author: mdkb
+author: markdownkb
 icon: database
 category: core
 feature_flag: buckets

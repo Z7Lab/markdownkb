@@ -1,5 +1,5 @@
 #!/bin/bash
-# Run mdkb locally
+# Run MarkdownKB locally
 #
 # Usage: ./run.sh [OPTIONS]
 #   -d, --dev       Dev mode with hot reload (default)
@@ -133,7 +133,7 @@ trap cleanup SIGINT SIGTERM
 if [ "$MODE" = "backend" ]; then
     # === BACKEND ONLY ===
     echo ""
-    echo -e "  ${GREEN}mdkb${NC} (backend only)"
+    echo -e "  ${GREEN}MarkdownKB${NC} (backend only)"
     echo ""
 
     .venv/bin/python -m app.main &
@@ -153,7 +153,7 @@ if [ "$MODE" = "backend" ]; then
     echo ""
     if [ "$API_OK" = true ]; then
         echo -e "╔════════════════════════════════════════════╗"
-        echo -e "║  ${GREEN}mdkb running${NC}                               ║"
+        echo -e "║  ${GREEN}MarkdownKB running${NC}                               ║"
         echo -e "╠════════════════════════════════════════════╣"
         echo -e "║  API:  ${BLUE}http://localhost:$API_PORT/api${NC}        ║"
         if [ -n "$LAN_HOST" ]; then
@@ -172,7 +172,7 @@ if [ "$MODE" = "backend" ]; then
 elif [ "$MODE" = "prod" ]; then
     # === PRODUCTION ===
     echo ""
-    echo -e "  ${GREEN}mdkb${NC} (production)"
+    echo -e "  ${GREEN}MarkdownKB${NC} (production)"
     echo ""
 
     # Build frontend
@@ -200,7 +200,7 @@ elif [ "$MODE" = "prod" ]; then
     echo ""
     if [ "$API_OK" = true ]; then
         echo -e "╔════════════════════════════════════════════╗"
-        echo -e "║  ${GREEN}mdkb running${NC} (production)                 ║"
+        echo -e "║  ${GREEN}MarkdownKB running${NC} (production)                 ║"
         echo -e "╠════════════════════════════════════════════╣"
         echo -e "║  App: ${BLUE}http://localhost:$API_PORT${NC}             ║"
         echo -e "║  API: ${BLUE}http://localhost:$API_PORT/api${NC}         ║"
@@ -220,7 +220,7 @@ elif [ "$MODE" = "prod" ]; then
 else
     # === DEV MODE ===
     echo ""
-    echo -e "  ${GREEN}mdkb${NC} (dev mode)"
+    echo -e "  ${GREEN}MarkdownKB${NC} (dev mode)"
     echo ""
     echo -e "  ${YELLOW}Starting services...${NC}"
     echo ""

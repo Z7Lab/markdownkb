@@ -1,7 +1,7 @@
 const BASE = ""
 
 /**
- * API key for X-MDKB-Key auth header — set once at app startup via setApiKey().
+ * API key for X-MarkdownKB-Key auth header — set once at app startup via setApiKey().
  * Stored as module-level state (not reactive) because it is configured before
  * React renders and does not change at runtime. SSE streaming reads it
  * synchronously via getApiKey(), which is safe under this assumption.
@@ -33,7 +33,7 @@ async function request<T>(
     "Content-Type": "application/json",
   }
   if (apiKey) {
-    headers["X-MDKB-Key"] = apiKey
+    headers["X-MarkdownKB-Key"] = apiKey
   }
 
   const opts: RequestInit = {

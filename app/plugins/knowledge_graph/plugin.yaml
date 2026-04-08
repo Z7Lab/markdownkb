@@ -2,7 +2,7 @@ name: knowledge_graph
 display_name: Knowledge Graph
 description: Entity extraction and typed relationships from your documents using LLM. Builds a queryable knowledge graph with concepts, tools, processes, and their connections.
 version: 1.0.0
-author: mdkb
+author: markdownkb
 icon: network
 category: visualization
 feature_flag: knowledge_graph

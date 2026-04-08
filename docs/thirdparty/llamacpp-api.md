@@ -1,6 +1,6 @@
 # llama.cpp OpenAI-Compatible API Guide
 
-llama-server provides an OpenAI-compatible API, making it easy to integrate with existing tools and libraries. This guide covers the API endpoints and how to configure mdkb to use llama.cpp.
+llama-server provides an OpenAI-compatible API, making it easy to integrate with existing tools and libraries. This guide covers the API endpoints and how to configure MarkdownKB to use llama.cpp.
 
 ---
 
@@ -208,9 +208,9 @@ print(data["choices"][0]["message"]["content"])
 
 ---
 
-## Configuring mdkb to Use llama.cpp
+## Configuring MarkdownKB to Use llama.cpp
 
-mdkb uses the `openai` Python SDK for any OpenAI-compatible endpoint.
+MarkdownKB uses the `openai` Python SDK for any OpenAI-compatible endpoint.
 
 ### Option 1: Edit `config/settings.yaml`
 
@@ -446,4 +446,4 @@ ss -tlnp | grep 8080
 
 - [OpenAI API Reference](https://platform.openai.com/docs/api-reference/chat) - Full API specification
 - [llama.cpp Documentation](https://github.com/ggml-org/llama.cpp/blob/master/docs/docker.md)
-- [mdkb Configuration Guide](../reference/configuration.md)
+- [MarkdownKB Configuration Guide](../reference/configuration.md)

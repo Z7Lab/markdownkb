@@ -1,6 +1,6 @@
 # UI Tabs and Plugins
 
-mdkb's web UI has seven tabs. Some are always available (core), some only appear when their plugin is enabled in Settings.
+MarkdownKB's web UI has seven tabs. Some are always available (core), some only appear when their plugin is enabled in Settings.
 
 ## Core Tabs (always available)
 

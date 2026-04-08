@@ -1,4 +1,4 @@
-"""Command-line interface for mdkb indexing and search."""
+"""Command-line interface for MarkdownKB indexing and search."""
 
 import argparse
 import logging
@@ -72,7 +72,7 @@ def cmd_stats(settings: Settings):
 
 def main():
     """Parse CLI arguments and run the appropriate command."""
-    parser = argparse.ArgumentParser(description="mdkb - Markdown Knowledge Base CLI")
+    parser = argparse.ArgumentParser(description="markdownkb - Markdown Knowledge Base CLI")
     parser.add_argument("--config", default=None, help="Path to settings.yaml")
     sub = parser.add_subparsers(dest="command")
 

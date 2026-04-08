@@ -108,7 +108,7 @@ This matters most for the people with the most valuable knowledge to query: rese
 
 A common pattern in RAG systems is to connect to external data sources — Notion, Google Drive, Slack, Confluence — and query them in place. The system becomes an adapter layer sitting on top of other people's platforms, borrowing their data at query time.
 
-mdkb deliberately doesn't do this. The design is: convert your documents to markdown and own them, rather than maintaining live connections to services you don't control.
+MarkdownKB deliberately doesn't do this. The design is: convert your documents to markdown and own them, rather than maintaining live connections to services you don't control.
 
 The difference matters:
 
@@ -186,7 +186,7 @@ The arguments against RAG and why they don't apply here:
 
 **"Just give the agent tools."** Tools work for structured, navigable data. Your codebase has directories, filenames, function signatures — structure that tools can traverse. Your knowledge base has "that document someone wrote about the caching incident in March." There's no directory structure that makes that findable by tool use. Semantic search over embedded chunks is the right tool for this data shape.
 
-**"Naive RAG is dead."** This one is true. Simple chunk-and-retrieve with a single vector similarity score isn't enough. mdkb uses hybrid search (vector similarity + BM25 keyword matching), configurable chunking with heading-aware splitting, score thresholds, scope-based filtering with exclude patterns, and optional deep research (multi-angle MCTS synthesis). The retrieval pipeline matters — but the answer is better retrieval, not no retrieval.
+**"Naive RAG is dead."** This one is true. Simple chunk-and-retrieve with a single vector similarity score isn't enough. MarkdownKB uses hybrid search (vector similarity + BM25 keyword matching), configurable chunking with heading-aware splitting, score thresholds, scope-based filtering with exclude patterns, and optional deep research (multi-angle MCTS synthesis). The retrieval pipeline matters — but the answer is better retrieval, not no retrieval.
 
 **Long context assumes cloud-scale hardware.** A 1M-token context window requires significant GPU memory just to hold the KV cache. Local models running on consumer hardware — the 8B quantized models that make local-first AI practical — typically run with 2K-8K context. Even 32K context on a local model demands substantially more RAM and slows inference. Retrieval sidesteps this entirely: embed your documents once (a CPU operation), then retrieve the 5-10 relevant chunks that fit comfortably in any context window. The model reasons over a focused, pre-filtered context instead of trying to hold your entire knowledge base in memory. This is why retrieval and local models are complementary — retrieval compensates for the smaller context window, and the smaller model compensates for retrieval's imperfection by applying reasoning to already-relevant content.
 

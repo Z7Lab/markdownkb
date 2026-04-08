@@ -14,7 +14,7 @@ class VectorStore:
     """Persistent vector store backed by ChromaDB for chunk storage and search."""
 
     def __init__(self, persist_directory: str,
-                 collection_name: str = "mdkb"):
+                 collection_name: str = "markdownkb"):
         Path(persist_directory).mkdir(parents=True, exist_ok=True)
         self._client = chromadb.PersistentClient(
             path=persist_directory,

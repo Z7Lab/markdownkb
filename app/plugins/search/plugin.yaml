@@ -2,7 +2,7 @@ name: search
 display_name: Search & Summaries
 description: Semantic search with history, AI summaries, query enhancement, and exact phrase matching.
 version: 1.0.0
-author: mdkb
+author: markdownkb
 icon: search
 category: search
 feature_flag: search

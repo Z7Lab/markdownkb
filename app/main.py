@@ -76,6 +76,12 @@ async def lifespan(app: FastAPI):
     cancel_event = threading.Event()
 
     if store.count == 0:
+        # If tracking DB has records but ChromaDB is empty (collection rename,
+        # model switch, or interrupted startup), clear tracking so every file
+        # is re-scanned instead of appearing falsely "complete".
+        if tracking.file_count() > 0:
+            logger.info("ChromaDB empty but tracking has %d files — clearing stale records", tracking.file_count())
+            tracking.clear()
         logger.info("Empty store, starting initial index in background...")
         threading.Thread(
             target=run_index,
@@ -142,7 +148,7 @@ async def lifespan(app: FastAPI):
 
 
 def main():
-    """Start the mdkb server."""
+    """Start the MarkdownKB server."""
     settings = Settings.get()
     app = create_app(lifespan=lifespan)
 

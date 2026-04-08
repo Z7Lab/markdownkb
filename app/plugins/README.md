@@ -1,6 +1,6 @@
 # Plugins
 
-Optional modules that extend mdkb beyond its core "chat with your docs" functionality. Each plugin is auto-discovered at startup and gated by `plugins.<name>.enabled` in settings — disabled plugins are never imported.
+Optional modules that extend MarkdownKB beyond its core "chat with your docs" functionality. Each plugin is auto-discovered at startup and gated by `plugins.<name>.enabled` in settings — disabled plugins are never imported.
 
 ## How It Works
 

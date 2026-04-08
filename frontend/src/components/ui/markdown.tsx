@@ -86,7 +86,7 @@ export function Markdown({
   }, [sourceMap, onCiteClick])
 
   return (
-    <div className={cn("mdkb-prose", className)}>
+    <div className={cn("markdownkb-prose", className)}>
       <ReactMarkdown remarkPlugins={plugins} components={components}>
         {children}
       </ReactMarkdown>

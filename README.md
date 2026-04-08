@@ -1,4 +1,4 @@
-# mdkb — Markdown Knowledge Base
+# MarkdownKB — Markdown Knowledge Base
 
 **Search-first documentation exploration for your markdown knowledge base.**
 
@@ -35,8 +35,8 @@ Creates `.venv`, installs Python and Node dependencies if needed, starts both se
 
 4. **Edit `.env`** (optional) — defaults work out of the box. Uncomment and set values only if you need to:
    - `OLLAMA_API_BASE` — if Ollama runs on a different machine
-   - `MDKB_HOST=0.0.0.0` — to access from other machines via `http://<hostname>.local:9713` (localhost only by default)
-   - `MDKB_API_KEY` — set a key to protect the API (recommended if exposing to the network)
+   - `MARKDOWNKB_HOST=0.0.0.0` — to access from other machines via `http://<hostname>.local:9713` (localhost only by default)
+   - `MARKDOWNKB_API_KEY` — set a key to protect the API (recommended if exposing to the network)
 
 5. **Build and start**:
    ```bash
@@ -90,7 +90,7 @@ Edit `config/settings.yaml` or use the **Settings** tab in the UI. See [docs/ref
 
 ## LLM Setup
 
-mdkb calls LLMs over the network — it doesn't run them locally.
+MarkdownKB calls LLMs over the network — it doesn't run them locally.
 
 **Anthropic / OpenAI / Venice:** Add your API key to `secrets/<provider>_api_key` (see `secrets/README.md`) or set the `<PROVIDER>_API_KEY` environment variable.
 
@@ -104,7 +104,7 @@ See [docs/reference/api.md](docs/reference/api.md) for the full endpoint referen
 
 ## CLI
 
-mdkb includes a command-line interface for indexing and search without starting the web server. See [docs/reference/cli.md](docs/reference/cli.md).
+MarkdownKB includes a command-line interface for indexing and search without starting the web server. See [docs/reference/cli.md](docs/reference/cli.md).
 
 ## Documentation
 
@@ -128,7 +128,7 @@ mdkb includes a command-line interface for indexing and search without starting 
 app/
 ├── main.py              # Entry point, async lifespan, static serving, SPA catch-all
 ├── api.py               # App factory (create_app), CORS, router + plugin registration
-├── auth.py              # API key middleware (X-MDKB-Key header)
+├── auth.py              # API key middleware (X-MarkdownKB-Key header)
 ├── config.py            # Settings singleton from YAML
 ├── schemas.py           # Pydantic request/response models
 ├── deps.py              # FastAPI Depends() functions for dependency injection

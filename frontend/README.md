@@ -1,6 +1,6 @@
-# mdkb Frontend
+# MarkdownKB Frontend
 
-React SPA for mdkb built with Vite, TypeScript, Shadcn/ui, and Tailwind v4.
+React SPA for MarkdownKB built with Vite, TypeScript, Shadcn/ui, and Tailwind v4.
 
 ## Development
 

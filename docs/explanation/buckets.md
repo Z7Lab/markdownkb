@@ -17,7 +17,7 @@ Buckets keep this temporary content isolated. When you're done, delete the bucke
 
 ## Built-in Documentation Bucket
 
-On first startup, mdkb creates a permanent **"mdkb Documentation"** bucket containing its own documentation. You can chat with it to learn the system:
+On first startup, MarkdownKB creates a permanent **"MarkdownKB Documentation"** bucket containing its own documentation. You can chat with it to learn the system:
 
 - *"How do I set up a scope with exclude patterns?"*
 - *"What's the difference between the doc map and knowledge graph?"*

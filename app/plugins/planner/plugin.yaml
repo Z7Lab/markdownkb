@@ -2,7 +2,7 @@ name: planner
 display_name: MCTS Planner
 description: Generate implementation plans using Monte Carlo Tree Search with multi-angle exploration.
 version: 1.0.0
-author: mdkb
+author: markdownkb
 icon: brain
 category: ai
 feature_flag: planner

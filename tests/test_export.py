@@ -27,5 +27,5 @@ async def test_export_markdown(app, client):
     assert resp.status_code == 200
     data = resp.json()
     assert data["format"] == "markdown"
-    assert "# mdkb Conversation Export" in data["content"]
+    assert "# MarkdownKB Conversation Export" in data["content"]
     assert "**User:**" in data["content"]

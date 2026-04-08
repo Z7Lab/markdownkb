@@ -4,13 +4,13 @@ Embedding models convert your documents into numerical vectors that power semant
 
 ## What is ONNX?
 
-ONNX (Open Neural Network Exchange) is a portable model format that runs on any CPU without a GPU or external service. mdkb uses ONNX for local embeddings — the models are small (23-133 MB), fast, and work offline.
+ONNX (Open Neural Network Exchange) is a portable model format that runs on any CPU without a GPU or external service. MarkdownKB uses ONNX for local embeddings — the models are small (23-133 MB), fast, and work offline.
 
 Models are downloaded from [HuggingFace](https://huggingface.co) on first install via Settings > Embedding Model. They're stored in the data directory (`{data_directory}/models/`).
 
 ## Providers
 
-mdkb supports three embedding providers:
+MarkdownKB supports three embedding providers:
 
 - **Local ONNX (default)** — runs on CPU, no external service needed, works offline
 - **Ollama** — use an Ollama embedding model (e.g. `nomic-embed-text`), local or remote
@@ -28,7 +28,7 @@ Point to an Ollama instance or OpenAI-compatible endpoint to offload embedding w
    ```bash
    ollama pull nomic-embed-text
    ```
-2. In mdkb Settings > Embedding Model, select **Ollama** from the Provider dropdown
+2. In MarkdownKB Settings > Embedding Model, select **Ollama** from the Provider dropdown
 3. Set API Base to the Ollama URL (e.g. `http://192.168.x.x:11434`)
 4. Set Model to `nomic-embed-text`
 5. Click "Test" to verify, then "Save"
@@ -37,7 +37,7 @@ Point to an Ollama instance or OpenAI-compatible endpoint to offload embedding w
 
 Any endpoint serving `POST /v1/embeddings` works — including cloud providers like Venice, OpenAI, Together, and Voyage.
 
-1. In mdkb Settings > Embedding Model, select **OpenAI-compatible API** from the Provider dropdown
+1. In MarkdownKB Settings > Embedding Model, select **OpenAI-compatible API** from the Provider dropdown
 2. Set API Base to the provider's URL (e.g. `https://api.venice.ai/api/v1`)
 3. Set Model to the embedding model name (e.g. `text-embedding-3-small`)
 4. Enter your API Key (required for authenticated providers)
@@ -72,7 +72,7 @@ Local models run on CPU with no external API required.
 
 ## Auto-Download
 
-On first startup, mdkb automatically downloads the configured embedding model from HuggingFace. You'll see download progress in the logs:
+On first startup, MarkdownKB automatically downloads the configured embedding model from HuggingFace. You'll see download progress in the logs:
 
 ```
 Embedding model 'all-MiniLM-L6-v2' not found, downloading...
@@ -200,7 +200,7 @@ This is useful for:
 
 ## CPU Usage
 
-Embedding and indexing are CPU-bound operations. mdkb limits resource usage by:
+Embedding and indexing are CPU-bound operations. MarkdownKB limits resource usage by:
 
 - Setting ONNX inference threads to half your CPU cores (`intra_op_num_threads`, `inter_op_num_threads`)
 - Throttling the indexing loop with a small sleep between files
@@ -210,7 +210,7 @@ For large collections (1000+ files), expect reindexing to take a few minutes.
 
 ## Storage
 
-Models are stored at `{data_directory}/models/{model-id}/`. The data directory is resolved via `MDKB_DATA_DIR` env var or OS-appropriate default (see [configuration](../reference/configuration.md#storage)).
+Models are stored at `{data_directory}/models/{model-id}/`. The data directory is resolved via `MARKDOWNKB_DATA_DIR` env var or OS-appropriate default (see [configuration](../reference/configuration.md#storage)).
 
 The active model is stored in `config/settings.yaml` under `embeddings.model`.
 

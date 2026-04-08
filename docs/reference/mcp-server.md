@@ -1,6 +1,6 @@
 # MCP Server
 
-mdkb includes a standalone MCP (Model Context Protocol) server that exposes core knowledge base capabilities to any MCP-compatible client — Claude Desktop, the personal-dispatcher, or custom agents.
+MarkdownKB includes a standalone MCP (Model Context Protocol) server that exposes core knowledge base capabilities to any MCP-compatible client — Claude Desktop, the personal-dispatcher, or custom agents.
 
 The server runs as a **separate process** alongside the FastAPI app. It imports core services directly (no HTTP proxy), sharing the same `config/settings.yaml`, vector store, and SQLite databases.
 
@@ -321,10 +321,10 @@ Add to `~/.config/claude/claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "mdkb": {
-      "command": "/path/to/mdkb/.venv/bin/python",
-      "args": ["/path/to/mdkb/mcp_server.py"],
-      "cwd": "/path/to/mdkb"
+    "markdownkb": {
+      "command": "/path/to/markdownkb/.venv/bin/python",
+      "args": ["/path/to/markdownkb/mcp_server.py"],
+      "cwd": "/path/to/markdownkb"
     }
   }
 }
@@ -335,16 +335,16 @@ Add to `~/.config/claude/claude_desktop_config.json`:
 The MCP server runs as a separate service in `compose.yml`:
 
 ```bash
-make up          # starts both mdkb and mdkb-mcp
+make up          # starts both markdownkb and markdownkb-mcp
 make logs        # tails logs for both services
 ```
 
-The `mdkb-mcp` service uses SSE transport on port 9715 (configurable via `MDKB_MCP_PORT`). It shares the same data volume and config as the main app.
+The `markdownkb-mcp` service uses SSE transport on port 9715 (configurable via `MARKDOWNKB_MCP_PORT`). It shares the same data volume and config as the main app.
 
 Connect from another service on the Docker network:
 
 ```
-http://mdkb-mcp:9715/sse
+http://markdownkb-mcp:9715/sse
 ```
 
 Or from the host:
@@ -359,7 +359,7 @@ The MCP server shares the same storage as the FastAPI app:
 
 - **Config**: Reads `config/settings.yaml` via the same `Settings` singleton
 - **Vector store**: ChromaDB at `{data_directory}/chromadb/`
-- **Tracking DB**: SQLite at `{data_directory}/mdkb.db`
+- **Tracking DB**: SQLite at `{data_directory}/markdownkb.db`
 - **Embeddings**: Same ONNX models, same embedding pipeline
 
 On startup, the server loads embedding models (`load_models()`), initializes its own instances of `VectorStore`, `TrackingDB`, and `Retriever`, then auto-discovers and registers MCP tools. If the vector store is empty, it runs an initial index automatically.
@@ -389,9 +389,9 @@ Scope resolution is handled by `app/mcp/scope.py`, which resolves the scope ID t
 
 ## Authentication
 
-When an API key is configured (via `secrets/mdkb_api_key` or `MDKB_API_KEY` env var), the MCP SSE server requires authentication. Two methods are accepted:
+When an API key is configured (via `secrets/markdownkb_api_key` or `MARKDOWNKB_API_KEY` env var), the MCP SSE server requires authentication. Two methods are accepted:
 
-1. **Header:** `X-MDKB-Key: <key>` (same as the REST API)
+1. **Header:** `X-MarkdownKB-Key: <key>` (same as the REST API)
 2. **Query parameter:** `?token=<key>` (for SSE clients that can't set headers — matches the pattern used by deliberative-ai)
 
 If no API key is configured, all connections are allowed. The stdio transport is never authenticated.

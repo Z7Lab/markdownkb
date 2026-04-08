@@ -1,6 +1,6 @@
 # CLI
 
-mdkb includes a command-line interface for indexing and search without starting the web server.
+MarkdownKB includes a command-line interface for indexing and search without starting the web server.
 
 ```bash
 python -m app.cli <command> [options]

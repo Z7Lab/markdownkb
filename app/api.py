@@ -52,7 +52,7 @@ def create_app(lifespan=None, settings_override=None) -> FastAPI:
             provided, plugin registration uses this instead of the global
             singleton.
     """
-    app = FastAPI(title="mdkb API", version="1.0.0", lifespan=lifespan)
+    app = FastAPI(title="MarkdownKB API", version="1.0.0", lifespan=lifespan)
 
     # Rate limiting
     app.state.limiter = limiter
@@ -69,7 +69,7 @@ def create_app(lifespan=None, settings_override=None) -> FastAPI:
         CORSMiddleware,
         allow_origins=getattr(cfg, "cors_origins", [f"http://localhost:{os.environ.get('FRONTEND_PORT', '9714')}"]),
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "Accept", "X-MDKB-Key"],
+        allow_headers=["Content-Type", "Accept", "X-MarkdownKB-Key"],
     )
 
     # Core routers (always registered)
@@ -99,7 +99,7 @@ def create_app(lifespan=None, settings_override=None) -> FastAPI:
         if network_exposed:
             logging.getLogger(__name__).warning(
                 "Server binding to %s without API key authentication. "
-                "Open the web UI to generate a key, or set MDKB_API_KEY.",
+                "Open the web UI to generate a key, or set MARKDOWNKB_API_KEY.",
                 bind_host,
             )
         else:

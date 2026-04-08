@@ -1,10 +1,10 @@
-# MDKB -- Value Proposition
+# MarkdownKB -- Value Proposition
 
 ## What It Is
 
-MDKB is an always-on knowledge backend that turns markdown documentation into a searchable, conversational, agent-accessible knowledge base. You point it at directories of markdown files — personal notes, project docs, standards, guides — and it indexes them into a persistent memory layer that humans and AI agents can query throughout their day.
+MarkdownKB is an always-on knowledge backend that turns markdown documentation into a searchable, conversational, agent-accessible knowledge base. You point it at directories of markdown files — personal notes, project docs, standards, guides — and it indexes them into a persistent memory layer that humans and AI agents can query throughout their day.
 
-Unlike build-time tools that produce artifacts you query later, MDKB is a runtime service. It watches your files, indexes changes automatically, serves chat and search, and exposes your knowledge to any MCP-compatible application. The value compounds over time as more documents are indexed, more conversations happen, and more agents connect.
+Unlike build-time tools that produce artifacts you query later, MarkdownKB is a runtime service. It watches your files, indexes changes automatically, serves chat and search, and exposes your knowledge to any MCP-compatible application. The value compounds over time as more documents are indexed, more conversations happen, and more agents connect.
 
 Python (FastAPI) backend, React (Vite + TypeScript + Tailwind) frontend, ChromaDB for vectors, SQLite for everything else. Everything runs on one machine. No cloud dependencies.
 
@@ -14,13 +14,13 @@ Python (FastAPI) backend, React (Vite + TypeScript + Tailwind) frontend, ChromaD
 
 **Researchers** accumulating papers, notes, and references across projects. Index your research notes, ask questions across all your reading, and give your AI tools access to everything you've written.
 
-**Writers and knowledge workers** maintaining living documentation. MDKB makes your entire body of written knowledge searchable and conversational — not just the document you have open.
+**Writers and knowledge workers** maintaining living documentation. MarkdownKB makes your entire body of written knowledge searchable and conversational — not just the document you have open.
 
 **Teams** sharing curated guides, standards, and best practices. Scopes let you organize knowledge by project or domain. The MCP server means your team's agents share the same knowledge base.
 
 **Developers** maintaining decision logs, architecture docs, and runbooks. Search across all your documentation from one place, or give Claude Code access to your standards via MCP.
 
-**AI agent operators** who need their agents to have persistent, searchable knowledge. MDKB's 32 MCP tools mean any MCP-compatible client — Claude Code, Claude Desktop, custom orchestrators — can search, chat, plan, and manage your knowledge base.
+**AI agent operators** who need their agents to have persistent, searchable knowledge. MarkdownKB's 32 MCP tools mean any MCP-compatible client — Claude Code, Claude Desktop, custom orchestrators — can search, chat, plan, and manage your knowledge base.
 
 **People who want to own their data.** No SaaS, no API keys required for core functionality (Ollama runs locally), no data leaving your network. SQLite + ChromaDB on your filesystem.
 
@@ -38,11 +38,11 @@ Most tools that address this are build-time — you run them, they produce a sna
 
 ## How It Solves It
 
-1. **Index.** Point MDKB at directories. It scans for markdown, splits files into chunks respecting heading structure, embeds them with a local ONNX model (no external API needed), and stores vectors in ChromaDB.
+1. **Index.** Point MarkdownKB at directories. It scans for markdown, splits files into chunks respecting heading structure, embeds them with a local ONNX model (no external API needed), and stores vectors in ChromaDB.
 
 2. **Search.** Hybrid retrieval combines vector similarity with BM25 keyword matching. Supports quoted exact phrases, tag filtering, folder scoping, and named scopes (saved filter presets). Results link back to source files.
 
-3. **Chat.** RAG-grounded Q&A. Ask a question, MDKB retrieves relevant chunks, builds a context prompt, and streams a response from your configured LLM. Citations link to source documents. Conversation threads are preserved.
+3. **Chat.** RAG-grounded Q&A. Ask a question, MarkdownKB retrieves relevant chunks, builds a context prompt, and streams a response from your configured LLM. Citations link to source documents. Conversation threads are preserved.
 
 4. **Scope.** Tags, scopes, and temp buckets let you control which knowledge is active for a query. Search your entire knowledge base, or just one project's docs, or a temporary collection you created five minutes ago.
 
@@ -52,15 +52,15 @@ Most tools that address this are build-time — you run them, they produce a sna
 
 ## What Makes It Different
 
-**Always-on, always watching.** MDKB runs as a service. A file watcher detects changes and re-indexes automatically. You edit a document, and it's immediately searchable — no manual re-runs, no stale indexes. This is the persistent memory layer for your work, not a tool you run once.
+**Always-on, always watching.** MarkdownKB runs as a service. A file watcher detects changes and re-indexes automatically. You edit a document, and it's immediately searchable — no manual re-runs, no stale indexes. This is the persistent memory layer for your work, not a tool you run once.
 
-**Markdown-first is a feature, not a limitation.** Indexing an entire codebase or file system produces noise. MDKB indexes curated knowledge — documents that someone chose to create and maintain, whether written by hand, generated by AI, or transcribed from other sources. The signal-to-noise ratio is high by design. Markdown is readable everywhere (IDEs, note apps, wikis, version control), and the plugin architecture means anyone can build ingestion plugins for other formats (PDFs, DOCX, HTML, structured data). The core handles markdown; plugins extend the reach.
+**Markdown-first is a feature, not a limitation.** Indexing an entire codebase or file system produces noise. MarkdownKB indexes curated knowledge — documents that someone chose to create and maintain, whether written by hand, generated by AI, or transcribed from other sources. The signal-to-noise ratio is high by design. Markdown is readable everywhere (IDEs, note apps, wikis, version control), and the plugin architecture means anyone can build ingestion plugins for other formats (PDFs, DOCX, HTML, structured data). The core handles markdown; plugins extend the reach.
 
 **Plugin-based architecture.** The core is RAG chat — search, doc map, knowledge graph, planner, tags, export, and buckets are all optional plugins. Enable what you need, disable what you don't. Write your own plugins (a directory with `__init__.py` and a router). External plugins install from GitHub URLs. The plugin system is why markdown-first works: the core stays focused while the ecosystem is open for extension.
 
 **MCP-first agent access.** The standalone MCP server (`mcp_server.py`) exposes 32 tools over stdio or SSE. Any MCP-compatible client — Claude Code, Claude Desktop, custom orchestrators, CI pipelines, or any application that speaks the protocol — can search, chat, retrieve full documents, manage tags, create buckets, and trigger indexing. The MCP server imports core services directly (no HTTP proxy), sharing the same vector store and databases as the web UI. This means your knowledge base is not locked inside a browser tab — it's infrastructure that any tool in your stack can query.
 
-**Knowledge graph with entity extraction.** MDKB extracts concepts, tools, processes, and other entities from your documents during indexing, building a real knowledge graph with typed relationships (uses, is-a, part-of, depends-on, etc.). Agents can traverse relationships, find connections between concepts, and discover shortest paths between ideas — queries that embedding similarity alone can't answer. The KG data is stored separately from embeddings, so it survives model switches and accumulates as your knowledge base grows.
+**Knowledge graph with entity extraction.** MarkdownKB extracts concepts, tools, processes, and other entities from your documents during indexing, building a real knowledge graph with typed relationships (uses, is-a, part-of, depends-on, etc.). Agents can traverse relationships, find connections between concepts, and discover shortest paths between ideas — queries that embedding similarity alone can't answer. The KG data is stored separately from embeddings, so it survives model switches and accumulates as your knowledge base grows.
 
 **Scoped search — context curation, not just retrieval.** Three mechanisms for controlling what knowledge is active:
 
@@ -68,17 +68,17 @@ Most tools that address this are build-time — you run them, they produce a sna
 - **Temp buckets.** Create a temporary collection from arbitrary directories, search it in isolation, delete it when done. Each bucket gets its own ChromaDB collection. Use cases: tutorial transcripts, GitHub `llms.txt` files, conference notes, investigation logs — anything you need searchable temporarily without polluting the permanent knowledge base.
 - **Ad-hoc tag filters.** Apply tag filters on the fly in the UI sidebar without creating a named scope.
 
-**Externalized knowledge for any agent system.** MDKB is designed to be one layer in a larger agent stack. Any system that manages agent sessions, orchestration, or workflow can use MDKB as its knowledge backend via MCP or REST. The architecture supports a natural separation of concerns:
+**Externalized knowledge for any agent system.** MarkdownKB is designed to be one layer in a larger agent stack. Any system that manages agent sessions, orchestration, or workflow can use MarkdownKB as its knowledge backend via MCP or REST. The architecture supports a natural separation of concerns:
 
 | Layer | Examples | What it stores | Lifetime |
 |-------|----------|---------------|----------|
 | Session memory | Agent orchestrators, CI pipelines, chat tools | Task context, decisions, conversation state | Per-session |
-| Permanent knowledge | **MDKB (main index)** | Standards, guides, architecture docs, runbooks | Long-lived |
-| Scoped temporary knowledge | **MDKB (temp buckets)** | Project docs, investigation logs, tutorial notes | Hours to days |
+| Permanent knowledge | **MarkdownKB (main index)** | Standards, guides, architecture docs, runbooks | Long-lived |
+| Scoped temporary knowledge | **MarkdownKB (temp buckets)** | Project docs, investigation logs, tutorial notes | Hours to days |
 
-An agent working on a task reads its session context from whatever orchestrator manages it, searches MDKB for organizational standards, and searches a temp bucket for project-specific docs. Each query returns focused results. The model asks specific questions and gets specific answers — no large context window needed. A local model running on Ollama with an 8K context window can participate effectively because the knowledge is externalized, not stuffed into a prompt.
+An agent working on a task reads its session context from whatever orchestrator manages it, searches MarkdownKB for organizational standards, and searches a temp bucket for project-specific docs. Each query returns focused results. The model asks specific questions and gets specific answers — no large context window needed. A local model running on Ollama with an 8K context window can participate effectively because the knowledge is externalized, not stuffed into a prompt.
 
-This composability is intentional. MDKB doesn't try to be the orchestrator, the task runner, or the session manager. It handles knowledge — permanent and temporary — and exposes it through standard interfaces (MCP tools, REST API) that any upstream system can call.
+This composability is intentional. MarkdownKB doesn't try to be the orchestrator, the task runner, or the session manager. It handles knowledge — permanent and temporary — and exposes it through standard interfaces (MCP tools, REST API) that any upstream system can call.
 
 **Self-hosted, local-first.** Runs on a single machine. ChromaDB and SQLite on your filesystem. Embedding models run locally via ONNX (CPU, no GPU required). LLM providers are configurable — Ollama (local), Anthropic, OpenAI, Venice, or any OpenAI-compatible API. No cloud dependencies for core functionality.
 
@@ -98,7 +98,7 @@ This composability is intentional. MDKB doesn't try to be the orchestrator, the 
 | Thread management (create, rename, delete, history) | Built |
 | Multiple LLM providers with fallback chain | Built |
 | Local ONNX embeddings (3 models, no external API) | Built |
-| API key authentication (X-MDKB-Key header) | Built |
+| API key authentication (X-MarkdownKB-Key header) | Built |
 | Docker deployment | Built |
 
 ### Plugins
@@ -148,8 +148,8 @@ ChromaDB + SQLite for storage — no separate database to manage. Single port (d
 
 ## The Core Bet
 
-Most knowledge management tools optimize for ingestion — get everything in, worry about retrieval later. MDKB makes the opposite bet: that retrieval quality and context control matter more than scale. Hybrid search, scoped filtering, temp buckets, and citation tracking all serve the same goal — when you ask a question, the answer should come from the right documents, not just the nearest vectors.
+Most knowledge management tools optimize for ingestion — get everything in, worry about retrieval later. MarkdownKB makes the opposite bet: that retrieval quality and context control matter more than scale. Hybrid search, scoped filtering, temp buckets, and citation tracking all serve the same goal — when you ask a question, the answer should come from the right documents, not just the nearest vectors.
 
 There's a second bet: that the same knowledge base should serve both humans and agents equally. Every feature in the web UI has an equivalent MCP tool or API endpoint. The knowledge base is not a human tool that agents can kind of use, or an agent tool with a dashboard bolted on — it's both, by design.
 
-And there's a third bet: that value compounds. Build-time tools produce snapshots — useful at a point in time, then stale. A runtime service that's always indexing, always serving, always accumulating conversation history and search patterns becomes more valuable every week it runs. More documents indexed means richer retrieval. More conversations mean better institutional memory. More agents connected means broader access. MDKB is infrastructure you build on, not a report you run once.
+And there's a third bet: that value compounds. Build-time tools produce snapshots — useful at a point in time, then stale. A runtime service that's always indexing, always serving, always accumulating conversation history and search patterns becomes more valuable every week it runs. More documents indexed means richer retrieval. More conversations mean better institutional memory. More agents connected means broader access. MarkdownKB is infrastructure you build on, not a report you run once.

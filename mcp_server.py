@@ -1,6 +1,6 @@
-"""Standalone MCP server for MDKB.
+"""Standalone MCP server for MarkdownKB.
 
-Exposes core MDKB capabilities — search, chat, document listing, and
+Exposes core MarkdownKB capabilities — search, chat, document listing, and
 indexing — as MCP tools that any MCP-compatible client can call.
 
 Tools are auto-discovered from ``app/mcp/tools/``.  Each tool module
@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(server: FastMCP):
-    """Set up MDKB services and expose them via the lifespan context."""
+    """Set up MarkdownKB services and expose them via the lifespan context."""
     settings = Settings.get()
     load_models(settings.model_configs)
 
@@ -141,9 +141,9 @@ if not isinstance(_allowed_hosts, list):
     _allowed_hosts = []
 
 mcp = FastMCP(
-    "mdkb",
+    "markdownkb",
     instructions=(
-        "MDKB is a personal markdown knowledge base. Use the tools below to "
+        "MarkdownKB is a personal markdown knowledge base. Use the tools below to "
         "search indexed documents, retrieve full file contents, list indexed "
         "files, generate implementation plans, and trigger re-indexing."
     ),
@@ -174,7 +174,7 @@ def _run_sse_with_auth(host: str, port: int):
             from app.mcp.auth import McpApiKeyMiddleware
             starlette_app = McpApiKeyMiddleware(starlette_app, api_key)
             logger.info(
-                "MCP auth enabled (accepts X-MDKB-Key header or ?token= query param)"
+                "MCP auth enabled (accepts X-MarkdownKB-Key header or ?token= query param)"
             )
         else:
             logger.info("MCP auth disabled (no API key configured)")
@@ -190,7 +190,7 @@ def _run_sse_with_auth(host: str, port: int):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="MDKB MCP Server")
+    parser = argparse.ArgumentParser(description="MarkdownKB MCP Server")
     parser.add_argument(
         "--sse", action="store_true",
         help="Run with SSE transport instead of stdio",

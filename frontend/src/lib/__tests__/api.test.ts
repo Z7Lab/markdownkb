@@ -48,19 +48,19 @@ describe("api", () => {
   })
 
   describe("auth header", () => {
-    it("does not include X-MDKB-Key when no key is set", async () => {
+    it("does not include X-MarkdownKB-Key when no key is set", async () => {
       mockJsonResponse({})
       await api.get("/api/test")
       const callArgs = mockFetch.mock.calls[0]
-      expect(callArgs[1].headers["X-MDKB-Key"]).toBeUndefined()
+      expect(callArgs[1].headers["X-MarkdownKB-Key"]).toBeUndefined()
     })
 
-    it("includes X-MDKB-Key when key is set", async () => {
+    it("includes X-MarkdownKB-Key when key is set", async () => {
       setApiKey("test-key-123")
       mockJsonResponse({})
       await api.get("/api/test")
       const callArgs = mockFetch.mock.calls[0]
-      expect(callArgs[1].headers["X-MDKB-Key"]).toBe("test-key-123")
+      expect(callArgs[1].headers["X-MarkdownKB-Key"]).toBe("test-key-123")
     })
 
     it("getApiKey returns the current key", () => {

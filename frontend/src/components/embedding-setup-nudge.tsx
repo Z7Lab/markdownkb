@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Database, X } from "lucide-react"
 
-const DISMISS_KEY = "mdkb-embedding-nudge-dismissed"
+const DISMISS_KEY = "markdownkb-embedding-nudge-dismissed"
 
 export function EmbeddingSetupNudge({ onNavigateSettings }: { onNavigateSettings: () => void }) {
   const [missing, setMissing] = useState(false)

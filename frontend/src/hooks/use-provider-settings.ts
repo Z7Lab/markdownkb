@@ -121,7 +121,7 @@ export function useProviderSettings(reload: () => Promise<boolean>) {
       try {
         const headers: Record<string, string> = { "Content-Type": "application/json" }
         const key = getApiKey()
-        if (key) headers["X-MDKB-Key"] = key
+        if (key) headers["X-MarkdownKB-Key"] = key
 
         const res = await fetch("/api/settings/ollama/pull", {
           method: "POST",

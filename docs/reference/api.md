@@ -4,10 +4,10 @@ All endpoints under `http://localhost:9713/api/`. Interactive docs (Swagger UI) 
 
 ## Authentication
 
-When an API key is configured (via Docker secret `mdkb_api_key` or `MDKB_API_KEY` env var), all `/api/*` endpoints require the header:
+When an API key is configured (via Docker secret `markdownkb_api_key` or `MARKDOWNKB_API_KEY` env var), all `/api/*` endpoints require the header:
 
 ```
-X-MDKB-Key: <your-key>
+X-MarkdownKB-Key: <your-key>
 ```
 
 Missing or invalid keys return **401 Unauthorized**. `/api/health` is always public (no key required). When no key is configured, authentication is disabled.
@@ -129,7 +129,7 @@ Core router (always registered). Manages plugin discovery, installation, and rem
       "display_name": "Search & Summaries",
       "description": "...",
       "version": "1.0.0",
-      "author": "mdkb",
+      "author": "markdownkb",
       "icon": "search",
       "category": "search",
       "feature_flag": "search",

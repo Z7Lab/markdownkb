@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Cpu, X } from "lucide-react"
 import { LlmSetupGuide } from "./llm-setup-guide"
 
-const DISMISS_KEY = "mdkb-llm-nudge-dismissed"
+const DISMISS_KEY = "markdownkb-llm-nudge-dismissed"
 
 interface LlmHealth {
   configured: boolean

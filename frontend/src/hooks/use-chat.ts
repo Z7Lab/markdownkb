@@ -16,13 +16,13 @@ function nextId(): string {
 }
 
 // LocalStorage key for streaming thread tracking (transient, not persisted state)
-const STREAMING_THREAD_KEY = "mdkb_streaming_thread"
+const STREAMING_THREAD_KEY = "markdownkb_streaming_thread"
 
 export function useChat(scopeIds?: string | null, adHocTags?: string[] | null, bucketId?: string | null) {
-  const [messages, setMessages] = usePersistedState<ChatMessage[]>("mdkb_messages", [])
+  const [messages, setMessages] = usePersistedState<ChatMessage[]>("markdownkb_messages", [])
   const [isStreaming, setIsStreaming] = useState(false)
   const [threads, setThreads] = useState<Thread[]>([])
-  const [activeThreadId, setActiveThreadId] = usePersistedState<string | null>("mdkb_active_thread", null)
+  const [activeThreadId, setActiveThreadId] = usePersistedState<string | null>("markdownkb_active_thread", null)
   const controllerRef = useRef<AbortController | null>(null)
   const loadIdRef = useRef(0)
   const streamingThreadIdRef = useRef<string | null>(null) // Track which thread is streaming

@@ -52,7 +52,7 @@ export function InstallPluginDialog({
         <DialogHeader>
           <DialogTitle>Install Plugin</DialogTitle>
           <DialogDescription>
-            Point to a GitHub repository or a local directory containing an mdkb plugin.
+            Point to a GitHub repository or a local directory containing a MarkdownKB plugin.
             The plugin must have an __init__.py with FEATURE_FLAG and router exports.
           </DialogDescription>
         </DialogHeader>

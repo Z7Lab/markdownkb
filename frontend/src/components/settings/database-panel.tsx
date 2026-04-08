@@ -130,7 +130,7 @@ export function DatabasePanel() {
       <div>
         <h2 className="text-lg font-semibold mb-1">Database Maintenance</h2>
         <p className="text-sm text-muted-foreground">
-          Manage and maintain your mdkb databases
+          Manage and maintain your MarkdownKB databases
         </p>
       </div>
 
@@ -278,7 +278,7 @@ export function DatabasePanel() {
                   type: "vectors",
                   title: "Clear Vector Database?",
                   description:
-                    "This will permanently delete BOTH the vector embeddings (chromadb) AND the file tracking database (mdkb.db). These databases are interdependent and must be cleared together to maintain consistency. You will need to reindex your files afterward. This action cannot be undone.",
+                    "This will permanently delete BOTH the vector embeddings (chromadb) AND the file tracking database (markdownkb.db). These databases are interdependent and must be cleared together to maintain consistency. You will need to reindex your files afterward. This action cannot be undone.",
                 })
               }
               disabled={loading}

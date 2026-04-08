@@ -505,7 +505,7 @@ done
 4. Thread count optimization matters (usually cores - 2)
 5. First request is always slower (model loading)
 
-**For mdkb:**
+**For MarkdownKB:**
 - Use DeepSeek-Coder-V2 for 45% faster code-related queries
 - Ollama is fine for convenience (same speed as llama.cpp on CPU)
 - ~4 tok/s is expected on laptop CPUs for Q4_K_M 8B models

@@ -1,4 +1,4 @@
-"""Shared utility functions for the mdkb API."""
+"""Shared utility functions for the MarkdownKB API."""
 
 import ipaddress
 import json

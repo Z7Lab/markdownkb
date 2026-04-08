@@ -1,4 +1,4 @@
-# mdkb configuration — copy this file to settings.yaml and edit as needed:
+# MarkdownKB configuration — copy this file to settings.yaml and edit as needed:
 #   cp config/settings.yaml.example config/settings.yaml
 
 # Directories to watch for markdown files
@@ -134,15 +134,15 @@ retrieval:
     expand_acronyms: true
 
 # Storage — all persistent state lives under the data directory.
-# Resolution: MDKB_DATA_DIR env → platformdirs (~/.local/share/mdkb on Linux,
-# ~/Library/Application Support/mdkb on macOS, %APPDATA%\mdkb on Windows).
-# Docker sets MDKB_DATA_DIR=/data automatically.
+# Resolution: MARKDOWNKB_DATA_DIR env → platformdirs (~/.local/share/markdownkb on Linux,
+# ~/Library/Application Support/markdownkb on macOS, %APPDATA%\markdownkb on Windows).
+# Docker sets MARKDOWNKB_DATA_DIR=/data automatically.
 # Uncomment to override:
 # storage:
 #   data_directory: /custom/path   # override auto-detection
 #   persist_directory: /custom/chromadb  # override ChromaDB location
 storage:
-  collection_name: mdkb
+  collection_name: markdownkb
 
 # Core behaviour toggles (not plugins — these control built-in behaviour)
 core:
@@ -216,8 +216,8 @@ logging:
 
 # API key authentication — protects all /api/ endpoints (except /api/health).
 # Keys are resolved from Docker secrets or env vars, NOT from this file:
-#   1. secrets/mdkb_api_key (Docker secret — preferred)
-#   2. MDKB_API_KEY env var (fallback)
+#   1. secrets/markdownkb_api_key (Docker secret — preferred)
+#   2. MARKDOWNKB_API_KEY env var (fallback)
 # When no key is configured and the server is network-exposed (0.0.0.0),
 # the web UI shows a setup banner to generate a key with one click.
 

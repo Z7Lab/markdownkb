@@ -1,6 +1,6 @@
 # Security
 
-mdkb handles API keys, accesses the file system, and optionally executes terminal commands. This document describes the security model and how to report issues.
+MarkdownKB handles API keys, accesses the file system, and optionally executes terminal commands. This document describes the security model and how to report issues.
 
 ## Sensitive Data
 
@@ -8,18 +8,18 @@ mdkb handles API keys, accesses the file system, and optionally executes termina
 
 ## Authentication
 
-mdkb supports optional API key authentication via the `X-MDKB-Key` header:
+MarkdownKB supports optional API key authentication via the `X-MarkdownKB-Key` header:
 
-- Set via Docker secret (`secrets/mdkb_api_key`) or the `MDKB_API_KEY` environment variable.
+- Set via Docker secret (`secrets/markdownkb_api_key`) or the `MARKDOWNKB_API_KEY` environment variable.
 - When configured, all `/api/*` endpoints (except `/api/health`) require the header. Missing or invalid keys return **401 Unauthorized**.
 - When empty (default), authentication is disabled — suitable for local/single-user use.
-- **If exposing mdkb to a network, always set an API key.** Without it, destructive endpoints (clear databases, change LLM provider, rewrite system prompt) are fully open.
+- **If exposing MarkdownKB to a network, always set an API key.** Without it, destructive endpoints (clear databases, change LLM provider, rewrite system prompt) are fully open.
 
 ### MCP Server Authentication
 
-The standalone MCP SSE server uses the same API key. When `MDKB_API_KEY` is configured, the MCP server requires authentication via either:
+The standalone MCP SSE server uses the same API key. When `MARKDOWNKB_API_KEY` is configured, the MCP server requires authentication via either:
 
-- **Header:** `X-MDKB-Key: <key>` (same as the REST API)
+- **Header:** `X-MarkdownKB-Key: <key>` (same as the REST API)
 - **Query parameter:** `?token=<key>` (for SSE clients that can't set headers, e.g. sandboxed agents connecting via a URL-only configuration)
 
 The stdio transport is never authenticated (stdio is process-local and not network-accessible). When no API key is configured, MCP connections are unauthenticated — suitable only for localhost-bound deployments.

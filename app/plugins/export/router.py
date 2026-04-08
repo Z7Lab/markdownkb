@@ -20,7 +20,7 @@ def export_conversations(
 ):
     history = conv_history.get_history()
     if req.format == "markdown":
-        lines = ["# mdkb Conversation Export\n"]
+        lines = ["# MarkdownKB Conversation Export\n"]
         lines.append(f"*Exported: {datetime.now().isoformat()}*" "\n\n---\n")
         for msg in history:
             role = msg["role"].capitalize()

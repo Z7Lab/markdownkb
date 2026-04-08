@@ -121,7 +121,7 @@ def install_model(
         logger.info("Downloading %s", url)
 
         tmp = file_dest.with_suffix(".tmp")
-        req = urllib.request.Request(url, headers={"User-Agent": "mdkb/1.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": "markdownkb/1.0"})
         with urllib.request.urlopen(req, timeout=600) as resp:
             total = int(resp.headers.get("Content-Length", 0))
             downloaded = 0

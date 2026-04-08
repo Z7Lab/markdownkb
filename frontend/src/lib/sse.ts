@@ -77,7 +77,7 @@ function streamSSE(
 
   const headers: Record<string, string> = { "Content-Type": "application/json" }
   const key = getApiKey()
-  if (key) headers["X-MDKB-Key"] = key
+  if (key) headers["X-MarkdownKB-Key"] = key
 
   fetch(url, {
     method: "POST",

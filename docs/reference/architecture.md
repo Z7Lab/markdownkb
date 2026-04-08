@@ -1,6 +1,6 @@
 # Architecture
 
-mdkb is a chat-with-your-docs tool with a Python backend and React frontend. The core experience is RAG chat — everything else (search, doc map, knowledge graph, planner) is an optional plugin. This document explains how the pieces fit together.
+MarkdownKB is a chat-with-your-docs tool with a Python backend and React frontend. The core experience is RAG chat — everything else (search, doc map, knowledge graph, planner) is an optional plugin. This document explains how the pieces fit together.
 
 ## System Overview
 
@@ -48,7 +48,7 @@ mdkb is a chat-with-your-docs tool with a Python backend and React frontend. The
 │  └──────────────────┘  └────────────────────────────┘   │
 │                                                         │
 │  ┌──────────────────┐  ┌────────────────────────────┐   │
-│  │  Auth Middleware   │  │  API Key (X-MDKB-Key)     │   │
+│  │  Auth Middleware   │  │  API Key (X-MarkdownKB-Key)│   │
 │  └──────────────────┘  └────────────────────────────┘   │
 └─────────────────────────────────────────────────────────┘
          │                        │
@@ -70,7 +70,7 @@ mdkb is a chat-with-your-docs tool with a Python backend and React frontend. The
 │    bucket_list_files │ bucket_search │ bucket_chat      │
 │    bucket_delete                                        │
 │  Transports: stdio │ SSE  │  read_only mode            │
-│  Auth: X-MDKB-Key header │ ?token= query param         │
+│  Auth: X-MarkdownKB-Key header │ ?token= query param         │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -122,7 +122,7 @@ All files are relative to the data directory (see [Storage](#storage) below).
 | Store | File | Description |
 |-------|------|-------------|
 | VectorStore | `chromadb/` | ChromaDB vector embeddings for semantic search |
-| TrackingDB | `mdkb.db` | File index state, hashes, RAG inclusion flags |
+| TrackingDB | `markdownkb.db` | File index state, hashes, RAG inclusion flags |
 | ChatDB | `chats.db` | Chat threads and messages |
 | SearchDB | `searches.db` | Search history, versions, AI summaries |
 | PlanDB | `plans.db` | Saved planner plans and metadata |
@@ -149,7 +149,7 @@ All files are relative to the data directory (see [Storage](#storage) below).
 
 | Module | Description |
 |--------|-------------|
-| `app/auth.py` | API key middleware (`X-MDKB-Key` header) |
+| `app/auth.py` | API key middleware (`X-MarkdownKB-Key` header) |
 | `app/config/` | Settings singleton, mixin-based config, YAML persistence |
 | `app/deps.py` | FastAPI dependency injection (Depends providers) |
 | `app/embeddings/` | ONNX embedding model registry, CPU inference |
@@ -161,21 +161,21 @@ All files are relative to the data directory (see [Storage](#storage) below).
 
 1. **Frontend** makes HTTP requests to `/api/*`. Streaming responses (chat, summaries) use POST-based SSE via `fetch` + `ReadableStream`.
 2. **Routers** handle request validation and call into services. Core routers (health, chat, threads, files, settings, embeddings, scopes, plugins) are always registered. **Plugins** (`app/plugins/` and `{data_directory}/plugins/`) are auto-discovered at startup — each plugin exposes a feature flag and a router; only enabled plugins are registered.
-3. **Auth middleware** (`app/auth.py`) checks the `X-MDKB-Key` header on all `/api/*` paths (except `/api/health`) when an API key is configured via Docker secret or env var. Uses `hmac.compare_digest()` for timing-safe comparison. Disabled when no key is set.
+3. **Auth middleware** (`app/auth.py`) checks the `X-MarkdownKB-Key` header on all `/api/*` paths (except `/api/health`) when an API key is configured via Docker secret or env var. Uses `hmac.compare_digest()` for timing-safe comparison. Disabled when no key is set.
 4. **Dependency injection** (`app/deps.py`) provides services via FastAPI's `Depends()`. All shared state lives on `app.state`, initialized in the async lifespan context manager (`app/main.py`).
 5. **Services** contain business logic — conversation management, LLM health checks, query enhancement.
 6. **Storage layer** persists data across seven stores (see below).
 
 ## Storage
 
-All persistent state lives under a single **data directory**, resolved via: `MDKB_DATA_DIR` env var → `platformdirs.user_data_dir("mdkb")` (OS-appropriate default). Docker sets `MDKB_DATA_DIR=/data`; outside Docker the default is `~/.local/share/mdkb` (Linux), `~/Library/Application Support/mdkb` (macOS), or `%APPDATA%\mdkb` (Windows). See [configuration.md](configuration.md#storage) for override options.
+All persistent state lives under a single **data directory**, resolved via: `MARKDOWNKB_DATA_DIR` env var → `platformdirs.user_data_dir("markdownkb")` (OS-appropriate default). Docker sets `MARKDOWNKB_DATA_DIR=/data`; outside Docker the default is `~/.local/share/markdownkb` (Linux), `~/Library/Application Support/markdownkb` (macOS), or `%APPDATA%\markdownkb` (Windows). See [configuration.md](configuration.md#storage) for override options.
 
-mdkb uses one vector database and nine SQLite databases:
+MarkdownKB uses one vector database and nine SQLite databases:
 
 | Database | Path (relative to data dir) | Purpose |
 |----------|------|---------|
 | **ChromaDB** | `chromadb/` | Vector embeddings for semantic search |
-| **TrackingDB** | `mdkb.db` | File index state, hashes, RAG inclusion flags |
+| **TrackingDB** | `markdownkb.db` | File index state, hashes, RAG inclusion flags |
 | **ChatDB** | `chats.db` | Chat threads and messages |
 | **SearchDB** | `searches.db` | Search history, versions, AI summaries |
 | **PlanDB** | `plans.db` | Saved planner plans and metadata |
@@ -183,7 +183,7 @@ mdkb uses one vector database and nine SQLite databases:
 | **ScopeDB** | `scopes.db` | Named scopes (folder + tag filters + exclude patterns) |
 | **TagDB** | `tags.db` | File-to-tag mappings (owned by tags plugin) |
 | **BucketDB** | `buckets.db` | Temporary bucket metadata (owned by buckets plugin) |
-| **KnowledgeGraphDB** | `mdkb_kg.db` | Entities, typed relationships, extraction cache (owned by knowledge_graph plugin) |
+| **KnowledgeGraphDB** | `markdownkb_kg.db` | Entities, typed relationships, extraction cache (owned by knowledge_graph plugin) |
 
 Additional data directory contents: `models/` (ONNX embedding models), `plans/` (exported plan markdown), `plugins/` (external plugins), `secrets/` (generated API keys).
 
@@ -251,7 +251,7 @@ name: search
 display_name: Search & Summaries
 description: Semantic search with history and AI summaries.
 version: 1.0.0
-author: mdkb
+author: markdownkb
 icon: search
 category: search
 feature_flag: search
@@ -329,7 +329,7 @@ Legacy `features:` layouts are auto-migrated on first startup and saved to disk.
 
 ## MCP Server
 
-`mcp_server.py` runs as a **separate process** alongside the FastAPI app. It exposes MDKB's core capabilities as MCP tools (search, chat, document access, indexing, stats) using the `mcp` SDK. Supports stdio (default) and SSE transports. See [mcp-server.md](mcp-server.md).
+`mcp_server.py` runs as a **separate process** alongside the FastAPI app. It exposes MarkdownKB's core capabilities as MCP tools (search, chat, document access, indexing, stats) using the `mcp` SDK. Supports stdio (default) and SSE transports. See [mcp-server.md](mcp-server.md).
 
 ## Frontend
 

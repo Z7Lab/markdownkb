@@ -7,7 +7,7 @@ The graph plugin provides two complementary views of your knowledge base:
 
 ## Knowledge Graph (Entity Extraction)
 
-When documents are indexed, MDKB uses the configured LLM to extract entities and typed relationships from each chunk. These are stored in a separate SQLite database (`mdkb_kg.db`) that survives embedding model switches.
+When documents are indexed, MarkdownKB uses the configured LLM to extract entities and typed relationships from each chunk. These are stored in a separate SQLite database (`markdownkb_kg.db`) that survives embedding model switches.
 
 ### Entity Types
 
@@ -33,7 +33,7 @@ Every entity and relationship links back to its `source_path`. When a document i
 
 ### Storage
 
-The knowledge graph uses its own SQLite database (`{data_directory}/mdkb_kg.db`), separate from the main tracking database. This means:
+The knowledge graph uses its own SQLite database (`{data_directory}/markdownkb_kg.db`), separate from the main tracking database. This means:
 - **Embedding model switches** do not affect KG data (they only clear ChromaDB and the tracking table)
 - **KG clear** (`POST /api/knowledge-graph/clear`) wipes the KG; run extraction to rebuild
 

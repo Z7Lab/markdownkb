@@ -40,10 +40,10 @@ def get_database_stats(
             "size_bytes": get_path_size(data_dir / "searches.db"),
         },
         "vector_database": {
-            "tracking_path": str(data_dir / "mdkb.db"),
+            "tracking_path": str(data_dir / "markdownkb.db"),
             "chroma_path": str(data_dir / "chromadb"),
             "size_bytes": (
-                get_path_size(data_dir / "mdkb.db")
+                get_path_size(data_dir / "markdownkb.db")
                 + get_path_size(data_dir / "chromadb")
             ),
         },

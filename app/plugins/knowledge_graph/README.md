@@ -55,7 +55,7 @@ When this plugin is disabled, these UI elements are completely removed.
 
 ## Storage
 
-- **KnowledgeGraphDB** (`data/mdkb_kg.db`) — separate SQLite database with tables for entities, relationships, and extraction cache.
+- **KnowledgeGraphDB** (`data/markdownkb_kg.db`) — separate SQLite database with tables for entities, relationships, and extraction cache.
 - Survives embedding model switches (KG data is LLM-extracted, not embedding-dependent).
 - Per-file provenance — every entity and relationship links back to its source file via `source_path`.
 - Cascade deletion — removing a file clears all its entities and relationships.

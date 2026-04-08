@@ -1,4 +1,4 @@
-"""Pydantic request/response models for the mdkb API."""
+"""Pydantic request/response models for the MarkdownKB API."""
 
 from pydantic import BaseModel, Field
 

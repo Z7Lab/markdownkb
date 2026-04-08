@@ -1,6 +1,6 @@
 # Configuration
 
-mdkb is configured through three sources:
+MarkdownKB is configured through three sources:
 
 - **`config/settings.yaml`** — primary configuration (sources, LLM providers, retrieval tuning, feature flags, storage). Copy from `config/settings.yaml.example`.
 - **`secrets/`** — Docker secrets for API keys. One key per file, mounted at `/run/secrets/` inside the container. See `secrets/README.md`.
@@ -17,8 +17,8 @@ Docker secrets take highest priority, then environment variables, then `settings
 | Server port | `server.port` | `API_PORT` |
 | Ollama URL | `llm.providers[].api_base` | `OLLAMA_API_BASE` |
 | LLM API keys | *(not supported)* | `secrets/<provider>_api_key` or `<PROVIDER>_API_KEY` env |
-| MDKB API key | *(not supported)* | `secrets/mdkb_api_key` or `MDKB_API_KEY` env |
-| Bind address | `server.host` | `MDKB_HOST` (Docker) |
+| MarkdownKB API key | *(not supported)* | `secrets/markdownkb_api_key` or `MARKDOWNKB_API_KEY` env |
+| Bind address | `server.host` | `MARKDOWNKB_HOST` (Docker) |
 | CORS origins | `server.cors_origins` | `CORS_ORIGINS` (comma-separated) |
 
 **When to use which:**
@@ -52,7 +52,7 @@ API-driven changes (via the Settings UI) take effect immediately — they update
 
 ### Project Roots
 
-Point mdkb at a directory containing cloned repositories and it will automatically discover and index documentation matching your patterns:
+Point MarkdownKB at a directory containing cloned repositories and it will automatically discover and index documentation matching your patterns:
 
 ```yaml
 project_roots:
@@ -123,19 +123,19 @@ Available catalogs: `venice` (Venice.ai — privacy-preserving OpenAI-compatible
 All persistent state (databases, embeddings, models, plugins) lives under a single **data directory**, resolved in order:
 
 1. `storage.data_directory` in settings.yaml (explicit override)
-2. `MDKB_DATA_DIR` environment variable (Docker sets this to `/data`)
+2. `MARKDOWNKB_DATA_DIR` environment variable (Docker sets this to `/data`)
 3. OS-appropriate default via [platformdirs](https://pypi.org/project/platformdirs/):
-   - **Linux:** `~/.local/share/mdkb`
-   - **macOS:** `~/Library/Application Support/mdkb`
-   - **Windows:** `%APPDATA%\mdkb`
+   - **Linux:** `~/.local/share/markdownkb`
+   - **macOS:** `~/Library/Application Support/markdownkb`
+   - **Windows:** `%APPDATA%\markdownkb`
 
 | Key | Default | Description |
 |-----|---------|-------------|
 | `storage.data_directory` | *(auto-detected)* | Root directory for all persistent data |
 | `storage.persist_directory` | `{data_directory}/chromadb` | ChromaDB vector store location |
-| `storage.collection_name` | `mdkb` | ChromaDB collection name |
+| `storage.collection_name` | `markdownkb` | ChromaDB collection name |
 
-In Docker, compose.yml mounts a named volume to `/data` and the Dockerfile sets `MDKB_DATA_DIR=/data`. The app doesn't need to know it's in a container.
+In Docker, compose.yml mounts a named volume to `/data` and the Dockerfile sets `MARKDOWNKB_DATA_DIR=/data`. The app doesn't need to know it's in a container.
 
 ## Logging
 
@@ -145,16 +145,16 @@ In Docker, compose.yml mounts a named volume to `/data` and the Dockerfile sets 
 
 ## Authentication
 
-API key authentication protects all `/api/*` endpoints (except `/api/health` and `/api/setup/generate-key`). When a key is configured, requests must include the `X-MDKB-Key: <key>` header.
+API key authentication protects all `/api/*` endpoints (except `/api/health` and `/api/setup/generate-key`). When a key is configured, requests must include the `X-MarkdownKB-Key: <key>` header.
 
 ### Setup options
 
-**Option 1: Web UI setup (easiest).** When the server is network-exposed (`MDKB_HOST=0.0.0.0`) without a key, a setup banner appears in the UI. Click "Generate API Key" to create one. The key is written to `{data_directory}/secrets/mdkb_api_key` and takes effect immediately.
+**Option 1: Web UI setup (easiest).** When the server is network-exposed (`MARKDOWNKB_HOST=0.0.0.0`) without a key, a setup banner appears in the UI. Click "Generate API Key" to create one. The key is written to `{data_directory}/secrets/markdownkb_api_key` and takes effect immediately.
 
 **Option 2: Secret file (preferred for shared/production hosts).**
 
 ```bash
-echo -n "your-key-here" > secrets/mdkb_api_key
+echo -n "your-key-here" > secrets/markdownkb_api_key
 ```
 
 Secret files are mounted read-only at `/run/secrets/` and are **not** visible in `docker inspect`.
@@ -163,12 +163,12 @@ Secret files are mounted read-only at `/run/secrets/` and are **not** visible in
 
 Add to `.env`:
 ```
-MDKB_API_KEY=your-key-here
+MARKDOWNKB_API_KEY=your-key-here
 ```
 
 Env vars are visible in `docker inspect` — use secret files instead if others have Docker access on the host.
 
-Keys are resolved in order: `{data_directory}/secrets/` (generated keys) > Docker secret (`/run/secrets/`) > env var (`MDKB_API_KEY`). Keys are never stored in `settings.yaml`.
+Keys are resolved in order: `{data_directory}/secrets/` (generated keys) > Docker secret (`/run/secrets/`) > env var (`MARKDOWNKB_API_KEY`). Keys are never stored in `settings.yaml`.
 
 When no key is configured and the server binds to localhost only, authentication is disabled (single-user mode).
 

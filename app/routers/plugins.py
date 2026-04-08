@@ -406,7 +406,7 @@ def _parse_github_url(url: str) -> tuple[str | None, str | None]:
 
 
 def _validate_plugin(plugin_dir: Path) -> list[str]:
-    """Validate that a directory contains a valid mdkb plugin.
+    """Validate that a directory contains a valid MarkdownKB plugin.
 
     Returns a list of error messages (empty = valid).
     """

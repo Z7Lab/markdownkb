@@ -122,7 +122,7 @@ function OllamaGuide({ expanded, onNavigateSettings, hideSettingsButton }: { exp
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="text-xs">3</Badge>
-          <span className="text-sm font-medium">Configure mdkb</span>
+          <span className="text-sm font-medium">Configure MarkdownKB</span>
         </div>
         {hideSettingsButton ? (
           <p className="text-xs text-muted-foreground">
@@ -274,11 +274,11 @@ function LlamaCppGuide({ expanded, onNavigateSettings, hideSettingsButton }: { e
         )}
       </div>
 
-      {/* Step 4: Configure mdkb */}
+      {/* Step 4: Configure MarkdownKB */}
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="text-xs">4</Badge>
-          <span className="text-sm font-medium">Configure mdkb</span>
+          <span className="text-sm font-medium">Configure MarkdownKB</span>
         </div>
         {hideSettingsButton ? (
           <p className="text-xs text-muted-foreground">
@@ -373,7 +373,7 @@ function CloudGuide({ expanded, onNavigateSettings, hideSettingsButton }: { expa
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="text-xs">2</Badge>
-          <span className="text-sm font-medium">Configure mdkb</span>
+          <span className="text-sm font-medium">Configure MarkdownKB</span>
         </div>
         {hideSettingsButton ? (
           <p className="text-xs text-muted-foreground">
@@ -410,7 +410,7 @@ function CustomGuide({ expanded, onNavigateSettings, hideSettingsButton }: { exp
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">
-        Any server that exposes an OpenAI-compatible <code className="bg-muted px-1 rounded">/v1/chat/completions</code> endpoint works with mdkb.
+        Any server that exposes an OpenAI-compatible <code className="bg-muted px-1 rounded">/v1/chat/completions</code> endpoint works with MarkdownKB.
       </p>
 
       <div className="space-y-2">
@@ -450,7 +450,7 @@ function CustomGuide({ expanded, onNavigateSettings, hideSettingsButton }: { exp
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="text-xs">2</Badge>
-          <span className="text-sm font-medium">Configure mdkb</span>
+          <span className="text-sm font-medium">Configure MarkdownKB</span>
         </div>
         {hideSettingsButton ? (
           <>
@@ -533,7 +533,7 @@ export function LlmSetupGuide({
           </Button>
         </div>
         <p className="text-sm text-muted-foreground">
-          mdkb needs an LLM for chat, search summaries, and planning.
+          MarkdownKB needs an LLM for chat, search summaries, and planning.
           Choose a provider to get started:
         </p>
       </CardHeader>
@@ -571,7 +571,7 @@ export function LlmSetupGuide({
           <p className="text-xs font-medium">About embeddings</p>
           <p className="text-xs text-muted-foreground">
             Embeddings power search and document indexing — they're <strong>separate</strong> from the chat model.
-            mdkb ships with a local ONNX embedding model that runs on CPU with no setup needed.
+            MarkdownKB ships with a local ONNX embedding model that runs on CPU with no setup needed.
             You can optionally switch to Ollama or any OpenAI-compatible embedding API
             in Settings &gt; Embedding Model.
           </p>

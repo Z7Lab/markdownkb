@@ -1,9 +1,10 @@
 """API key authentication middleware.
 
-When an API key is configured (via ``secrets/mdkb_api_key`` Docker secret
-or ``MDKB_API_KEY`` env var), every request must include the header::
+When an API key is configured (via ``secrets/markdownkb_api_key`` Docker
+secret or ``MARKDOWNKB_API_KEY`` env var), every request must include the
+header::
 
-    X-MDKB-Key: <key>
+    X-MarkdownKB-Key: <key>
 
 Requests without a valid key receive a **401 Unauthorized** response.
 If no key is configured, authentication is silently disabled.
@@ -18,7 +19,7 @@ from starlette.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 
-_HEADER = "X-MDKB-Key"
+_HEADER = "X-MarkdownKB-Key"
 
 # Paths that bypass authentication (health check, CORS preflight)
 _PUBLIC_PATHS = frozenset({"/api/health", "/api/setup/generate-key"})

@@ -116,17 +116,17 @@ _DEFAULT_CONFIG_PATH = (
 )
 
 
-_SECRETS_DIR = Path(os.environ.get("MDKB_SECRETS_DIR", "/run/secrets"))
+_SECRETS_DIR = Path(os.environ.get("MARKDOWNKB_SECRETS_DIR", "/run/secrets"))
 
 
 def _default_data_dir() -> str:
     """Resolve the data directory.
 
-    Priority: MDKB_DATA_DIR env var → platformdirs user_data_dir.
-    Docker sets MDKB_DATA_DIR=/data so the app never needs to know
+    Priority: MARKDOWNKB_DATA_DIR env var → platformdirs user_data_dir.
+    Docker sets MARKDOWNKB_DATA_DIR=/data so the app never needs to know
     whether it's containerized.
     """
-    return os.environ.get("MDKB_DATA_DIR") or user_data_dir("mdkb")
+    return os.environ.get("MARKDOWNKB_DATA_DIR") or user_data_dir("markdownkb")
 
 
 def _data_secrets_dir() -> Path:
@@ -357,11 +357,11 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
 
         Resolution order:
         1. ``storage.data_directory`` in settings.yaml (explicit override)
-        2. ``MDKB_DATA_DIR`` environment variable (Docker sets this)
-        3. ``platformdirs.user_data_dir("mdkb")`` OS-appropriate default:
-           - Linux:   ``~/.local/share/mdkb``
-           - macOS:   ``~/Library/Application Support/mdkb``
-           - Windows: ``%APPDATA%\\mdkb``
+        2. ``MARKDOWNKB_DATA_DIR`` environment variable (Docker sets this)
+        3. ``platformdirs.user_data_dir("markdownkb")`` OS-appropriate default:
+           - Linux:   ``~/.local/share/markdownkb``
+           - macOS:   ``~/Library/Application Support/markdownkb``
+           - Windows: ``%APPDATA%\\markdownkb``
         """
         raw = self._data.get("storage", {}).get("data_directory", "")
         if raw:
@@ -380,7 +380,7 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
     def collection_name(self) -> str:
         """Return the ChromaDB collection name."""
         return self._data.get("storage", {}).get(
-            "collection_name", "mdkb"
+            "collection_name", "markdownkb"
         )
 
     # --- Core ---
@@ -459,10 +459,11 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
     def api_key(self) -> str:
         """Return the API key for header-based authentication.
 
-        Checked in order: Docker secret ``mdkb_api_key`` > ``MDKB_API_KEY``
-        env var.  Empty string means authentication is disabled.
+        Checked in order: Docker secret ``markdownkb_api_key`` >
+        ``MARKDOWNKB_API_KEY`` env var.  Empty string means authentication
+        is disabled.
         """
-        return _read_secret("mdkb_api_key") or os.environ.get("MDKB_API_KEY", "")
+        return _read_secret("markdownkb_api_key") or os.environ.get("MARKDOWNKB_API_KEY", "")
 
     # --- Server ---
     @property

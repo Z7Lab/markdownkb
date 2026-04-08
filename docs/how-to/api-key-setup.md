@@ -1,14 +1,14 @@
 # API Key Setup
 
-mdkb can require an API key on all `/api/*` endpoints. This guide explains when you need one, what it protects, and how to set it up.
+MarkdownKB can require an API key on all `/api/*` endpoints. This guide explains when you need one, what it protects, and how to set it up.
 
 ## When Do You Need an API Key?
 
-**Local-only use (default):** No key needed. mdkb binds to localhost by default — only your machine can access it.
+**Local-only use (default):** No key needed. MarkdownKB binds to localhost by default — only your machine can access it.
 
-**Network-exposed use:** Set a key. If you've changed `MDKB_HOST=0.0.0.0` in `.env` to access mdkb from other machines, anyone on your network can read, write, and delete from your knowledge base without a key.
+**Network-exposed use:** Set a key. If you've changed `MARKDOWNKB_HOST=0.0.0.0` in `.env` to access MarkdownKB from other machines, anyone on your network can read, write, and delete from your knowledge base without a key.
 
-The mdkb UI shows a banner when no API key is configured and the server is network-exposed. This is the situation that needs a key.
+The MarkdownKB UI shows a banner when no API key is configured and the server is network-exposed. This is the situation that needs a key.
 
 ## What Does It Protect?
 
@@ -27,10 +27,10 @@ Without a key, all of these are open to anyone who can reach the server.
 
 ```bash
 # Generate a random key
-openssl rand -hex 16 > secrets/mdkb_api_key
+openssl rand -hex 16 > secrets/markdownkb_api_key
 
 # Or set your own
-echo -n "your-chosen-key" > secrets/mdkb_api_key
+echo -n "your-chosen-key" > secrets/markdownkb_api_key
 ```
 
 Restart the container: `make restart`
@@ -40,27 +40,27 @@ Restart the container: `make restart`
 In `.env`:
 
 ```
-MDKB_API_KEY=your-key-here
+MARKDOWNKB_API_KEY=your-key-here
 ```
 
 Then `make down && make up`.
 
 ### Option 3: Generate from the UI
 
-When the setup banner appears, click "Generate API Key". This creates a key, saves it to `secrets/mdkb_api_key`, and configures the current browser session automatically. Copy the key — it won't be shown again.
+When the setup banner appears, click "Generate API Key". This creates a key, saves it to `secrets/markdownkb_api_key`, and configures the current browser session automatically. Copy the key — it won't be shown again.
 
 ## Using the Key
 
 ### Browser
 
-The mdkb web UI stores the key in localStorage after you set it. No manual header needed.
+The MarkdownKB web UI stores the key in localStorage after you set it. No manual header needed.
 
 ### REST API
 
-Include the key in the `X-MDKB-Key` header:
+Include the key in the `X-MarkdownKB-Key` header:
 
 ```bash
-curl -H "X-MDKB-Key: your-key" http://localhost:9713/api/search \
+curl -H "X-MarkdownKB-Key: your-key" http://localhost:9713/api/search \
   -d '{"query": "authentication"}'
 ```
 
@@ -68,7 +68,7 @@ curl -H "X-MDKB-Key: your-key" http://localhost:9713/api/search \
 
 Two options:
 
-**Header:** `X-MDKB-Key: your-key`
+**Header:** `X-MarkdownKB-Key: your-key`
 
 **Query parameter:** `http://localhost:9715/sse?token=your-key`
 
@@ -92,5 +92,5 @@ To change the key, update the secrets file or environment variable and restart. 
 
 - Use Docker secrets (file-based) over environment variables — env vars are visible in `docker inspect`
 - Generate a random key (`openssl rand -hex 16`) rather than choosing one
-- If exposing mdkb on a network, also consider HTTPS via a reverse proxy (nginx, Caddy)
+- If exposing MarkdownKB on a network, also consider HTTPS via a reverse proxy (nginx, Caddy)
 - The API key is a shared secret, not per-user auth — all users share the same key

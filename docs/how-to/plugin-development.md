@@ -1,6 +1,6 @@
 # Plugin Development
 
-This guide covers how to build plugins for mdkb. The builtin plugins in `app/plugins/` serve as reference implementations.
+This guide covers how to build plugins for MarkdownKB. The builtin plugins in `app/plugins/` serve as reference implementations.
 
 ## Plugin Structure
 

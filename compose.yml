@@ -1,12 +1,12 @@
 services:
-  mdkb:
+  markdownkb:
     build: .
-    container_name: ${MDKB_CONTAINER:-mdkb}
+    container_name: ${MARKDOWNKB_CONTAINER:-markdownkb}
     ports:
-      # Binds to localhost only by default — set MDKB_HOST=0.0.0.0 to expose
-      - "${MDKB_HOST:-127.0.0.1}:${MDKB_PORT:-9713}:9713"
+      # Binds to localhost only by default — set MARKDOWNKB_HOST=0.0.0.0 to expose
+      - "${MARKDOWNKB_HOST:-127.0.0.1}:${MARKDOWNKB_PORT:-9713}:9713"
     volumes:
-      - ${MDKB_DATA_DIR:-~/.local/share/mdkb}:/data
+      - ${MARKDOWNKB_DATA_DIR:-~/.local/share/markdownkb}:/data
       - ./config:/app/config
       - ./skills:/app/skills
       # Mount home directory read-only so source paths in settings.yaml
@@ -24,12 +24,12 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - VENICE_API_KEY=${VENICE_API_KEY:-}
-      - MDKB_API_KEY=${MDKB_API_KEY:-}
+      - MARKDOWNKB_API_KEY=${MARKDOWNKB_API_KEY:-}
     secrets:
       - anthropic_api_key
       - openai_api_key
       - venice_api_key
-      - mdkb_api_key
+      - markdownkb_api_key
     healthcheck:
       test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:9713/api/health').raise_for_status()"]
       interval: 30s
@@ -38,16 +38,16 @@ services:
       start_period: 30s
     restart: unless-stopped
 
-  mdkb-mcp:
+  markdownkb-mcp:
     build: .
-    container_name: ${MDKB_CONTAINER:-mdkb}-mcp
+    container_name: ${MARKDOWNKB_CONTAINER:-markdownkb}-mcp
     command: python mcp_server.py --sse --host 0.0.0.0 --port 9715
     ports:
-      # MCP binds to localhost by default.  Set MDKB_MCP_HOST=0.0.0.0
+      # MCP binds to localhost by default.  Set MARKDOWNKB_MCP_HOST=0.0.0.0
       # only when sandbox containers must reach it via host.docker.internal.
-      - "${MDKB_MCP_HOST:-127.0.0.1}:${MDKB_MCP_PORT:-9715}:9715"
+      - "${MARKDOWNKB_MCP_HOST:-127.0.0.1}:${MARKDOWNKB_MCP_PORT:-9715}:9715"
     volumes:
-      - ${MDKB_DATA_DIR:-~/.local/share/mdkb}:/data
+      - ${MARKDOWNKB_DATA_DIR:-~/.local/share/markdownkb}:/data
       - ./config:/app/config
       - ${HOME}:${HOME}:ro
     extra_hosts:
@@ -76,5 +76,5 @@ secrets:
     file: ./secrets/openai_api_key
   venice_api_key:
     file: ./secrets/venice_api_key
-  mdkb_api_key:
-    file: ./secrets/mdkb_api_key
+  markdownkb_api_key:
+    file: ./secrets/markdownkb_api_key

@@ -84,7 +84,7 @@ When you re-run a search (the "Re-query" button on historical searches), a new *
 
 ### Result Change Detection
 
-When viewing a historical search, mdkb compares the stored results against what the same query would return now. If documents have been added, removed, or re-scored, you see a "Results changed" badge with a breakdown:
+When viewing a historical search, MarkdownKB compares the stored results against what the same query would return now. If documents have been added, removed, or re-scored, you see a "Results changed" badge with a breakdown:
 
 - **Missing files** — documents in the stored results that are no longer indexed
 - **New files** — documents that now match but weren't in the original results

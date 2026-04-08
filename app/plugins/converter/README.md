@@ -1,13 +1,13 @@
 # File Converter Plugin
 
-Batch convert documents (DOCX, PDF, HTML, RST, TXT, EPUB, ODT, RTF, CSV) to markdown using Pandoc. Converted files are saved to a watched source directory where MDKB auto-indexes them.
+Batch convert documents (DOCX, PDF, HTML, RST, TXT, EPUB, ODT, RTF, CSV) to markdown using Pandoc. Converted files are saved to a watched source directory where MarkdownKB auto-indexes them.
 
 **Feature flag:** `converter`
 **Prefix:** `/api/converter`
 
 ## Prerequisites
 
-This plugin requires **Pandoc** to be installed on the system. MDKB does not bundle Pandoc — it's a system dependency you install separately.
+This plugin requires **Pandoc** to be installed on the system. MarkdownKB does not bundle Pandoc — it's a system dependency you install separately.
 
 ### Native install
 
@@ -21,20 +21,20 @@ brew install pandoc
 
 ### Docker
 
-The base MDKB Docker image does not include Pandoc. Extend the image:
+The base MarkdownKB Docker image does not include Pandoc. Extend the image:
 
 ```dockerfile
-FROM mdkb:latest
+FROM markdownkb:latest
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends pandoc poppler-utils \
     && rm -rf /var/lib/apt/lists/*
-USER mdkb
+USER markdownkb
 ```
 
 Build and use this image instead:
 
 ```bash
-docker build -t mdkb-full -f Dockerfile.full .
+docker build -t markdownkb-full -f Dockerfile.full .
 ```
 
 ### Optional: PDF support
@@ -100,7 +100,7 @@ The converter preserves subdirectory structure — files in `source_dir/subdir/f
 2. Call `POST /api/converter/convert` with source and destination paths
 3. Poll `GET /api/converter/status` for progress
 4. Converted markdown appears in the destination directory
-5. If the destination is a watched source directory, MDKB auto-indexes the new files
+5. If the destination is a watched source directory, MarkdownKB auto-indexes the new files
 
 ## Configuration
 

@@ -30,7 +30,7 @@ def generate_key(request: Request):
 
     key = secrets.token_urlsafe(32)
 
-    target = _data_secrets_dir() / "mdkb_api_key"
+    target = _data_secrets_dir() / "markdownkb_api_key"
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(key)

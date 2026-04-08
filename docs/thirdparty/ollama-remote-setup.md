@@ -1,6 +1,6 @@
 # Running Ollama on a Separate Machine
 
-mdkb doesn't run LLMs locally — it calls them over the network. This guide sets up Ollama on a separate machine so mdkb can use it. Works with any hardware: Mac Mini, GPU server, ARM SBC, dedicated Linux box, etc.
+MarkdownKB doesn't run LLMs locally — it calls them over the network. This guide sets up Ollama on a separate machine so MarkdownKB can use it. Works with any hardware: Mac Mini, GPU server, ARM SBC, dedicated Linux box, etc.
 
 ---
 
@@ -10,14 +10,14 @@ Ollama has **no built-in authentication**. Anyone who can reach port 11434 can q
 
 ### Recommended: SSH Tunnel (most secure)
 
-Keep Ollama on localhost (the default) and create an encrypted tunnel from the mdkb machine:
+Keep Ollama on localhost (the default) and create an encrypted tunnel from the MarkdownKB machine:
 
 ```bash
-# On the mdkb machine — forward local port 11434 to the Ollama machine
+# On the MarkdownKB machine -- forward local port 11434 to the Ollama machine
 ssh -N -L 11434:localhost:11434 user@ollama-machine
 ```
 
-Then configure mdkb to use `http://localhost:11434` — traffic is encrypted and authenticated via SSH. No ports need to be opened on the Ollama machine.
+Then configure MarkdownKB to use `http://localhost:11434` — traffic is encrypted and authenticated via SSH. No ports need to be opened on the Ollama machine.
 
 To make the tunnel persistent, create a systemd service:
 
@@ -46,10 +46,10 @@ Replace `YOUR_USER` and `user@ollama-machine` with your actual values. Use SSH k
 
 ### Alternative: Firewall Allowlist
 
-If an SSH tunnel is impractical, bind Ollama to `0.0.0.0` (Step 3 below) but restrict access to only the mdkb machine's IP:
+If an SSH tunnel is impractical, bind Ollama to `0.0.0.0` (Step 3 below) but restrict access to only the MarkdownKB machine's IP:
 
 ```bash
-# Allow only your mdkb machine (replace with its actual IP)
+# Allow only your MarkdownKB machine's IP (replace with its actual IP)
 sudo ufw allow from 192.168.x.x to any port 11434 proto tcp
 
 # Block everyone else
@@ -130,7 +130,7 @@ ollama list
 
 ### 3. Allow Network Access
 
-By default Ollama only listens on `127.0.0.1`. To allow connections from your mdkb machine, set the host to `0.0.0.0`.
+By default Ollama only listens on `127.0.0.1`. To allow connections from the MarkdownKB machine, set the host to `0.0.0.0`.
 
 #### Linux (systemd)
 
@@ -201,7 +201,7 @@ From the Ollama machine itself:
 curl http://localhost:11434/api/tags
 ```
 
-From your mdkb machine (replace with the Ollama machine's IP):
+From the MarkdownKB machine (replace with the Ollama machine's IP):
 ```bash
 curl http://<OLLAMA_IP>:11434/api/tags
 ```
@@ -210,7 +210,7 @@ You should see a JSON list of your models.
 
 ---
 
-## On the mdkb Machine
+## On the MarkdownKB Machine
 
 ### Option A: Edit `config/settings.yaml`
 
@@ -225,9 +225,9 @@ llm:
 
 Replace `<OLLAMA_IP>` with your Ollama machine's IP or hostname.
 
-### Option B: Use the mdkb Settings UI
+### Option B: Use the MarkdownKB Settings UI
 
-1. Open mdkb in your browser (`http://localhost:9713`)
+1. Open MarkdownKB in your browser (`http://localhost:9713`)
 2. Go to the **Settings** tab
 3. Set active provider to `ollama`
 
@@ -260,7 +260,7 @@ api_base: "http://ollama-box.local:11434"
 
 ## Using Multiple Providers (Fallback Chain)
 
-mdkb tries providers in order. If one fails, it falls back to the next:
+MarkdownKB tries providers in order. If one fails, it falls back to the next:
 
 ```yaml
 llm:
@@ -276,7 +276,7 @@ llm:
   active_provider: anthropic
 ```
 
-If Anthropic is down or you're out of credits, mdkb automatically falls back to your Ollama instance.
+If Anthropic is down or you're out of credits, MarkdownKB automatically falls back to your Ollama instance.
 
 ---
 
@@ -401,7 +401,7 @@ rm ~/llms/<filename>.gguf
 | `mistral` (7B) | 4.1GB | Fast, good for chat |
 | `phi3` (3.8B) | 2.3GB | Lightweight, fastest on CPU |
 
-**For mdkb RAG workloads**, thinking mode is generally not recommended — the model should read the retrieved context and give a grounded answer, not reason from scratch. Use `/no_think` with Qwen3.
+**For MarkdownKB RAG workloads**, thinking mode is generally not recommended — the model should read the retrieved context and give a grounded answer, not reason from scratch. Use `/no_think` with Qwen3.
 
 ---
 
@@ -414,7 +414,7 @@ rm ~/llms/<filename>.gguf
 | `No route to host` | Wrong IP, or machines aren't on the same network |
 | `Model not found` | Run `ollama pull <model>` or register your GGUF with `ollama create` |
 | Slow responses | Expected for large models on CPU. Try smaller models or lower quantization |
-| Firewall blocking | Allow only your mdkb machine's IP — see [Security Considerations](#security-considerations) |
+| Firewall blocking | Allow only the MarkdownKB machine's IP — see [Security Considerations](#security-considerations) |
 | `ollama pull` times out | Download GGUF manually from Hugging Face and use `ollama create` (see Step 2, Option B) |
 | Qwen3 repeating/looping output | Thinking mode issue. Use a Modelfile with `/no_think` and `repeat_penalty 1.5` (see [Qwen3 Thinking Mode](#qwen3-thinking-mode)) |
 | Request hangs for minutes | Likely an infinite think chain. Cancel, restart Ollama, and use `/no_think` |

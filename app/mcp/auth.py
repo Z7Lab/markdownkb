@@ -1,7 +1,7 @@
 """API key authentication middleware for the MCP SSE server.
 
 Accepts auth via any of:
-  1. ``X-MDKB-Key`` header (same as REST API)
+  1. ``X-MarkdownKB-Key`` header (same as REST API)
   2. ``?token=`` query parameter (for sandboxed agents that can't set
      headers on SSE connections — matches the pattern used by
      deliberative-ai's ephemeral token flow)
@@ -21,7 +21,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 logger = logging.getLogger(__name__)
 
-_HEADER = "X-MDKB-Key"
+_HEADER = "X-MarkdownKB-Key"
 
 
 class McpApiKeyMiddleware:

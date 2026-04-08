@@ -1,5 +1,5 @@
 [project]
-name = "mdkb"
+name = "markdownkb"
 version = "1.0.0"
 description = "Chat with your docs — knowledge base with RAG"
 requires-python = ">=3.11"

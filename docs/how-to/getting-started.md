@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide walks you through setting up mdkb, indexing your first documents, and running your first search and chat.
+This guide walks you through setting up MarkdownKB, indexing your first documents, and running your first search and chat.
 
 ## Prerequisites
 
@@ -13,13 +13,13 @@ This guide walks you through setting up mdkb, indexing your first documents, and
 ### Docker (recommended)
 
 ```bash
-git clone <repo-url> && cd mdkb
+git clone <repo-url> && cd markdownkb
 cp config/settings.yaml.example config/settings.yaml
 cp .env.example .env
 make build && make up
 ```
 
-Open http://localhost:9713. You should see the mdkb UI with a setup banner.
+Open http://localhost:9713. You should see the MarkdownKB UI with a setup banner.
 
 ### Native
 
@@ -32,13 +32,13 @@ Open http://localhost:5173 (dev mode) or http://localhost:9713 (production).
 
 ## 2. Configure Your LLM
 
-mdkb needs an LLM for chat, search summaries, and entity extraction. You have three options:
+MarkdownKB needs an LLM for chat, search summaries, and entity extraction. You have three options:
 
 ### Option A: Ollama (free, local, private)
 
 1. Install Ollama: https://ollama.com/download
 2. Pull a model: `ollama pull qwen3:8b` (or any model you prefer)
-3. In mdkb Settings > Chat Model, select the Ollama provider
+3. In MarkdownKB Settings > Chat Model, select the Ollama provider
 4. Set API Base to `http://localhost:11434` (or your Ollama host)
 5. Click "Refresh" to see available models, select one, and Save
 
@@ -48,13 +48,13 @@ See [Local LLM Setup](local-llm-setup.md) for detailed instructions.
 
 1. Get an API key from your provider
 2. Create a secrets file: `echo -n "your-key" > secrets/<provider>_api_key`
-3. In mdkb Settings > Chat Model, select the provider and Save
+3. In MarkdownKB Settings > Chat Model, select the provider and Save
 
 ### Option C: Any OpenAI-compatible server
 
 llama.cpp, vLLM, LM Studio, or any server with an OpenAI-compatible API:
 
-1. In mdkb Settings > Chat Model, set the API Base to your server URL (e.g. `http://localhost:8080/v1`)
+1. In MarkdownKB Settings > Chat Model, set the API Base to your server URL (e.g. `http://localhost:8080/v1`)
 2. Set the model ID as `openai/<model-name>`
 3. Save
 
@@ -68,24 +68,24 @@ sources:
   - /path/to/another/folder
 ```
 
-Restart the container (`make restart`) or use Settings > Sources in the UI. mdkb will auto-index all `.md` files.
+Restart the container (`make restart`) or use Settings > Sources in the UI. MarkdownKB will auto-index all `.md` files.
 
 ## 4. Your First Search
 
-Go to the **Search** tab and type a query. mdkb uses hybrid search — vector similarity + keyword matching. Results show relevant chunks with source file links and relevance scores.
+Go to the **Search** tab and type a query. MarkdownKB uses hybrid search — vector similarity + keyword matching. Results show relevant chunks with source file links and relevance scores.
 
 Click any result to view the source file. Use the AI Summary button to get an LLM-synthesized answer.
 
 ## 5. Your First Chat
 
-Go to the **Chat** tab and ask a question. mdkb retrieves relevant documents and generates an answer grounded in your knowledge base. The response includes source citations — click them to verify.
+Go to the **Chat** tab and ask a question. MarkdownKB retrieves relevant documents and generates an answer grounded in your knowledge base. The response includes source citations — click them to verify.
 
 ## 6. Connect Agents via MCP
 
-mdkb exposes 32 MCP tools over stdio or SSE. Any MCP-compatible client can search, chat, and manage your knowledge base.
+MarkdownKB exposes 32 MCP tools over stdio or SSE. Any MCP-compatible client can search, chat, and manage your knowledge base.
 
 **Claude Desktop / Claude Code:**
-Add mdkb as an MCP server pointing to `http://localhost:9715/sse` (SSE transport) or run `python mcp_server.py` (stdio).
+Add MarkdownKB as an MCP server pointing to `http://localhost:9715/sse` (SSE transport) or run `python mcp_server.py` (stdio).
 
 See [MCP Server](../reference/mcp-server.md) for the full tool reference and setup instructions.
 

@@ -118,7 +118,7 @@ class TestApiKeyAuth:
         resp = await auth_client.post(
             "/api/search",
             json={"query": "test"},
-            headers={"X-MDKB-Key": "wrong-key"},
+            headers={"X-MarkdownKB-Key": "wrong-key"},
         )
         assert resp.status_code == 401
 
@@ -126,6 +126,6 @@ class TestApiKeyAuth:
     async def test_correct_key_allowed(self, auth_client):
         resp = await auth_client.get(
             "/api/health",
-            headers={"X-MDKB-Key": "test-secret-key"},
+            headers={"X-MarkdownKB-Key": "test-secret-key"},
         )
         assert resp.status_code == 200

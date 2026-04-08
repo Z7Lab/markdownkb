@@ -1,6 +1,6 @@
 """Knowledge graph storage — entities and typed relationships.
 
-Separate SQLite database (mdkb_kg.db) so KG data survives embedding
+Separate SQLite database (markdownkb_kg.db) so KG data survives embedding
 model switches (which only clear ChromaDB and the tracking table).
 """
 
@@ -69,7 +69,7 @@ class KnowledgeGraphDB:
     """SQLite storage for knowledge graph entities and relationships."""
 
     def __init__(self, data_dir: str):
-        db_path = Path(data_dir) / "mdkb_kg.db"
+        db_path = Path(data_dir) / "markdownkb_kg.db"
         db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(str(db_path), check_same_thread=False)
         self._conn.row_factory = sqlite3.Row

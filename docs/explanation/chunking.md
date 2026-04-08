@@ -1,6 +1,6 @@
 # Chunking & Indexing Pipeline
 
-How mdkb splits markdown files into searchable chunks. Understanding this pipeline helps you structure documents for better search quality.
+How MarkdownKB splits markdown files into searchable chunks. Understanding this pipeline helps you structure documents for better search quality.
 
 ## Overview
 
@@ -111,7 +111,7 @@ The breadcrumb is part of the text that gets embedded, so the **file path and he
 
 ## YAML Frontmatter
 
-mdkb parses YAML frontmatter using the `python-frontmatter` library. Two fields are **actively extracted** into chunk metadata:
+MarkdownKB parses YAML frontmatter using the `python-frontmatter` library. Two fields are **actively extracted** into chunk metadata:
 
 | Field | Used for |
 |-------|---------|
@@ -171,7 +171,7 @@ There is no file size limit for indexing. Large files (50K+ characters) are hand
 - Processed in batches of 500 chunks
 - Hash-based change detection skips unchanged files on re-index
 
-Separate files per topic are still recommended for **search result granularity** — mdkb groups search results by file, so separate files mean separate search results with distinct relevance scores.
+Separate files per topic are still recommended for **search result granularity** — MarkdownKB groups search results by file, so separate files mean separate search results with distinct relevance scores.
 
 ## Implementation Files
 

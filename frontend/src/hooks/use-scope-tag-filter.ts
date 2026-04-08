@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 
-const STORAGE_KEY_SCOPES = "mdkb-scope-ids"
-const STORAGE_KEY_TAGS = "mdkb-ad-hoc-tags"
-const STORAGE_KEY_BUCKET = "mdkb-bucket-id"
+const STORAGE_KEY_SCOPES = "markdownkb-scope-ids"
+const STORAGE_KEY_TAGS = "markdownkb-ad-hoc-tags"
+const STORAGE_KEY_BUCKET = "markdownkb-bucket-id"
 
 /** Read a Set<string> from localStorage */
 function loadSet(key: string): Set<string> {

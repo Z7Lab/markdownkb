@@ -1,14 +1,14 @@
-# mdkb — Markdown Knowledge Base
+# MarkdownKB — Markdown Knowledge Base
 # Configuration via .env file (see .env.example)
 
 -include .env
 export
 
 # Defaults (overridden by .env)
-MDKB_CONTAINER ?= mdkb
-MDKB_PORT      ?= 9713
-MDKB_MCP_PORT  ?= 9715
-MDKB_HOST      ?= 127.0.0.1
+MARKDOWNKB_CONTAINER ?= markdownkb
+MARKDOWNKB_PORT      ?= 9713
+MARKDOWNKB_MCP_PORT  ?= 9715
+MARKDOWNKB_HOST      ?= 127.0.0.1
 API_PORT        ?= 9713
 FRONTEND_PORT   ?= 9714
 
@@ -19,7 +19,7 @@ FRONTEND_PORT   ?= 9714
 
 help: ## Show this help
 	@echo ""
-	@echo "  mdkb — Markdown Knowledge Base"
+	@echo "  MarkdownKB — Markdown Knowledge Base"
 	@echo ""
 	@echo "  Usage: make <target>"
 	@echo ""
@@ -59,16 +59,16 @@ up: ## Start container (detached)
 	@mkdir -p data/chromadb data/plans
 	@docker compose up -d
 	@echo ""
-	@echo "  mdkb running at http://localhost:$(MDKB_PORT)"
-	@echo "  MCP server at   http://localhost:$(MDKB_MCP_PORT)/sse"
+	@echo "  MarkdownKB running at http://localhost:$(MARKDOWNKB_PORT)"
+	@echo "  MCP server at   http://localhost:$(MARKDOWNKB_MCP_PORT)/sse"
 	@LAN_IP=$$(hostname -I 2>/dev/null | awk '{print $$1}'); \
 	LAN_HOST=$$(hostname 2>/dev/null); \
 	if [ -n "$$LAN_IP" ]; then \
-		echo "  Network:        http://$$LAN_IP:$(MDKB_PORT)"; \
-		echo "  MCP network:    http://$$LAN_IP:$(MDKB_MCP_PORT)/sse"; \
+		echo "  Network:        http://$$LAN_IP:$(MARKDOWNKB_PORT)"; \
+		echo "  MCP network:    http://$$LAN_IP:$(MARKDOWNKB_MCP_PORT)/sse"; \
 	fi; \
 	if [ -n "$$LAN_HOST" ]; then \
-		echo "                  http://$$LAN_HOST.local:$(MDKB_PORT)"; \
+		echo "                  http://$$LAN_HOST.local:$(MARKDOWNKB_PORT)"; \
 	fi
 	@echo "  Logs: make logs"
 	@echo ""
@@ -86,7 +86,7 @@ ps: ## Show container status
 	@docker compose ps
 
 shell: ## Open a shell in the container
-	@docker compose exec mdkb /bin/bash
+	@docker compose exec markdownkb /bin/bash
 
 clean: ## Stop container and remove image
 	@docker compose down --rmi local --volumes
@@ -98,7 +98,7 @@ backend: ## Start backend only (no frontend)
 	@./run.sh --backend
 
 mcp: ## Start MCP server locally (SSE on port 9715)
-	@.venv/bin/python mcp_server.py --sse --port $(MDKB_MCP_PORT)
+	@.venv/bin/python mcp_server.py --sse --port $(MARKDOWNKB_MCP_PORT)
 
 prod: ## Production mode (build frontend + serve)
 	@./run.sh --prod
@@ -141,13 +141,13 @@ check-ports: ## Check if ports are available
 	else \
 		echo "  Port $(FRONTEND_PORT): \033[32mavailable\033[0m"; \
 	fi
-	@if fuser $(MDKB_PORT)/tcp 2>/dev/null | grep -q .; then \
-		echo "  Port $(MDKB_PORT) (Docker): \033[31min use\033[0m"; \
+	@if fuser $(MARKDOWNKB_PORT)/tcp 2>/dev/null | grep -q .; then \
+		echo "  Port $(MARKDOWNKB_PORT) (Docker): \033[31min use\033[0m"; \
 	else \
-		echo "  Port $(MDKB_PORT) (Docker): \033[32mavailable\033[0m"; \
+		echo "  Port $(MARKDOWNKB_PORT) (Docker): \033[32mavailable\033[0m"; \
 	fi
-	@if fuser $(MDKB_MCP_PORT)/tcp 2>/dev/null | grep -q .; then \
-		echo "  Port $(MDKB_MCP_PORT) (MCP):    \033[31min use\033[0m"; \
+	@if fuser $(MARKDOWNKB_MCP_PORT)/tcp 2>/dev/null | grep -q .; then \
+		echo "  Port $(MARKDOWNKB_MCP_PORT) (MCP):    \033[31min use\033[0m"; \
 	else \
-		echo "  Port $(MDKB_MCP_PORT) (MCP):    \033[32mavailable\033[0m"; \
+		echo "  Port $(MARKDOWNKB_MCP_PORT) (MCP):    \033[32mavailable\033[0m"; \
 	fi
