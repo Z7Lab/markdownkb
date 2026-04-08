@@ -6,6 +6,28 @@ Think of it as the difference between a junior dev who tries things until they w
 
 Requires `plugins.planner.enabled: true` in settings.
 
+## What Is MCTS?
+
+Monte Carlo Tree Search is a decision-making algorithm originally developed for game-playing AI (it's how AlphaGo beat world champions at Go). The core idea: instead of evaluating every possible move, build a tree of options and use repeated random sampling to figure out which branches are most promising.
+
+In game AI, the tree represents possible moves. In mdkb's planner, the tree represents possible **implementation approaches**. Each node is a plan or sub-plan, and the algorithm explores, evaluates, and refines them:
+
+1. **Select** — pick a node to explore, balancing between nodes that scored well (exploitation) and nodes that haven't been tried much (exploration). This is the UCB1 formula: `score + C * sqrt(ln(parent_visits) / visits)`. High-scoring nodes get revisited, but under-explored nodes get a bonus so they're not ignored.
+
+2. **Expand** — from the selected node, generate a new child: a more detailed or refined version of that approach, informed by knowledge base context.
+
+3. **Evaluate** — score the new node on multiple dimensions (relevance to your docs, specificity, pattern alignment, actionability).
+
+4. **Backpropagate** — update the scores of all ancestor nodes based on what was learned. A good expansion makes its parent and grandparent look better too.
+
+Repeat this loop for N iterations. At the end, follow the highest-scoring path from root to leaf — that's your plan.
+
+### Why MCTS Instead of a Single LLM Call?
+
+A single "write me a plan" prompt produces one approach with no alternatives considered. MCTS generates multiple approaches, scores them against your actual documentation, iteratively refines the best ones, and discards weak branches. The result is grounded in your knowledge base rather than the LLM's generic training data.
+
+The tradeoff is time — MCTS makes multiple LLM calls (one per expansion). A 3-approach, 3-iteration run makes roughly 6-10 LLM calls. This takes 30 seconds to a few minutes depending on model speed, but produces significantly better plans for complex requests.
+
 ## How It Works
 
 The planner runs a 5-phase pipeline:
