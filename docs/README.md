@@ -47,6 +47,7 @@ Background and reasoning. Read when you want to understand why, not how.
 
 | Document | Description |
 |----------|-------------|
+| [Retrieval & Hybrid Search](explanation/retrieval.md) | How search works — vector similarity, BM25 keywords, score fusion, tuning |
 | [Chunking & Indexing](explanation/chunking.md) | How files are split into chunks, heading structure, search quality |
 | [Knowledge Graph](explanation/knowledge-graph.md) | Entity extraction, typed relationships, document similarity |
 | [Planner](explanation/planner.md) | MCTS-based implementation planner with skill reviews |
