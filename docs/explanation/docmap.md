@@ -96,6 +96,20 @@ The top-left corner shows: `X/Y docs · Z edges` — how many documents have vis
 
 When documents have been re-indexed after the doc map was built, a yellow "Data may be outdated" banner appears with a Refresh button. The doc map caches its data in memory — it doesn't automatically rebuild when files change.
 
+## Using Scopes for Focused Exploration
+
+With all sources visible, a large knowledge base produces a dense graph where everything connects to everything — it's hard to see structure. Scopes let you filter the doc map down to a focused subset:
+
+**Research workflow:** Select a scope like "Project Docs" to see only project documentation. The graph now shows how your projects relate to each other — which ones cover similar ground, which are isolated. Add an exclude pattern like `agent-reviewed-*` to remove templated files that add noise without meaningful content.
+
+**Finding hidden connections:** Scope to a tag like "architecture" to see only architecture documents across all projects. Documents that cover similar architectural patterns cluster together even if they're in different project folders. This surfaces connections you wouldn't find by browsing directories.
+
+**Comparing topics:** Select two scopes at once (multi-select) to see how two different document collections relate. Documents from both scopes appear in the same graph — edges between them show where the collections overlap in content.
+
+**Narrowing with the threshold:** Start with a low similarity threshold (0.60) to see the broad structure, then raise it (0.80+) to see only the strongest connections. The weak edges disappear and the core clusters become clear.
+
+The combination of scoping (which documents to include) and thresholding (which connections to show) lets you go from "all 900 documents" to "the 12 infrastructure docs with strong similarity to each other" in two interactions.
+
 ## How It Differs from Knowledge Graph
 
 - **Doc Map** shows **document-to-document similarity** computed from embeddings. Edges mean "these documents have similar content." No LLM involved.
