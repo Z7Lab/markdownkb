@@ -59,9 +59,15 @@ def list_buckets(
     request: Request,
     svc: BucketService = Depends(_get_bucket_service),
 ):
-    """List all buckets with metadata. Cleans up expired buckets first."""
+    """List all buckets with metadata and indexing status."""
     svc.cleanup_expired()
     buckets = svc.db.list_all()
+    # Add indexing status by comparing DB chunk count vs ChromaDB
+    for b in buckets:
+        store = svc._get_store(b["id"])
+        actual = store.count
+        b["indexed_chunks"] = actual
+        b["indexing"] = b["chunk_count"] > 0 and actual == 0
     return {"buckets": buckets}
 
 
@@ -105,27 +111,52 @@ def list_bucket_files(
     bucket_id: str,
     svc: BucketService = Depends(_get_bucket_service),
 ):
-    """List files in a bucket with chunk counts."""
+    """List files in a bucket with chunk counts.
+
+    Falls back to scanning source paths when ChromaDB is still
+    being populated (background indexing).
+    """
     record = svc.db.resolve(bucket_id)
     if not record:
         raise HTTPException(status_code=404, detail="Bucket not found")
     store = svc._get_store(record["id"])
     all_meta = store.get_all_metadatas()
-    # Group by source_path
-    files: dict[str, dict] = {}
-    for meta in all_meta:
-        path = meta.get("source_path", "")
-        if not path:
-            continue
-        if path not in files:
-            files[path] = {
-                "path": path,
-                "title": meta.get("title", ""),
-                "chunk_count": 0,
-            }
-        files[path]["chunk_count"] += 1
-    file_list = sorted(files.values(), key=lambda f: f["path"])
-    return {"files": file_list, "total": len(file_list)}
+
+    indexing = False
+    if all_meta:
+        # Group by source_path from ChromaDB
+        files: dict[str, dict] = {}
+        for meta in all_meta:
+            path = meta.get("source_path", "")
+            if not path:
+                continue
+            if path not in files:
+                files[path] = {
+                    "path": path,
+                    "title": meta.get("title", ""),
+                    "chunk_count": 0,
+                }
+            files[path]["chunk_count"] += 1
+        file_list = sorted(files.values(), key=lambda f: f["path"])
+    else:
+        # ChromaDB empty — scan source paths to show files during indexing
+        indexing = record["chunk_count"] > 0
+        import json
+        from pathlib import Path
+        sources = json.loads(record.get("sources", "[]"))
+        file_list = []
+        for src in sources:
+            path = src.get("path", "")
+            glob_pattern = src.get("glob", "**/*.md")
+            resolved = Path(path).resolve()
+            if resolved.is_file() and resolved.suffix == ".md":
+                file_list.append({"path": str(resolved), "title": "", "chunk_count": 0})
+            elif resolved.is_dir():
+                for match in sorted(resolved.glob(glob_pattern)):
+                    if match.is_file() and match.suffix == ".md":
+                        file_list.append({"path": str(match), "title": "", "chunk_count": 0})
+
+    return {"files": file_list, "total": len(file_list), "indexing": indexing}
 
 
 @router.delete("/buckets/{bucket_id}")

@@ -8,6 +8,8 @@ export interface Bucket {
   sources: string
   file_count: number
   chunk_count: number
+  indexed_chunks?: number
+  indexing?: boolean
   created_at: string
   expires_at: string | null
 }

@@ -31,18 +31,20 @@ function BucketCard({
   const [files, setFiles] = useState<BucketFile[]>([])
   const [loadingFiles, setLoadingFiles] = useState(false)
 
+  const [filesIndexing, setFilesIndexing] = useState(false)
+
   const loadFiles = useCallback(async () => {
-    if (files.length > 0) return
     setLoadingFiles(true)
     try {
-      const res = await api.get<{ files: BucketFile[] }>(`/api/buckets/${bucket.id}/files`)
+      const res = await api.get<{ files: BucketFile[]; indexing?: boolean }>(`/api/buckets/${bucket.id}/files`)
       setFiles(res.files)
+      setFilesIndexing(res.indexing ?? false)
     } catch {
       // ignore
     } finally {
       setLoadingFiles(false)
     }
-  }, [bucket.id, files.length])
+  }, [bucket.id])
 
   function handleToggle() {
     if (!expanded) loadFiles()
@@ -77,6 +79,12 @@ function BucketCard({
               <span>{bucket.file_count} files</span>
               <span>{bucket.chunk_count} chunks</span>
               <span>{relativeTime(bucket.created_at)}</span>
+              {bucket.indexing && (
+                <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-500/50 gap-1">
+                  <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                  indexing
+                </Badge>
+              )}
               {bucket.expires_at ? (
                 <Badge variant="outline" className="text-[10px]">
                   expires {relativeTime(bucket.expires_at)}
@@ -119,9 +127,17 @@ function BucketCard({
           )}
           {!loadingFiles && files.length > 0 && (
             <div className="space-y-0.5">
-              <p className="text-xs text-muted-foreground font-medium mb-1">
-                Files ({files.length})
-              </p>
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-xs text-muted-foreground font-medium">
+                  Files ({files.length})
+                </p>
+                {filesIndexing && (
+                  <span className="text-[10px] text-amber-600 flex items-center gap-1">
+                    <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                    Embedding in progress — search available when complete
+                  </span>
+                )}
+              </div>
               <ScrollArea style={{ height: Math.min(files.length * 32, 320) }}>
                 {files.map((f) => (
                   <button
@@ -162,11 +178,12 @@ export function BucketsTab() {
   const [newPath, setNewPath] = useState("")
   const [newGlob, setNewGlob] = useState("**/*.md")
 
-  // Poll for new buckets (docs bucket may be creating in background)
+  // Poll for bucket updates — faster when any bucket is indexing
+  const anyIndexing = buckets.some((b) => b.indexing)
   useEffect(() => {
-    const interval = setInterval(refresh, 10000)
+    const interval = setInterval(refresh, anyIndexing ? 3000 : 15000)
     return () => clearInterval(interval)
-  }, [refresh])
+  }, [refresh, anyIndexing])
 
   async function handleCreate() {
     if (!newName.trim() || !newPath.trim()) return
