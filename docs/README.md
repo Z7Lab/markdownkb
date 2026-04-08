@@ -32,6 +32,7 @@ Look things up mid-task. Structured for scanning, not reading top-to-bottom.
 
 | Document | Description |
 |----------|-------------|
+| [UI Tabs and Plugins](reference/ui-tabs-and-plugins.md) | What each tab does, which plugins enable which tabs, plugin dependencies |
 | [Architecture](reference/architecture.md) | System overview, components, data flow, storage layer, plugin system |
 | [Configuration](reference/configuration.md) | All settings keys, feature flags, `.env` vs `settings.yaml` precedence |
 | [API](reference/api.md) | Full REST endpoint listing for all features |

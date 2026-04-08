@@ -91,6 +91,8 @@ See [MCP Server](../reference/mcp-server.md) for the full tool reference and set
 
 ## What's Next
 
+- **[UI Tabs and Plugins](../reference/ui-tabs-and-plugins.md)** — what each tab does, which plugins to enable
+- **[Scopes and Filtering](scopes-and-filtering.md)** — focus searches on specific folders, tags, or patterns
 - **[Configuration](../reference/configuration.md)** — all settings, feature flags, secrets
 - **[Embedding Models](embedding-models.md)** — choose and configure embedding models
 - **[Architecture](../reference/architecture.md)** — how the system works
