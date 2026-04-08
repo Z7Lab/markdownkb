@@ -93,9 +93,19 @@ Or use the Test Prompt section to send a quick message and confirm the model res
 
 Embeddings are separate from the chat model. By default, mdkb uses a local ONNX model for embeddings (no Ollama needed). If you want to use Ollama for embeddings too (e.g. to offload to a faster machine), see [Embedding Models](embedding-models.md#remote-embeddings).
 
-## Remote Ollama (Different Machine)
+## Alternatives to Ollama
 
-If Ollama runs on a different machine on your network, see [Ollama Remote Setup](../thirdparty/ollama-remote-setup.md) for network configuration, security, and SSH tunneling.
+mdkb works with any OpenAI-compatible API. Other local options:
+
+- **[llama.cpp](../thirdparty/llamacpp-setup.md)** — lower memory than Ollama, native CPU optimizations, full control. Build from source and run `llama-server`.
+- **[LM Studio](https://lmstudio.ai/)** — GUI desktop app, download models from a catalog, one-click local server on port 1234.
+- **[vLLM](https://docs.vllm.ai/)** — production-grade GPU-optimized serving with high throughput. Best for dedicated GPU machines.
+
+To connect any of these, go to Settings > Chat Model, select **Custom (OpenAI-compatible)**, set the API base URL (e.g. `http://localhost:1234/v1` for LM Studio), and click Refresh.
+
+## Remote LLM (Different Machine)
+
+If the LLM server runs on a different machine on your network, see [Remote LLM Setup](remote-llm-setup.md) for network configuration and Docker setup.
 
 ## Troubleshooting
 

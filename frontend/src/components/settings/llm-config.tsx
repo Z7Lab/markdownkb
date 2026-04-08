@@ -21,6 +21,16 @@ import type { AppSettings, ModelEntry, ModelInfo } from "@/lib/types"
 import type { OllamaPullProgress } from "@/hooks/use-provider-settings"
 import { TestPrompt } from "./test-prompt"
 import { GenerationParams } from "./generation-params"
+import { LlmSetupGuide } from "@/components/llm-setup-guide"
+
+/** Provider types shown in the dropdown */
+const KNOWN_PROVIDERS: { name: string; label: string; defaultBase: string; guideKey: string; needsKey: boolean }[] = [
+  { name: "ollama", label: "Ollama (local)", defaultBase: "http://localhost:11434", guideKey: "ollama", needsKey: false },
+  { name: "llamacpp", label: "llama.cpp (local)", defaultBase: "http://localhost:8080/v1", guideKey: "llamacpp", needsKey: false },
+  { name: "anthropic", label: "Anthropic", defaultBase: "", guideKey: "cloud", needsKey: true },
+  { name: "venice", label: "Venice", defaultBase: "https://api.venice.ai/api/v1", guideKey: "cloud", needsKey: true },
+  { name: "custom", label: "Custom (OpenAI-compatible)", defaultBase: "http://localhost:8080/v1", guideKey: "custom", needsKey: false },
+]
 
 export function LlmConfig({
   settings,
@@ -146,15 +156,41 @@ export function LlmConfig({
     return () => clearTimeout(timer)
   }, [model, apiBase, onFetchModelInfo])
 
+  // Determine status for each provider type
+  const configuredMap = new Map(settings.providers.map((p) => [p.name, p]))
+  const allProviders = KNOWN_PROVIDERS.map((kp) => {
+    const saved = configuredMap.get(kp.name)
+    let status: "ready" | "needs-key" | "saved" | ""
+    if (saved) {
+      if (kp.needsKey && !saved.api_key_set) {
+        status = "needs-key"
+      } else {
+        status = "ready"
+      }
+    } else {
+      status = ""
+    }
+    return { ...kp, status, saved }
+  })
+
+  const selectedProviderInfo = allProviders.find((p) => p.name === provider)
+  const hasSavedConfig = !!selectedProviderInfo?.saved
+  const showGuide = !hasSavedConfig || selectedProviderInfo?.status === "needs-key"
+
   function onProviderChange(name: string) {
     setProvider(name)
     setModels([])
     setCustomMode(false)
     userPickedModel.current = false
-    const p = settings.providers.find((x) => x.name === name)
-    if (p) {
-      setModel(p.model)
-      setApiBase(p.api_base)
+    const saved = configuredMap.get(name)
+    if (saved) {
+      setModel(saved.model)
+      setApiBase(saved.api_base)
+      setApiKey("")
+    } else {
+      const known = KNOWN_PROVIDERS.find((kp) => kp.name === name)
+      setModel("")
+      setApiBase(known?.defaultBase ?? "")
       setApiKey("")
     }
   }
@@ -218,23 +254,45 @@ export function LlmConfig({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {settings.providers.map((p) => (
+                {allProviders.map((p) => (
                   <SelectItem key={p.name} value={p.name}>
-                    {p.name}
+                    <span className="flex items-center gap-2">
+                      {p.label}
+                      {p.status === "ready" && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 text-green-600">ready</Badge>
+                      )}
+                      {p.status === "needs-key" && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-amber-600">needs key</Badge>
+                      )}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Button variant="outline" size="sm" onClick={() => onTestProvider(provider, model, apiBase, apiKey)}>
-              Test Provider
+              Test
             </Button>
           </div>
+          {provider === "custom" && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Works with LM Studio, vLLM, text-generation-webui, or any server that exposes an OpenAI-compatible <code className="text-[10px]">/v1/chat/completions</code> endpoint.
+            </p>
+          )}
           {providerStatus && (
             <pre className="text-sm bg-muted p-3 rounded-md whitespace-pre-wrap mt-2">
               {providerStatus}
             </pre>
           )}
         </div>
+
+        {/* Show setup guide for unconfigured or key-missing providers */}
+        {showGuide && selectedProviderInfo && (
+          <LlmSetupGuide
+            onNavigateSettings={() => {}}
+            initialProvider={selectedProviderInfo.guideKey as "ollama" | "llamacpp" | "cloud" | "custom"}
+            embedded
+          />
+        )}
 
         <div>
           <label htmlFor="llm-api-base" className="text-sm font-medium">API Base</label>

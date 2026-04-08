@@ -1,6 +1,6 @@
 # Connecting mdkb to Remote LLM Servers
 
-This guide explains how to run mdkb in Docker on one machine while connecting to LLM servers (Ollama or llama.cpp) running on another machine.
+This guide explains how to run mdkb in Docker on one machine while connecting to LLM servers (Ollama, llama.cpp, LM Studio, vLLM, or any OpenAI-compatible server) running on another machine.
 
 ---
 
