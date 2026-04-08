@@ -68,7 +68,7 @@ def list_buckets(
     buckets = svc.db.list_all()
     # Add indexing status by comparing DB chunk count vs ChromaDB
     for b in buckets:
-        store = svc._get_store(b["id"])
+        store = svc.get_store(b["id"])
         actual = store.count
         b["indexed_chunks"] = actual
         b["indexing"] = b["chunk_count"] > 0 and actual == 0
@@ -148,7 +148,7 @@ def list_bucket_files(
     record = svc.db.resolve(bucket_id)
     if not record:
         raise HTTPException(status_code=404, detail="Bucket not found")
-    store = svc._get_store(record["id"])
+    store = svc.get_store(record["id"])
     all_meta = store.get_all_metadatas()
 
     indexing = False

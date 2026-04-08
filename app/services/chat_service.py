@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Generator
 
 from app.config import Settings
-from app.rag.llm import get_completion, get_streaming_completion
+from app.rag.llm import get_completion, get_streaming_completion, strip_thinking
 from app.rag.prompts import build_rag_messages, get_query_rewrite_prompt
 from app.rag.retriever import Retriever
 
@@ -68,15 +68,6 @@ def _truncate_at_repeat(text: str) -> str:
                 return text[:cut].rstrip()
             return text[:second].rstrip()
     return text
-
-
-def strip_thinking(text: str) -> str:
-    """Remove thinking blocks from model output.
-
-    Delegates to the canonical implementation in app.rag.llm.
-    """
-    from app.rag.llm import _strip_thinking
-    return _strip_thinking(text)
 
 
 def _strip_source_block(text: str) -> str:
@@ -146,7 +137,8 @@ def chat_respond(message: str, retriever: Retriever,
                  bucket_retriever: Retriever | None = None,
                  sources_out: list[str] | None = None,
                  source_map_out: dict[str, str] | None = None,
-                 conversation_history: ConversationHistory | None = None) -> Generator:
+                 conversation_history: ConversationHistory | None = None,
+                 history_override: list[dict] | None = None) -> Generator:
     """Generate a streaming RAG response for the given message.
 
     When ``bucket_retriever`` is provided alongside the main retriever,
@@ -185,12 +177,14 @@ def chat_respond(message: str, retriever: Retriever,
     documents = [r.document for r in results]
     metadatas = [r.metadata for r in results]
 
-    # Load conversation history from thread DB or in-memory fallback
+    # Load conversation history: thread DB → explicit override → in-memory fallback
     if thread_id and chatdb:
         db_msgs = chatdb.get_messages(thread_id)
         history = [{"role": m["role"], "content": m["content"]}
                    for m in db_msgs]
         history = history[-(MAX_HISTORY * 2):]
+    elif history_override is not None:
+        history = history_override[-(MAX_HISTORY * 2):]
     else:
         history = conversation_history.get_history() if conversation_history else []
 

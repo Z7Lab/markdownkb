@@ -52,6 +52,14 @@ async def lifespan(app: FastAPI):
     scopedb = ScopeDB(settings.data_directory)
     presetsdb = PresetsDB(settings.data_directory)
 
+    # Validate configured source paths — warn early rather than silently missing files
+    for src in settings.sources:
+        if not Path(src).exists():
+            logger.warning(
+                "Configured source path does not exist: %s — files will not be indexed",
+                src,
+            )
+
     # Load embedding model registry from config
     load_models(settings.model_configs)
 
@@ -83,12 +91,14 @@ async def lifespan(app: FastAPI):
             logger.info("ChromaDB empty but tracking has %d files — clearing stale records", tracking.file_count())
             tracking.clear()
         logger.info("Empty store, starting initial index in background...")
-        threading.Thread(
-            target=run_index,
-            args=(settings, store, tracking),
-            kwargs={"cancel": cancel_event},
-            daemon=True,
-        ).start()
+
+        def _run_index_safe():
+            try:
+                run_index(settings, store, tracking, cancel=cancel_event)
+            except Exception:
+                logger.error("Background startup index failed", exc_info=True)
+
+        threading.Thread(target=_run_index_safe, daemon=True).start()
 
     # Store services on app.state for dependency injection
     from app.services.chat_service import ConversationHistory
@@ -160,6 +170,10 @@ def main():
             name="assets",
         )
 
+        # IMPORTANT: this catch-all must be registered LAST — after all
+        # include_router() calls in create_app() — so it does not shadow
+        # API or plugin routes.  create_app() includes all routers before
+        # returning, and main() registers this route after that call.
         @app.get("/{path:path}")
         async def spa_fallback(_request: Request, path: str):
             """Serve index.html for all non-API routes (SPA routing)."""

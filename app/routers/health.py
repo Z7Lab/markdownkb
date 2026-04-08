@@ -103,7 +103,7 @@ def index_events(request: Request):
             yield sse("connected", {"status": "ok"})
             while True:
                 try:
-                    event = sub.get(timeout=30)
+                    event = sub.get(timeout=15)
                     if event is None:
                         break
                     yield sse("index", event.to_dict())

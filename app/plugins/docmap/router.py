@@ -116,7 +116,7 @@ def graph_data(
         if bucket_service:
             record = bucket_service.db.resolve(bucket_id)
             if record:
-                bucket_store = bucket_service._get_store(record["id"])
+                bucket_store = bucket_service.get_store(record["id"])
                 bucket_graph = compute_graph(
                     bucket_store, None, top_k,
                     word_clouds=word_clouds, min_weight=min_weight,

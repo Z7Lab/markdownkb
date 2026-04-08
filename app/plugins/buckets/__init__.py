@@ -59,7 +59,7 @@ def _ensure_docs_bucket(svc) -> None:
     needs_rebuild = False
 
     if existing:
-        store = svc._get_store(existing["id"])
+        store = svc.get_store(existing["id"])
         if store.count == 0:
             # Empty — previous creation was interrupted
             logger.info("Removing empty docs bucket from interrupted creation")
@@ -70,7 +70,7 @@ def _ensure_docs_bucket(svc) -> None:
     # Check if docs have changed since the bucket was built
     docs_dir = _find_docs_dir()
     if docs_dir and existing:
-        from app.config import _default_data_dir
+        from app.config import default_data_dir as _default_data_dir
         hash_file = Path(_default_data_dir()) / _DOCS_HASH_FILE
         current_hash = _hash_docs_dir(docs_dir)
         stored_hash = ""
@@ -111,7 +111,7 @@ def _ensure_docs_bucket(svc) -> None:
         )
         # Save hash so we can detect changes on next startup
         try:
-            from app.config import _default_data_dir
+            from app.config import default_data_dir as _default_data_dir
             hash_file = Path(_default_data_dir()) / _DOCS_HASH_FILE
             hash_file.write_text(_hash_docs_dir(docs_dir))
         except OSError:

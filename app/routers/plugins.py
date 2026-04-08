@@ -13,7 +13,7 @@ import yaml
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from app.config import Settings
+from app.config import Settings, default_data_dir as _data_dir
 from app.deps import get_settings
 from app.plugins import get_plugin_info, get_registry
 from app.ratelimit import STANDARD, limiter
@@ -21,8 +21,6 @@ from app.ratelimit import STANDARD, limiter
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["plugins"])
-
-from app.config import _default_data_dir as _data_dir
 
 _EXTERNAL_DIR = Path(_data_dir()) / "plugins"
 

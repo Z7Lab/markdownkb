@@ -29,11 +29,14 @@ def _watch_and_index(watcher, path: str):
     resolved = str(Path(path).resolve())
     if watcher.add_directory(resolved):
         import threading
-        threading.Thread(
-            target=watcher.index_directory,
-            args=(resolved,),
-            daemon=True,
-        ).start()
+
+        def _index_safe():
+            try:
+                watcher.index_directory(resolved)
+            except Exception:
+                logger.error("Background directory index failed for %s", resolved, exc_info=True)
+
+        threading.Thread(target=_index_safe, daemon=True).start()
 
 
 # -- Sources --

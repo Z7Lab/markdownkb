@@ -99,7 +99,7 @@ async def lifespan(server: FastMCP):
         logger.info("MCP history tracking enabled (searches + chat threads)")
 
     # Auto-discover and register MCP tools
-    registered = register_tools(mcp, settings)
+    registered = register_tools(server, settings)
     logger.info(
         "MCP server ready (%d documents indexed, %d tools: %s)",
         store.count, len(registered), registered,
@@ -135,29 +135,34 @@ async def lifespan(server: FastMCP):
     logger.info("MCP server shutdown")
 
 
-_settings_init = Settings.get()
-_allowed_hosts = _settings_init.mcp_features.get("allowed_hosts", [])
-if not isinstance(_allowed_hosts, list):
-    _allowed_hosts = []
-
-mcp = FastMCP(
-    "markdownkb",
-    instructions=(
-        "MarkdownKB is a personal markdown knowledge base. Use the tools below to "
-        "search indexed documents, retrieve full file contents, list indexed "
-        "files, generate implementation plans, and trigger re-indexing."
-    ),
-    lifespan=lifespan,
-    transport_security=TransportSecuritySettings(
-        enable_dns_rebinding_protection=True,
-        allowed_hosts=[str(h) for h in _allowed_hosts],
-    ),
-)
-
-
 # -- Entry point -----------------------------------------------------------
 
-def _run_sse_with_auth(host: str, port: int):
+def _create_mcp() -> FastMCP:
+    """Create the FastMCP instance.
+
+    Deferred from module level so that Settings.get() is not called as a side
+    effect of importing this module (e.g. during tests or tool introspection).
+    """
+    settings = Settings.get()
+    allowed_hosts = settings.mcp_features.get("allowed_hosts", [])
+    if not isinstance(allowed_hosts, list):
+        allowed_hosts = []
+    return FastMCP(
+        "markdownkb",
+        instructions=(
+            "MarkdownKB is a personal markdown knowledge base. Use the tools below to "
+            "search indexed documents, retrieve full file contents, list indexed "
+            "files, generate implementation plans, and trigger re-indexing."
+        ),
+        lifespan=lifespan,
+        transport_security=TransportSecuritySettings(
+            enable_dns_rebinding_protection=True,
+            allowed_hosts=[str(h) for h in allowed_hosts],
+        ),
+    )
+
+
+def _run_sse_with_auth(mcp: FastMCP, host: str, port: int):
     """Run SSE transport with optional API key middleware."""
     import anyio
     import uvicorn
@@ -205,9 +210,11 @@ def main():
     )
     args = parser.parse_args()
 
+    mcp = _create_mcp()
+
     if args.sse:
         logger.info("Starting MCP server (SSE) on %s:%d", args.host, args.port)
-        _run_sse_with_auth(args.host, args.port)
+        _run_sse_with_auth(mcp, args.host, args.port)
     else:
         logger.info("Starting MCP server (stdio)")
         mcp.run(transport="stdio")

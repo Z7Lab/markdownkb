@@ -30,14 +30,11 @@ from typing import Any
 import yaml
 from fastapi import FastAPI
 
-from app.config import Settings
+from app.config import Settings, default_data_dir as _data_dir
 
 logger = logging.getLogger(__name__)
 
 _BUILTIN_DIR = Path(__file__).resolve().parent
-
-from app.config import _default_data_dir as _data_dir  # noqa: E402
-
 _EXTERNAL_DIR = Path(_data_dir()) / "plugins"
 
 # Module-level cache populated by discover_plugins / register_plugins

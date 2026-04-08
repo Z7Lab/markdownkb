@@ -7,8 +7,12 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_chat_returns_response(client):
-    with patch("app.routers.chat.rewrite_query", return_value="test query"), \
-         patch("app.routers.chat.get_completion", return_value="Test answer"):
+    def fake_respond(message, retriever, settings, **kwargs):
+        if kwargs.get("sources_out") is not None:
+            kwargs["sources_out"].append("/tmp/test-source/doc.md")
+        yield "Test answer"
+
+    with patch("app.routers.chat.chat_respond", side_effect=fake_respond):
         resp = await client.post("/api/chat", json={
             "message": "What is this about?",
         })
@@ -44,7 +48,7 @@ async def test_save_plan(client):
 @pytest.mark.asyncio
 async def test_chat_stream_returns_sse(client):
     """Test that the streaming endpoint returns SSE events."""
-    def fake_respond(message, retriever, settings, chatdb=None, thread_id=None, folders_filter=None, allowed_paths=None, sources_out=None, source_map_out=None, conversation_history=None):
+    def fake_respond(message, retriever, settings, **kwargs):
         yield "Hello"
         yield "Hello world"
 

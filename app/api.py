@@ -87,12 +87,16 @@ def create_app(lifespan=None, settings_override=None) -> FastAPI:
     # API key authentication
     import logging
     api_key = getattr(cfg, "api_key", "")
-    bind_host = os.environ.get("SERVER_HOST", os.environ.get("HOST", os.environ.get("UVICORN_HOST", "127.0.0.1")))
+    bind_host = getattr(cfg, "server_host", "127.0.0.1")
     network_exposed = bind_host in ("0.0.0.0", "::")
 
+    # Always add the middleware — it reads app.state.api_key on each request,
+    # so the key can be set or changed at runtime without rebuilding the stack.
+    from app.auth import ApiKeyMiddleware
+    app.add_middleware(ApiKeyMiddleware)
+    app.state.api_key = api_key
+
     if api_key:
-        from app.auth import ApiKeyMiddleware
-        app.add_middleware(ApiKeyMiddleware, api_key=api_key)
         app.state.auth_enabled = True
     else:
         app.state.auth_enabled = False

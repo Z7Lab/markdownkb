@@ -7,8 +7,6 @@ from fastapi.responses import StreamingResponse
 
 from app.config import Settings
 from app.deps import get_chatdb, get_conversation_history, get_retriever, get_scopedb, get_settings, get_tracking
-from app.rag.llm import get_completion
-from app.rag.prompts import build_rag_messages
 from app.rag.retriever import Retriever
 from app.ratelimit import LLM, STANDARD, limiter
 from app.schemas import ChatRequest, SavePlanRequest, StreamChatRequest
@@ -16,7 +14,6 @@ from app.scope_utils import parse_scope_ids, resolve_scopes
 from app.tag_utils import resolve_tag_paths
 from app.services.chat_service import (
     chat_respond,
-    rewrite_query,
     save_last_response_as_plan,
 )
 from app.storage.chatdb import ChatDB
@@ -37,27 +34,19 @@ def chat(
     settings: Settings = Depends(get_settings),
     retriever: Retriever = Depends(get_retriever),
 ):
-    search_query = rewrite_query(req.message, settings)
-    results = retriever.search(search_query)
-    if not results:
-        return {
-            "response": "No relevant information found.",
-            "sources": [],
-        }
-
-    documents = [r.document for r in results]
-    metadatas = [r.metadata for r in results]
-
-    messages, source_map = build_rag_messages(
-        req.message,
-        documents,
-        metadatas,
-        conversation_history=req.conversation_history,
-        system_prompt=settings.system_prompt,
-    )
-
+    sources: list[str] = []
+    source_map: dict[str, str] = {}
+    response = ""
     try:
-        response = get_completion(messages, settings)
+        for chunk in chat_respond(
+            req.message,
+            retriever,
+            settings,
+            history_override=req.conversation_history,
+            sources_out=sources,
+            source_map_out=source_map,
+        ):
+            response = chunk
     except RuntimeError as e:
         logger.error("LLM completion failed: %s", e)
         raise HTTPException(
@@ -65,10 +54,8 @@ def chat(
             detail="LLM provider request failed",
         ) from e
 
-    sources = list(
-        {m.get("source_path", "") for m in metadatas if m.get("source_path")}
-    )
-
+    if not response:
+        return {"response": "No relevant information found.", "sources": []}
     return {"response": response, "sources": sources, "source_map": source_map}
 
 
@@ -98,7 +85,7 @@ def chat_stream(
         record = bucket_service.db.resolve(req.bucket_id)
         if not record:
             raise HTTPException(status_code=404, detail=f"Bucket not found: {req.bucket_id}")
-        bucket_retriever = bucket_service._get_retriever(record["id"], settings)
+        bucket_retriever = bucket_service.get_retriever(record["id"], settings)
 
     if req.thread_id:
         thread_id = req.thread_id

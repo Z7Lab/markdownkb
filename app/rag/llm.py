@@ -19,7 +19,7 @@ _THINK_OPEN_RE = re.compile(r"<think>[\s\S]*$", re.IGNORECASE)
 _THINK_PLAIN_RE = re.compile(r"^Thinking(?:\s+Process)?:\s*\n.*?\n\n", re.DOTALL)
 
 
-def _strip_thinking(text: str) -> str:
+def strip_thinking(text: str) -> str:
     """Remove thinking blocks from model output.
 
     Handles XML-style <think>...</think> tags and plain-text
@@ -36,9 +36,10 @@ def _key_hash(api_key: str) -> str:
     return hashlib.sha256(api_key.encode()).hexdigest()[:16]
 
 
-# Cache keyed by hash of the API key — avoids storing raw keys in memory
+# Cache keyed by hash of the API key — avoids storing raw keys in memory.
+# OpenAI cache uses a tuple key (key_hash, api_base) to prevent collisions.
 _anthropic_clients: dict[str, anthropic.Anthropic] = {}
-_openai_clients: dict[str, openai.OpenAI] = {}
+_openai_clients: dict[tuple[str, str], openai.OpenAI] = {}
 
 
 def _get_anthropic_client(api_key: str) -> anthropic.Anthropic:
@@ -51,8 +52,8 @@ def _get_anthropic_client(api_key: str) -> anthropic.Anthropic:
 
 def _get_openai_client(api_key: str, api_base: str | None = None) -> openai.OpenAI:
     """Return a cached OpenAI client for the given key and base URL."""
-    h = _key_hash(api_key) + (api_base or "")
-    if h not in _openai_clients:
+    cache_key = (_key_hash(api_key), api_base or "")
+    if cache_key not in _openai_clients:
         kwargs: dict = {}
         if api_key:
             kwargs["api_key"] = api_key
@@ -60,8 +61,8 @@ def _get_openai_client(api_key: str, api_base: str | None = None) -> openai.Open
             kwargs["api_key"] = "ollama"
         if api_base:
             kwargs["base_url"] = api_base
-        _openai_clients[h] = openai.OpenAI(**kwargs)
-    return _openai_clients[h]
+        _openai_clients[cache_key] = openai.OpenAI(**kwargs)
+    return _openai_clients[cache_key]
 
 
 def _needs_api_key(provider: dict) -> bool:
@@ -269,7 +270,7 @@ def get_completion(
                 logger.warning("LLM returned None content for model %s — trying next provider", model)
                 last_error = RuntimeError(f"LLM returned None content for model {model}")
                 continue
-            return _strip_thinking(content)
+            return strip_thinking(content)
 
         except (
             anthropic.APIError,
@@ -327,7 +328,7 @@ def get_streaming_completion(
 
         # Think block just closed — strip it, flush remainder, switch to passthrough
         if "</think>" in buffer:
-            cleaned = _strip_thinking(buffer)
+            cleaned = strip_thinking(buffer)
             if cleaned:
                 yield cleaned
             passthrough = True
@@ -339,6 +340,6 @@ def get_streaming_completion(
 
     # If we never left buffering mode (entire response was a think block)
     if not passthrough and buffer:
-        cleaned = _strip_thinking(buffer)
+        cleaned = strip_thinking(buffer)
         if cleaned:
             yield cleaned

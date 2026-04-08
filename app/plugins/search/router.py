@@ -122,12 +122,11 @@ def search(
     if req.bucket_id:
         bucket_service = getattr(request.app.state, "bucket_service", None)
         if bucket_service is None:
-            from fastapi import HTTPException
             raise HTTPException(status_code=503, detail="Buckets plugin not initialized")
         record = bucket_service.db.resolve(req.bucket_id)
         if not record:
             raise HTTPException(status_code=404, detail=f"Bucket not found: {req.bucket_id}")
-        bucket_retriever = bucket_service._get_retriever(record["id"], settings)
+        bucket_retriever = bucket_service.get_retriever(record["id"], settings)
 
     has_scope = bool(scope_folders or allowed)
     bucket_only = bucket_retriever and not has_scope

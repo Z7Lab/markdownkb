@@ -6,6 +6,7 @@ import urllib.request
 from collections.abc import Callable
 from pathlib import Path
 
+from app.config import default_data_dir as _data_dir
 from app.embeddings.registry import MODELS
 
 logger = logging.getLogger(__name__)
@@ -13,8 +14,6 @@ logger = logging.getLogger(__name__)
 # Primary model cache — derived from the data directory at import time.
 # Lazy resolution: settings aren't loaded yet, so use the same env/platformdirs
 # fallback that config uses.
-from app.config import _default_data_dir as _data_dir  # noqa: E402
-
 CACHE_DIR = Path(_data_dir()) / "models"
 HF_URL = "https://huggingface.co/{repo}/resolve/main/{path}"
 

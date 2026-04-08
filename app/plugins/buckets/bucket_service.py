@@ -32,14 +32,14 @@ class BucketService:
     def _collection_name(self, bucket_id: str) -> str:
         return f"bucket_{bucket_id}"
 
-    def _get_store(self, bucket_id: str) -> VectorStore:
+    def get_store(self, bucket_id: str) -> VectorStore:
         return VectorStore(
             persist_directory=self._chromadb_dir,
             collection_name=self._collection_name(bucket_id),
         )
 
-    def _get_retriever(self, bucket_id: str, settings) -> Retriever:
-        store = self._get_store(bucket_id)
+    def get_retriever(self, bucket_id: str, settings) -> Retriever:
+        store = self.get_store(bucket_id)
         return Retriever(store, settings)
 
     # -- Create --------------------------------------------------------------
@@ -109,7 +109,7 @@ class BucketService:
         # Embed and store in ChromaDB
         if all_docs:
             embeddings = embed_texts(all_docs, self._embedding_model, remote_config=self._remote_config)
-            store = self._get_store(bucket_id)
+            store = self.get_store(bucket_id)
             store.add(all_ids, all_docs, embeddings, all_metas)
             logger.info(
                 "Bucket '%s' created: %d files, %d chunks",
@@ -136,7 +136,7 @@ class BucketService:
         bucket_name = record["name"]
 
         # Discover existing file paths so we can skip duplicates
-        store = self._get_store(bucket_id)
+        store = self.get_store(bucket_id)
         existing_paths: set[str] = set()
         for meta in store.get_all_metadatas():
             path = meta.get("source_path", "")
@@ -213,7 +213,7 @@ class BucketService:
         if not record:
             raise ValueError(f"Bucket not found: {bucket}")
 
-        retriever = self._get_retriever(record["id"], settings)
+        retriever = self.get_retriever(record["id"], settings)
         results = retriever.search(query, top_k=top_k)
 
         formatted = [
@@ -236,7 +236,7 @@ class BucketService:
         if not record:
             raise ValueError(f"Bucket not found: {bucket}")
 
-        retriever = self._get_retriever(record["id"], settings)
+        retriever = self.get_retriever(record["id"], settings)
 
         sources: list[str] = []
         source_map: dict[str, str] = {}
@@ -263,7 +263,7 @@ class BucketService:
         # Delete ChromaDB collection
         collection_deleted = True
         try:
-            store = self._get_store(bucket_id)
+            store = self.get_store(bucket_id)
             store.clear()
         except Exception as e:
             logger.warning("Failed to delete ChromaDB collection for bucket %s: %s", bucket_id, e)

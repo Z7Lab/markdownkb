@@ -23,10 +23,10 @@ class TestToolDiscovery:
         tools, _errors = discover_tools(settings)
         names = [t["name"] for t in tools]
 
-        assert "retrieve" in names
+        assert "search" in names
         assert "get_file" in names
         assert "list_files" in names
-        assert "retrieve_documents" in names
+        assert "search_documents" in names
         assert "plan" in names
 
     def test_requires_plugin_disables_when_plugin_off(self):
@@ -61,7 +61,7 @@ class TestToolDiscovery:
 
         assert by_name["index_file"]["write"] is True
         assert by_name["save_file"]["write"] is True
-        assert by_name["retrieve"]["write"] is False
+        assert by_name["search"]["write"] is False
 
     def test_read_only_disables_write_tools(self):
         from app.mcp.tools import discover_tools
@@ -77,9 +77,9 @@ class TestToolDiscovery:
         assert by_name["save_file"]["enabled"] is False
 
         # Read tools should remain enabled
-        assert by_name["retrieve"]["enabled"] is True
+        assert by_name["search"]["enabled"] is True
         assert by_name["get_file"]["enabled"] is True
-        assert by_name["retrieve_documents"]["enabled"] is True
+        assert by_name["search_documents"]["enabled"] is True
 
     def test_read_only_false_allows_write_tools(self):
         from app.mcp.tools import discover_tools

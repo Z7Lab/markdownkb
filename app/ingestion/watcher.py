@@ -146,8 +146,8 @@ class MarkdownHandler(FileSystemEventHandler):
                 self._debounce = {k: v for k, v in self._debounce.items() if v > cutoff}
         return True
 
-    def on_created(self, event: FileSystemEvent):
-        """Handle file creation events."""
+    def _handle_file_change(self, event: FileSystemEvent):
+        """Shared handler for file creation and modification events."""
         if event.is_directory:
             return
         if self._should_process(event.src_path):
@@ -156,15 +156,13 @@ class MarkdownHandler(FileSystemEventHandler):
                 self._store, self._tracking,
             )
 
+    def on_created(self, event: FileSystemEvent):
+        """Handle file creation events."""
+        self._handle_file_change(event)
+
     def on_modified(self, event: FileSystemEvent):
         """Handle file modification events."""
-        if event.is_directory:
-            return
-        if self._should_process(event.src_path):
-            reindex_file(
-                event.src_path, self._settings,
-                self._store, self._tracking,
-            )
+        self._handle_file_change(event)
 
     def on_moved(self, event: FileSystemEvent):
         """Handle file move/rename events, preserving embeddings when possible."""

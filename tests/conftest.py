@@ -1,5 +1,6 @@
 """Shared test fixtures for MarkdownKB API tests."""
 
+import shutil
 import tempfile
 import threading
 from dataclasses import dataclass, field
@@ -8,7 +9,15 @@ from unittest.mock import MagicMock
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+# Cleaned up by the session-scoped _test_data_dir fixture below.
 _TEST_DATA_DIR = tempfile.mkdtemp(prefix="markdownkb-test-")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _cleanup_test_data_dir():
+    """Remove the shared test data directory after the entire test session."""
+    yield
+    shutil.rmtree(_TEST_DATA_DIR, ignore_errors=True)
 
 from app.api import create_app
 

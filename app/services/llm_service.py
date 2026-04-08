@@ -222,7 +222,7 @@ def stream_test_prompt(
 
     Think blocks are buffered and stripped before yielding content tokens.
     """
-    from app.rag.llm import _strip_thinking
+    from app.rag.llm import strip_thinking as _strip_thinking
 
     validate_api_base(api_base)
     provider_type, model_name = _parse_model(model)

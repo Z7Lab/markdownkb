@@ -38,6 +38,15 @@ _switch_status: dict = {
 _switch_lock = threading.Lock()
 
 
+def reset_switch_status() -> None:
+    """Reset background operation state (used in tests to prevent state leakage)."""
+    with _switch_lock:
+        _switch_status["running"] = False
+        _switch_status["progress"] = 0.0
+        _switch_status["message"] = ""
+        _switch_status["result"] = ""
+
+
 def _bg_reindex(
     settings: Settings,
     store: VectorStore,
@@ -112,10 +121,7 @@ def save_embedding_provider(
 ):
     """Save embedding provider config (local or remote)."""
     settings.embedding_provider = req.provider
-    emb = settings._data.setdefault("embeddings", {})
-    emb["api_base"] = req.api_base
-    emb["remote_model"] = req.remote_model
-    emb["api_type"] = req.api_type
+    settings.update_embedding_remote_config(req.api_base, req.remote_model, req.api_type)
     settings.save()
     return {"status": "saved", "provider": req.provider}
 
@@ -270,12 +276,14 @@ def index(
         return {"status": "reindexing"}
 
     cancel_event.clear()
-    threading.Thread(
-        target=run_index,
-        args=(settings, store, tracking),
-        kwargs={"cancel": cancel_event},
-        daemon=True,
-    ).start()
+
+    def _run_index_safe():
+        try:
+            run_index(settings, store, tracking, cancel=cancel_event)
+        except Exception:
+            logger.error("Background index failed", exc_info=True)
+
+    threading.Thread(target=_run_index_safe, daemon=True).start()
     return {"status": "indexing", "message": "Indexing started in background"}
 
 

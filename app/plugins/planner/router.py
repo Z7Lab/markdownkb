@@ -44,7 +44,7 @@ def plan(
         if bucket_service:
             record = bucket_service.db.resolve(req.bucket_id)
             if record:
-                bucket_retriever = bucket_service._get_retriever(record["id"], settings)
+                bucket_retriever = bucket_service.get_retriever(record["id"], settings)
 
     has_scope = bool(scope_folders or allowed)
     bucket_only = bucket_retriever and not has_scope
@@ -90,7 +90,7 @@ def plan_stream(
         if bucket_service:
             record = bucket_service.db.resolve(req.bucket_id)
             if record:
-                bucket_retriever = bucket_service._get_retriever(record["id"], settings)
+                bucket_retriever = bucket_service.get_retriever(record["id"], settings)
 
     has_scope = bool(scope_folders or allowed)
     bucket_only = bucket_retriever and not has_scope

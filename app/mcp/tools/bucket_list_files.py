@@ -29,7 +29,7 @@ def handler(bucket: str) -> dict:
     if not record:
         raise ValueError(f"Bucket not found: {bucket}")
 
-    store = svc._get_store(record["id"])
+    store = svc.get_store(record["id"])
     metadatas = store.get_all_metadatas()
 
     # Group by source_path and count chunks per file

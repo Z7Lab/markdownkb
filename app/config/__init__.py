@@ -119,7 +119,7 @@ _DEFAULT_CONFIG_PATH = (
 _SECRETS_DIR = Path(os.environ.get("MARKDOWNKB_SECRETS_DIR", "/run/secrets"))
 
 
-def _default_data_dir() -> str:
+def default_data_dir() -> str:
     """Resolve the data directory.
 
     Priority: MARKDOWNKB_DATA_DIR env var → platformdirs user_data_dir.
@@ -131,7 +131,7 @@ def _default_data_dir() -> str:
 
 def _data_secrets_dir() -> Path:
     """Writable secrets directory inside the data directory."""
-    return Path(_default_data_dir()) / "secrets"
+    return Path(default_data_dir()) / "secrets"
 
 
 def _read_secret(name: str) -> str:
@@ -306,6 +306,13 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
             "api_key": api_key,
         }
 
+    def update_embedding_remote_config(self, api_base: str, remote_model: str, api_type: str) -> None:
+        """Set remote embedding provider fields (api_base, remote_model, api_type)."""
+        emb = self._data.setdefault("embeddings", {})
+        emb["api_base"] = api_base
+        emb["remote_model"] = remote_model
+        emb["api_type"] = api_type
+
     # Fallback model definitions used when settings.yaml has no models list
     _DEFAULT_MODELS = [
         {
@@ -366,7 +373,7 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
         raw = self._data.get("storage", {}).get("data_directory", "")
         if raw:
             return self._resolve_path(raw)
-        return _default_data_dir()
+        return default_data_dir()
 
     @property
     def persist_directory(self) -> str:

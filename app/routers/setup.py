@@ -2,7 +2,6 @@
 
 import logging
 import secrets
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -39,9 +38,10 @@ def generate_key(request: Request):
         logger.error("Failed to write API key to %s: %s", target, e)
         raise HTTPException(500, "Failed to persist API key")
 
-    # Enable auth on the running instance
-    from app.auth import ApiKeyMiddleware
-    request.app.add_middleware(ApiKeyMiddleware, api_key=key)
+    # Enable auth on the running instance by updating app state.
+    # ApiKeyMiddleware reads app.state.api_key on every request, so no
+    # middleware rebuild is needed.
+    request.app.state.api_key = key
     request.app.state.auth_enabled = True
 
     return {"api_key": key, "status": "configured"}
