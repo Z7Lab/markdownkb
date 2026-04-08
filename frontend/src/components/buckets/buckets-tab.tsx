@@ -1,0 +1,303 @@
+import { useCallback, useEffect, useState } from "react"
+import { useBuckets, type Bucket } from "@/hooks/use-buckets"
+import { api } from "@/lib/api"
+import { relativeTime } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
+import { Database, Plus, Trash2, FileText, ChevronDown, ChevronRight, Loader2 } from "lucide-react"
+import { EmptyHero } from "@/components/ui/empty-hero"
+
+interface BucketFile {
+  path: string
+  title: string
+  chunk_count: number
+}
+
+function BucketCard({
+  bucket,
+  onDelete,
+  onViewFile,
+}: {
+  bucket: Bucket
+  onDelete: (id: string) => void
+  onViewFile: (path: string) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const [files, setFiles] = useState<BucketFile[]>([])
+  const [loadingFiles, setLoadingFiles] = useState(false)
+
+  const loadFiles = useCallback(async () => {
+    if (files.length > 0) return
+    setLoadingFiles(true)
+    try {
+      const res = await api.get<{ files: BucketFile[] }>(`/api/buckets/${bucket.id}/files`)
+      setFiles(res.files)
+    } catch {
+      // ignore
+    } finally {
+      setLoadingFiles(false)
+    }
+  }, [bucket.id, files.length])
+
+  function handleToggle() {
+    if (!expanded) loadFiles()
+    setExpanded(!expanded)
+  }
+
+  const sources = (() => {
+    try { return JSON.parse(bucket.sources) as { path: string; glob?: string }[] }
+    catch { return [] }
+  })()
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            className="shrink-0 text-muted-foreground hover:text-foreground"
+            onClick={handleToggle}
+          >
+            {expanded
+              ? <ChevronDown className="h-4 w-4" />
+              : <ChevronRight className="h-4 w-4" />
+            }
+          </button>
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Database className="h-4 w-4 shrink-0" />
+              {bucket.name}
+            </CardTitle>
+            <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+              <span>{bucket.file_count} files</span>
+              <span>{bucket.chunk_count} chunks</span>
+              <span>{relativeTime(bucket.created_at)}</span>
+              {bucket.expires_at ? (
+                <Badge variant="outline" className="text-[10px]">
+                  expires {relativeTime(bucket.expires_at)}
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="text-[10px]">permanent</Badge>
+              )}
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
+            onClick={() => onDelete(bucket.id)}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </CardHeader>
+      {expanded && (
+        <CardContent className="pt-0">
+          {/* Sources */}
+          <div className="mb-3">
+            <p className="text-xs text-muted-foreground font-medium mb-1">Sources</p>
+            <div className="space-y-0.5">
+              {sources.map((s, i) => (
+                <p key={i} className="text-xs text-muted-foreground font-mono truncate">
+                  {s.path} <span className="text-muted-foreground/60">{s.glob || "**/*.md"}</span>
+                </p>
+              ))}
+            </div>
+          </div>
+
+          {/* Files */}
+          {loadingFiles && (
+            <div className="flex items-center gap-2 py-4 justify-center text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Loading files...
+            </div>
+          )}
+          {!loadingFiles && files.length > 0 && (
+            <div className="space-y-0.5">
+              <p className="text-xs text-muted-foreground font-medium mb-1">
+                Files ({files.length})
+              </p>
+              <ScrollArea style={{ height: Math.min(files.length * 32, 320) }}>
+                {files.map((f) => (
+                  <button
+                    key={f.path}
+                    type="button"
+                    className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded hover:bg-accent text-xs"
+                    onClick={() => onViewFile(f.path)}
+                  >
+                    <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
+                    <span className="truncate flex-1 min-w-0">
+                      {f.title || f.path.split("/").pop()}
+                    </span>
+                    <span className="text-muted-foreground shrink-0">
+                      {f.chunk_count} chunks
+                    </span>
+                  </button>
+                ))}
+              </ScrollArea>
+            </div>
+          )}
+          {!loadingFiles && files.length === 0 && !loadingFiles && (
+            <p className="text-xs text-muted-foreground text-center py-2">
+              No files in this bucket
+            </p>
+          )}
+        </CardContent>
+      )}
+    </Card>
+  )
+}
+
+export function BucketsTab() {
+  const { buckets, createBucket, deleteBucket, refresh } = useBuckets()
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [viewingPath, setViewingPath] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [newName, setNewName] = useState("")
+  const [newPath, setNewPath] = useState("")
+  const [newGlob, setNewGlob] = useState("**/*.md")
+
+  // Poll for new buckets (docs bucket may be creating in background)
+  useEffect(() => {
+    const interval = setInterval(refresh, 10000)
+    return () => clearInterval(interval)
+  }, [refresh])
+
+  async function handleCreate() {
+    if (!newName.trim() || !newPath.trim()) return
+    setCreating(false)
+    await createBucket({
+      name: newName.trim(),
+      sources: [{ path: newPath.trim(), glob: newGlob.trim() || "**/*.md" }],
+    })
+    setNewName("")
+    setNewPath("")
+    setNewGlob("**/*.md")
+  }
+
+  async function handleDelete() {
+    if (!confirmDelete) return
+    await deleteBucket(confirmDelete)
+    setConfirmDelete(null)
+  }
+
+  return (
+    <div className="flex flex-col h-full overflow-hidden">
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="p-4 space-y-4 max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">Buckets</h2>
+              <p className="text-sm text-muted-foreground">
+                Temporary document collections with isolated search and chat.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setCreating(!creating)}
+            >
+              <Plus className="h-4 w-4" />
+              New Bucket
+            </Button>
+          </div>
+
+          {/* Create form */}
+          {creating && (
+            <Card>
+              <CardContent className="pt-4 space-y-3">
+                <div>
+                  <label className="text-sm font-medium">Name</label>
+                  <Input
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="e.g. grpc-evaluation"
+                    className="mt-1"
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Source path</label>
+                  <Input
+                    value={newPath}
+                    onChange={(e) => setNewPath(e.target.value)}
+                    placeholder="Absolute path to file or directory"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Glob pattern</label>
+                  <Input
+                    value={newGlob}
+                    onChange={(e) => setNewGlob(e.target.value)}
+                    placeholder="**/*.md"
+                    className="mt-1"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={handleCreate}
+                    disabled={!newName.trim() || !newPath.trim()}
+                  >
+                    Create
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setCreating(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Empty state */}
+          {buckets.length === 0 && !creating && (
+            <div className="flex flex-col items-center justify-center py-20 gap-4">
+              <EmptyHero icon={Database} label="Buckets" />
+              <p className="text-sm text-muted-foreground text-center max-w-md">
+                Buckets are temporary document collections for focused analysis.
+                Create one to load external docs, vendor APIs, or research material
+                without mixing them into your permanent knowledge base.
+              </p>
+            </div>
+          )}
+
+          {/* Bucket list */}
+          {buckets.map((bucket) => (
+            <BucketCard
+              key={bucket.id}
+              bucket={bucket}
+              onDelete={setConfirmDelete}
+              onViewFile={setViewingPath}
+            />
+          ))}
+        </div>
+      </ScrollArea>
+
+      <FileViewerDialog
+        path={viewingPath}
+        onClose={() => setViewingPath(null)}
+      />
+
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        onOpenChange={(open) => { if (!open) setConfirmDelete(null) }}
+        title="Delete bucket?"
+        description={`This will permanently delete the bucket "${buckets.find((b) => b.id === confirmDelete)?.name}" and all its indexed content.`}
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={handleDelete}
+      />
+    </div>
+  )
+}

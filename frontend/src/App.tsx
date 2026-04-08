@@ -9,7 +9,7 @@ import { LLMStatusIndicator } from "@/components/llm-status-indicator"
 import { IndexEventProvider } from "@/hooks/use-index-events"
 import { SettingsProvider, useSettings } from "@/hooks/use-settings"
 import { NavigationProvider } from "@/lib/navigation"
-import { MessageSquare, Globe, FolderOpen, Lightbulb, Network, Share2 } from "lucide-react"
+import { MessageSquare, Globe, FolderOpen, Lightbulb, Network, Share2, Database } from "lucide-react"
 import { SetupBanner } from "@/components/setup-banner"
 import { LlmSetupNudge } from "@/components/llm-setup-nudge"
 import { EmbeddingSetupNudge } from "@/components/embedding-setup-nudge"
@@ -19,6 +19,7 @@ const FilesTab = lazy(() => import("@/components/browse/files-tab").then(m => ({
 const PlannerTab = lazy(() => import("@/components/planner/planner-tab").then(m => ({ default: m.PlannerTab })))
 const SettingsTab = lazy(() => import("@/components/settings/settings-tab").then(m => ({ default: m.SettingsTab })))
 const VisualizationTab = lazy(() => import("@/components/visualization/visualization-tab").then(m => ({ default: m.VisualizationTab })))
+const BucketsTab = lazy(() => import("@/components/buckets/buckets-tab").then(m => ({ default: m.BucketsTab })))
 
 function TabFallback() {
   return <div className="flex-1 flex items-center justify-center text-muted-foreground">Loading...</div>
@@ -32,6 +33,7 @@ const routeToTab: Record<string, string> = {
   "/docmap": "docmap",
   "/knowledge-graph": "knowledge-graph",
   "/files": "files",
+  "/buckets": "buckets",
   "/settings": "settings",
 }
 
@@ -42,6 +44,7 @@ const tabToRoute: Record<string, string> = {
   docmap: "/docmap",
   "knowledge-graph": "/knowledge-graph",
   files: "/files",
+  buckets: "/buckets",
   settings: "/settings",
 }
 
@@ -63,6 +66,17 @@ function KnowledgeGraphTabTrigger() {
     <TabsTrigger value="knowledge-graph">
       <Network className="h-4 w-4" />
       Knowledge Graph
+    </TabsTrigger>
+  )
+}
+
+function BucketsTabTrigger() {
+  const { settings } = useSettings()
+  if (!settings?.plugins_enabled?.buckets) return null
+  return (
+    <TabsTrigger value="buckets">
+      <Database className="h-4 w-4" />
+      Buckets
     </TabsTrigger>
   )
 }
@@ -120,6 +134,7 @@ export function App() {
                 </TabsTrigger>
                 <DocMapTabTrigger />
                 <KnowledgeGraphTabTrigger />
+                <BucketsTabTrigger />
                 <TabsTrigger value="files">
                   <FolderOpen className="h-4 w-4" />
                   Files
@@ -159,6 +174,13 @@ export function App() {
                 <ErrorBoundary fallbackMessage="Knowledge Graph encountered an error">
                   <Suspense fallback={<TabFallback />}>
                     <VisualizationTab fixedMode="knowledge" />
+                  </Suspense>
+                </ErrorBoundary>
+              </TabsContent>
+              <TabsContent value="buckets" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
+                <ErrorBoundary fallbackMessage="Buckets encountered an error">
+                  <Suspense fallback={<TabFallback />}>
+                    <BucketsTab />
                   </Suspense>
                 </ErrorBoundary>
               </TabsContent>

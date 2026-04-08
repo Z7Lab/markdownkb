@@ -98,6 +98,36 @@ def get_bucket(
     return record
 
 
+@router.get("/buckets/{bucket_id}/files")
+@limiter.limit(STANDARD)
+def list_bucket_files(
+    request: Request,
+    bucket_id: str,
+    svc: BucketService = Depends(_get_bucket_service),
+):
+    """List files in a bucket with chunk counts."""
+    record = svc.db.resolve(bucket_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Bucket not found")
+    store = svc._get_store(record["id"])
+    all_meta = store.get_all_metadatas()
+    # Group by source_path
+    files: dict[str, dict] = {}
+    for meta in all_meta:
+        path = meta.get("source_path", "")
+        if not path:
+            continue
+        if path not in files:
+            files[path] = {
+                "path": path,
+                "title": meta.get("title", ""),
+                "chunk_count": 0,
+            }
+        files[path]["chunk_count"] += 1
+    file_list = sorted(files.values(), key=lambda f: f["path"])
+    return {"files": file_list, "total": len(file_list)}
+
+
 @router.delete("/buckets/{bucket_id}")
 @limiter.limit(STANDARD)
 def delete_bucket(
