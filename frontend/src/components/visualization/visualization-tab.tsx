@@ -278,7 +278,10 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
     }
   }, [docmapData])
 
-  // Configure d3 forces — spread slider scales all distances
+  // Configure d3 forces — spread slider scales all distances.
+  // Runs on spread change AND data change (so forces are set on initial load),
+  // but only reheats the simulation when spread actually changed.
+  const prevSpreadRef = useRef(spread)
   useEffect(() => {
     const fg = fgRef.current
     if (!fg) return
@@ -303,15 +306,15 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
     if (center) {
       center.strength(0.02)
     }
-    if (spreadInitialized.current) {
+    // Only reheat when spread actually changed — not when data changed
+    // (data changes already restart the simulation via the graph component)
+    const spreadChanged = prevSpreadRef.current !== spread
+    prevSpreadRef.current = spread
+    if (spreadChanged && spreadInitialized.current) {
       fg.d3ReheatSimulation()
-    } else {
-      spreadInitialized.current = true
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- forceDocMapData intentionally excluded;
-  // force config depends only on spread. Including forceDocMapData causes reheat on every
-  // threshold change, which resets the camera via onEngineStop.
-  }, [spread])
+    spreadInitialized.current = true
+  }, [forceDocMapData, spread])
 
   // Active word cloud based on selection state
   const { activeWordCloud, wordCloudLabel } = useMemo(() => {
