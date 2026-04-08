@@ -102,7 +102,7 @@ export function PlannerTab() {
         onDeletePlan={deletePlan}
       />
 
-      <div className="flex flex-col flex-1 min-w-0 min-h-0 h-full">
+      <div className="flex flex-col flex-1 min-w-0 min-h-0">
         {/* Empty state */}
         {!hasResults && !isPlanning && (
           <div className="flex flex-col items-center justify-start flex-1 gap-6 p-4 pt-[20vh]">

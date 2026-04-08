@@ -168,6 +168,14 @@
   }
 }
 
+/* ── Radix ScrollArea fix ────────────────────────────── */
+/* Radix wraps viewport children in display:table which prevents
+   flex children from shrinking below content width.  Force block
+   so normal overflow/truncation works inside scroll areas.       */
+[data-radix-scroll-area-viewport] > div {
+  display: block !important;
+}
+
 /* ── Tabs ─────────────────────────────────────────────── */
 
 [data-slot="tabs-list"] {

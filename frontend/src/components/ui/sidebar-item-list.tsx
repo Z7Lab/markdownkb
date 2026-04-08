@@ -112,7 +112,7 @@ export function SidebarItemList<T extends SidebarItem>({
             type="button"
             role="listitem"
             className={cn(
-              "w-full text-left rounded-md px-3 py-2 text-sm cursor-pointer hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "w-full text-left rounded-md px-3 py-2 text-sm cursor-pointer overflow-hidden hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               activeId === item.id && "bg-accent border-l-2 border-l-primary",
             )}
             onClick={() => onSelect(item)}
@@ -135,12 +135,12 @@ export function SidebarItemList<T extends SidebarItem>({
                 autoFocus
               />
             ) : (
-              <div className="flex items-center gap-1.5 mb-0.5">
+              <div className="flex items-center gap-1.5 mb-0.5 min-w-0">
                 {renderIcon?.(item)}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <p
-                      className="font-medium overflow-hidden line-clamp-2 flex-1"
+                      className="font-medium overflow-hidden line-clamp-2 flex-1 min-w-0"
                       onDoubleClick={(e) => {
                         e.stopPropagation()
                         startRename(item)
@@ -155,8 +155,8 @@ export function SidebarItemList<T extends SidebarItem>({
                 </Tooltip>
               </div>
             )}
-            <div className="flex items-center gap-1 mt-0.5">
-              <p className="text-xs text-muted-foreground flex-1 truncate">
+            <div className="flex items-center gap-1 mt-0.5 min-w-0">
+              <p className="text-xs text-muted-foreground flex-1 truncate min-w-0">
                 {relativeTime(getTime(item))}
                 {renderMeta?.(item)}
               </p>
