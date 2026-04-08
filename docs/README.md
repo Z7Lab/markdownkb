@@ -47,6 +47,7 @@ Background and reasoning. Read when you want to understand why, not how.
 
 | Document | Description |
 |----------|-------------|
+| [Chat](explanation/chat.md) | Chat tab — RAG conversations, threads, continue, save, scoped chat, sources |
 | [Search & AI Summaries](explanation/search.md) | Search tab features — results, AI summaries, deep research, history, versioning |
 | [Retrieval & Hybrid Search](explanation/retrieval.md) | How search works — vector similarity, BM25 keywords, score fusion, tuning |
 | [Chunking & Indexing](explanation/chunking.md) | How files are split into chunks, heading structure, search quality |
