@@ -306,8 +306,8 @@ http://localhost:9715/sse
 The MCP server shares the same storage as the FastAPI app:
 
 - **Config**: Reads `config/settings.yaml` via the same `Settings` singleton
-- **Vector store**: ChromaDB at `data/chromadb/`
-- **Tracking DB**: SQLite at `data/mdkb.db`
+- **Vector store**: ChromaDB at `{data_directory}/chromadb/`
+- **Tracking DB**: SQLite at `{data_directory}/mdkb.db`
 - **Embeddings**: Same ONNX models, same embedding pipeline
 
 On startup, the server loads embedding models (`load_models()`), initializes its own instances of `VectorStore`, `TrackingDB`, and `Retriever`, then auto-discovers and registers MCP tools. If the vector store is empty, it runs an initial index automatically.

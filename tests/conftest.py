@@ -1,11 +1,14 @@
 """Shared test fixtures for mdkb API tests."""
 
+import tempfile
 import threading
 from dataclasses import dataclass, field
 from unittest.mock import MagicMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+
+_TEST_DATA_DIR = tempfile.mkdtemp(prefix="mdkb-test-")
 
 from app.api import create_app
 
@@ -45,9 +48,9 @@ class FakeSettings:
     _services: dict = field(default_factory=lambda: {})
     llm_temperature: float = 0.3
     llm_max_tokens: int = 2048
-    persist_directory: str = "./data/chromadb"
+    persist_directory: str = field(default_factory=lambda: f"{_TEST_DATA_DIR}/chromadb")
     collection_name: str = "mdkb"
-    data_directory: str = "./data"
+    data_directory: str = field(default_factory=lambda: _TEST_DATA_DIR)
     top_k: int = 5
     score_threshold: float = 0.3
     hybrid_search: bool = True

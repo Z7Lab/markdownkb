@@ -50,10 +50,15 @@ COPY config/prompts/ ./config/prompts/
 # Copy frontend build
 COPY --from=frontend-builder /app/frontend/dist/ ./frontend/dist/
 
-# Create data directories
-RUN mkdir -p /app/data/chromadb /app/data/plans /app/data/plugins /app/docs /app/skills \
-    && chown -R mdkb:mdkb /app/data /app/docs /app/skills
+# Create data and support directories
+RUN mkdir -p /data/chromadb /data/plans /data/plugins /data/secrets /data/models \
+    /app/docs /app/skills \
+    && chown -R mdkb:mdkb /data /app/docs /app/skills
 
+# MDKB_DATA_DIR tells the app where persistent state lives.
+# Docker mounts a volume to /data; outside Docker the app uses
+# platformdirs (e.g. ~/.local/share/mdkb).
+ENV MDKB_DATA_DIR=/data
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 

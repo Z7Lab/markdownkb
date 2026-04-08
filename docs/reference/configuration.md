@@ -118,10 +118,22 @@ Available catalogs: `venice` (Venice.ai — privacy-preserving OpenAI-compatible
 
 ## Storage
 
+All persistent state (databases, embeddings, models, plugins) lives under a single **data directory**, resolved in order:
+
+1. `storage.data_directory` in settings.yaml (explicit override)
+2. `MDKB_DATA_DIR` environment variable (Docker sets this to `/data`)
+3. OS-appropriate default via [platformdirs](https://pypi.org/project/platformdirs/):
+   - **Linux:** `~/.local/share/mdkb`
+   - **macOS:** `~/Library/Application Support/mdkb`
+   - **Windows:** `%APPDATA%\mdkb`
+
 | Key | Default | Description |
 |-----|---------|-------------|
-| `storage.persist_directory` | `./data/chromadb` | ChromaDB vector store location |
+| `storage.data_directory` | *(auto-detected)* | Root directory for all persistent data |
+| `storage.persist_directory` | `{data_directory}/chromadb` | ChromaDB vector store location |
 | `storage.collection_name` | `mdkb` | ChromaDB collection name |
+
+In Docker, compose.yml mounts a named volume to `/data` and the Dockerfile sets `MDKB_DATA_DIR=/data`. The app doesn't need to know it's in a container.
 
 ## Logging
 
@@ -135,7 +147,7 @@ API key authentication protects all `/api/*` endpoints (except `/api/health` and
 
 ### Setup options
 
-**Option 1: Web UI setup (easiest).** When the server is network-exposed (`MDKB_HOST=0.0.0.0`) without a key, a setup banner appears in the UI. Click "Generate API Key" to create one. The key is written to `data/secrets/mdkb_api_key` and takes effect immediately.
+**Option 1: Web UI setup (easiest).** When the server is network-exposed (`MDKB_HOST=0.0.0.0`) without a key, a setup banner appears in the UI. Click "Generate API Key" to create one. The key is written to `{data_directory}/secrets/mdkb_api_key` and takes effect immediately.
 
 **Option 2: Secret file (preferred for shared/production hosts).**
 
@@ -154,7 +166,7 @@ MDKB_API_KEY=your-key-here
 
 Env vars are visible in `docker inspect` — use secret files instead if others have Docker access on the host.
 
-Keys are resolved in order: `data/secrets/` (generated keys) > Docker secret (`secrets/`) > env var (`MDKB_API_KEY`). Keys are never stored in `settings.yaml`.
+Keys are resolved in order: `{data_directory}/secrets/` (generated keys) > Docker secret (`/run/secrets/`) > env var (`MDKB_API_KEY`). Keys are never stored in `settings.yaml`.
 
 When no key is configured and the server binds to localhost only, authentication is disabled (single-user mode).
 
@@ -165,7 +177,7 @@ When no key is configured and the server binds to localhost only, authentication
 | `server.host` | `127.0.0.1` | Bind address |
 | `server.port` | `9713` | Backend port |
 | `server.cors_origins` | `[http://localhost:9714]` | Allowed CORS origins (list). Override with `CORS_ORIGINS` env var (comma-separated). |
-| `plans.save_directory` | `./data/plans` | Where saved plans are written |
+| `plans.save_directory` | `{data_directory}/plans` | Where saved plans are written |
 
 ## Core
 
@@ -194,7 +206,7 @@ MCP tool enable flags.
 
 ## Plugins
 
-Each plugin has `enabled` plus its own config together in one section under `plugins:`. Builtin plugins live in `app/plugins/<name>/`; external plugins are installed to `data/plugins/<name>/`.
+Each plugin has `enabled` plus its own config together in one section under `plugins:`. Builtin plugins live in `app/plugins/<name>/`; external plugins are installed to `{data_directory}/plugins/<name>/`.
 
 ```yaml
 plugins:

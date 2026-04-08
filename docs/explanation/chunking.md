@@ -89,7 +89,7 @@ At ~4 characters per token, 1500 chars &asymp; 375 tokens, which fits comfortabl
 
 After changing `chunk_size` or `chunk_overlap`, you must **re-index all files** for the new settings to take effect on existing content. New and modified files will use the new settings automatically via the file watcher.
 
-To re-index everything: delete the ChromaDB data directory (`data/chromadb/`) and restart, or use the CLI: `python -m app.cli index --force`.
+To re-index everything: delete the ChromaDB directory (`{data_directory}/chromadb/`) and restart, or use the CLI: `python -m app.cli index --force`.
 
 ## Breadcrumb Prepending
 

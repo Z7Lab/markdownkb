@@ -12,10 +12,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/setup", tags=["setup"])
 
-# Generated keys are written to data/secrets/ (inside the writable data volume).
-# _read_secret checks this path before /run/secrets/, so the key is picked up
-# on restart without needing to touch the host secrets/ directory.
-_DATA_SECRETS_DIR = Path("/app/data/secrets")
+from app.config import _data_secrets_dir
 
 
 @router.post("/generate-key")
@@ -33,8 +30,7 @@ def generate_key(request: Request):
 
     key = secrets.token_urlsafe(32)
 
-    # Write to the data volume (host ./data/secrets/)
-    target = _DATA_SECRETS_DIR / "mdkb_api_key"
+    target = _data_secrets_dir() / "mdkb_api_key"
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(key)

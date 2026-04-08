@@ -184,11 +184,11 @@ The install process:
 1. Shallow-clones the repo
 2. Validates `__init__.py` (must have `FEATURE_FLAG` + `router`)
 3. Installs `requirements.txt` if present
-4. Copies to `data/plugins/<name>/`
+4. Copies to `{data_directory}/plugins/<name>/`
 5. Adds `plugins.<name>.enabled: false` to settings
 6. **Requires a container restart** to activate
 
-External plugins persist across container rebuilds via the `./data:/app/data` volume mount.
+External plugins persist across container rebuilds via the Docker named volume (or bind mount).
 
 To uninstall: `DELETE /api/plugins/{name}` (only works for external plugins).
 
@@ -208,7 +208,7 @@ Plugins that need persistent storage should create their own SQLite database in 
 def on_startup(app) -> None:
     from .my_db import MyDB
     settings = app.state.settings
-    db = MyDB(settings.data_directory)  # creates data/my_plugin.db
+    db = MyDB(settings.data_directory)  # creates {data_directory}/my_plugin.db
     app.state.my_db = db
 
 def on_shutdown(app) -> None:

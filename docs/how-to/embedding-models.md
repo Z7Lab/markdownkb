@@ -181,7 +181,7 @@ embeddings:
     local_path: /path/to/model/directory
 ```
 
-The directory must contain all required files (by default: `onnx/model.onnx`, `tokenizer.json`, etc.). Files are copied into `data/models/` on install — the original directory is not modified.
+The directory must contain all required files (by default: `onnx/model.onnx`, `tokenizer.json`, etc.). Files are copied into `{data_directory}/models/` on install — the original directory is not modified.
 
 This is useful for:
 - Air-gapped / offline deployments
@@ -200,11 +200,7 @@ For large collections (1000+ files), expect reindexing to take a few minutes.
 
 ## Storage
 
-Models are cached locally:
-
-- **Primary:** `data/models/{model-id}/` (inside project root — works with Docker and local dev)
-- **Legacy fallback:** `~/.cache/mdkb/models/{model-id}/` (pre-Docker installs, checked automatically)
-- **ChromaDB built-in L6:** `~/.cache/chroma/onnx_models/all-MiniLM-L6-v2/` (detected automatically if present)
+Models are stored at `{data_directory}/models/{model-id}/`. The data directory is resolved via `MDKB_DATA_DIR` env var or OS-appropriate default (see [configuration](../reference/configuration.md#storage)).
 
 The active model is stored in `config/settings.yaml` under `embeddings.model`.
 
@@ -244,7 +240,7 @@ Installed models can be removed from the Settings UI:
 2. Click the trash icon next to it (only available for installed, non-active models)
 3. Confirm the removal
 
-This deletes the model files from `data/models/`. You can re-download it later. The active model cannot be removed — switch to a different model first.
+This deletes the model files from `{data_directory}/models/`. You can re-download it later. The active model cannot be removed — switch to a different model first.
 
 ## Corrupt or Missing Models
 

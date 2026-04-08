@@ -10,17 +10,12 @@ from app.embeddings.registry import MODELS
 
 logger = logging.getLogger(__name__)
 
-# Primary: data/models/ relative to project root (works in Docker and locally)
-_APP_ROOT = Path(__file__).resolve().parent.parent.parent
-CACHE_DIR = _APP_ROOT / "data" / "models"
+# Primary model cache — derived from the data directory at import time.
+# Lazy resolution: settings aren't loaded yet, so use the same env/platformdirs
+# fallback that config uses.
+from app.config import _default_data_dir as _data_dir  # noqa: E402
 
-# Legacy: ~/.cache/mdkb/models (pre-Docker installs)
-_LEGACY_CACHE = Path.home() / ".cache" / "mdkb" / "models"
-
-# ChromaDB's built-in L6 cache (last resort fallback)
-_CHROMA_BASE = (
-    Path.home() / ".cache" / "chroma" / "onnx_models" / "all-MiniLM-L6-v2"
-)
+CACHE_DIR = Path(_data_dir()) / "models"
 HF_URL = "https://huggingface.co/{repo}/resolve/main/{path}"
 
 
@@ -38,17 +33,9 @@ def _dir_has_model(d: Path, info) -> bool:
         fp = d / f
         if not fp.exists():
             return False
-        # Reject truncated/empty ONNX files
         if f.endswith(".onnx") and fp.stat().st_size < 1024:
             return False
     return True
-
-
-def _chroma_cache_ok() -> bool:
-    """Check if ChromaDB's built-in MiniLM-L6-v2 cache is usable."""
-    onnx_dir = _CHROMA_BASE / "onnx"
-    needed = ("model.onnx", "tokenizer.json", "config.json")
-    return all((onnx_dir / f).exists() for f in needed)
 
 
 def is_installed(model_id: str) -> bool:
@@ -56,13 +43,7 @@ def is_installed(model_id: str) -> bool:
     info = MODELS.get(model_id)
     if not info:
         return False
-    if _dir_has_model(model_dir(model_id), info):
-        return True
-    if _dir_has_model(_LEGACY_CACHE / model_id, info):
-        return True
-    if model_id == "all-MiniLM-L6-v2" and _chroma_cache_ok():
-        return True
-    return False
+    return _dir_has_model(model_dir(model_id), info)
 
 
 def get_model_path(model_id: str) -> Path:
@@ -70,16 +51,9 @@ def get_model_path(model_id: str) -> Path:
     info = MODELS.get(model_id)
     primary = model_dir(model_id)
     if info and _dir_has_model(primary, info):
-        logger.debug("Model '%s' found at primary path: %s", model_id, primary)
-        return primary
-    legacy = _LEGACY_CACHE / model_id
-    if info and _dir_has_model(legacy, info):
-        logger.info("Model '%s' found at legacy path: %s", model_id, legacy)
-        return legacy
-    if model_id == "all-MiniLM-L6-v2" and _chroma_cache_ok():
-        logger.info("Model '%s' found at ChromaDB cache: %s", model_id, _CHROMA_BASE)
-        return _CHROMA_BASE
-    logger.debug("Model '%s' not found, returning default path: %s", model_id, primary)
+        logger.debug("Model '%s' found at %s", model_id, primary)
+    else:
+        logger.debug("Model '%s' not found, returning default path: %s", model_id, primary)
     return primary
 
 

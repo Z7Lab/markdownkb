@@ -33,7 +33,7 @@ Every entity and relationship links back to its `source_path`. When a document i
 
 ### Storage
 
-The knowledge graph uses its own SQLite database (`data/mdkb_kg.db`), separate from the main tracking database. This means:
+The knowledge graph uses its own SQLite database (`{data_directory}/mdkb_kg.db`), separate from the main tracking database. This means:
 - **Embedding model switches** do not affect KG data (they only clear ChromaDB and the tracking table)
 - **KG clear** (`POST /api/knowledge-graph/clear`) wipes the KG; run extraction to rebuild
 

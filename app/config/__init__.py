@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from platformdirs import user_data_dir
 
 from app.config.llm import LLMMixin
 from app.config.mcp import MCPMixin
@@ -119,7 +120,21 @@ _DEFAULT_CONFIG_PATH = (
 
 
 _SECRETS_DIR = Path(os.environ.get("MDKB_SECRETS_DIR", "/run/secrets"))
-_DATA_SECRETS_DIR = Path("/app/data/secrets")
+
+
+def _default_data_dir() -> str:
+    """Resolve the data directory.
+
+    Priority: MDKB_DATA_DIR env var → platformdirs user_data_dir.
+    Docker sets MDKB_DATA_DIR=/data so the app never needs to know
+    whether it's containerized.
+    """
+    return os.environ.get("MDKB_DATA_DIR") or user_data_dir("mdkb")
+
+
+def _data_secrets_dir() -> Path:
+    """Writable secrets directory inside the data directory."""
+    return Path(_default_data_dir()) / "secrets"
 
 
 def _read_secret(name: str) -> str:
@@ -129,7 +144,7 @@ def _read_secret(name: str) -> str:
     Docker's read-only secrets mount (/run/secrets/).  Returns the
     file content (stripped) or empty string if not found or empty.
     """
-    for directory in (_DATA_SECRETS_DIR, _SECRETS_DIR):
+    for directory in (_data_secrets_dir(), _SECRETS_DIR):
         path = directory / name
         try:
             if path.is_file():
@@ -341,16 +356,28 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
     # --- Storage ---
     @property
     def data_directory(self) -> str:
-        """Return the resolved parent data directory (e.g. ./data/)."""
-        return str(Path(self.persist_directory).parent)
+        """Return the data directory for all persistent state.
+
+        Resolution order:
+        1. ``storage.data_directory`` in settings.yaml (explicit override)
+        2. ``MDKB_DATA_DIR`` environment variable (Docker sets this)
+        3. ``platformdirs.user_data_dir("mdkb")`` OS-appropriate default:
+           - Linux:   ``~/.local/share/mdkb``
+           - macOS:   ``~/Library/Application Support/mdkb``
+           - Windows: ``%APPDATA%\\mdkb``
+        """
+        raw = self._data.get("storage", {}).get("data_directory", "")
+        if raw:
+            return self._resolve_path(raw)
+        return _default_data_dir()
 
     @property
     def persist_directory(self) -> str:
         """Return the resolved path for ChromaDB persistence."""
-        raw = self._data.get("storage", {}).get(
-            "persist_directory", "./data/chromadb"
-        )
-        return self._resolve_path(raw)
+        raw = self._data.get("storage", {}).get("persist_directory", "")
+        if raw:
+            return self._resolve_path(raw)
+        return str(Path(self.data_directory) / "chromadb")
 
     @property
     def collection_name(self) -> str:
@@ -480,10 +507,10 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
     @property
     def plans_save_directory(self) -> str:
         """Return the resolved path for saving plans."""
-        raw = self._data.get("plans", {}).get(
-            "save_directory", "./data/plans"
-        )
-        return self._resolve_path(raw)
+        raw = self._data.get("plans", {}).get("save_directory", "")
+        if raw:
+            return self._resolve_path(raw)
+        return str(Path(self.data_directory) / "plans")
 
     # --- UI ---
     @property

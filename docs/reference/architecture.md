@@ -117,15 +117,17 @@ Note: `planner_service` and `graph_service` live in core because they are reusab
 
 ### Storage (`app/storage/`)
 
+All files are relative to the data directory (see [Storage](#storage) below).
+
 | Store | File | Description |
 |-------|------|-------------|
-| VectorStore | `data/chromadb/` | ChromaDB vector embeddings for semantic search |
-| TrackingDB | `data/tracking.db` | File index state, hashes, RAG inclusion flags |
-| ChatDB | `data/chat.db` | Chat threads and messages |
-| SearchDB | `data/searches.db` | Search history, versions, AI summaries |
-| PlanDB | `data/plans.db` | Saved planner plans and metadata |
-| PresetsDB | `data/presets.db` | Named retrieval setting templates |
-| ScopeDB | `data/scopes.db` | Named scopes (folder + tag filters) |
+| VectorStore | `chromadb/` | ChromaDB vector embeddings for semantic search |
+| TrackingDB | `mdkb.db` | File index state, hashes, RAG inclusion flags |
+| ChatDB | `chats.db` | Chat threads and messages |
+| SearchDB | `searches.db` | Search history, versions, AI summaries |
+| PlanDB | `plans.db` | Saved planner plans and metadata |
+| PresetsDB | `presets.db` | Named retrieval setting templates |
+| ScopeDB | `scopes.db` | Named scopes (folder + tag filters) |
 
 ### RAG (`app/rag/`)
 
@@ -158,7 +160,7 @@ Note: `planner_service` and `graph_service` live in core because they are reusab
 ## Request Lifecycle
 
 1. **Frontend** makes HTTP requests to `/api/*`. Streaming responses (chat, summaries) use POST-based SSE via `fetch` + `ReadableStream`.
-2. **Routers** handle request validation and call into services. Core routers (health, chat, threads, files, settings, embeddings, scopes, plugins) are always registered. **Plugins** (`app/plugins/` and `data/plugins/`) are auto-discovered at startup — each plugin exposes a feature flag and a router; only enabled plugins are registered.
+2. **Routers** handle request validation and call into services. Core routers (health, chat, threads, files, settings, embeddings, scopes, plugins) are always registered. **Plugins** (`app/plugins/` and `{data_directory}/plugins/`) are auto-discovered at startup — each plugin exposes a feature flag and a router; only enabled plugins are registered.
 3. **Auth middleware** (`app/auth.py`) checks the `X-MDKB-Key` header on all `/api/*` paths (except `/api/health`) when an API key is configured via Docker secret or env var. Uses `hmac.compare_digest()` for timing-safe comparison. Disabled when no key is set.
 4. **Dependency injection** (`app/deps.py`) provides services via FastAPI's `Depends()`. All shared state lives on `app.state`, initialized in the async lifespan context manager (`app/main.py`).
 5. **Services** contain business logic — conversation management, LLM health checks, query enhancement.
@@ -166,20 +168,24 @@ Note: `planner_service` and `graph_service` live in core because they are reusab
 
 ## Storage
 
+All persistent state lives under a single **data directory**, resolved via: `MDKB_DATA_DIR` env var → `platformdirs.user_data_dir("mdkb")` (OS-appropriate default). Docker sets `MDKB_DATA_DIR=/data`; outside Docker the default is `~/.local/share/mdkb` (Linux), `~/Library/Application Support/mdkb` (macOS), or `%APPDATA%\mdkb` (Windows). See [configuration.md](configuration.md#storage) for override options.
+
 mdkb uses one vector database and nine SQLite databases:
 
-| Database | File | Purpose |
+| Database | Path (relative to data dir) | Purpose |
 |----------|------|---------|
-| **ChromaDB** | `data/chromadb/` | Vector embeddings for semantic search |
-| **TrackingDB** | `data/tracking.db` | File index state, hashes, RAG inclusion flags |
-| **ChatDB** | `data/chat.db` | Chat threads and messages |
-| **SearchDB** | `data/search.db` | Search history, versions, AI summaries |
-| **PlanDB** | `data/plans.db` | Saved planner plans and metadata |
-| **PresetsDB** | `data/presets.db` | Named retrieval setting templates |
-| **ScopeDB** | `data/scopes.db` | Named scopes (folder + tag filters) |
-| **TagDB** | `data/tags.db` | File-to-tag mappings (owned by tags plugin) |
-| **BucketDB** | `data/buckets.db` | Temporary bucket metadata (owned by buckets plugin) |
-| **KnowledgeGraphDB** | `data/mdkb_kg.db` | Entities, typed relationships, extraction cache (owned by knowledge_graph plugin) |
+| **ChromaDB** | `chromadb/` | Vector embeddings for semantic search |
+| **TrackingDB** | `mdkb.db` | File index state, hashes, RAG inclusion flags |
+| **ChatDB** | `chats.db` | Chat threads and messages |
+| **SearchDB** | `searches.db` | Search history, versions, AI summaries |
+| **PlanDB** | `plans.db` | Saved planner plans and metadata |
+| **PresetsDB** | `presets.db` | Named retrieval setting templates |
+| **ScopeDB** | `scopes.db` | Named scopes (folder + tag filters) |
+| **TagDB** | `tags.db` | File-to-tag mappings (owned by tags plugin) |
+| **BucketDB** | `buckets.db` | Temporary bucket metadata (owned by buckets plugin) |
+| **KnowledgeGraphDB** | `mdkb_kg.db` | Entities, typed relationships, extraction cache (owned by knowledge_graph plugin) |
+
+Additional data directory contents: `models/` (ONNX embedding models), `plans/` (exported plan markdown), `plugins/` (external plugins), `secrets/` (generated API keys).
 
 The knowledge graph database is intentionally separate from the tracking database. Embedding model switches clear ChromaDB vectors and tracking state, but KG data (which is LLM-extracted, not embedding-dependent) survives intact.
 

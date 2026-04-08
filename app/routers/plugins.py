@@ -22,7 +22,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["plugins"])
 
-_EXTERNAL_DIR = Path("data/plugins")
+from app.config import _default_data_dir as _data_dir
+
+_EXTERNAL_DIR = Path(_data_dir()) / "plugins"
 
 
 class InstallPluginRequest(BaseModel):

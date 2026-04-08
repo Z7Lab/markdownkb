@@ -35,8 +35,10 @@ from app.config import Settings
 logger = logging.getLogger(__name__)
 
 _BUILTIN_DIR = Path(__file__).resolve().parent
-_PROJECT_ROOT = _BUILTIN_DIR.parent.parent  # app/plugins/../../ = project root
-_EXTERNAL_DIR = _PROJECT_ROOT / "data" / "plugins"
+
+from app.config import _default_data_dir as _data_dir  # noqa: E402
+
+_EXTERNAL_DIR = Path(_data_dir()) / "plugins"
 
 # Module-level cache populated by discover_plugins / register_plugins
 _plugin_registry: list[dict[str, Any]] = []

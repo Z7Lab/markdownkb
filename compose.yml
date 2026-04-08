@@ -6,7 +6,7 @@ services:
       # Binds to localhost only by default — set MDKB_HOST=0.0.0.0 to expose
       - "${MDKB_HOST:-127.0.0.1}:${MDKB_PORT:-9713}:9713"
     volumes:
-      - ./data:/app/data
+      - ${MDKB_DATA_DIR:-~/.local/share/mdkb}:/data
       - ./config:/app/config
       - ./skills:/app/skills
       # Mount home directory read-only so source paths in settings.yaml
@@ -47,7 +47,7 @@ services:
       # only when sandbox containers must reach it via host.docker.internal.
       - "${MDKB_MCP_HOST:-127.0.0.1}:${MDKB_MCP_PORT:-9715}:9715"
     volumes:
-      - ./data:/app/data
+      - ${MDKB_DATA_DIR:-~/.local/share/mdkb}:/data
       - ./config:/app/config
       - ${HOME}:${HOME}:ro
     extra_hosts:
