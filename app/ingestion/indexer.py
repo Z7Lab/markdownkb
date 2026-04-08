@@ -116,6 +116,8 @@ def run_index(
     )
     for path in removed:
         store.delete_by_source(path)
+        from app.tag_utils import notify_file_deleted
+        notify_file_deleted(path)
         event_bus.publish(IndexEvent(
             type="deleted", path=path, filename=Path(path).name,
         ))

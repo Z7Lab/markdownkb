@@ -133,6 +133,12 @@ class TagDB:
             ).fetchall()
         return {r["path"] for r in rows}
 
+    def get_all_paths(self) -> set[str]:
+        """Return all file paths that have tag entries."""
+        with self._lock:
+            rows = self._conn.execute("SELECT path FROM file_tags").fetchall()
+        return {r["path"] for r in rows}
+
     def is_empty(self) -> bool:
         """Check if the database has any records."""
         with self._lock:

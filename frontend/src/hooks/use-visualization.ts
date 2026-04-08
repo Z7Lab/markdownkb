@@ -120,15 +120,19 @@ export function useVisualization() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const lastTagsRef = useRef<string | null>(null)
+
   const fetchDocMap = useCallback(async (
     scopeIds?: string | null,
     force = false,
     wc = true,
     adHocTags?: string[] | null,
   ) => {
-    // Skip if we already have data for this scope selection (unless forced)
-    if (!force && docmapDataRef.current && lastScopeRef.current === scopeIds) return
+    // Skip if we already have data for this exact scope+tag selection (unless forced)
+    const tagsKey = adHocTags ? adHocTags.sort().join(",") : null
+    if (!force && docmapDataRef.current && lastScopeRef.current === scopeIds && lastTagsRef.current === tagsKey) return
     lastScopeRef.current = scopeIds ?? null
+    lastTagsRef.current = tagsKey
 
     // Abort any in-flight cache check or previous fetch
     abortRef.current?.abort()

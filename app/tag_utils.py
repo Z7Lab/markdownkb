@@ -14,6 +14,7 @@ _resolver: Callable[[set[str]], set[str]] | None = None
 _tag_lister: Callable[[], list[str]] | None = None
 _tags_hook: Callable[[str, str], None] | None = None
 _file_tags_lister: Callable[[], list[dict]] | None = None
+_delete_hook: Callable[[str], None] | None = None
 
 
 def register_resolver(fn: Callable[[set[str]], set[str]]) -> None:
@@ -81,6 +82,12 @@ def get_all_file_tags() -> list[dict]:
     return _file_tags_lister()
 
 
+def register_delete_hook(fn: Callable[[str], None]) -> None:
+    """Register the callback invoked when a file is removed from the index."""
+    global _delete_hook
+    _delete_hook = fn
+
+
 def notify_tags_extracted(path: str, tags: str) -> None:
     """Called by the indexer when tags are parsed from frontmatter.
 
@@ -89,3 +96,13 @@ def notify_tags_extracted(path: str, tags: str) -> None:
     """
     if _tags_hook and tags:
         _tags_hook(path, tags)
+
+
+def notify_file_deleted(path: str) -> None:
+    """Called when a file is removed from the index.
+
+    Delegates to the registered hook (TagDB.remove_file) if present.
+    No-op if no tags plugin is active.
+    """
+    if _delete_hook:
+        _delete_hook(path)

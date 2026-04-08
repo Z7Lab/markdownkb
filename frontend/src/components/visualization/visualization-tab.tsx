@@ -538,12 +538,22 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
           </div>
         )}
 
-        {/* Empty state */}
+        {/* Empty state — no documents at all */}
         {!activeIsLoading && docmapData && docmapData.nodes.length === 0 && mode === "similarity" && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center text-muted-foreground">
               <p className="text-sm">No documents found</p>
               <p className="text-xs mt-1">Index some documents first, or change the scope filter</p>
+            </div>
+          </div>
+        )}
+
+        {/* Documents found but all filtered by threshold (no edges) */}
+        {!activeIsLoading && docmapData && docmapData.nodes.length > 0 && forceDocMapData.nodes.length === 0 && mode === "similarity" && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center text-muted-foreground space-y-2">
+              <p className="text-sm">{docmapData.nodes.length} document{docmapData.nodes.length === 1 ? "" : "s"} found, but no similarity connections at this threshold</p>
+              <p className="text-xs">Try lowering the similarity threshold, or broaden the scope to include more documents</p>
             </div>
           </div>
         )}

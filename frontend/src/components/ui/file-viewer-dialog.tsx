@@ -193,11 +193,9 @@ export function FileViewerDialog({
     if (!path) return
 
     try {
-      await api.post("/api/tags/apply", {
-        file_path: path,
+      await api.put("/api/files/tags", {
+        path: path,
         tags: newTags,
-        merge_with_existing: false,
-        create_backup: createBackup,
       })
 
       // Reload content to reflect changes (page 1 since tags may shift content)
