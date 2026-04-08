@@ -167,3 +167,27 @@ Most people use AI like a consumable. Ask a question, get an answer, close the t
 The markdown-first paradigm treats AI output as an asset, not a consumable. Every interaction that produces useful intelligence gets captured in a format that's versionable, queryable, and feedable back into future sessions. The cost of generating that intelligence is paid once. The value compounds indefinitely.
 
 Tokens are the most undervalued output in knowledge work today. They represent distilled reasoning that cost real compute to produce. Capturing them in markdown — the format AI natively speaks — is the simplest way to stop paying for the same intelligence twice.
+
+## Why Retrieval Still Matters
+
+There's a recurring claim that RAG is dead — that expanding context windows (1M+ tokens) make retrieval unnecessary. Just stuff everything in the prompt and let the model figure it out.
+
+This is partly right, for a specific class of problem. If you're working with a single codebase that fits in a context window, a coding agent with filesystem tools doesn't need vector search to find a function definition. It can grep, read files, navigate structure directly. For structured, bounded data with predictable organization, long context and tool use are often better than retrieval.
+
+But that's not the problem a knowledge base solves.
+
+A knowledge base holds unstructured, natural-language documents — decisions, research notes, architecture explanations, process docs, accumulated insights across years of work. Hundreds or thousands of files, written by different people at different times, using different terminology for related concepts. When you ask "how did we handle authentication?", the answer might live in a document titled "API Security Patterns" that never uses the word "authentication." It might span three documents that each cover part of the picture. Keyword search can't find it. Filesystem navigation can't find it. But semantic search — comparing the meaning of your question against the meaning of every chunk — can.
+
+The arguments against RAG and why they don't apply here:
+
+**"Long context replaces retrieval."** No context window covers 900 documents totaling millions of tokens. Even if it could, sending everything on every query is expensive and slow. Retrieval narrows to the 10 relevant chunks first, then the model reasons about a focused context instead of searching a haystack. The cost difference is orders of magnitude.
+
+**"Retrieval is lossy."** Naive retrieval is lossy. Chunking a document into 1500-token pieces and matching by vector similarity is imperfect. But the alternative — not retrieving at all and hoping the model's training data contains your specific internal knowledge — is worse. The model has never seen your architecture docs, your decision records, your process playbooks. Retrieval is the only way that knowledge reaches the model.
+
+**"Just give the agent tools."** Tools work for structured, navigable data. Your codebase has directories, filenames, function signatures — structure that tools can traverse. Your knowledge base has "that document someone wrote about the caching incident in March." There's no directory structure that makes that findable by tool use. Semantic search over embedded chunks is the right tool for this data shape.
+
+**"Naive RAG is dead."** This one is true. Simple chunk-and-retrieve with a single vector similarity score isn't enough. mdkb uses hybrid search (vector similarity + BM25 keyword matching), configurable chunking with heading-aware splitting, score thresholds, scope-based filtering with exclude patterns, and optional deep research (multi-angle MCTS synthesis). The retrieval pipeline matters — but the answer is better retrieval, not no retrieval.
+
+**Long context assumes cloud-scale hardware.** A 1M-token context window requires significant GPU memory just to hold the KV cache. Local models running on consumer hardware — the 8B quantized models that make local-first AI practical — typically run with 2K-8K context. Even 32K context on a local model demands substantially more RAM and slows inference. Retrieval sidesteps this entirely: embed your documents once (a CPU operation), then retrieve the 5-10 relevant chunks that fit comfortably in any context window. The model reasons over a focused, pre-filtered context instead of trying to hold your entire knowledge base in memory. This is why retrieval and local models are complementary — retrieval compensates for the smaller context window, and the smaller model compensates for retrieval's imperfection by applying reasoning to already-relevant content.
+
+The core insight: retrieval and long context aren't competing approaches. They solve different problems. Long context is for working deeply with a bounded set of documents you've already identified. Retrieval is for finding which documents are relevant in the first place, across a collection too large to read in full. A knowledge base needs retrieval. What it does with the retrieved context — that's where model capability matters.
