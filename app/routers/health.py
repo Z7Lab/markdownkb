@@ -19,18 +19,18 @@ router = APIRouter(prefix="/api", tags=["health"])
 @router.get("/health")
 @limiter.limit(STANDARD)
 def health(request: Request, store: VectorStore = Depends(get_store)):
-    degraded = getattr(request.app.state, "embedding_model_degraded", False)
+    embedding_missing = getattr(request.app.state, "embedding_model_missing", False)
     using_defaults = getattr(request.app.state, "using_default_config", False)
     auth_enabled = getattr(request.app.state, "auth_enabled", True)
     network_exposed = getattr(request.app.state, "network_exposed", False)
     result = {
-        "status": "degraded" if degraded else "ok",
+        "status": "ok",
         "chunks": store.count,
         "auth_enabled": auth_enabled,
         "network_exposed": network_exposed,
     }
-    if degraded:
-        result["embedding_model_degraded"] = True
+    if embedding_missing:
+        result["embedding_model_missing"] = True
     if using_defaults:
         result["using_defaults"] = True
     return result

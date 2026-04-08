@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api import create_app
 from app.config import Settings
-from app.embeddings.downloader import install_from_local, install_model, is_installed
+from app.embeddings.downloader import is_installed
 from app.embeddings.registry import MODELS, load_models
 from app.logbuffer import log_buffer
 from app.ratelimit import limiter
@@ -55,22 +55,17 @@ async def lifespan(app: FastAPI):
     # Load embedding model registry from config
     load_models(settings.model_configs)
 
-    # Auto-install the configured embedding model on first run
+    # Check embedding model — don't auto-download, let the user choose
     model_id = settings.embedding_model
     if not is_installed(model_id):
-        model_info = MODELS.get(model_id)
-        local_path = model_info.local_path if model_info else ""
-        try:
-            if local_path:
-                logger.info("Installing embedding model '%s' from local path: %s", model_id, local_path)
-                install_from_local(model_id, local_path)
-            else:
-                logger.info("Embedding model '%s' not found, downloading...", model_id)
-                install_model(model_id)
-            logger.info("Embedding model '%s' installed", model_id)
-        except Exception:
-            logger.exception("Failed to install embedding model '%s' — indexing will fail until it is installed", model_id)
-            app.state.embedding_model_degraded = True
+        logger.warning(
+            "Embedding model '%s' not installed — indexing and search disabled. "
+            "Go to Settings > Embedding Model to download one.",
+            model_id,
+        )
+        app.state.embedding_model_missing = True
+    else:
+        app.state.embedding_model_missing = False
 
     # Reset files stuck in "indexing" from a previous interrupted run
     reset_count = tracking.reset_incomplete()

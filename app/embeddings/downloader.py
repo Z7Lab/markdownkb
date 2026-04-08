@@ -156,17 +156,11 @@ def uninstall_model(model_id: str) -> bool:
     Returns True if files were deleted, False if nothing was found.
     """
     primary = model_dir(model_id)
-    removed = False
     if primary.exists():
         shutil.rmtree(primary)
         logger.info("Removed model directory: %s", primary)
-        removed = True
-    legacy = _LEGACY_CACHE / model_id
-    if legacy.exists():
-        shutil.rmtree(legacy)
-        logger.info("Removed legacy model directory: %s", legacy)
-        removed = True
-    return removed
+        return True
+    return False
 
 
 def list_models_with_status() -> list[dict]:
@@ -180,6 +174,7 @@ def list_models_with_status() -> list[dict]:
             "description": info.description,
             "installed": is_installed(info.model_id),
             "local_path": info.local_path,
+            "huggingface_repo": info.huggingface_repo,
         }
         for info in MODELS.values()
     ]

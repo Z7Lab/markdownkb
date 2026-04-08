@@ -169,6 +169,7 @@ export interface EmbeddingModel {
   description: string
   installed: boolean
   local_path: string
+  huggingface_repo: string
 }
 
 export interface TestPromptResult {

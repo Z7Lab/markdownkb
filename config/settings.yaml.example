@@ -40,7 +40,7 @@ embeddings:
   # For authenticated providers (Venice, OpenAI, etc.), set the API key via:
   #   secrets/embedding_api_key file (preferred) or EMBEDDING_API_KEY env var
 
-  # Available models — the active model is auto-downloaded on first startup.
+  # Available models — install from Settings > Embedding Model.
   # Add your own ONNX sentence-transformer models here.
   # Required fields: model_id, display_name, huggingface_repo, dimensions, max_seq_length
   # Optional: description, query_prefix, local_path, onnx_path, tokenizer_path, files

@@ -1,9 +1,20 @@
 # Embedding Models
 
-mdkb supports two embedding providers:
+Embedding models convert your documents into numerical vectors that power semantic search. They're **separate from the chat model** — you need an embedding model to index and search, but it doesn't need to be the same provider as your chat LLM.
 
-- **Local (default)** — ONNX models running on CPU. No external dependencies.
-- **Remote** — Ollama or any OpenAI-compatible embedding API on another machine.
+## What is ONNX?
+
+ONNX (Open Neural Network Exchange) is a portable model format that runs on any CPU without a GPU or external service. mdkb uses ONNX for local embeddings — the models are small (23-133 MB), fast, and work offline.
+
+Models are downloaded from [HuggingFace](https://huggingface.co) on first install via Settings > Embedding Model. They're stored in the data directory (`{data_directory}/models/`).
+
+## Providers
+
+mdkb supports three embedding providers:
+
+- **Local ONNX (default)** — runs on CPU, no external service needed, works offline
+- **Ollama** — use an Ollama embedding model (e.g. `nomic-embed-text`), local or remote
+- **OpenAI-compatible API** — any endpoint serving `/v1/embeddings` (Venice, OpenAI, Together, etc.)
 
 Configure the provider in Settings > Embedding Model, or in `config/settings.yaml` under the `embeddings:` section.
 
@@ -17,21 +28,20 @@ Point to an Ollama instance or OpenAI-compatible endpoint to offload embedding w
    ```bash
    ollama pull nomic-embed-text
    ```
-2. In mdkb Settings > Embedding Model, select "Remote (Ollama / API)"
+2. In mdkb Settings > Embedding Model, select **Ollama** from the Provider dropdown
 3. Set API Base to the Ollama URL (e.g. `http://192.168.x.x:11434`)
 4. Set Model to `nomic-embed-text`
-5. Click "Test Connection" to verify, then "Save"
+5. Click "Test" to verify, then "Save"
 
 ### OpenAI-compatible API (Venice, OpenAI, Together, Voyage, etc.)
 
 Any endpoint serving `POST /v1/embeddings` works — including cloud providers like Venice, OpenAI, Together, and Voyage.
 
-1. In mdkb Settings > Embedding Model, select "Remote (Ollama / API)"
-2. Set API Type to "OpenAI-compatible"
-3. Set API Base to the provider's URL (e.g. `https://api.venice.ai/api/v1`)
-4. Set Model to the embedding model name (e.g. `text-embedding-3-small`)
-5. Enter your API Key (required for authenticated providers)
-6. Click "Test Connection" to verify, then "Save"
+1. In mdkb Settings > Embedding Model, select **OpenAI-compatible API** from the Provider dropdown
+2. Set API Base to the provider's URL (e.g. `https://api.venice.ai/api/v1`)
+3. Set Model to the embedding model name (e.g. `text-embedding-3-small`)
+4. Enter your API Key (required for authenticated providers)
+5. Click "Test" to verify, then "Save"
 
 API keys can also be configured via Docker secrets (`secrets/embedding_api_key`) or environment variable (`EMBEDDING_API_KEY`), following the same pattern as chat model API keys.
 

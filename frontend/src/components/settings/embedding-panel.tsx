@@ -9,6 +9,24 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { api } from "@/lib/api"
 import type { EmbeddingModel } from "@/lib/types"
 
+const EMBEDDING_PROVIDERS = [
+  {
+    name: "local",
+    label: "Local (ONNX)",
+    desc: "Runs on CPU, no external service needed. Ships with the app — works out of the box.",
+  },
+  {
+    name: "ollama",
+    label: "Ollama",
+    desc: "Use an embedding model from your Ollama instance. The model must be pulled on the server first.",
+  },
+  {
+    name: "openai",
+    label: "OpenAI-compatible API",
+    desc: "Any embedding API with an OpenAI-compatible endpoint — OpenAI, Venice, Together, or a self-hosted server.",
+  },
+]
+
 export function EmbeddingPanel({
   models,
   activeModel,
@@ -39,22 +57,32 @@ export function EmbeddingPanel({
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [installing, setInstalling] = useState<string | null>(null)
 
-  const [provider, setProvider] = useState(initialProvider || "local")
+  // Map initial provider to our simplified list
+  const mapProvider = (p: string): string => {
+    if (p === "remote") {
+      return initialRemoteConfig?.api_type === "ollama" ? "ollama" : "openai"
+    }
+    return "local"
+  }
+
+  const [provider, setProvider] = useState(mapProvider(initialProvider))
   const [remoteModel, setRemoteModel] = useState(initialRemoteConfig?.model || "nomic-embed-text")
   const [remoteApiBase, setRemoteApiBase] = useState(initialRemoteConfig?.api_base || "")
-  const [remoteApiType, setRemoteApiType] = useState(initialRemoteConfig?.api_type || "ollama")
   const [remoteApiKey, setRemoteApiKey] = useState("")
   const [testStatus, setTestStatus] = useState("")
   const [saving, setSaving] = useState(false)
+
+  const isRemote = provider !== "local"
+  const apiType = provider === "ollama" ? "ollama" : "openai"
 
   const handleSaveProvider = useCallback(async () => {
     setSaving(true)
     try {
       await api.put("/api/settings/embedding-provider", {
-        provider,
+        provider: isRemote ? "remote" : "local",
         remote_model: remoteModel,
         api_base: remoteApiBase,
-        api_type: remoteApiType,
+        api_type: apiType,
         api_key: remoteApiKey,
       })
       setTestStatus("Saved")
@@ -63,7 +91,7 @@ export function EmbeddingPanel({
     } finally {
       setSaving(false)
     }
-  }, [provider, remoteModel, remoteApiBase, remoteApiType])
+  }, [isRemote, remoteModel, remoteApiBase, apiType, remoteApiKey])
 
   const handleTestRemote = useCallback(async () => {
     setTestStatus("Testing...")
@@ -71,14 +99,14 @@ export function EmbeddingPanel({
       const res = await api.post<{ ok: boolean; message: string; dimensions?: number }>("/api/settings/embedding-models/test-remote", {
         model: remoteModel,
         api_base: remoteApiBase,
-        api_type: remoteApiType,
+        api_type: apiType,
         api_key: remoteApiKey,
       })
       setTestStatus(res.message)
     } catch (err) {
       setTestStatus(`Error: ${(err as Error).message}`)
     }
-  }, [remoteModel, remoteApiBase, remoteApiType])
+  }, [remoteModel, remoteApiBase, apiType, remoteApiKey])
 
   async function handleInstall(modelId: string) {
     setInstalling(modelId)
@@ -93,6 +121,8 @@ export function EmbeddingPanel({
     await onSwitch(target)
   }
 
+  const providerInfo = EMBEDDING_PROVIDERS.find((p) => p.name === provider)
+
   return (
     <>
       <Card>
@@ -100,196 +130,220 @@ export function EmbeddingPanel({
           <CardTitle className="text-base">Embedding Model</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-3">
-            <div>
-              <label className="text-sm font-medium">Provider</label>
-              <div className="flex rounded-md border overflow-hidden mt-1">
-                <button
-                  type="button"
-                  className={`flex-1 text-xs py-2 px-3 transition-colors ${provider === "local" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
-                  onClick={() => setProvider("local")}
-                >
-                  Local (ONNX)
-                </button>
-                <button
-                  type="button"
-                  className={`flex-1 text-xs py-2 px-3 transition-colors ${provider === "remote" ? "bg-primary text-primary-foreground" : "hover:bg-accent"}`}
-                  onClick={() => setProvider("remote")}
-                >
-                  Remote (Ollama / API)
-                </button>
-              </div>
-            </div>
-
-            {provider === "remote" && (
-              <div className="space-y-3 p-3 border rounded-md">
-                <div>
-                  <label className="text-sm font-medium">API Type</label>
-                  <Select value={remoteApiType} onValueChange={setRemoteApiType}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ollama">Ollama</SelectItem>
-                      <SelectItem value="openai">OpenAI-compatible</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">API Base</label>
-                  <Input
-                    value={remoteApiBase}
-                    onChange={(e) => setRemoteApiBase(e.target.value)}
-                    placeholder={remoteApiType === "ollama" ? "http://192.168.x.x:11434" : "http://localhost:8080/v1"}
-                    className="mt-1"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {remoteApiType === "ollama"
-                      ? "Ollama instance URL. The embedding model must be pulled on that server."
-                      : "Any OpenAI-compatible embedding endpoint."}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Model</label>
-                  <Input
-                    value={remoteModel}
-                    onChange={(e) => setRemoteModel(e.target.value)}
-                    placeholder={remoteApiType === "ollama" ? "nomic-embed-text" : "text-embedding-3-small"}
-                    className="mt-1"
-                  />
-                </div>
-                {remoteApiType === "openai" && (
-                  <div>
-                    <label className="text-sm font-medium">API Key</label>
-                    <Input
-                      type="password"
-                      value={remoteApiKey}
-                      onChange={(e) => setRemoteApiKey(e.target.value)}
-                      placeholder="Enter API key or set EMBEDDING_API_KEY env var"
-                      className="mt-1"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Required for OpenAI, Venice, and other authenticated providers.
-                    </p>
-                  </div>
-                )}
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={handleTestRemote}>
-                    Test Connection
-                  </Button>
-                  <Button size="sm" onClick={handleSaveProvider} disabled={saving || !remoteApiBase}>
-                    {saving ? "Saving..." : "Save"}
-                  </Button>
-                </div>
-                {testStatus && (
-                  <pre className="text-xs bg-muted p-2 rounded whitespace-pre-wrap">{testStatus}</pre>
-                )}
-              </div>
-            )}
-
-            {provider === "local" && initialProvider === "remote" && (
-              <div className="flex justify-end">
-                <Button size="sm" onClick={handleSaveProvider} disabled={saving}>
-                  Switch to Local
-                </Button>
-              </div>
+          {/* Provider selection */}
+          <div>
+            <label className="text-sm font-medium">Provider</label>
+            <Select value={provider} onValueChange={setProvider}>
+              <SelectTrigger className="mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {EMBEDDING_PROVIDERS.map((p) => (
+                  <SelectItem key={p.name} value={p.name}>
+                    {p.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {providerInfo && (
+              <p className="text-xs text-muted-foreground mt-1.5">{providerInfo.desc}</p>
             )}
           </div>
-          {models.map((m) => {
-            const isActive = m.model_id === activeModel
-            return (
-              <div
-                key={m.model_id}
-                className="flex items-center justify-between gap-4 p-3 rounded-md border"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">{m.display_name}</span>
-                    {isActive && <Badge>Active</Badge>}
-                    {m.installed && !isActive && (
-                      <Badge variant="secondary">Installed</Badge>
-                    )}
-                    {!m.installed && (
-                      <Badge variant="outline">Not installed</Badge>
-                    )}
-                  </div>
+
+          {/* Remote config */}
+          {isRemote && (
+            <div className="space-y-3 p-3 border rounded-md">
+              <div>
+                <label className="text-sm font-medium">API Base</label>
+                <Input
+                  value={remoteApiBase}
+                  onChange={(e) => setRemoteApiBase(e.target.value)}
+                  placeholder={provider === "ollama" ? "http://localhost:11434" : "https://api.openai.com/v1"}
+                  className="mt-1"
+                />
+                {provider === "ollama" && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    {m.description} {m.dimensions}d, max {m.max_seq_length} tokens.
-                    {m.local_path && (
-                      <span className="inline-flex items-center gap-1 ml-1 text-muted-foreground" title={m.local_path}>
-                        <FolderOpen className="h-3 w-3" /> Local
-                      </span>
-                    )}
+                    Ollama instance URL. The embedding model must be pulled first
+                    (e.g. <code className="text-[10px]">ollama pull nomic-embed-text</code>).
+                    Docker users: use <code className="text-[10px]">http://host.docker.internal:11434</code>.
                   </p>
-                </div>
-                <div className="flex gap-2 shrink-0">
-                  {!m.installed && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleInstall(m.model_id)}
-                      disabled={installing !== null || switching}
-                    >
-                      {installing === m.model_id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : m.local_path ? (
-                        <FolderOpen className="h-4 w-4" />
-                      ) : (
-                        <Download className="h-4 w-4" />
-                      )}
-                      <span className="ml-1">
-                        {installing === m.model_id
-                          ? "Installing"
-                          : m.local_path
-                            ? "Copy"
-                            : "Download"}
-                      </span>
-                    </Button>
-                  )}
-                  {m.installed && !isActive && (
-                    <>
-                      <Button
-                        size="sm"
-                        onClick={() => setConfirmModel(m.model_id)}
-                        disabled={switching}
-                      >
-                        Use
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setConfirmDelete(m.model_id)}
-                        disabled={switching}
-                        title="Remove downloaded model"
-                      >
-                        <Trash2 className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                    </>
-                  )}
-                  {isActive && !switching && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setConfirmReindex(true)}
-                    >
-                      <RefreshCw className="h-4 w-4 mr-1" />
-                      Re-index
-                    </Button>
-                  )}
-                  {isActive && switching && (
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={onCancel}
-                    >
-                      <Square className="h-3.5 w-3.5 mr-1" />
-                      Stop
-                    </Button>
-                  )}
-                </div>
+                )}
+                {provider === "openai" && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Works with OpenAI, Venice (<code className="text-[10px]">https://api.venice.ai/api/v1</code>),
+                    Together, or any server exposing <code className="text-[10px]">/v1/embeddings</code>.
+                  </p>
+                )}
               </div>
-            )
-          })}
+              <div>
+                <label className="text-sm font-medium">Model</label>
+                <Input
+                  value={remoteModel}
+                  onChange={(e) => setRemoteModel(e.target.value)}
+                  placeholder={provider === "ollama" ? "nomic-embed-text" : "text-embedding-3-small"}
+                  className="mt-1"
+                />
+              </div>
+              {provider === "openai" && (
+                <div>
+                  <label className="text-sm font-medium">API Key</label>
+                  <Input
+                    type="password"
+                    value={remoteApiKey}
+                    onChange={(e) => setRemoteApiKey(e.target.value)}
+                    placeholder="Required for authenticated providers"
+                    className="mt-1"
+                  />
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleTestRemote} disabled={!remoteApiBase}>
+                  Test
+                </Button>
+                <Button size="sm" onClick={handleSaveProvider} disabled={saving || !remoteApiBase}>
+                  {saving ? "Saving..." : "Save"}
+                </Button>
+              </div>
+              {testStatus && (
+                <pre className="text-xs bg-muted p-2 rounded whitespace-pre-wrap">{testStatus}</pre>
+              )}
+            </div>
+          )}
+
+          {/* Switch back to local */}
+          {provider === "local" && initialProvider === "remote" && (
+            <div className="flex justify-end">
+              <Button size="sm" onClick={handleSaveProvider} disabled={saving}>
+                Switch to Local
+              </Button>
+            </div>
+          )}
+
+          {/* Local ONNX model list — only show when local is selected */}
+          {provider === "local" && (
+            <div className="space-y-3">
+              <div className="rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 p-3 space-y-2">
+                <p className="text-xs font-medium">What are embedding models?</p>
+                <p className="text-xs text-muted-foreground">
+                  Embedding models convert your documents into numerical vectors for semantic search.
+                  They're separate from the chat model — embeddings run locally via ONNX (a portable model format that works on any CPU, no GPU needed).
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Models are downloaded from{" "}
+                  <a href="https://huggingface.co" target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">
+                    HuggingFace
+                  </a>{" "}
+                  on first install. Switching models clears all embeddings and triggers a full re-index.
+                </p>
+              </div>
+              {models.map((m) => {
+                const isActive = m.model_id === activeModel
+                return (
+                  <div
+                    key={m.model_id}
+                    className="flex items-center justify-between gap-4 p-3 rounded-md border"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm">{m.display_name}</span>
+                        {isActive && <Badge>Active</Badge>}
+                        {m.installed && !isActive && (
+                          <Badge variant="secondary">Installed</Badge>
+                        )}
+                        {!m.installed && (
+                          <Badge variant="outline">Not installed</Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {m.description} {m.dimensions}d, max {m.max_seq_length} tokens.
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {m.local_path ? (
+                          <span className="inline-flex items-center gap-1" title={m.local_path}>
+                            <FolderOpen className="h-3 w-3" /> Local install
+                          </span>
+                        ) : m.huggingface_repo ? (
+                          <a
+                            href={`https://huggingface.co/${m.huggingface_repo}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
+                          >
+                            {m.huggingface_repo}
+                          </a>
+                        ) : null}
+                      </p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      {!m.installed && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleInstall(m.model_id)}
+                          disabled={installing !== null || switching}
+                        >
+                          {installing === m.model_id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : m.local_path ? (
+                            <FolderOpen className="h-4 w-4" />
+                          ) : (
+                            <Download className="h-4 w-4" />
+                          )}
+                          <span className="ml-1">
+                            {installing === m.model_id
+                              ? "Installing"
+                              : m.local_path
+                                ? "Copy"
+                                : "Download"}
+                          </span>
+                        </Button>
+                      )}
+                      {m.installed && !isActive && (
+                        <>
+                          <Button
+                            size="sm"
+                            onClick={() => setConfirmModel(m.model_id)}
+                            disabled={switching}
+                          >
+                            Use
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setConfirmDelete(m.model_id)}
+                            disabled={switching}
+                            title="Remove downloaded model"
+                          >
+                            <Trash2 className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </>
+                      )}
+                      {isActive && !switching && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setConfirmReindex(true)}
+                        >
+                          <RefreshCw className="h-4 w-4 mr-1" />
+                          Re-index
+                        </Button>
+                      )}
+                      {isActive && switching && (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={onCancel}
+                        >
+                          <Square className="h-3.5 w-3.5 mr-1" />
+                          Stop
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
 
           {status && (
             <div className="bg-muted p-3 rounded-md">

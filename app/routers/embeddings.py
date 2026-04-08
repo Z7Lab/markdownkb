@@ -128,7 +128,7 @@ def embedding_switch_status(request: Request):
         return dict(_switch_status)
 
 
-def _bg_install(model_id: str):
+def _bg_install(model_id: str, app_state=None):
     """Install embedding model in background thread, updating _switch_status."""
     def on_progress(frac: float, msg: str):
         with _switch_lock:
@@ -143,6 +143,9 @@ def _bg_install(model_id: str):
             install_model(model_id, progress=on_progress)
         with _switch_lock:
             _switch_status["result"] = f"Installed {model_id}"
+        # Clear the missing flag so the banner disappears
+        if app_state:
+            app_state.embedding_model_missing = False
     except (OSError, RuntimeError, ValueError) as e:
         logger.error("Failed to install embedding model %s: %s", model_id, e)
         with _switch_lock:
@@ -169,7 +172,7 @@ def install_embedding_model_endpoint(request: Request, req: EmbeddingModelReques
         _switch_status["message"] = f"Starting install of {req.model_id}..."
         _switch_status["result"] = ""
 
-    threading.Thread(target=_bg_install, args=(req.model_id,), daemon=True).start()
+    threading.Thread(target=_bg_install, args=(req.model_id, request.app.state), daemon=True).start()
     return {"status": "installing"}
 
 
