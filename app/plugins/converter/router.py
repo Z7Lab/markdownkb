@@ -1,8 +1,6 @@
-"""Converter endpoints — batch convert documents to markdown via Pandoc."""
+"""Converter endpoints — batch convert documents to markdown via markitdown."""
 
 import logging
-import shutil
-import subprocess
 import threading
 from pathlib import Path
 
@@ -19,86 +17,38 @@ router = APIRouter(prefix="/api/converter", tags=["converter"])
 
 # Supported input formats and their file extensions
 SUPPORTED_FORMATS = {
-    "docx": {"extensions": [".docx"], "label": "Microsoft Word", "pandoc_from": "docx"},
-    "pdf": {"extensions": [".pdf"], "label": "PDF", "pandoc_from": None},
-    "html": {"extensions": [".html", ".htm"], "label": "HTML", "pandoc_from": "html"},
-    "rst": {"extensions": [".rst"], "label": "reStructuredText", "pandoc_from": "rst"},
-    "txt": {"extensions": [".txt"], "label": "Plain Text", "pandoc_from": "plain"},
-    "epub": {"extensions": [".epub"], "label": "EPUB", "pandoc_from": "epub"},
-    "odt": {"extensions": [".odt"], "label": "LibreOffice", "pandoc_from": "odt"},
-    "rtf": {"extensions": [".rtf"], "label": "Rich Text", "pandoc_from": "rtf"},
-    "csv": {"extensions": [".csv"], "label": "CSV", "pandoc_from": "csv"},
+    "docx": {"extensions": [".docx"], "label": "Microsoft Word"},
+    "pdf": {"extensions": [".pdf"], "label": "PDF"},
+    "pptx": {"extensions": [".pptx"], "label": "PowerPoint"},
+    "xlsx": {"extensions": [".xlsx"], "label": "Excel (xlsx)"},
+    "xls": {"extensions": [".xls"], "label": "Excel (xls)"},
+    "html": {"extensions": [".html", ".htm"], "label": "HTML"},
+    "epub": {"extensions": [".epub"], "label": "EPUB"},
+    "csv": {"extensions": [".csv"], "label": "CSV"},
+    "txt": {"extensions": [".txt"], "label": "Plain Text"},
+    "rst": {"extensions": [".rst"], "label": "reStructuredText"},
+    "rtf": {"extensions": [".rtf"], "label": "Rich Text"},
+    "odt": {"extensions": [".odt"], "label": "LibreOffice"},
+    "ipynb": {"extensions": [".ipynb"], "label": "Jupyter Notebook"},
+    "msg": {"extensions": [".msg"], "label": "Outlook Message"},
 }
 
 ALL_EXTENSIONS = {ext for fmt in SUPPORTED_FORMATS.values() for ext in fmt["extensions"]}
 
 
-def _pandoc_available() -> bool:
-    return shutil.which("pandoc") is not None
-
-
-def _pdftotext_available() -> bool:
-    return shutil.which("pdftotext") is not None
-
-
 def _convert_file(source: Path, dest: Path) -> str | None:
     """Convert a single file to markdown. Returns error message or None on success."""
-    suffix = source.suffix.lower()
-
-    if suffix == ".pdf":
-        # PDF: try pdftotext first (cleaner), fall back to pandoc
-        if _pdftotext_available():
-            try:
-                result = subprocess.run(
-                    ["pdftotext", "-layout", str(source), "-"],
-                    capture_output=True, text=True, timeout=120,
-                )
-                if result.returncode == 0 and result.stdout.strip():
-                    dest.write_text(result.stdout, encoding="utf-8")
-                    return None
-            except subprocess.TimeoutExpired:
-                return f"Timeout converting {source.name}"
-
-        # Fall back to pandoc for PDF
-        if _pandoc_available():
-            try:
-                result = subprocess.run(
-                    ["pandoc", str(source), "-t", "markdown", "-o", str(dest)],
-                    capture_output=True, text=True, timeout=120,
-                )
-                if result.returncode != 0:
-                    return f"pandoc error: {result.stderr[:200]}"
-                return None
-            except subprocess.TimeoutExpired:
-                return f"Timeout converting {source.name}"
-
-        return "No PDF converter available (install pandoc or poppler-utils)"
-
-    # All other formats: use pandoc
-    if not _pandoc_available():
-        return "pandoc is not installed"
-
-    # Find the pandoc input format
-    pandoc_from = None
-    for fmt_info in SUPPORTED_FORMATS.values():
-        if suffix in fmt_info["extensions"]:
-            pandoc_from = fmt_info["pandoc_from"]
-            break
-
-    if pandoc_from is None:
-        return f"Unsupported format: {suffix}"
-
-    cmd = ["pandoc", str(source), "-t", "markdown", "-o", str(dest)]
-    if pandoc_from != "plain":
-        cmd.extend(["-f", pandoc_from])
+    from markitdown import MarkItDown
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-        if result.returncode != 0:
-            return f"pandoc error: {result.stderr[:200]}"
-        return None
-    except subprocess.TimeoutExpired:
-        return f"Timeout converting {source.name}"
+        md = MarkItDown()
+        result = md.convert_local(source)
+        if result.text_content:
+            dest.write_text(result.text_content, encoding="utf-8")
+            return None
+        return f"No content extracted from {source.name}"
+    except Exception as e:
+        return f"Conversion failed: {e}"
 
 
 # -- Background conversion state --
@@ -193,7 +143,7 @@ class ConvertRequest(BaseModel):
 @router.get("/formats")
 @limiter.limit(STANDARD)
 def list_formats(request: Request):
-    """List supported input formats and conversion availability."""
+    """List supported input formats."""
     return {
         "formats": {
             name: {
@@ -202,8 +152,6 @@ def list_formats(request: Request):
             }
             for name, info in SUPPORTED_FORMATS.items()
         },
-        "pandoc_available": _pandoc_available(),
-        "pdftotext_available": _pdftotext_available(),
     }
 
 
@@ -215,9 +163,6 @@ def start_conversion(
     settings: Settings = Depends(get_settings),
 ):
     """Start batch conversion of files in a directory to markdown."""
-    if not _pandoc_available():
-        raise HTTPException(503, "pandoc is not installed on this server")
-
     src = Path(req.source_dir)
     if not src.is_dir():
         raise HTTPException(400, f"Source directory not found: {req.source_dir}")
@@ -231,7 +176,6 @@ def start_conversion(
         for s in settings.sources
     )
     if not in_source:
-        # Allow writing to any existing writable path (for bucket scenarios)
         if not dst.exists():
             try:
                 dst.mkdir(parents=True, exist_ok=True)

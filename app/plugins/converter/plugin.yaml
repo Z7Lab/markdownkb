@@ -1,24 +1,12 @@
 name: converter
 display_name: File Converter
-description: Batch convert documents (DOCX, PDF, HTML, etc.) to markdown using Pandoc. Save to watched directories or buckets for indexing.
-version: 1.0.0
+description: Batch convert documents (DOCX, PDF, PPTX, XLSX, HTML, EPUB, CSV, etc.) to markdown using Microsoft's markitdown library. No system dependencies required.
+version: 2.0.0
 author: markdownkb
 icon: file-edit
 category: integration
 feature_flag: converter
 requires: []
-
-# System binaries this plugin needs. Checked at runtime — the UI shows
-# a warning when any are missing.
-system_dependencies:
-  - name: pandoc
-    binary: pandoc
-    required: true
-    install_hint: "apt install pandoc (or brew install pandoc on macOS)"
-  - name: pdftotext
-    binary: pdftotext
-    required: false
-    install_hint: "apt install poppler-utils (optional, improves PDF conversion)"
 
 endpoints:
   - method: GET
