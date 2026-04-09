@@ -1,18 +1,13 @@
 """Source directory, project root, and ignore pattern endpoints."""
 
 import logging
-import os
 from pathlib import Path
-
-
-def _in_docker() -> bool:
-    """Detect if running inside a Docker container."""
-    return os.path.exists("/.dockerenv") or os.environ.get("MARKDOWNKB_DATA_DIR") == "/data"
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.config import Settings
 from app.deps import get_settings, get_store, get_tracking, get_watcher
+from app.config.docker import in_docker, write_compose_override
 from app.ratelimit import STANDARD, limiter
 from app.schemas import (
     AddProjectRootRequest,
@@ -45,6 +40,15 @@ def _watch_and_index(watcher, path: str):
         threading.Thread(target=_index_safe, daemon=True).start()
 
 
+def _sync_compose_override(settings: Settings):
+    """Regenerate compose.override.yml from current source configs."""
+    try:
+        project_root = settings._path.resolve().parent.parent
+        write_compose_override(settings.source_configs, project_root)
+    except Exception:
+        logger.debug("Could not update compose.override.yml", exc_info=True)
+
+
 # -- Sources --
 
 @router.get("/sources")
@@ -56,10 +60,10 @@ def get_sources(request: Request, settings: Settings = Depends(get_settings)):
     result: dict = {"sources": sources}
     if inaccessible:
         result["inaccessible"] = inaccessible
-        if _in_docker():
+        if in_docker():
             result["message"] = (
                 "Some sources are not mounted into the container. "
-                "Add volume mounts to compose.override.yml and restart: make down && make up"
+                "Restart to apply: make down && make up"
             )
     return result
 
@@ -92,11 +96,13 @@ def add_source(
 
     result: dict = {"sources": settings.sources}
 
-    if not accessible and _in_docker():
+    _sync_compose_override(settings)
+
+    if not accessible and in_docker():
         result["docker_restart_required"] = True
         result["message"] = (
-            f"Source added to config but '{req.path}' is not accessible inside the container. "
-            "Add a volume mount and restart: make down && make up"
+            f"Source added to config. '{req.path}' is not accessible inside the container yet. "
+            "Restart to mount it: make down && make up"
         )
 
     return result
@@ -129,6 +135,7 @@ def remove_source(
 
     settings.remove_source(req.path)
     settings.save()
+    _sync_compose_override(settings)
     return {"sources": settings.sources, "unindexed_count": removed_count}
 
 

@@ -17,6 +17,19 @@ class SourcesMixin:
         return {"path": entry.get("path", ""), "writable": entry.get("writable", True)}
 
     @property
+    def source_configs(self) -> list[dict]:
+        """Return all explicit source entries as dicts with resolved paths.
+
+        Each dict has ``path`` (resolved) and ``writable`` (bool).
+        """
+        result = []
+        for entry in self._data.get("sources", []):
+            cfg = self._source_entry(entry)
+            cfg["path"] = self._resolve_path(cfg["path"])
+            result.append(cfg)
+        return result
+
+    @property
     def explicit_sources(self) -> list[str]:
         """Return resolved paths for explicitly configured sources only."""
         return [
