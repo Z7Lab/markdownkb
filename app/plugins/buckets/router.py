@@ -25,7 +25,7 @@ class BucketSource(BaseModel):
 
 class CreateBucketRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
-    sources: list[BucketSource] = Field(..., min_length=1)
+    sources: list[BucketSource] = Field(default_factory=list)
     expires_in: int | None = Field(None, ge=60, description="Seconds until auto-delete")
 
 
@@ -195,6 +195,55 @@ def list_bucket_files(
                         file_list.append({"path": str(match), "title": "", "chunk_count": 0})
 
     return {"files": file_list, "total": len(file_list), "indexing": indexing}
+
+
+@router.get("/buckets/{bucket_id}/file")
+@limiter.limit(STANDARD)
+def read_bucket_file(
+    request: Request,
+    bucket_id: str,
+    path: str,
+    svc: BucketService = Depends(_get_bucket_service),
+):
+    """Read a file's full content from a bucket.
+
+    Reconstructs the document from stored chunks, ordered by chunk_index.
+    Works for both filesystem-sourced and pushed (virtual) documents.
+    """
+    record = svc.db.resolve(bucket_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Bucket not found")
+    store = svc.get_store(record["id"])
+    result = store._collection.get(
+        where={"source_path": path},
+        include=["documents", "metadatas"],
+    )
+    if not result["ids"]:
+        raise HTTPException(status_code=404, detail=f"File not found in bucket: {path}")
+
+    # Sort by chunk_index and reconstruct
+    chunks = sorted(
+        zip(result["documents"], result["metadatas"]),
+        key=lambda x: x[1].get("chunk_index", 0),
+    )
+
+    # Strip breadcrumb prefix from each chunk to get clean content
+    parts = []
+    for doc, _meta in chunks:
+        lines = doc.split("\n", 2)
+        if lines[0].startswith("From:") and len(lines) > 2:
+            parts.append(lines[2])
+        else:
+            parts.append(doc)
+
+    title = chunks[0][1].get("title", "") if chunks else ""
+
+    return {
+        "path": path,
+        "title": title,
+        "content": "\n\n".join(parts),
+        "chunk_count": len(chunks),
+    }
 
 
 @router.delete("/buckets/{bucket_id}")

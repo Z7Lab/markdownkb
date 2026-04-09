@@ -93,14 +93,22 @@ def create_document(
 
     if req.source:
         resolved_source = str(Path(req.source).resolve())
-        if resolved_source not in [str(Path(s).resolve()) for s in sources]:
+        resolved_sources = [str(Path(s).resolve()) for s in sources]
+        if resolved_source not in resolved_sources:
             raise HTTPException(
                 400,
-                f"'{req.source}' is not a configured source directory",
+                f"'{req.source}' is not a configured source directory. "
+                f"Available: {resolved_sources}",
             )
         target_dir = Path(resolved_source)
-    else:
+    elif len(sources) == 1:
         target_dir = Path(sources[0])
+    else:
+        raise HTTPException(
+            400,
+            "Multiple source directories configured — 'source' field is required. "
+            f"Available: {[str(Path(s).resolve()) for s in sources]}",
+        )
 
     full_path = target_dir / relative
 
@@ -145,11 +153,22 @@ def delete_document(
 
     if source:
         resolved_source = str(Path(source).resolve())
-        if resolved_source not in [str(Path(s).resolve()) for s in sources]:
-            raise HTTPException(400, f"'{source}' is not a configured source directory")
+        resolved_sources = [str(Path(s).resolve()) for s in sources]
+        if resolved_source not in resolved_sources:
+            raise HTTPException(
+                400,
+                f"'{source}' is not a configured source directory. "
+                f"Available: {resolved_sources}",
+            )
         target_dir = Path(resolved_source)
-    else:
+    elif len(sources) == 1:
         target_dir = Path(sources[0])
+    else:
+        raise HTTPException(
+            400,
+            "Multiple source directories configured — 'source' parameter is required. "
+            f"Available: {[str(Path(s).resolve()) for s in sources]}",
+        )
 
     full_path = target_dir / relative
 
