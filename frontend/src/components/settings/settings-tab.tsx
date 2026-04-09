@@ -49,6 +49,7 @@ export function SettingsTab() {
     settings,
     providerStatus,
     modelStatus,
+    clearStatus,
     embeddingModels,
     embeddingStatus,
     embeddingSwitching,
@@ -151,6 +152,7 @@ export function SettingsTab() {
                 onPullModel={pullOllamaModel}
                 onCancelPull={cancelPull}
                 onFetchOllamaStatus={fetchOllamaStatus}
+                onClearStatus={clearStatus}
               />
             )}
             {activeSection === "search" && (

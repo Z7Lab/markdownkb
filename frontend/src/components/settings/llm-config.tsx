@@ -46,6 +46,7 @@ export function LlmConfig({
   onPullModel,
   onCancelPull,
   onFetchOllamaStatus,
+  onClearStatus,
 }: {
   settings: AppSettings
   providerStatus: string
@@ -60,6 +61,7 @@ export function LlmConfig({
   onPullModel: (modelName: string, apiBase?: string) => Promise<void>
   onCancelPull: () => void
   onFetchOllamaStatus: () => Promise<{ reachable: boolean; api_base: string; starter_models: { name: string; description: string }[] }>
+  onClearStatus?: () => void
 }) {
   const [provider, setProvider] = useState(settings.active_provider)
   const [model, setModel] = useState(settings.active_model)
@@ -198,6 +200,7 @@ export function LlmConfig({
     setModels([])
     setCustomMode(false)
     userPickedModel.current = false
+    onClearStatus?.()
     const saved = configuredMap.get(name)
     if (saved) {
       setModel(saved.model)

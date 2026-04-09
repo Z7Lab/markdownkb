@@ -168,9 +168,15 @@ export function useProviderSettings(reload: () => Promise<boolean>) {
     setPullProgress((p) => ({ ...p, pulling: false, status: "Cancelled" }))
   }, [])
 
+  const clearStatus = useCallback(() => {
+    setProviderStatus("")
+    setModelStatus("")
+  }, [])
+
   return {
     providerStatus,
     modelStatus,
+    clearStatus,
     saveProvider,
     testConnection,
     refreshModels,
