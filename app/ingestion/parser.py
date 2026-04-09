@@ -96,6 +96,55 @@ def parse_markdown(filepath: str,
     return result
 
 
+def parse_markdown_content(
+    raw: str, virtual_path: str, source_root: str = "",
+) -> list[Chunk]:
+    """Parse raw markdown text into header-based chunks.
+
+    Like parse_markdown but takes content directly instead of reading
+    from disk.  Used for bucket inline document uploads where the file
+    doesn't exist on the server's filesystem.
+    """
+    try:
+        post = frontmatter.loads(raw)
+        front = dict(post.metadata) if post.metadata else {}
+        content = post.content
+    except yaml.YAMLError:
+        front = {}
+        content = raw
+
+    chunks = _split_by_headers(content)
+
+    result: list[Chunk] = []
+    for i, (heading, body) in enumerate(chunks):
+        text = body.strip()
+        if not text:
+            continue
+
+        breadcrumb = _doc_breadcrumb(virtual_path, source_root, heading)
+        if heading:
+            text = f"{breadcrumb}\n\n# {heading}\n\n{text}"
+        else:
+            text = f"{breadcrumb}\n\n{text}"
+
+        metadata = {
+            "source_path": virtual_path,
+            "source_root": source_root,
+            "heading": heading or f"section_{i}",
+            "chunk_index": i,
+            "frontmatter": front,
+        }
+
+        if front.get("title"):
+            metadata["title"] = front["title"]
+        if front.get("tags"):
+            metadata["tags"] = front["tags"]
+
+        result.append(Chunk(content=text, metadata=metadata))
+
+    return result
+
+
 def _split_by_headers(
     content: str,
 ) -> list[tuple[str, str]]:

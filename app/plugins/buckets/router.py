@@ -42,6 +42,15 @@ class AddToBucketRequest(BaseModel):
     sources: list[BucketSource] = Field(..., min_length=1)
 
 
+class BucketDocument(BaseModel):
+    name: str = Field(..., min_length=1, max_length=500, description="Virtual filename (e.g. 'notes.md')")
+    content: str = Field(..., min_length=1, max_length=500000, description="Raw markdown content")
+
+
+class PushDocumentsRequest(BaseModel):
+    documents: list[BucketDocument] = Field(..., min_length=1, max_length=50)
+
+
 class UpdateBucketRequest(BaseModel):
     expires_in: int | None = Field(None, description="Seconds from now, or null for permanent")
 
@@ -252,3 +261,27 @@ def add_to_bucket(
     except Exception as e:
         logger.error("Bucket add failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Bucket add failed")
+
+
+@router.post("/buckets/{bucket_id}/documents")
+@limiter.limit(STANDARD)
+def push_documents(
+    request: Request,
+    bucket_id: str,
+    req: PushDocumentsRequest,
+    svc: BucketService = Depends(_get_bucket_service),
+):
+    """Push markdown documents into a bucket by content — no filesystem access needed.
+
+    Each document has a name (virtual filename) and content (raw markdown).
+    Use this when the caller is on a different machine and can't provide
+    a local directory path.
+    """
+    try:
+        docs = [d.model_dump() for d in req.documents]
+        return svc.push_documents(bucket_id, docs)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error("Bucket push failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Bucket push failed")

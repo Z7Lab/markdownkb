@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 from app.embeddings.embedder import embed_texts
-from app.ingestion.parser import parse_and_chunk
+from app.ingestion.parser import parse_and_chunk, parse_markdown_content, chunk_text, Chunk
 from app.ingestion.scanner import scan_sources
 from app.rag.retriever import Retriever, SearchResult
 from app.storage.vectorstore import VectorStore
@@ -195,6 +195,96 @@ class BucketService:
 
         logger.info(
             "Bucket '%s': added %d files (%d chunks), skipped %d existing",
+            bucket_name, added_files, len(all_ids), skipped_files,
+        )
+
+        return {
+            "bucket_id": bucket_id,
+            "bucket_name": bucket_name,
+            "added_files": added_files,
+            "added_chunks": len(all_ids),
+            "skipped_files": skipped_files,
+            "total_files": new_file_count,
+            "total_chunks": new_chunk_count,
+        }
+
+    # -- Push (inline content, no filesystem) ---------------------------------
+
+    def push_documents(
+        self,
+        bucket: str,
+        documents: list[dict],
+    ) -> dict:
+        """Push markdown documents into a bucket by content (no filesystem access needed).
+
+        Each document dict must have ``name`` (virtual filename ending in .md)
+        and ``content`` (raw markdown text).  Documents with a name that already
+        exists in the bucket are skipped.
+        """
+        record = self._db.resolve(bucket)
+        if not record:
+            raise ValueError(f"Bucket not found: {bucket}")
+
+        bucket_id = record["id"]
+        bucket_name = record["name"]
+
+        store = self.get_store(bucket_id)
+        existing_paths: set[str] = set()
+        for meta in store.get_all_metadatas():
+            path = meta.get("source_path", "")
+            if path:
+                existing_paths.add(path)
+
+        all_ids: list[str] = []
+        all_docs: list[str] = []
+        all_metas: list[dict] = []
+        added_files = 0
+        skipped_files = 0
+
+        for doc in documents:
+            name = doc.get("name", "")
+            content = doc.get("content", "")
+            if not name or not content:
+                continue
+            if not name.endswith(".md"):
+                name = f"{name}.md"
+
+            virtual_path = f"bucket://{bucket_name}/{name}"
+            if virtual_path in existing_paths:
+                skipped_files += 1
+                continue
+
+            raw_chunks = parse_markdown_content(content, virtual_path, source_root=f"bucket://{bucket_name}")
+            sized_chunks: list[Chunk] = []
+            global_idx = 0
+            for chunk in raw_chunks:
+                sub_texts = chunk_text(chunk.content, 1500, 150)
+                for sub in sub_texts:
+                    meta = dict(chunk.metadata)
+                    meta["chunk_index"] = global_idx
+                    sized_chunks.append(Chunk(content=sub, metadata=meta))
+                    global_idx += 1
+
+            if not sized_chunks:
+                continue
+
+            added_files += 1
+            for i, chunk in enumerate(sized_chunks):
+                chunk_id = f"bucket:{bucket_name}:{virtual_path}:{i}"
+                all_ids.append(chunk_id)
+                all_docs.append(chunk.content)
+                all_metas.append(chunk.metadata)
+
+        if all_docs:
+            embeddings = embed_texts(all_docs, self._embedding_model, remote_config=self._remote_config)
+            store.add(all_ids, all_docs, embeddings, all_metas)
+
+        new_file_count = record["file_count"] + added_files
+        new_chunk_count = record["chunk_count"] + len(all_ids)
+        self._db.update_counts(bucket_id, new_file_count, new_chunk_count)
+
+        logger.info(
+            "Bucket '%s': pushed %d documents (%d chunks), skipped %d existing",
             bucket_name, added_files, len(all_ids), skipped_files,
         )
 
