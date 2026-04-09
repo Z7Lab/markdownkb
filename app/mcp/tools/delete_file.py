@@ -48,6 +48,14 @@ def handler(path: str) -> dict:
     if not in_source:
         raise ValueError("File is not within a configured source directory")
 
+    # Check writable flag on the matching source
+    if not settings.is_source_writable(resolved):
+        # Check parent directories too
+        for s in settings.sources:
+            s_resolved = str(Path(s).resolve())
+            if resolved.startswith(s_resolved + "/") and not settings.is_source_writable(s_resolved):
+                raise ValueError(f"Source '{s_resolved}' is read-only (writable: false in settings)")
+
     file_path = Path(resolved)
     if not file_path.exists():
         raise ValueError(f"File not found: {resolved}")

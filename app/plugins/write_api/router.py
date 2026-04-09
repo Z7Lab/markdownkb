@@ -1,6 +1,7 @@
 """Write API — create or update markdown documents via HTTP."""
 
 import logging
+import os
 import re
 from pathlib import Path
 
@@ -110,6 +111,25 @@ def create_document(
             f"Available: {[str(Path(s).resolve()) for s in sources]}",
         )
 
+    # Check writable flag
+    if not settings.is_source_writable(str(target_dir)):
+        raise HTTPException(
+            403,
+            f"Source '{target_dir}' is read-only (writable: false in settings)",
+        )
+
+    # Check path is accessible on disk
+    if not target_dir.exists():
+        raise HTTPException(
+            422,
+            f"Source directory does not exist or is not accessible: {target_dir}",
+        )
+    if not os.access(target_dir, os.W_OK):
+        raise HTTPException(
+            422,
+            f"Source directory is not writable on disk: {target_dir}",
+        )
+
     full_path = target_dir / relative
 
     # Guard against overwriting without explicit flag
@@ -168,6 +188,12 @@ def delete_document(
             400,
             "Multiple source directories configured — 'source' parameter is required. "
             f"Available: {[str(Path(s).resolve()) for s in sources]}",
+        )
+
+    if not settings.is_source_writable(str(target_dir)):
+        raise HTTPException(
+            403,
+            f"Source '{target_dir}' is read-only (writable: false in settings)",
         )
 
     full_path = target_dir / relative

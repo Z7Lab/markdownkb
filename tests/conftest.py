@@ -141,6 +141,13 @@ class FakeSettings:
         existing = self._services.setdefault(service_name, {})
         existing.update(config)
 
+    def is_source_writable(self, path):
+        return True
+
+    @property
+    def writable_sources(self):
+        return list(self.sources)
+
     def add_source(self, path):
         self.sources.append(path)
 

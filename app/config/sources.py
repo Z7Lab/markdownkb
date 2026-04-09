@@ -7,11 +7,20 @@ class SourcesMixin:
     """Mixin providing source directory, project root, and ignore pattern management."""
 
     # --- Sources ---
+
+    def _source_entry(self, entry) -> dict:
+        """Return a source config dict with defaults applied.
+
+        Each source entry must be a dict with ``path`` (required) and
+        ``writable`` (default True).
+        """
+        return {"path": entry.get("path", ""), "writable": entry.get("writable", True)}
+
     @property
     def explicit_sources(self) -> list[str]:
         """Return resolved paths for explicitly configured sources only."""
         return [
-            self._resolve_path(s)
+            self._resolve_path(self._source_entry(s)["path"])
             for s in self._data.get("sources", [])
         ]
 
@@ -32,6 +41,29 @@ class SourcesMixin:
     def sources(self, value: list[str]):
         """Set the list of explicit source directories."""
         self._data["sources"] = value
+
+    def is_source_writable(self, path: str) -> bool:
+        """Check whether a source directory allows writes.
+
+        Returns False if the source is configured with ``writable: false``.
+        Returns True for sources not explicitly configured (project roots,
+        unknown paths) — the caller is responsible for checking that the
+        path is actually a configured source before writing.
+        """
+        resolved = self._resolve_path(path)
+        for entry in self._data.get("sources", []):
+            cfg = self._source_entry(entry)
+            if self._resolve_path(cfg["path"]) == resolved:
+                return cfg["writable"]
+        return True  # Not an explicit source — defer to caller
+
+    @property
+    def writable_sources(self) -> list[str]:
+        """Return resolved paths for sources that allow writes."""
+        return [
+            path for path in self.sources
+            if self.is_source_writable(path)
+        ]
 
     def add_source(self, path: str):
         """Add a source directory if not already present."""

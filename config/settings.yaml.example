@@ -1,9 +1,13 @@
 # MarkdownKB configuration — copy this file to settings.yaml and edit as needed:
 #   cp config/settings.yaml.example config/settings.yaml
 
-# Directories to watch for markdown files
+# Directories to watch for markdown files.
+# Each source has a path and an optional writable flag (default: true).
+# Set writable: false to prevent the write API and MCP save_file from
+# writing to that directory.
 sources:
-- ./docs
+- path: ./docs
+  writable: false
 
 # Project roots — auto-discover docs in cloned repositories
 # Each entry scans immediate subdirectories for files matching include patterns.

@@ -11,7 +11,7 @@ import yaml
 def config_dir(tmp_path):
     """Create a temp config directory with a settings.yaml (new format)."""
     config = {
-        "sources": ["/tmp/docs"],
+        "sources": [{"path": "/tmp/docs", "writable": True}],
         "core": {"rag_chat": True},
         "mcp": {},
         "plugins": {

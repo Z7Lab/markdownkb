@@ -67,8 +67,20 @@ def handler(
         if resolved_source not in [str(Path(s).resolve()) for s in sources]:
             raise ValueError(f"'{source}' is not a configured source directory")
         target_dir = Path(resolved_source)
-    else:
+    elif len(sources) == 1:
         target_dir = Path(sources[0])
+    else:
+        writable = settings.writable_sources
+        raise ValueError(
+            f"Multiple source directories configured — 'source' is required. "
+            f"Writable sources: {writable}"
+        )
+
+    if not settings.is_source_writable(str(target_dir)):
+        raise ValueError(f"Source '{target_dir}' is read-only (writable: false in settings)")
+
+    if not target_dir.exists():
+        raise ValueError(f"Source directory does not exist or is not accessible: {target_dir}")
 
     full_path = target_dir / relative
 
