@@ -4,12 +4,10 @@ from .generator import (
     apply_tags_to_file,
     backup_file,
     format_tags_for_frontmatter,
-    generate_tags_from_content,
     get_existing_tags,
     get_similar_document_tags,
     preview_frontmatter_changes,
     read_markdown_with_frontmatter,
-    restore_from_backup,
     write_markdown_with_frontmatter,
 )
 from .llm import (
@@ -27,8 +25,6 @@ __all__ = [
     "preview_frontmatter_changes",
     "apply_tags_to_file",
     "backup_file",
-    "restore_from_backup",
-    "generate_tags_from_content",
     "get_similar_document_tags",
     # LLM functions
     "generate_tags_with_llm",

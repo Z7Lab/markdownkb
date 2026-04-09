@@ -1,7 +1,6 @@
 """Plugin management endpoints — list, install, uninstall, configure."""
 
 import logging
-import os
 import re
 import shutil
 import subprocess

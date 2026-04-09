@@ -1,6 +1,5 @@
 """Tests for settings migration from legacy features: layout to new structure."""
 
-import tempfile
 from pathlib import Path
 
 import yaml

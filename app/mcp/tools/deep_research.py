@@ -60,8 +60,6 @@ def handler(
     best_plan = result.get("plan", "")
 
     # Gather source documents from the best path
-    from app.planner.nodes import PlanNode
-    all_sources: list[str] = []
     # Get chunks for context (scoped to match the MCTS search)
     chunks = retriever.search(
         query, top_k=10,

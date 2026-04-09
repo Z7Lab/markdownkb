@@ -332,16 +332,3 @@ class FileWatcher:
         index_directory(path, self._settings, self._store, self._tracking)
 
 
-def start_watching(
-    settings: Settings, store: VectorStore,
-    tracking: TrackingDB,
-) -> FileWatcher:
-    """Start the file system observer for all configured sources.
-
-    Returns the :class:`FileWatcher` instance so callers can add
-    directories at runtime via :meth:`FileWatcher.add_directory`.
-    """
-    watcher = FileWatcher(settings, store, tracking)
-    watcher.start()
-    watcher.run_forever()
-    return watcher

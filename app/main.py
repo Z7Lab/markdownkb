@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api import create_app
 from app.config import Settings
 from app.embeddings.downloader import is_installed
-from app.embeddings.registry import MODELS, load_models
+from app.embeddings.registry import load_models
 from app.logbuffer import log_buffer
 from app.ratelimit import limiter
 from app.ingestion.indexer import run_index

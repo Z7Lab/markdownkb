@@ -1,10 +1,6 @@
 """Tests for MCP tool discovery, read-only mode, and retrieve_documents tool."""
 
-import types
-from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 from tests.conftest import FakeResult, FakeSettings
 

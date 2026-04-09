@@ -13,7 +13,7 @@ from app.planner.mcts import MCTSPlanner
 from app.rag.llm import get_streaming_completion
 from app.rag.prompts import format_context
 from app.rag.retriever import Retriever
-from app.services.chat_service import extract_unique_sources, strip_thinking
+from app.services.chat_service import strip_thinking
 from app.utils import sse
 
 logger = logging.getLogger(__name__)

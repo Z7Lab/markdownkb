@@ -1,7 +1,6 @@
 """Security-focused tests: path traversal, input validation, API key auth."""
 
 import threading
-from dataclasses import dataclass, field
 from unittest.mock import MagicMock
 
 import pytest

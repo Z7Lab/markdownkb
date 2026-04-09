@@ -7,8 +7,7 @@ from pathlib import Path
 
 from app.embeddings.embedder import embed_texts
 from app.ingestion.parser import parse_and_chunk, parse_markdown_content, chunk_text, Chunk
-from app.ingestion.scanner import scan_sources
-from app.rag.retriever import Retriever, SearchResult
+from app.rag.retriever import Retriever
 from app.storage.vectorstore import VectorStore
 
 from .bucketdb import BucketDB

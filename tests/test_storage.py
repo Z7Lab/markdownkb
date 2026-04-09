@@ -1,7 +1,5 @@
 """Unit tests for storage-layer rename operations (TrackingDB + VectorStore)."""
 
-import tempfile
-
 import pytest
 
 from app.storage.trackingdb import TrackingDB

@@ -11,11 +11,6 @@ import yaml
 logger = logging.getLogger(__name__)
 
 
-class TagGenerationError(Exception):
-    """Raised when tag generation fails."""
-    pass
-
-
 def backup_file(filepath: str) -> str:
     """Create a timestamped backup of the file before modification."""
     path = Path(filepath)
@@ -224,38 +219,6 @@ def apply_tags_to_file(
         }
 
 
-def restore_from_backup(backup_path: str, original_path: str) -> None:
-    """Restore a file from its backup."""
-    if not Path(backup_path).exists():
-        raise FileNotFoundError(f"Backup not found: {backup_path}")
-
-    shutil.copy2(backup_path, original_path)
-    logger.info(f"Restored {original_path} from backup")
-
-
-# Example usage functions for LLM integration
-
-def generate_tags_from_content(
-    content: str,
-    existing_tags_in_kb: list[str],
-    max_tags: int = 5
-) -> list[str]:
-    """
-    Use LLM to generate tags for markdown content.
-
-    This would be called by the chat service with RAG context.
-
-    Args:
-        content: The markdown content to analyze
-        existing_tags_in_kb: List of tags already in the knowledge base (for consistency)
-        max_tags: Maximum number of tags to generate
-
-    Returns:
-        List of suggested tags
-    """
-    # This is a placeholder - the actual implementation would use the LLM
-    # See below for integration with chat service
-    raise NotImplementedError("Integrate with chat service LLM")
 
 
 def get_similar_document_tags(

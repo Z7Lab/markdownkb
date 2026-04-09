@@ -15,18 +15,6 @@ logger = logging.getLogger(__name__)
 # ── Model Discovery ───────────────────────────────────────
 
 
-def get_provider_models(provider_name: str) -> list[str]:
-    """Return known chat models for API-based providers.
-
-    .. deprecated::
-        This function is a stub that always returns an empty list.
-        Use :func:`build_model_list` instead, which queries plugin catalogs.
-    """
-    raise NotImplementedError(
-        "get_provider_models is not implemented — use build_model_list() instead"
-    )
-
-
 def _get_plugin_catalog(provider_name: str, api_base: str = "") -> list[dict] | None:
     """Check if a plugin catalog provides model entries for this provider."""
     try:

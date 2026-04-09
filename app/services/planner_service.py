@@ -6,7 +6,7 @@ from typing import Any, Generator
 
 from app.config import Settings
 from app.planner.mcts import MCTSPlanner
-from app.planner.scoring import extract_user_patterns, score_approach
+from app.planner.scoring import extract_user_patterns
 from app.rag.retriever import Retriever
 from app.skills.executor import (
     refine_plan_with_reviews,
