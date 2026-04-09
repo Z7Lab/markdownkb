@@ -64,9 +64,11 @@ Edit `config/settings.yaml` and add your markdown directories under `sources:`:
 
 ```yaml
 sources:
-  - /path/to/your/docs
-  - /path/to/another/folder
+  - path: /path/to/your/docs
+  - path: /path/to/another/folder
 ```
+
+Each source has a `path` and an optional `writable` flag (defaults to `true`). Set `writable: false` to prevent the Write API and MCP tools from modifying files in that directory.
 
 Restart the container (`make restart`) or use Settings > Sources in the UI. MarkdownKB will auto-index all `.md` files.
 

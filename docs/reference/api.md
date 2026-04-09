@@ -249,6 +249,14 @@ Requires the `write_api` feature flag. Plugin: `app/plugins/write_api/`.
 
 Query parameters: `path` (required), `source` (optional, defaults to first source).
 
+### Error codes
+
+| Code | Cause |
+|------|-------|
+| **403** | Target source has `writable: false` — writes are not allowed to read-only sources |
+| **409** | File already exists and `overwrite` is `false` |
+| **422** | Validation error, or the target directory does not exist / is not writable on disk |
+
 ## Planner
 
 Requires `plugins.planner.enabled: true`. Plugin: `app/plugins/planner/`.

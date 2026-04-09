@@ -46,9 +46,19 @@ API-driven changes (via the Settings UI) take effect immediately — they update
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `sources` | `[./docs]` | Directories to scan for markdown files |
+| `sources` | `[{path: ./docs, writable: false}]` | Directories to scan for markdown files (list of dicts with `path` and optional `writable` flag) |
 | `project_roots` | `[]` | Auto-discover docs in cloned repos (see below) |
 | `global_ignore` | node_modules, .git, etc. | Glob patterns to skip |
+
+Each source is a dict with `path` (string, required) and `writable` (boolean, optional — defaults to `true`). When `writable: false`, the Write API (`POST/DELETE /api/documents`) and MCP write tools (`save_file`, `delete_file`) return **403 Forbidden** for that source. The bundled `./docs` directory defaults to `writable: false` in the example config to protect project documentation from accidental writes.
+
+```yaml
+sources:
+  - path: ./docs
+    writable: false
+  - path: /home/user/docs
+    writable: true
+```
 
 ### Project Roots
 

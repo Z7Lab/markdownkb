@@ -94,9 +94,20 @@ The path must be within a configured source directory. Accepts absolute or relat
 
 - **Path traversal blocked** — `..` segments and absolute paths (for REST) are rejected
 - **Source directory restriction** — files can only be written to or deleted from configured `sources:` directories
+- **Per-source writable flag** — each source can be marked `writable: false` to block all writes (REST and MCP). Attempts to write to a read-only source return **403 Forbidden**. The Write API also verifies the directory exists and is writable on disk, returning **422** if not.
 - **Overwrite protection** — `save_file` and the REST API refuse to overwrite unless explicitly told to
 - **Disabled by default** — both `write_api` and `mcp.save_document` are off out of the box
 - **`read_only` gate** — even if `save_document` is true, `mcp.read_only: true` blocks all MCP write tools (save, delete, index)
+
+Sources are configured as dicts with `path` and `writable` fields. When `writable` is omitted it defaults to `true`. The bundled `./docs` directory defaults to `writable: false` in the example config:
+
+```yaml
+sources:
+  - path: ./docs
+    writable: false
+  - path: /home/user/docs
+    writable: true
+```
 
 ## Typical workflows
 
