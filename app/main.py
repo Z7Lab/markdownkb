@@ -83,22 +83,24 @@ async def lifespan(app: FastAPI):
     retriever = Retriever(store, settings, tracking)
     cancel_event = threading.Event()
 
-    if store.count == 0:
-        # If tracking DB has records but ChromaDB is empty (collection rename,
-        # model switch, or interrupted startup), clear tracking so every file
-        # is re-scanned instead of appearing falsely "complete".
-        if tracking.file_count() > 0:
-            logger.info("ChromaDB empty but tracking has %d files — clearing stale records", tracking.file_count())
-            tracking.clear()
-        logger.info("Empty store, starting initial index in background...")
+    if store.count == 0 and tracking.file_count() > 0:
+        # ChromaDB empty but tracking has records (collection rename,
+        # model switch, or interrupted startup) — clear stale records
+        # so every file is re-scanned.
+        logger.info("ChromaDB empty but tracking has %d files — clearing stale records", tracking.file_count())
+        tracking.clear()
 
-        def _run_index_safe():
-            try:
-                run_index(settings, store, tracking, cancel=cancel_event)
-            except Exception:
-                logger.error("Background startup index failed", exc_info=True)
+    # Always run the indexer on startup — it skips unchanged files (hash
+    # comparison) so this is fast when everything is up to date. This
+    # catches files added between restarts that the watcher never saw.
+    def _run_index_safe():
+        try:
+            run_index(settings, store, tracking, cancel=cancel_event)
+        except Exception:
+            logger.error("Background startup index failed", exc_info=True)
 
-        threading.Thread(target=_run_index_safe, daemon=True).start()
+    logger.info("Starting background index scan...")
+    threading.Thread(target=_run_index_safe, daemon=True).start()
 
     # Store services on app.state for dependency injection
     from app.services.chat_service import ConversationHistory

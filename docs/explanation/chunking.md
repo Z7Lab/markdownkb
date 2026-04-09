@@ -2,6 +2,8 @@
 
 How MarkdownKB splits markdown files into searchable chunks. Understanding this pipeline helps you structure documents for better search quality.
 
+This page covers *how* files are chunked. For *when* the indexer runs (startup scan, file watcher, hash-based skipping), see [Architecture: Indexer Lifecycle](../reference/architecture.md#indexer-lifecycle).
+
 ## Overview
 
 Indexing is a **two-pass** process:

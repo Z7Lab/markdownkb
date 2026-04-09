@@ -115,6 +115,20 @@ Note: `planner_service` and `graph_service` live in core because they are reusab
 | `indexer` | Orchestrates scan → parse → embed → store pipeline |
 | `watcher` | Watchdog-based file change detection, incremental re-indexing |
 
+#### Indexer Lifecycle
+
+The indexer runs in two contexts:
+
+1. **Startup scan** — `run_index` runs in a background thread on every startup. It scans all source directories, compares file hashes against the tracking DB, and only embeds files that are new or changed. When everything is up to date this completes in ~100ms (just hash comparisons, no embedding). This catches files added between restarts that the watcher never saw.
+
+2. **File watcher** — after startup, the watcher monitors source directories for real-time changes (create, modify, rename, delete). Each change triggers incremental re-indexing of the affected file. The watcher uses debouncing to avoid re-indexing during rapid successive saves.
+
+The indexer is **hash-based incremental**: each file's SHA-256 content hash is stored in the tracking DB. On scan, if the hash matches, the file is skipped. This means restarting the app or re-running the indexer is always safe — unchanged files are never re-embedded.
+
+When ChromaDB is empty but the tracking DB has records (collection rename, model switch, interrupted startup), the tracking DB is cleared first so every file is treated as new.
+
+For details on how files are split into chunks, see [Chunking & Indexing Pipeline](../explanation/chunking.md).
+
 ### Storage (`app/storage/`)
 
 All files are relative to the data directory (see [Storage](#storage) below).
