@@ -156,10 +156,16 @@ def test_api_provider(model: str, api_base: str, api_key: str = "") -> dict:
             response = client.chat.completions.create(
                 model=model_name,
                 messages=[{"role": "user", "content": "Say OK"}],
-                max_tokens=16,
+                max_tokens=32,
                 temperature=0,
             )
-            reply = (response.choices[0].message.content or "").strip()
+            msg = response.choices[0].message
+            reply = (msg.content or "").strip()
+            # Some models (Gemma 4, DeepSeek) put output in reasoning_content
+            if not reply:
+                reasoning = getattr(msg, "reasoning_content", None) or ""
+                if reasoning.strip():
+                    reply = "(thinking model responded)"
 
         if reply:
             return {"ok": True, "message": f"Connected. Response: {reply}", "reply": reply}

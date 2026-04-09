@@ -182,8 +182,12 @@ def _stream_anthropic(response) -> Generator:
 def _stream_openai(response) -> Generator:
     """Yield content chunks from an OpenAI streaming response."""
     for chunk in response:
-        if chunk.choices and chunk.choices[0].delta.content:
-            yield chunk.choices[0].delta.content
+        if not chunk.choices:
+            continue
+        delta = chunk.choices[0].delta
+        text = delta.content or getattr(delta, "reasoning_content", None)
+        if text:
+            yield text
 
 
 def get_completion(
@@ -269,7 +273,12 @@ def get_completion(
                 if stream:
                     return _stream_openai(response)
 
-                content = response.choices[0].message.content
+                msg = response.choices[0].message
+                content = msg.content
+                # Some models (Gemma 4, DeepSeek) return reasoning in a
+                # separate field with content empty.  Fall back to it.
+                if not content:
+                    content = getattr(msg, "reasoning_content", None)
                 usage = getattr(response, "usage", None)
                 if usage:
                     logger.info(
