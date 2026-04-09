@@ -60,6 +60,14 @@ sources:
     writable: true
 ```
 
+### Docker Volume Mounts
+
+In Docker, each source directory must be mounted into the container. MarkdownKB auto-generates `compose.override.yml` from your sources when you add or remove directories via the Settings UI. The writable flag maps to Docker mount mode: `writable: true` → read-write, `writable: false` → `:ro`.
+
+After adding or removing sources, restart the container: `make down && make up`.
+
+On first setup, copy the example: `cp compose.override.yml.example compose.override.yml`.
+
 ### Project Roots
 
 Point MarkdownKB at a directory containing cloned repositories and it will automatically discover and index documentation matching your patterns:

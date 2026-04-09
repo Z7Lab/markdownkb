@@ -26,14 +26,10 @@ The stdio transport is never authenticated (stdio is process-local and not netwo
 
 ## File System Access
 
-- The file browser reads files under configured `sources` directories.
-- The MCP filesystem tool (disabled by default) can browse and read arbitrary paths. Enable only on trusted networks.
+- The file browser reads files under configured `sources` directories only.
+- In Docker, only explicitly mounted source directories are accessible — the container does not mount the entire home directory.
+- Sources with `writable: false` reject writes via the API and MCP tools (403).
 - File paths provided to API endpoints are validated to prevent directory traversal.
-
-## Terminal Execution
-
-- The MCP terminal tool (disabled by default) executes shell commands with an allowlist of safe commands.
-- **Do not enable `mcp_terminal` on untrusted networks.** It is intended for local development use.
 
 ## Feature Flags
 
@@ -41,16 +37,14 @@ Security-sensitive features are disabled by default and must be explicitly enabl
 
 | Feature | Default | Risk |
 |---------|---------|------|
-| `mcp.filesystem` | `false` | File system read access |
-| `mcp.terminal` | `false` | Shell command execution |
-| `mcp.tag_generator` | `false` | File modification (creates backups) |
-| `mcp.save_document` | `false` | MCP clients can write markdown files into source directories |
-| `mcp.allow_bucket_writes` | `false` | MCP clients can create/delete/add to ephemeral buckets even when `read_only: true`. Buckets are isolated from the main knowledge base — they use separate ChromaDB collections and don't touch indexed files. |
-| `write_api` | `false` | Create/update/delete markdown files via HTTP |
+| `mcp.save_document` | `false` | MCP clients can write/delete markdown files in writable source directories |
+| `mcp.allow_bucket_writes` | `false` | MCP clients can create/delete/push to ephemeral buckets even when `read_only: true` |
+| `write_api` plugin | `false` | Create/update/delete markdown files via HTTP |
+| `sources[].writable` | `true` | Per-source write protection — set `false` to block writes to that directory |
 
 The `mcp.read_only` flag (default `true`) blocks all MCP write tools regardless of individual flags. `allow_bucket_writes` is a narrow exemption that keeps the main knowledge base read-only while allowing bucket operations — useful when giving agents write access for scratch/research workflows without granting access to curated documents.
 
-The `write_api` plugin validates paths to prevent directory traversal and restricts writes to configured source directories only. It requires an explicit `overwrite: true` flag to replace existing files.
+The `write_api` plugin and MCP write tools validate paths to prevent directory traversal, restrict writes to configured source directories only, check the per-source `writable` flag (403 if read-only), and verify the directory is accessible on disk (422 if not mounted). Overwrites require an explicit `overwrite: true` flag.
 
 ## Rate Limiting
 

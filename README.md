@@ -43,7 +43,7 @@ Creates `.venv`, installs Python and Node dependencies if needed, starts both se
    make build && make up
    ```
 
-Your home directory is mounted read-only into the container, so paths in `settings.yaml` work identically. The container binds to **localhost only** by default and runs as a non-root user. The Makefile reads `.env` automatically — no extra steps needed.
+Source directories are mounted individually into the container — `compose.override.yml` is auto-generated from your `settings.yaml` sources when you add or remove directories via the UI. Copy the example on first setup: `cp compose.override.yml.example compose.override.yml`. After adding sources, restart: `make down && make up`. The container binds to **localhost only** by default and runs as a non-root user.
 
 ## run.sh
 

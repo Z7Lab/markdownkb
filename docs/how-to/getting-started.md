@@ -16,6 +16,7 @@ This guide walks you through setting up MarkdownKB, indexing your first document
 git clone <repo-url> && cd markdownkb
 cp config/settings.yaml.example config/settings.yaml
 cp .env.example .env
+cp compose.override.yml.example compose.override.yml
 make build && make up
 ```
 
