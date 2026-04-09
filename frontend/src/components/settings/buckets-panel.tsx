@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Database, Plus, Trash2, Clock, Infinity } from "lucide-react"
+import { Database, Plus, Trash2, Clock, Infinity as InfinityIcon } from "lucide-react"
 import { useBuckets, type Bucket, type CreateBucketParams } from "@/hooks/use-buckets"
 
 
@@ -170,7 +170,7 @@ export function BucketsPanel() {
                           {b.expires_at ? `Current: ${formatExpiry(b.expires_at)}` : "Currently permanent"}
                         </SelectItem>
                         <SelectItem value="permanent">
-                          <span className="flex items-center gap-1"><Infinity className="h-2.5 w-2.5" /> Permanent</span>
+                          <span className="flex items-center gap-1"><InfinityIcon className="h-2.5 w-2.5" /> Permanent</span>
                         </SelectItem>
                         <SelectItem value="1h">
                           <span className="flex items-center gap-1"><Clock className="h-2.5 w-2.5" /> 1 hour</span>

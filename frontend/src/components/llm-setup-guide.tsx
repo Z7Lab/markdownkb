@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react"
+import { type ReactNode, useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Cpu, Terminal, ExternalLink, ChevronDown, ChevronUp, Copy, Check } from "lucide-react"
+import { copyToClipboard } from "@/lib/utils"
 
 type Platform = "macos" | "linux" | "windows"
 type Provider = "ollama" | "llamacpp" | "cloud" | "custom"
@@ -20,8 +21,8 @@ function CopyButton({ text }: { text: string }) {
     <button
       type="button"
       className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
-      onClick={() => {
-        navigator.clipboard.writeText(text)
+      onClick={async () => {
+        await copyToClipboard(text)
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
       }}
@@ -38,6 +39,24 @@ function CodeBlock({ children }: { children: string }) {
         {children}
       </pre>
       <CopyButton text={children} />
+    </div>
+  )
+}
+
+function GuideStep({ number, title, trailing, children }: {
+  number: number
+  title: string
+  trailing?: ReactNode
+  children?: ReactNode
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <Badge variant="secondary" className="text-xs">{number}</Badge>
+        <span className="text-sm font-medium">{title}</span>
+        {trailing}
+      </div>
+      {children}
     </div>
   )
 }
@@ -63,10 +82,10 @@ function OllamaGuide({ expanded, onNavigateSettings, hideSettingsButton }: { exp
   return (
     <div className="space-y-4">
       {/* Step 1: Install */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="text-xs">1</Badge>
-          <span className="text-sm font-medium">Install Ollama</span>
+      <GuideStep
+        number={1}
+        title="Install Ollama"
+        trailing={
           <div className="flex gap-1 ml-auto">
             {(Object.entries(OLLAMA_INSTALL) as [Platform, typeof step][]).map(([key, s]) => (
               <Button
@@ -80,7 +99,8 @@ function OllamaGuide({ expanded, onNavigateSettings, hideSettingsButton }: { exp
               </Button>
             ))}
           </div>
-        </div>
+        }
+      >
         {step.command && <CodeBlock>{step.command}</CodeBlock>}
         {step.link && (
           <a
@@ -93,14 +113,10 @@ function OllamaGuide({ expanded, onNavigateSettings, hideSettingsButton }: { exp
             <ExternalLink className="h-3 w-3" />
           </a>
         )}
-      </div>
+      </GuideStep>
 
       {/* Step 2: Pull a model */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="text-xs">2</Badge>
-          <span className="text-sm font-medium">Pull a model</span>
-        </div>
+      <GuideStep number={2} title="Pull a model">
         <CodeBlock>ollama pull qwen3:8b</CodeBlock>
         {expanded && (
           <div className="space-y-1">
@@ -116,14 +132,10 @@ function OllamaGuide({ expanded, onNavigateSettings, hideSettingsButton }: { exp
             </div>
           </div>
         )}
-      </div>
+      </GuideStep>
 
       {/* Step 3: Configure */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="text-xs">3</Badge>
-          <span className="text-sm font-medium">Configure MarkdownKB</span>
-        </div>
+      <GuideStep number={3} title="Configure MarkdownKB">
         {hideSettingsButton ? (
           <p className="text-xs text-muted-foreground">
             Set the API base above, click <strong>Refresh</strong> to load your models, then <strong>Save</strong>.
@@ -140,7 +152,7 @@ function OllamaGuide({ expanded, onNavigateSettings, hideSettingsButton }: { exp
             </Button>
           </>
         )}
-      </div>
+      </GuideStep>
 
       {expanded && (
         <>
@@ -173,10 +185,10 @@ function LlamaCppGuide({ expanded, onNavigateSettings, hideSettingsButton }: { e
   return (
     <div className="space-y-4">
       {/* Step 1: Install */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="text-xs">1</Badge>
-          <span className="text-sm font-medium">Build llama.cpp</span>
+      <GuideStep
+        number={1}
+        title="Build llama.cpp"
+        trailing={
           <div className="flex gap-1 ml-auto">
             {(["linux", "macos", "windows"] as Platform[]).map((key) => (
               <Button
@@ -190,7 +202,8 @@ function LlamaCppGuide({ expanded, onNavigateSettings, hideSettingsButton }: { e
               </Button>
             ))}
           </div>
-        </div>
+        }
+      >
         {platform === "windows" ? (
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">
@@ -217,14 +230,10 @@ function LlamaCppGuide({ expanded, onNavigateSettings, hideSettingsButton }: { e
             </p>
           </>
         )}
-      </div>
+      </GuideStep>
 
       {/* Step 2: Download a model */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="text-xs">2</Badge>
-          <span className="text-sm font-medium">Download a GGUF model</span>
-        </div>
+      <GuideStep number={2} title="Download a GGUF model">
         <p className="text-xs text-muted-foreground">
           Download a quantized GGUF model from{" "}
           <a
@@ -253,14 +262,10 @@ function LlamaCppGuide({ expanded, onNavigateSettings, hideSettingsButton }: { e
             ))}
           </div>
         )}
-      </div>
+      </GuideStep>
 
       {/* Step 3: Start the server */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="text-xs">3</Badge>
-          <span className="text-sm font-medium">Start llama-server</span>
-        </div>
+      <GuideStep number={3} title="Start llama-server">
         <CodeBlock>{`~/llama.cpp/build/bin/llama-server \\
   -m /path/to/model.gguf \\
   --host 127.0.0.1 --port 8080 \\
@@ -272,14 +277,10 @@ function LlamaCppGuide({ expanded, onNavigateSettings, hideSettingsButton }: { e
             <span><code className="bg-muted px-1 rounded">-fa on</code> — flash attention (faster, less memory)</span>
           </div>
         )}
-      </div>
+      </GuideStep>
 
       {/* Step 4: Configure MarkdownKB */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="text-xs">4</Badge>
-          <span className="text-sm font-medium">Configure MarkdownKB</span>
-        </div>
+      <GuideStep number={4} title="Configure MarkdownKB">
         {hideSettingsButton ? (
           <p className="text-xs text-muted-foreground">
             Set the API base to <code className="bg-muted px-1 rounded">http://localhost:8080/v1</code> above, click <strong>Refresh</strong> to detect your model, then <strong>Save</strong>.
@@ -300,7 +301,7 @@ function LlamaCppGuide({ expanded, onNavigateSettings, hideSettingsButton }: { e
             </Button>
           </>
         )}
-      </div>
+      </GuideStep>
 
       {expanded && (
         <>
@@ -339,11 +340,7 @@ function LlamaCppGuide({ expanded, onNavigateSettings, hideSettingsButton }: { e
 function CloudGuide({ expanded, onNavigateSettings, hideSettingsButton }: { expanded: boolean; onNavigateSettings: () => void; hideSettingsButton?: boolean }) {
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="text-xs">1</Badge>
-          <span className="text-sm font-medium">Get an API key</span>
-        </div>
+      <GuideStep number={1} title="Get an API key">
         <p className="text-xs text-muted-foreground">
           Sign up with a provider and create an API key:
         </p>
@@ -368,13 +365,9 @@ function CloudGuide({ expanded, onNavigateSettings, hideSettingsButton }: { expa
             </div>
           ))}
         </div>
-      </div>
+      </GuideStep>
 
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="text-xs">2</Badge>
-          <span className="text-sm font-medium">Configure MarkdownKB</span>
-        </div>
+      <GuideStep number={2} title="Configure MarkdownKB">
         {hideSettingsButton ? (
           <p className="text-xs text-muted-foreground">
             Enter your API key and API base above, click <strong>Refresh</strong> to load models, then <strong>Save</strong>.
@@ -390,7 +383,7 @@ function CloudGuide({ expanded, onNavigateSettings, hideSettingsButton }: { expa
             </Button>
           </>
         )}
-      </div>
+      </GuideStep>
 
       {expanded && (
         <div className="space-y-1">
@@ -413,11 +406,7 @@ function CustomGuide({ expanded, onNavigateSettings, hideSettingsButton }: { exp
         Any server that exposes an OpenAI-compatible <code className="bg-muted px-1 rounded">/v1/chat/completions</code> endpoint works with MarkdownKB.
       </p>
 
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="text-xs">1</Badge>
-          <span className="text-sm font-medium">Start your server</span>
-        </div>
+      <GuideStep number={1} title="Start your server">
         <div className="grid gap-1.5">
           {[
             { name: "LM Studio", port: "1234", url: "https://lmstudio.ai/", desc: "GUI app, download models from UI, one-click server" },
@@ -445,13 +434,9 @@ function CustomGuide({ expanded, onNavigateSettings, hideSettingsButton }: { exp
             </div>
           ))}
         </div>
-      </div>
+      </GuideStep>
 
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="text-xs">2</Badge>
-          <span className="text-sm font-medium">Configure MarkdownKB</span>
-        </div>
+      <GuideStep number={2} title="Configure MarkdownKB">
         {hideSettingsButton ? (
           <>
             <p className="text-xs text-muted-foreground">
@@ -473,7 +458,7 @@ function CustomGuide({ expanded, onNavigateSettings, hideSettingsButton }: { exp
             </Button>
           </>
         )}
-      </div>
+      </GuideStep>
 
       {expanded && (
         <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 p-3 space-y-1">

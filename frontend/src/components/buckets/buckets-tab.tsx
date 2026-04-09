@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
-import { Database, Plus, Trash2, FileText, ChevronDown, ChevronRight, Loader2, Clock, Infinity } from "lucide-react"
+import { Database, Plus, Trash2, FileText, ChevronDown, ChevronRight, Loader2, Clock, Infinity as InfinityIcon } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { EmptyHero } from "@/components/ui/empty-hero"
 
@@ -142,7 +142,7 @@ function BucketCard({
                     {bucket.expires_at ? `Current: ${new Date(bucket.expires_at + "Z").toLocaleDateString()}` : "Currently permanent"}
                   </SelectItem>
                   <SelectItem value="permanent">
-                    <span className="flex items-center gap-1"><Infinity className="h-3 w-3" /> Make permanent</span>
+                    <span className="flex items-center gap-1"><InfinityIcon className="h-3 w-3" /> Make permanent</span>
                   </SelectItem>
                   <SelectItem value="1h">
                     <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> 1 hour from now</span>

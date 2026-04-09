@@ -27,6 +27,7 @@ export function useProviderSettings(reload: () => Promise<boolean>) {
   const pullAbortRef = useRef<AbortController | null>(null)
 
   const saveProvider = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- apiKey received for interface compatibility; stored via separate secret mechanism, not sent in PUT
     async (name: string, model: string, apiBase: string, _apiKey: string = "") => {
       await api.put("/api/settings/provider", {
         name,

@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { setApiKey } from "@/lib/api"
+import { api, setApiKey } from "@/lib/api"
 import { ShieldAlert, Copy, Check, X } from "lucide-react"
+
+interface HealthResponse {
+  auth_enabled: boolean
+  network_exposed: boolean
+}
 
 const DISMISS_KEY = "markdownkb-setup-banner-dismissed"
 
@@ -15,8 +20,7 @@ export function SetupBanner({ forceShow = false }: { forceShow?: boolean }) {
   )
 
   useEffect(() => {
-    fetch("/api/health")
-      .then((r) => r.json())
+    api.get<HealthResponse>("/api/health")
       .then((data) => {
         if (!data.auth_enabled && data.network_exposed) {
           setNeedsSetup(true)
@@ -28,11 +32,13 @@ export function SetupBanner({ forceShow = false }: { forceShow?: boolean }) {
   const handleGenerate = useCallback(async () => {
     setGenerating(true)
     try {
-      const res = await fetch("/api/setup/generate-key", { method: "POST" })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
+      const data = await api.post<{ api_key: string }>("/api/setup/generate-key")
       setGeneratedKey(data.api_key)
       setApiKey(data.api_key)
+      // Store in localStorage so the key survives page refresh.
+      // Trade-off: localStorage is accessible to JS on the same origin, so XSS
+      // could expose it. This is acceptable for a local/LAN deployment without
+      // a session cookie infrastructure. See SECURITY.md for details.
       localStorage.setItem("markdownkb-api-key", data.api_key)
     } catch {
       // If it fails, the banner stays visible for retry

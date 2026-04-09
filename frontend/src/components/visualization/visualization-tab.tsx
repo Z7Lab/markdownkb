@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import ForceGraph3D from "react-force-graph-3d"
 import { useVisualization } from "@/hooks/use-visualization"
 import { useScopes } from "@/hooks/use-scopes"
 import { useTags } from "@/hooks/use-tags"
 import { useScopeTagFilter } from "@/hooks/use-scope-tag-filter"
 import { useBuckets } from "@/hooks/use-buckets"
 import { useIndexEvents } from "@/hooks/use-index-events"
+import { useIsDark } from "@/hooks/use-is-dark"
+import { useContainerDimensions } from "@/hooks/use-container-dimensions"
+import { TypedForceGraph3D } from "./typed-force-graph"
+import type { GraphLink } from "./typed-force-graph"
 import { VisualizationSidebar } from "./visualization-sidebar"
 import { EdgeDetailPanel } from "./edge-detail-panel"
 import { VisualizationControls } from "./visualization-controls"
@@ -23,21 +26,6 @@ function detectWebGL(): boolean {
   } catch {
     return false
   }
-}
-
-/** Observe .dark class on <html> to track theme changes */
-function useIsDark() {
-  const [isDark, setIsDark] = useState(
-    () => document.documentElement.classList.contains("dark"),
-  )
-  useEffect(() => {
-    const observer = new MutationObserver(() => {
-      setIsDark(document.documentElement.classList.contains("dark"))
-    })
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] })
-    return () => observer.disconnect()
-  }, [])
-  return isDark
 }
 
 // Cluster color palette — uses CSS-compatible values that complement Tailwind's default palette
@@ -79,40 +67,11 @@ const BUCKET_COLOR = "#ff3333"  // bright red — must be visible against all cl
 
 import { GRAPH_THEME } from "@/lib/constants"
 
-/** Force-graph link with weight metadata */
-interface GraphLink {
-  source: string | { id: string }
-  target: string | { id: string }
-  weight: number
-}
-
 /** Extract node ID from a link endpoint (handles both string and object forms) */
 function linkNodeId(endpoint: string | { id: string }): string {
   return typeof endpoint === "object" ? endpoint.id : endpoint
 }
 
-/** Hook for container dimension tracking via ResizeObserver */
-function useContainerDimensions() {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [dimensions, setDimensions] = useState({ width: 800, height: 600 })
-
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    const observer = new ResizeObserver((entries) => {
-      const { width, height } = entries[0].contentRect
-      setDimensions({ width: Math.floor(width), height: Math.floor(height) })
-    })
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [])
-
-  return { containerRef, dimensions }
-}
-
-// TODO: Extract useIsDark, useContainerDimensions to hooks/ directory.
-// Consider splitting ForceGraph3D rendering into a dedicated wrapper component
-// to reduce this file's complexity (549 lines, 8 useState, 5 useEffect, 9 useCallback, 3 useMemo).
 import type { GraphMode } from "@/hooks/use-visualization"
 
 export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
@@ -166,9 +125,6 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
     const wcChanged = prevWordCloudsRef.current !== wordClouds
     const bucketChanged = prevBucketRef.current !== selectedBucketId
     if (scopeChanged || tagsChanged || wcChanged || bucketChanged) {
-      console.log("[docmap] effect: scope=%s tag=%s wc=%s bucket=%s (changed: scope=%s tag=%s wc=%s bucket=%s)",
-        scopeIdsParam, adHocTagsParam, wordClouds, selectedBucketId,
-        scopeChanged, tagsChanged, wcChanged, bucketChanged)
       prevScopeRef.current = scopeIdsParam
       prevTagsRef.current = adHocTagsParam
       prevWordCloudsRef.current = wordClouds
@@ -239,8 +195,6 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
         .map(n => ({ ...n })),
       links,
     }
-    console.log("[docmap] forceDocMapData recomputed: %d nodes, %d links (from %d raw nodes, %d raw edges, threshold=%.2f)",
-      result.nodes.length, result.links.length, docmapData.nodes.length, docmapData.edges.length, threshold)
     return result
   }, [docmapData, threshold])
 
@@ -274,7 +228,6 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
 
   // Which data set to render
   const activeForceData = mode === "knowledge" ? kgForceData : forceDocMapData
-  console.log("[docmap] activeForceData: %d nodes, %d links (mode=%s)", activeForceData.nodes.length, activeForceData.links.length, mode)
   const activeIsLoading = mode === "knowledge" ? kgLoading : isLoading
   const hasData = mode === "knowledge" ? (kgData && kgData.entities.length > 0) : (docmapData && docmapData.nodes.length > 0)
 
@@ -325,7 +278,6 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
     }
     prevSpreadRef.current = spread
     if (spreadInitialized.current) {
-      console.log("[docmap] d3 reheat: nodes=%d, links=%d, fgRef=%s", forceDocMapData.nodes.length, forceDocMapData.links.length, !!fg)
       fg.d3ReheatSimulation()
       if (initialFitDone.current) {
         pendingRecenter.current = true
@@ -369,26 +321,6 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
     }
   }, [docmapData, selectedNodeId, searchTerm, highlightedNodes])
 
-  // Log bucket nodes once for debugging
-  const loggedBucketNodes = useRef(false)
-  useEffect(() => {
-    if (docmapData && !loggedBucketNodes.current) {
-      const bn = docmapData.nodes.filter(n => n._bucket)
-      if (bn.length > 0) {
-        console.log("[docmap] bucket nodes in data:", bn.map(n => ({ id: n.id.split("/").pop(), _bucket: n._bucket, cluster_id: n.cluster_id })))
-        loggedBucketNodes.current = true
-      }
-    }
-  }, [docmapData])
-
-  // Also check forceDocMapData
-  useEffect(() => {
-    if (forceDocMapData.nodes.length > 0) {
-      const bn = forceDocMapData.nodes.filter(n => n._bucket)
-      console.log("[docmap] forceDocMapData: %d total nodes, %d bucket nodes", forceDocMapData.nodes.length, bn.length)
-    }
-  }, [forceDocMapData])
-
   // Node color callback — bucket nodes get a distinct color
   const nodeColor = useCallback((node: DocMapNode & { entity_type?: string; _bucket?: boolean }) => {
     if (mode === "knowledge" && node.entity_type) {
@@ -406,8 +338,9 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
     if (node._bucket) return BUCKET_COLOR
     if (node.cluster_id < 0) return UNCLUSTERED_COLOR
     return CLUSTER_COLORS[node.cluster_id % CLUSTER_COLORS.length] || UNCLUSTERED_COLOR
-  // Include docmapData in deps so the function ref changes when data changes,
-  // forcing the graph library to re-apply node colors (e.g. bucket vs non-bucket)
+  // docmapData is a phantom dep: its value isn't read here, but including it forces
+  // the function ref to change when graph data updates, making the library re-apply
+  // node colors (e.g. bucket vs non-bucket nodes flip styling on data refresh).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, hasHighlight, highlightedNodes, selectedNodeId, colors.dim, docmapData])
 
@@ -482,6 +415,19 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
     selectNode(null)
   }, [setSearchTerm, selectNode])
 
+  const handleSearchChange = useCallback((term: string) => {
+    setSearchTerm(term)
+    selectNode(null)
+  }, [setSearchTerm, selectNode])
+
+  const handleVisualizationRefresh = useCallback(() => {
+    if (mode === "knowledge") {
+      fetchKG()
+    } else {
+      fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam, selectedBucketId)
+    }
+  }, [mode, fetchKG, fetchDocMap, scopeIdsParam, wordClouds, adHocTagsParam, selectedBucketId])
+
   return (
     <div className="flex flex-row h-full overflow-hidden">
       <VisualizationSidebar
@@ -499,8 +445,8 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
         spread={spread}
         onSpreadChange={setSpread}
         searchTerm={searchTerm}
-        onSearchChange={(term) => { setSearchTerm(term); selectNode(null) }}
-        onRefresh={mode === "knowledge" ? () => fetchKG() : () => fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam, selectedBucketId)}
+        onSearchChange={handleSearchChange}
+        onRefresh={handleVisualizationRefresh}
         isLoading={activeIsLoading}
         wordCloudsEnabled={wordClouds}
         onWordCloudsChange={setWordClouds}
@@ -624,26 +570,21 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
           </div>
         )}
 
-        {/* 3D Force Graph — react-force-graph-3d uses NodeObject/LinkObject generics
-            that don't structurally match our domain types. A single cast on the
-            component props is cleaner than per-prop `as never`. */}
         {webglSupported && hasData && (
-          <ForceGraph3D
-            ref={fgRef as never}
+          <TypedForceGraph3D
+            ref={fgRef}
             graphData={activeForceData}
             width={dimensions.width}
             height={dimensions.height}
             backgroundColor={colors.bg}
             nodeId="id"
-            {...{
-              nodeLabel,
-              nodeColor,
-              nodeVal,
-              linkColor,
-              linkWidth,
-              onNodeClick: handleNodeClick,
-              onLinkClick: handleLinkClick,
-            } as Record<string, unknown>}
+            nodeLabel={nodeLabel}
+            nodeColor={nodeColor}
+            nodeVal={nodeVal}
+            linkColor={linkColor}
+            linkWidth={linkWidth}
+            onNodeClick={handleNodeClick}
+            onLinkClick={handleLinkClick}
             nodeOpacity={0.9}
             nodeResolution={12}
             linkOpacity={0.6}
@@ -658,14 +599,11 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
             cooldownTicks={200}
             warmupTicks={100}
             onEngineStop={() => {
-              console.log("[docmap] onEngineStop: initialFitDone=%s, pendingRecenter=%s", initialFitDone.current, pendingRecenter.current)
               if (!initialFitDone.current) {
                 initialFitDone.current = true
-                console.log("[docmap] onEngineStop: initial zoomToFit")
                 fgRef.current?.zoomToFit(400, 60)
               } else if (pendingRecenter.current) {
                 pendingRecenter.current = false
-                console.log("[docmap] onEngineStop: recenter zoomToFit")
                 fgRef.current?.zoomToFit(400, 60)
               }
             }}

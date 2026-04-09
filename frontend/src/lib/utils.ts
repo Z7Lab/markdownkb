@@ -40,6 +40,53 @@ export function dirname(path: string): string {
   return parts.join("/") || "/"
 }
 
+export interface ParsedFrontmatter {
+  tags: string[]
+  content: string
+}
+
+/**
+ * Parse YAML frontmatter from a markdown file's raw content.
+ * Supports inline array format (tags: [a, b]) and YAML list format.
+ */
+export function parseFrontmatter(raw: string): ParsedFrontmatter {
+  const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/
+  const match = raw.match(frontmatterRegex)
+
+  if (!match) {
+    return { tags: [], content: raw }
+  }
+
+  const [, frontmatter, content] = match
+
+  // Try inline array format: tags: [tag1, tag2]
+  const inlineMatch = frontmatter.match(/tags:\s*\[(.*?)\]/)
+  if (inlineMatch) {
+    const tags = inlineMatch[1]
+      .split(',')
+      .map(t => t.trim().replace(/['"]/g, ''))
+      .filter(Boolean)
+    return { tags, content }
+  }
+
+  // Try YAML list format:
+  // tags:
+  // - tag1
+  // - tag2
+  const listMatch = frontmatter.match(/tags:\s*\n((?:\s*-\s*.+\n?)+)/)
+  if (listMatch) {
+    const tags = listMatch[1]
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.startsWith('-'))
+      .map(line => line.substring(1).trim().replace(/['"]/g, ''))
+      .filter(Boolean)
+    return { tags, content }
+  }
+
+  return { tags: [], content }
+}
+
 /**
  * Copy text to clipboard with fallback for non-secure contexts (e.g. LAN access over HTTP).
  * Returns true if the copy succeeded.

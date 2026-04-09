@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -103,6 +103,23 @@ export function LlmConfig({
   const [pullModelName, setPullModelName] = useState("")
   const [ollamaStatus, setOllamaStatus] = useState<{ reachable: boolean; starter_models: { name: string; description: string }[] } | null>(null)
 
+  const handleRefresh = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await onRefreshModels(provider, apiBase)
+      if (res.models.length > 0) {
+        const entries = res.models as ModelEntry[]
+        setModels(entries)
+        if (!userPickedModel.current && !entries.some((m) => m.id === model)) {
+          setModel(entries[0].id)
+        }
+        setCustomMode(false)
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [onRefreshModels, provider, apiBase, model])
+
   useEffect(() => {
     if (!isOllama) { setOllamaStatus(null); return }
     onFetchOllamaStatus()
@@ -115,8 +132,7 @@ export function LlmConfig({
     if (pullProgress.done) {
       handleRefresh()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pullProgress.done])
+  }, [pullProgress.done, handleRefresh])
 
   useEffect(() => {
     let cancelled = false
@@ -198,23 +214,6 @@ export function LlmConfig({
   function onModelChange(value: string) {
     userPickedModel.current = true
     setModel(value)
-  }
-
-  async function handleRefresh() {
-    setLoading(true)
-    try {
-      const res = await onRefreshModels(provider, apiBase)
-      if (res.models.length > 0) {
-        const entries = res.models as ModelEntry[]
-        setModels(entries)
-        if (!userPickedModel.current && !entries.some((m) => m.id === model)) {
-          setModel(entries[0].id)
-        }
-        setCustomMode(false)
-      }
-    } finally {
-      setLoading(false)
-    }
   }
 
   async function handlePing() {

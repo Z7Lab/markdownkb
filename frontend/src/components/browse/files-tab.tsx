@@ -3,6 +3,7 @@ import { useVirtualizer } from "@tanstack/react-virtual"
 import { useFiles } from "@/hooks/use-files"
 import { useSettings } from "@/hooks/use-settings"
 import { useTableSort } from "@/hooks/use-table-sort"
+import { useFileFilter, getValue } from "@/hooks/use-file-filter"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -21,37 +22,7 @@ import {
 } from "@/components/ui/resizable"
 import { ArrowDown, ArrowUp, FileDown, FileText, FileX, Loader2, RefreshCw, Search, Tag, Wand2, X } from "lucide-react"
 import type { TrackedFile } from "@/lib/types"
-import { basename, dirname, cn } from "@/lib/utils"
-
-/** Multi-term AND: split on spaces, each term must substring-match in the path */
-function filterMatch(text: string, pattern: string): boolean {
-  const textLower = text.toLowerCase()
-  const terms = pattern.toLowerCase().split(/\s+/).filter(Boolean)
-  return terms.every((term) => textLower.includes(term))
-}
-
-const getValue = (f: TrackedFile, key: string): string | number | null => {
-  switch (key) {
-    case "file":
-      return basename(f.path)
-    case "folder":
-      return dirname(f.path)
-    case "tags":
-      return f.tags || ""
-    case "rag":
-      return f.include_rag
-    case "status":
-      return f.status
-    case "chunks":
-      return f.chunk_count
-    case "entities":
-      return f.entity_count ?? 0
-    case "indexed":
-      return f.indexed_at || ""
-    default:
-      return null
-  }
-}
+import { cn } from "@/lib/utils"
 
 // Column IDs and default sizes as percentages (must sum to 100)
 const BASE_COL_IDS = ["file", "folder", "tags", "rag", "status", "chunks", "indexed", "actions"]
@@ -98,41 +69,6 @@ function SortHeader({
         ))}
     </button>
   )
-}
-
-/** Hook for debounced content search */
-function useContentSearch(filterText: string, searchMode: "path" | "content") {
-  const [contentMatches, setContentMatches] = useState<Set<string> | null>(null)
-  const [contentSearching, setContentSearching] = useState(false)
-  const contentDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    if (searchMode !== "content" || !filterText.trim()) {
-      setContentMatches(null)
-      return
-    }
-    if (contentDebounce.current) clearTimeout(contentDebounce.current)
-    setContentSearching(true)
-    contentDebounce.current = setTimeout(async () => {
-      try {
-        const res = await api.post<{ paths: string[] }>("/api/files/search", {
-          query: filterText,
-          top_k: 50,
-        })
-        setContentMatches(new Set(res.paths))
-      } catch (err) {
-        console.warn("Content search failed:", (err as Error).message)
-        setContentMatches(new Set<string>())
-      } finally {
-        setContentSearching(false)
-      }
-    }, 400)
-    return () => { if (contentDebounce.current) clearTimeout(contentDebounce.current) }
-  }, [filterText, searchMode])
-
-  const clearMatches = useCallback(() => setContentMatches(null), [])
-
-  return { contentMatches, contentSearching, clearMatches }
 }
 
 /** Virtualized file list — only renders visible rows for large file sets */
@@ -237,7 +173,6 @@ export function FilesTab() {
   const COL_IDS = kgEnabled ? KG_COL_IDS : BASE_COL_IDS
   const DEFAULT_LAYOUT = kgEnabled ? KG_LAYOUT : BASE_LAYOUT
   const { isIndexing, lastIndexedAt } = useIndexEvents()
-  const [filterText, setFilterText] = useState("")
   const [refreshing, setRefreshing] = useState(false)
 
   const handleRefresh = useCallback(async () => {
@@ -258,9 +193,8 @@ export function FilesTab() {
   const [bulkTagOpen, setBulkTagOpen] = useState(false)
   const [autoTagOpen, setAutoTagOpen] = useState(false)
   const [sources, setSources] = useState<string[]>([])
-  const [searchMode, setSearchMode] = useState<"path" | "content">("path")
-  const { contentMatches, contentSearching, clearMatches } = useContentSearch(filterText, searchMode)
   const { sorted, sortKey, sortDir, onSort } = useTableSort(files, getValue)
+  const { filterText, setFilterText, searchMode, setSearchMode, contentSearching, clearMatches, folderFiltered, filteredFiles } = useFileFilter(sorted, selectedFolder)
 
   // Column sizes as percentages (synced from ResizablePanelGroup)
   const [colLayout, setColLayout] = useState(DEFAULT_LAYOUT)
@@ -282,21 +216,6 @@ export function FilesTab() {
       return next
     })
   }, [])
-
-  const folderFiltered = selectedFolder
-    ? sorted.filter((f) => {
-        const dir = dirname(f.path)
-        return dir === selectedFolder || dir.startsWith(selectedFolder + "/")
-      })
-    : sorted
-
-  const filteredFiles = filterText
-    ? searchMode === "content"
-      ? contentMatches
-        ? folderFiltered.filter((f) => contentMatches.has(f.path))
-        : contentSearching ? [] : folderFiltered
-      : folderFiltered.filter((f) => filterMatch(f.path, filterText))
-    : folderFiltered
 
   const ragIncluded = files.filter((f) => f.include_rag === 1 && f.status === "complete").length
   const notIndexed = files.filter((f) => f.status === "not_indexed" || f.status === "pending").length

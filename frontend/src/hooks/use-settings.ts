@@ -24,6 +24,10 @@ function useSettingsInternal() {
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
 
+  // Every mutation calls load() after its PUT/POST/DELETE to keep the local state
+  // in sync with the server. A full refetch is intentional: settings objects are
+  // small, mutations are infrequent, and it avoids stale-cache bugs from partial
+  // optimistic updates (e.g. a plugin toggle that also affects dependent settings).
   const load = useCallback(async (): Promise<boolean> => {
     try {
       const res = await api.get<AppSettings>("/api/settings")

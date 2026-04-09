@@ -10,6 +10,12 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    // Disable the inline module-preload polyfill so a strict CSP
+    // (script-src 'self') doesn't block it. If nonce-based CSP is deployed,
+    // set html.cspNonce instead and re-enable the polyfill.
+    modulePreload: { polyfill: false },
+  },
   server: {
     port: parseInt(process.env.FRONTEND_PORT || "9714"),
     proxy: {
