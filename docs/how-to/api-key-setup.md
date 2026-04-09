@@ -49,6 +49,8 @@ Then `make down && make up`.
 
 When the setup banner appears, click "Generate API Key". This creates a key, saves it to `secrets/markdownkb_api_key`, and configures the current browser session automatically. Copy the key — it won't be shown again.
 
+Key generation is restricted to localhost — the request must come from the same machine running MarkdownKB. This prevents a LAN attacker from racing to set the key on a network-exposed instance.
+
 ## Using the Key
 
 ### Browser

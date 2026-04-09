@@ -13,6 +13,8 @@ from collections.abc import Iterator
 
 import httpx
 
+from app.utils import validate_api_base
+
 logger = logging.getLogger(__name__)
 
 _CACHE_TTL = 30  # seconds — shorter than Venice since Ollama is local
@@ -33,6 +35,12 @@ def _fetch_models(api_base: str) -> list[dict]:
     Results are cached in-memory for ``_CACHE_TTL`` seconds.
     """
     if not api_base:
+        return []
+
+    try:
+        validate_api_base(api_base)
+    except ValueError as e:
+        logger.warning("Ollama api_base blocked: %s", e)
         return []
 
     now = time.monotonic()
@@ -79,9 +87,10 @@ def is_reachable(api_base: str) -> bool:
     if not api_base:
         return False
     try:
+        validate_api_base(api_base)
         resp = httpx.get(f"{api_base.rstrip('/')}/api/tags", timeout=3)
         return resp.status_code == 200
-    except httpx.HTTPError:
+    except (ValueError, httpx.HTTPError):
         return False
 
 
@@ -92,8 +101,10 @@ def pull_model(model_name: str, api_base: str) -> Iterator[dict]:
     downloads Ollama also provides ``completed`` and ``total`` byte counts.
     The final dict has ``{"status": "success"}``.
 
-    Raises ``httpx.HTTPError`` on connection / HTTP failures.
+    Raises ``ValueError`` on blocked URLs, ``httpx.HTTPError`` on connection /
+    HTTP failures.
     """
+    validate_api_base(api_base)
     bare = model_name.split("/", 1)[-1] if "/" in model_name else model_name
 
     with httpx.stream(
@@ -123,6 +134,12 @@ def get_model_info(model_id: str, api_base: str = "") -> dict | None:
     Accepts both ``ollama/model-name`` and bare ``model-name`` formats.
     """
     if not api_base:
+        return None
+
+    try:
+        validate_api_base(api_base)
+    except ValueError as e:
+        logger.warning("Ollama api_base blocked in get_model_info: %s", e)
         return None
 
     bare = model_id.split("/", 1)[-1] if "/" in model_id else model_id

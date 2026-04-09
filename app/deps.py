@@ -2,7 +2,7 @@
 
 import threading
 
-from fastapi import Request
+from fastapi import HTTPException, Request
 
 from app.config import Settings
 from app.rag.retriever import Retriever
@@ -68,3 +68,21 @@ def get_conversation_history(request: Request):
 def get_tagdb(request: Request):
     """Return the TagDB instance, or None if the tags plugin is disabled."""
     return getattr(request.app.state, "tagdb", None)
+
+
+def require_auth(request: Request) -> None:
+    """Dependency that requires authentication to be configured.
+
+    Use on endpoints that are unconditionally dangerous regardless of
+    the global auth setting (e.g. plugin installation, which executes
+    arbitrary code).  Raises 403 when no API key is configured so that
+    unauthenticated LAN requests cannot reach shell-equivalent endpoints.
+    """
+    if not getattr(request.app.state, "auth_enabled", False):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "This endpoint requires API key authentication. "
+                "Generate a key first via POST /api/setup/generate-key."
+            ),
+        )

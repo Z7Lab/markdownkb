@@ -4,6 +4,8 @@ import logging
 
 import httpx
 
+from app.utils import validate_api_base
+
 logger = logging.getLogger(__name__)
 
 
@@ -11,6 +13,7 @@ class RemoteEmbedder:
     """Embedding via a remote API (Ollama or OpenAI-compatible)."""
 
     def __init__(self, model: str, api_base: str, api_type: str = "ollama", api_key: str = ""):
+        validate_api_base(api_base)
         self._model = model
         self._api_base = api_base.rstrip("/")
         self._api_type = api_type

@@ -17,12 +17,37 @@ MarkdownKB supports optional API key authentication via the `X-MarkdownKB-Key` h
 
 ### MCP Server Authentication
 
-The standalone MCP server uses the same API key. When `MARKDOWNKB_API_KEY` is configured, the MCP server requires authentication via either:
+The standalone MCP server uses the same API key. When `MARKDOWNKB_API_KEY` is configured, the MCP server requires authentication via (checked in order):
 
-- **Header:** `X-MarkdownKB-Key: <key>` (same as the REST API)
-- **Query parameter:** `?token=<key>` (for clients that pass tokens via URL)
+1. **`Authorization: Bearer <key>`** (preferred — key not in access logs)
+2. **`X-MarkdownKB-Key: <key>`** header (same as REST API)
+3. **`?token=<key>`** query parameter (legacy — key visible in logs)
 
 The stdio transport is never authenticated (stdio is process-local and not network-accessible). When no API key is configured, MCP connections are unauthenticated — suitable only for localhost-bound deployments.
+
+### Key Generation
+
+`POST /api/setup/generate-key` is restricted to localhost (`127.0.0.1` / `::1`). This prevents a LAN attacker from racing the legitimate owner to set the key first on a network-exposed instance.
+
+### Plugin Installation
+
+Plugin install and uninstall (`POST /api/plugins/install`, `DELETE /api/plugins/{name}`) require API key authentication to be configured. These endpoints execute code (git clone, pip install) and are blocked with **403** when no API key is set, even on localhost.
+
+### Security Headers
+
+All API responses include:
+- `Content-Security-Policy` — restricts script/style/connect sources to `'self'`
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- API responses: `Cache-Control: no-store`
+
+### SSRF Protection
+
+All outbound URLs (LLM API bases, Ollama endpoints, embedding API bases) are validated via `validate_api_base()` which blocks:
+- Non-HTTP schemes
+- Cloud metadata endpoints (169.254.x.x, metadata.google.internal)
+- Link-local and ULA IPv6 addresses
 
 ## File System Access
 

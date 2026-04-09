@@ -19,11 +19,17 @@ from app.config import _data_secrets_dir
 def generate_key(request: Request):
     """Generate an API key and persist it.
 
-    Only works when no API key is currently configured. Returns the
-    generated key once — it is not retrievable after this response.
-    The key is written to data/secrets/ (writable volume) and picked
-    up by _read_secret on subsequent requests and restarts.
+    Only works when no API key is currently configured and only when the
+    request originates from localhost, so that a LAN attacker cannot be
+    first-caller and lock out the legitimate owner.  Returns the generated
+    key once — it is not retrievable after this response.  The key is
+    written to data/secrets/ (writable volume) and picked up by
+    _read_secret on subsequent requests and restarts.
     """
+    client_host = request.client.host if request.client else ""
+    if client_host not in ("127.0.0.1", "::1"):
+        raise HTTPException(403, "Key generation is only allowed from localhost")
+
     if getattr(request.app.state, "auth_enabled", False):
         raise HTTPException(403, "API key already configured")
 

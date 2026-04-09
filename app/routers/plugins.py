@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.config import Settings, default_data_dir as _data_dir
-from app.deps import get_settings
+from app.deps import get_settings, require_auth
 from app.plugins import get_plugin_info, get_registry
 from app.ratelimit import STANDARD, limiter
 
@@ -260,6 +260,7 @@ def _is_local_path(url: str) -> bool:
 def install_plugin(
     request: Request,
     req: InstallPluginRequest,
+    _auth: None = Depends(require_auth),
     settings: Settings = Depends(get_settings),
 ):
     """Install a plugin from a GitHub URL or local directory path.
@@ -325,6 +326,7 @@ def install_plugin(
 def uninstall_plugin(
     request: Request,
     name: str,
+    _auth: None = Depends(require_auth),
     settings: Settings = Depends(get_settings),
 ):
     """Uninstall an external plugin.

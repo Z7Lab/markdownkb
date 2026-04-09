@@ -1,7 +1,9 @@
 """Rate limiting configuration.
 
-Disabled by default. Enable via the 'rate_limiting' core flag in settings.
-Useful when deploying as a shared platform or to prevent runaway LLM API costs.
+Disabled by default for local single-user installs.
+Enable via the 'rate_limiting' core flag in settings when deploying on a
+network-accessible host (MARKDOWNKB_HOST=0.0.0.0) to prevent LLM API cost
+abuse and API-key brute-force attacks.
 """
 
 from slowapi import Limiter

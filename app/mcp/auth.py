@@ -1,8 +1,10 @@
 """API key authentication middleware for the MCP server.
 
 Accepts auth via any of:
-  1. ``X-MarkdownKB-Key`` header (same as REST API)
-  2. ``?token=`` query parameter (for agents that pass tokens via URL)
+  1. ``Authorization: Bearer <key>`` header (preferred — key not logged)
+  2. ``X-MarkdownKB-Key: <key>`` header (same as REST API)
+  3. ``?token=`` query parameter (legacy fallback — key appears in server
+     access logs and browser history; avoid for new integrations)
 
 When an API key is configured, every request must include a valid
 credential via one of these methods.  If no key is configured,
@@ -20,6 +22,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 logger = logging.getLogger(__name__)
 
 _HEADER = "X-MarkdownKB-Key"
+_BEARER_PREFIX = "Bearer "
 
 
 class McpApiKeyMiddleware:
@@ -36,8 +39,17 @@ class McpApiKeyMiddleware:
 
         request = Request(scope, receive)
 
-        # Check header first, then query parameter
-        provided = request.headers.get(_HEADER, "")
+        # 1. Authorization: Bearer <key>  (preferred)
+        provided = ""
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith(_BEARER_PREFIX):
+            provided = auth_header[len(_BEARER_PREFIX):]
+
+        # 2. X-MarkdownKB-Key header
+        if not provided:
+            provided = request.headers.get(_HEADER, "")
+
+        # 3. ?token= query parameter (legacy fallback)
         if not provided:
             qs = parse_qs(scope.get("query_string", b"").decode())
             provided = qs.get("token", [""])[0]

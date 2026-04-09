@@ -45,18 +45,26 @@ def save_provider(
 ):
     """Save LLM provider configuration.
 
-    API keys are never written to YAML — they must be provided via
-    Docker secrets or environment variables.
+    API keys are written to the data secrets directory (not YAML).
     """
     settings.active_provider = req.name
     for p in settings.llm_providers:
         if p.get("name") == req.name:
             p["model"] = req.model
             p["api_base"] = req.api_base
-            # Never write api_key to YAML — use secrets/env vars instead
-            p.pop("api_key", None)
+            p.pop("api_key", None)  # never in YAML
             break
     settings.save()
+
+    # Write API key to secrets directory if provided
+    if req.api_key:
+        from app.config import _data_secrets_dir
+        secret_name = f"{req.name.lower()}_api_key"
+        target = _data_secrets_dir() / secret_name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(req.api_key.strip())
+        logger.info("Saved API key for provider '%s' to %s", req.name, target)
+
     return {"status": "saved"}
 
 

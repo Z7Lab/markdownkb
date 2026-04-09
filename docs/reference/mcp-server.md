@@ -428,15 +428,20 @@ Scope resolution is handled by `app/mcp/scope.py`, which resolves the scope ID t
 
 ## Authentication
 
-When an API key is configured (via `secrets/markdownkb_api_key` or `MARKDOWNKB_API_KEY` env var), the MCP Streamable HTTP server requires authentication. Two methods are accepted:
+When an API key is configured (via `secrets/markdownkb_api_key` or `MARKDOWNKB_API_KEY` env var), the MCP Streamable HTTP server requires authentication. Three methods are accepted (checked in order):
 
-1. **Header:** `X-MarkdownKB-Key: <key>` (same as the REST API)
-2. **Query parameter:** `?token=<key>` (for clients that can't set headers — matches the pattern used by deliberative-ai)
+1. **`Authorization: Bearer <key>`** header (preferred — key not visible in access logs)
+2. **`X-MarkdownKB-Key: <key>`** header (same as the REST API)
+3. **`?token=<key>`** query parameter (legacy fallback — key appears in server logs, avoid for new integrations)
 
 If no API key is configured, all connections are allowed. The stdio transport is never authenticated.
 
 Connect with auth:
 ```
+# Preferred (Bearer)
+Authorization: Bearer YOUR_KEY
+
+# Legacy (query parameter)
 http://localhost:9715/mcp?token=YOUR_KEY
 ```
 
