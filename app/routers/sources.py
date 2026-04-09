@@ -1,7 +1,13 @@
 """Source directory, project root, and ignore pattern endpoints."""
 
 import logging
+import os
 from pathlib import Path
+
+
+def _in_docker() -> bool:
+    """Detect if running inside a Docker container."""
+    return os.path.exists("/.dockerenv") or os.environ.get("MARKDOWNKB_DATA_DIR") == "/data"
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
@@ -45,7 +51,17 @@ def _watch_and_index(watcher, path: str):
 @limiter.limit(STANDARD)
 def get_sources(request: Request, settings: Settings = Depends(get_settings)):
     """Get list of source directories being watched."""
-    return {"sources": settings.sources}
+    sources = settings.sources
+    inaccessible = [s for s in sources if not Path(s).is_dir()]
+    result: dict = {"sources": sources}
+    if inaccessible:
+        result["inaccessible"] = inaccessible
+        if _in_docker():
+            result["message"] = (
+                "Some sources are not mounted into the container. "
+                "Add volume mounts to compose.override.yml and restart: make down && make up"
+            )
+    return result
 
 
 @router.post("/sources")
@@ -60,11 +76,30 @@ def add_source(
 
     When the file watcher is running, the new directory is immediately
     watched and its files are indexed — no restart required.
+
+    In Docker, newly added paths may not be mounted into the container.
+    The response includes a ``docker_restart_required`` flag when the
+    path is not accessible, with instructions to restart.
     """
     settings.add_source(req.path)
     settings.save()
-    _watch_and_index(watcher, req.path)
-    return {"sources": settings.sources}
+
+    resolved = str(Path(req.path).resolve())
+    accessible = Path(resolved).is_dir()
+
+    if accessible:
+        _watch_and_index(watcher, req.path)
+
+    result: dict = {"sources": settings.sources}
+
+    if not accessible and _in_docker():
+        result["docker_restart_required"] = True
+        result["message"] = (
+            f"Source added to config but '{req.path}' is not accessible inside the container. "
+            "Add a volume mount and restart: make down && make up"
+        )
+
+    return result
 
 
 @router.delete("/sources")

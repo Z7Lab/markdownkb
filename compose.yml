@@ -9,10 +9,16 @@ services:
       - ${MARKDOWNKB_DATA_DIR:-~/.local/share/markdownkb}:/data
       - ./config:/app/config
       - ./skills:/app/skills
-      # Mount home directory read-only so source paths in settings.yaml
-      # work identically whether running with Docker or natively.
-      # Add/remove source directories from the Settings UI — no restart needed.
-      - ${HOME}:${HOME}:ro
+      # Mount only the source directories your settings.yaml references.
+      # Use :ro for read-only sources, omit for writable ones.
+      # Add one line per source directory — do NOT mount your entire home dir.
+      #
+      # Example:
+      #   - /home/user/docs:/home/user/docs:ro
+      #   - /home/user/captures:/home/user/captures
+      #
+      # The paths must match what's in config/settings.yaml sources[].path.
+      # Restart after changing mounts: make down && make up
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
@@ -49,7 +55,8 @@ services:
     volumes:
       - ${MARKDOWNKB_DATA_DIR:-~/.local/share/markdownkb}:/data
       - ./config:/app/config
-      - ${HOME}:${HOME}:ro
+      # Same source directory mounts as above (MCP needs read access for search).
+      # Only the main service needs writable mounts for the write API.
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:

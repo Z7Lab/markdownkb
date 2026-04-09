@@ -1,0 +1,26 @@
+# compose.override.yml — mount your source directories into the container.
+#
+# Copy this file:  cp compose.override.yml.example compose.override.yml
+#
+# Add one volume per source directory from your settings.yaml.
+# Use :ro for read-only sources, omit for writable ones.
+# The paths must match settings.yaml sources[].path exactly.
+#
+# After changing mounts: make down && make up
+
+services:
+  markdownkb:
+    volumes:
+      # Read-only source (indexing only):
+      # - /home/user/docs:/home/user/docs:ro
+      #
+      # Writable source (write API can create/delete files):
+      # - /home/user/captures:/home/user/captures
+      []
+
+  markdownkb-mcp:
+    volumes:
+      # MCP server only needs read access for search:
+      # - /home/user/docs:/home/user/docs:ro
+      # - /home/user/captures:/home/user/captures:ro
+      []

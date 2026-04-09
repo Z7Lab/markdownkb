@@ -30,3 +30,4 @@ config/settings.yaml
 node_modules/
 frontend/dist/
 app/static/
+compose.override.yml
