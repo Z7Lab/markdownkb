@@ -7,7 +7,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { CodeBlock } from "@/components/ui/code-block"
 import { cn } from "@/lib/utils"
 
 const basePlugins = [remarkGfm]
@@ -58,38 +57,9 @@ export function Markdown({
 }) {
   const plugins = sourceMap ? citePlugins : basePlugins
 
-  // Custom code block renderer — shared across all modes
-  const preComponent = useMemo(
-    () =>
-      function Pre({ children }: React.HTMLAttributes<HTMLPreElement>) {
-        // Extract language and text from the <pre><code> structure
-        const codeChild = Array.isArray(children) ? children[0] : children
-        if (
-          codeChild &&
-          typeof codeChild === "object" &&
-          "props" in codeChild &&
-          codeChild.props?.className
-        ) {
-          const lang = (codeChild.props.className || "").replace("language-", "")
-          const code = String(codeChild.props.children || "").replace(/\n$/, "")
-          return <CodeBlock code={code} language={lang} />
-        }
-        // Fallback for plain <pre> without language
-        const text = String(
-          codeChild && typeof codeChild === "object" && "props" in codeChild
-            ? codeChild.props.children || ""
-            : children || "",
-        ).replace(/\n$/, "")
-        return <CodeBlock code={text} />
-      },
-    [],
-  )
-
   const components = useMemo(() => {
-    const base: Record<string, React.ComponentType<any>> = { pre: preComponent }
-    if (!sourceMap) return base
+    if (!sourceMap) return undefined
     return {
-      ...base,
       a: ({ href, children: linkChildren, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
         const match = href?.match(/^#cite-(\d+)$/)
         if (match) {
@@ -113,7 +83,7 @@ export function Markdown({
         return <a href={href} {...props}>{linkChildren}</a>
       },
     }
-  }, [sourceMap, onCiteClick, preComponent])
+  }, [sourceMap, onCiteClick])
 
   return (
     <div className={cn("markdownkb-prose", className)}>
