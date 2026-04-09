@@ -10,13 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import { Download, Eye, EyeOff, HelpCircle, Loader2, X } from "lucide-react"
+import { Download, Eye, EyeOff, Loader2, X } from "lucide-react"
 import type { AppSettings, ModelEntry, ModelInfo } from "@/lib/types"
 import type { OllamaPullProgress } from "@/hooks/use-provider-settings"
 import { TestPrompt } from "./test-prompt"
@@ -68,7 +62,6 @@ export function LlmConfig({
   const [apiBase, setApiBase] = useState(settings.active_api_base)
   const [apiKey, setApiKey] = useState("")
   const activeProvider = settings.providers.find((p) => p.name === provider)
-  const keyFromEnv = activeProvider?.api_key_source === "env"
   const keyIsSet = activeProvider?.api_key_set ?? false
   const [showKey, setShowKey] = useState(false)
   const [models, setModels] = useState<ModelEntry[]>([])
@@ -316,36 +309,29 @@ export function LlmConfig({
 
         <div>
           <label htmlFor="llm-api-key" className="text-sm font-medium">API Key</label>
-          {keyFromEnv ? (
-            <div className="flex items-center gap-2 mt-1">
-              <Badge variant="secondary">{provider.toUpperCase()}_API_KEY</Badge>
-              <span className="text-xs text-muted-foreground">Set via environment variable</span>
-            </div>
-          ) : (
-            <div className="flex gap-2">
-              <Input
-                id="llm-api-key"
-                type={showKey ? "text" : "password"}
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder={keyIsSet ? "Key set (leave empty to keep)" : "Enter API key or set via env var"}
-                className="flex-1"
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowKey(!showKey)}
-                aria-label={showKey ? "Hide API key" : "Show API key"}
-              >
-                {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </Button>
-            </div>
+          <div className="flex gap-2 mt-1">
+            <Input
+              id="llm-api-key"
+              type={showKey ? "text" : "password"}
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder={keyIsSet ? "Key configured — enter new key to replace" : "Enter API key"}
+              className="flex-1"
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowKey(!showKey)}
+              aria-label={showKey ? "Hide API key" : "Show API key"}
+            >
+              {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
+          </div>
+          {keyIsSet && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Key is saved. Leave empty to keep current key, or enter a new one to replace it.
+            </p>
           )}
-          <p className="text-xs text-muted-foreground mt-1">
-            {keyFromEnv
-              ? "Managed via secrets/ file or environment variable. Update and restart to change."
-              : `Set ${provider.toUpperCase()}_API_KEY via secrets/${provider.toLowerCase()}_api_key file or environment variable.`}
-          </p>
         </div>
 
         <div className="space-y-2">
@@ -376,25 +362,14 @@ export function LlmConfig({
               Refresh
             </Button>
           </div>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground cursor-help"
-                  onClick={() => setCustomMode(!customMode)}
-                >
-                  <HelpCircle className="h-3 w-3" />
-                  {customMode ? "Choose from list" : "Type manually"}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-72">
-                {customMode
-                  ? "Switch back to picking a model from the dropdown list."
-                  : "Type a model ID directly, e.g. openai/gpt-4o. For any OpenAI-compatible server (llama.cpp, vLLM, LM Studio, etc.) use openai/<model-name> with a custom API Base URL."}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-xs text-muted-foreground"
+            onClick={() => setCustomMode(!customMode)}
+          >
+            {customMode ? "← Choose from list" : "Type model ID manually"}
+          </Button>
 
           {infoLoading && (
             <p className="text-xs text-muted-foreground">Loading model info...</p>
