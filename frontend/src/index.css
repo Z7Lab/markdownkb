@@ -142,14 +142,16 @@
   a {
     @apply text-blue-600 underline decoration-blue-600/40 hover:decoration-blue-600;
   }
-  code {
-    @apply bg-muted px-1.5 py-0.5 rounded text-[0.8em] font-mono;
+  /* Inline code — visually distinct from surrounding text */
+  :not(pre) > code {
+    @apply bg-zinc-100 dark:bg-zinc-800 text-pink-600 dark:text-pink-400 px-1.5 py-0.5 rounded text-[0.85em] font-mono;
   }
+  /* Code blocks handled by CodeBlock component — reset prose defaults */
   pre {
-    @apply bg-muted text-foreground rounded-md;
+    @apply bg-transparent p-0 m-0;
   }
   pre code {
-    @apply bg-transparent px-0 py-0 text-inherit;
+    @apply bg-transparent p-0 text-inherit;
   }
   hr {
     @apply border-border;
