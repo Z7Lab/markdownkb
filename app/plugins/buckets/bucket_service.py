@@ -24,6 +24,7 @@ class BucketService:
         self._chromadb_dir = chromadb_dir
         self._embedding_model = embedding_model
         self._remote_config = remote_config
+        self._store_cache: dict[str, VectorStore] = {}
 
     @property
     def db(self) -> BucketDB:
@@ -33,10 +34,12 @@ class BucketService:
         return f"bucket_{bucket_id}"
 
     def get_store(self, bucket_id: str) -> VectorStore:
-        return VectorStore(
-            persist_directory=self._chromadb_dir,
-            collection_name=self._collection_name(bucket_id),
-        )
+        if bucket_id not in self._store_cache:
+            self._store_cache[bucket_id] = VectorStore(
+                persist_directory=self._chromadb_dir,
+                collection_name=self._collection_name(bucket_id),
+            )
+        return self._store_cache[bucket_id]
 
     def get_retriever(self, bucket_id: str, settings) -> Retriever:
         store = self.get_store(bucket_id)
@@ -270,6 +273,7 @@ class BucketService:
             collection_deleted = False
 
         self._db.delete(bucket_id)
+        self._store_cache.pop(bucket_id, None)
         logger.info("Bucket '%s' (%s) deleted", bucket_name, bucket_id)
         result = {"deleted": True, "id": bucket_id, "name": bucket_name}
         if not collection_deleted:
