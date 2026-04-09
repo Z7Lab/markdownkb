@@ -23,7 +23,8 @@ function detectWebGL(): boolean {
     const canvas = document.createElement("canvas")
     const gl = canvas.getContext("webgl2") || canvas.getContext("webgl")
     return gl instanceof WebGLRenderingContext || gl instanceof WebGL2RenderingContext
-  } catch {
+  } catch (err) {
+    console.error("WebGL detection failed unexpectedly:", err)
     return false
   }
 }

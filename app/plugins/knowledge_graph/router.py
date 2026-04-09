@@ -209,8 +209,10 @@ def kg_stats(request: Request):
     """Return knowledge graph statistics."""
     kgdb = getattr(request.app.state, "kgdb", None)
     if kgdb is None:
-        return {"entity_mentions": 0, "unique_entities": 0, "relationships": 0, "source_files": 0, "cached_chunks": 0}
-    return kgdb.get_stats()
+        return {"initialized": False, "entity_mentions": 0, "unique_entities": 0, "relationships": 0, "source_files": 0, "cached_chunks": 0}
+    stats = kgdb.get_stats()
+    stats["initialized"] = True
+    return stats
 
 
 @router.get("/file-entity-counts")

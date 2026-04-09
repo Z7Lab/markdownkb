@@ -47,8 +47,10 @@ export function RetrievalPresets({ onLoad, getCurrentSettings }: RetrievalPreset
     try {
       const data = await api.get<{ presets: Preset[] }>("/api/settings/presets")
       setPresets(data.presets)
-    } catch {
-      // silent — presets are optional
+    } catch (err) {
+      // Presets are optional — don't block the settings page, but log so
+      // developers can see if the presets endpoint is broken.
+      console.error("Failed to fetch retrieval presets:", err)
     }
   }, [])
 

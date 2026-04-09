@@ -447,6 +447,6 @@ def _read_manifest_safe(plugin_dir: Path) -> dict | None:
     try:
         with open(manifest_path, encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
-    except Exception:
+    except (OSError, yaml.YAMLError):
         logger.warning("Failed to read manifest for %s", plugin_dir.name, exc_info=True)
         return None

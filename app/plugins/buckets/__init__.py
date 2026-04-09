@@ -76,8 +76,10 @@ def _ensure_docs_bucket(svc) -> None:
         stored_hash = ""
         try:
             stored_hash = hash_file.read_text().strip()
-        except OSError:
-            pass
+        except FileNotFoundError:
+            pass  # Expected on first run — no hash file yet
+        except OSError as e:
+            logger.warning("Could not read docs hash file %s: %s", hash_file, e)
         if current_hash != stored_hash:
             logger.info("Docs changed (hash %s → %s), rebuilding docs bucket", stored_hash[:8] or "none", current_hash[:8])
             svc.delete(existing["id"])
@@ -114,8 +116,10 @@ def _ensure_docs_bucket(svc) -> None:
             from app.config import default_data_dir as _default_data_dir
             hash_file = Path(_default_data_dir()) / _DOCS_HASH_FILE
             hash_file.write_text(_hash_docs_dir(docs_dir))
-        except OSError:
-            pass
+        except OSError as e:
+            logger.warning(
+                "Could not save docs hash file — bucket will be rebuilt on next startup: %s", e
+            )
     except ValueError as e:
         logger.debug("Docs bucket already exists: %s", e)
     except Exception:

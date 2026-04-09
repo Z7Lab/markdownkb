@@ -61,6 +61,7 @@ def llm_health(request: Request, settings: Settings = Depends(get_settings)):
         "api_base": api_base,
         "configured": configured,
         "reachable": reachable,
+        "provider_fallback": active_cfg.get("_fallback", False),
     }
 
 

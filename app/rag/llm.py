@@ -68,9 +68,16 @@ def _get_openai_client(api_key: str, api_base: str | None = None) -> openai.Open
 def _needs_api_key(provider: dict) -> bool:
     """Check whether a provider requires an API key to function."""
     name = provider.get("name", "").lower()
-    # Ollama and other local providers don't need API keys
+    # Ollama and local providers don't need API keys.
+    # Also check the model field — if the model uses the ollama/ prefix
+    # (e.g. "ollama/llama3") the provider_type from _parse_model is authoritative.
     if "ollama" in name or "local" in name:
         return False
+    model = provider.get("model", "")
+    if model:
+        provider_type, _ = _parse_model(model)
+        if provider_type == "ollama":
+            return False
     return True
 
 
@@ -197,6 +204,12 @@ def get_completion(
     last_error = None
     for provider in providers:
         model = provider.get("model", "")
+        if not model:
+            logger.warning(
+                "Skipping provider %r: 'model' is not configured",
+                provider.get("name"),
+            )
+            continue
         api_key = (provider.get("api_key", "") or "").strip() or None
         api_base = (provider.get("api_base", "") or "").strip() or None
 

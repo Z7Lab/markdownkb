@@ -67,8 +67,8 @@ class ScopeDB:
     def _row_to_dict(self, row: sqlite3.Row) -> dict:
         d = dict(row)
         d["folders"] = json.loads(d["folders"])
-        d["tags"] = json.loads(d.get("tags") or "[]")
-        d["exclude_patterns"] = json.loads(d.get("exclude_patterns") or "[]")
+        d["tags"] = json.loads(d["tags"])
+        d["exclude_patterns"] = json.loads(d["exclude_patterns"])
         return d
 
     def list_scopes(self) -> list[dict]:

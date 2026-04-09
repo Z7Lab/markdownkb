@@ -151,6 +151,7 @@ class SearchDB:
                     result[field] = []
             if corrupt_fields:
                 result["_corrupt_fields"] = corrupt_fields
+                result["_data_corrupt"] = True
             return result
 
     def get_search_versions(self, search_id: str) -> list[dict]:

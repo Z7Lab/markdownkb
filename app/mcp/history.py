@@ -39,7 +39,13 @@ def record_search(
     if searchdb is None:
         return None
 
-    result_paths = [r.get("source", r.get("path", "")) for r in results]
+    # Prefer result_details (canonical {path, score} dicts) when available.
+    # Callers use different keys in the results list ("source" vs "path"),
+    # so deriving from result_details avoids silent empty-string insertion.
+    if result_details:
+        result_paths = [d.get("path", "") for d in result_details]
+    else:
+        result_paths = [r.get("source", "") for r in results]
     result_count = len(results)
 
     try:

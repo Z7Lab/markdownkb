@@ -129,13 +129,7 @@ class LLMMixin:
     def llm_num_ctx(self) -> int | None:
         """Return context window override from active provider's extra_body."""
         active = self.get_active_llm_config()
-        # Check extra_body first (new location), then top-level (legacy)
-        extra = active.get("extra_body", {})
-        if "num_ctx" in extra:
-            return extra["num_ctx"]
-        if "num_ctx" in active:
-            return active["num_ctx"]
-        return None
+        return active.get("extra_body", {}).get("num_ctx")
 
     @llm_num_ctx.setter
     def llm_num_ctx(self, value: int | None):
@@ -144,8 +138,6 @@ class LLMMixin:
             if p.get("name") == self.active_provider:
                 if value is None:
                     p.get("extra_body", {}).pop("num_ctx", None)
-                    p.pop("num_ctx", None)  # clean up legacy location
                 else:
                     p.setdefault("extra_body", {})["num_ctx"] = value
-                    p.pop("num_ctx", None)  # migrate from legacy location
                 return

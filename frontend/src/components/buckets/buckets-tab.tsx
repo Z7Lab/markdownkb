@@ -42,8 +42,8 @@ function BucketCard({
       const res = await api.get<{ files: BucketFile[]; indexing?: boolean }>(`/api/buckets/${bucket.id}/files`)
       setFiles(res.files)
       setFilesIndexing(res.indexing ?? false)
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error("Failed to load bucket files for", bucket.id, err)
     } finally {
       setLoadingFiles(false)
     }
@@ -56,7 +56,10 @@ function BucketCard({
 
   const sources = (() => {
     try { return JSON.parse(bucket.sources) as { path: string; glob?: string }[] }
-    catch { return [] }
+    catch (err) {
+      console.error("Failed to parse bucket sources for", bucket.id, err)
+      return []
+    }
   })()
 
   return (

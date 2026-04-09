@@ -83,7 +83,7 @@ def _parse_extraction(raw: str) -> dict:
             pass
 
     logger.warning("Failed to parse LLM extraction output: %.200s", raw)
-    return {"entities": [], "relationships": []}
+    raise ValueError(f"Unparseable LLM extraction output: {raw[:200]!r}")
 
 
 def extract_from_chunks(
@@ -129,6 +129,7 @@ def extract_from_chunks(
             text=combined_text,
         )
 
+        mark_extracted = False
         try:
             raw = get_completion(
                 messages=[{"role": "user", "content": prompt}],
@@ -151,6 +152,10 @@ def extract_from_chunks(
                 if not name:
                     continue
                 if etype not in ENTITY_TYPES:
+                    logger.warning(
+                        "KG extraction: unknown entity type %r for %r — coercing to 'concept'",
+                        etype, name,
+                    )
                     etype = "concept"
 
                 eid = kgdb.upsert_entity(
@@ -174,6 +179,11 @@ def extract_from_chunks(
                 if not src_name or not tgt_name or not rtype:
                     continue
                 if rtype not in RELATIONSHIP_TYPES:
+                    logger.warning(
+                        "KG extraction: unknown relationship type %r between %r and %r "
+                        "— coercing to 'relates-to'",
+                        rtype, src_name, tgt_name,
+                    )
                     rtype = "relates-to"
 
                 src_id = entity_ids.get(src_name)
@@ -188,16 +198,26 @@ def extract_from_chunks(
                         chunk_hash=batch[0][1],
                     )
 
+            # LLM responded and output was parsed (even if 0 entities): mark done
+            mark_extracted = True
+
+        except ValueError as e:
+            # Unparseable LLM output — do not mark chunks as extracted so they
+            # can be retried on the next indexing run
+            logger.warning(
+                "KG extraction parse failed for %s (batch %d): %s",
+                source_path, i // batch_size, e,
+            )
         except (RuntimeError, ConnectionError, TimeoutError) as e:
             logger.warning(
                 "KG extraction failed for %s (batch %d): %s",
                 source_path, i // batch_size, e,
             )
-            # Non-fatal — continue with remaining batches
+            # LLM call failed (transient) — mark extracted to avoid infinite retry
+            mark_extracted = True
 
-        # Mark chunks as extracted regardless of success
-        # (avoids retrying chunks that produce no entities)
-        for _, ch in batch:
-            kgdb.mark_chunk_extracted(ch, source_path)
+        if mark_extracted:
+            for _, ch in batch:
+                kgdb.mark_chunk_extracted(ch, source_path)
 
     return total_entities

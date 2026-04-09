@@ -111,6 +111,25 @@ def _migrate_settings(data: dict) -> bool:
     logger.info("Migrated settings from legacy features: layout to core/mcp/plugins/services")
     return True
 
+def _migrate_num_ctx(data: dict) -> bool:
+    """Move legacy top-level ``num_ctx`` into each provider's ``extra_body``.
+
+    Older configs stored ``num_ctx`` directly on the provider dict.  The new
+    location is ``provider.extra_body.num_ctx``.  This migration runs once on
+    startup and saves the config so the legacy path is never needed again.
+
+    Returns True if any migration was performed (caller should save).
+    """
+    migrated = False
+    for provider in data.get("llm", {}).get("providers", []):
+        if "num_ctx" in provider:
+            provider.setdefault("extra_body", {})["num_ctx"] = provider.pop("num_ctx")
+            migrated = True
+    if migrated:
+        logger.info("Migrated legacy provider num_ctx to extra_body.num_ctx")
+    return migrated
+
+
 _DEFAULT_CONFIG_PATH = (
     Path(__file__).resolve().parent.parent.parent / "config" / "settings.yaml"
 )
@@ -205,7 +224,10 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
         self._mcp_dir = self._path.parent / "mcp"
 
         # Auto-migrate legacy settings layout
-        if _migrate_settings(self._data):
+        migrated = _migrate_settings(self._data)
+        if _migrate_num_ctx(self._data):
+            migrated = True
+        if migrated:
             self.save()
 
     @property

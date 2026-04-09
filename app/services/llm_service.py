@@ -18,11 +18,13 @@ logger = logging.getLogger(__name__)
 def get_provider_models(provider_name: str) -> list[str]:
     """Return known chat models for API-based providers.
 
-    Plugin catalogs are the primary source for model lists. This function
-    returns an empty list — callers should check catalogs first via
-    ``build_model_list``.
+    .. deprecated::
+        This function is a stub that always returns an empty list.
+        Use :func:`build_model_list` instead, which queries plugin catalogs.
     """
-    return []
+    raise NotImplementedError(
+        "get_provider_models is not implemented — use build_model_list() instead"
+    )
 
 
 def _get_plugin_catalog(provider_name: str, api_base: str = "") -> list[dict] | None:
@@ -153,7 +155,8 @@ def test_llm_connection(
     if not model:
         return {"ok": False, "message": "No model configured."}
 
-    if "ollama" in provider_name.lower() and api_base:
+    provider_type, _ = _parse_model(model)
+    if ("ollama" in provider_name.lower() or provider_type == "ollama") and api_base:
         msg = test_ollama(api_base)
         ok = not msg.startswith(("Cannot reach", "Connection failed", "Connection error"))
         return {"ok": ok, "message": msg}

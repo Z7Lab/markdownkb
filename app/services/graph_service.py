@@ -323,8 +323,12 @@ def compute_edge_detail(
     src_data = store.get_chunks_for_doc(source)
     tgt_data = store.get_chunks_for_doc(target)
 
-    source_texts = [d or "" for d in (src_data.get("documents") or [])]
-    target_texts = [d or "" for d in (tgt_data.get("documents") or [])]
+    source_docs = src_data.get("documents")
+    target_docs = tgt_data.get("documents")
+    if not source_docs or not target_docs:
+        return {"source": source, "target": target, "source_chunks": 0, "target_chunks": 0, "pairs": []}
+    source_texts = [d or "" for d in source_docs]
+    target_texts = [d or "" for d in target_docs]
     source_embs = src_data.get("embeddings")
     target_embs = tgt_data.get("embeddings")
 
