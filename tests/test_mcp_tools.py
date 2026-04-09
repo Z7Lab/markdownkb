@@ -187,7 +187,7 @@ class TestSearchDocuments:
             "chunk_count": 2,
         }
 
-        import app.mcp.tools.retrieve_documents as mod
+        import app.mcp.tools.search_documents as mod
 
         mod._mcp = self._make_context(retriever, tracking)
 
@@ -212,7 +212,7 @@ class TestSearchDocuments:
         tracking = MagicMock()
         tracking.get_file.return_value = {"path": str(doc), "status": "complete", "chunk_count": 2}
 
-        import app.mcp.tools.retrieve_documents as mod
+        import app.mcp.tools.search_documents as mod
 
         mod._mcp = self._make_context(retriever, tracking)
 
@@ -236,7 +236,7 @@ class TestSearchDocuments:
         tracking = MagicMock()
         tracking.get_file.side_effect = lambda p: {"path": p, "status": "complete", "chunk_count": 1}
 
-        import app.mcp.tools.retrieve_documents as mod
+        import app.mcp.tools.search_documents as mod
 
         mod._mcp = self._make_context(retriever, tracking)
 
@@ -257,7 +257,7 @@ class TestSearchDocuments:
         tracking = MagicMock()
         tracking.get_file.return_value = None  # Not tracked
 
-        import app.mcp.tools.retrieve_documents as mod
+        import app.mcp.tools.search_documents as mod
 
         mod._mcp = self._make_context(retriever, tracking)
 
@@ -270,7 +270,7 @@ class TestSearchDocuments:
 
         tracking = MagicMock()
 
-        import app.mcp.tools.retrieve_documents as mod
+        import app.mcp.tools.search_documents as mod
 
         mod._mcp = self._make_context(retriever, tracking)
 

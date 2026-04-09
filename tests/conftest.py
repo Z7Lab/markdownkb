@@ -33,6 +33,7 @@ class FakeSettings:
     global_ignore: list[str] = field(default_factory=lambda: ["**/node_modules/**", "**/.git/**"])
     api_key: str = ""
     embedding_model: str = "all-MiniLM-L6-v2"
+    embedding_provider: str = "local"
     active_provider: str = "test"
     system_prompt: str = "You are a helpful assistant."
     default_system_prompt: str = "You are a helpful assistant."
@@ -65,6 +66,7 @@ class FakeSettings:
     hybrid_search: bool = True
     bm25_weight: float = 0.5
     intelligent_search_enabled: bool = False
+    embedding_remote_config: dict | None = None
     default_top_k: int = 5
     default_score_threshold: float = 0.3
     default_hybrid_search: bool = True

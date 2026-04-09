@@ -29,8 +29,6 @@ def test_migration_from_old_format(tmp_path):
             "deep_research": False,
             "agent_skills": False,
             "diagnostics": False,
-            "mcp_filesystem": False,
-            "mcp_terminal": False,
             "search": True,
             "export": True,
             "tags": True,
@@ -55,14 +53,13 @@ def test_migration_from_old_format(tmp_path):
     assert s._data["core"]["deep_research"] is False
     assert s._data["core"]["rate_limiting"] is False
 
-    # mcp flags (stripped prefix)
-    assert s._data["mcp"]["filesystem"] is False
-    assert s._data["mcp"]["terminal"] is False
+    # mcp section exists (may be empty — filesystem/terminal were removed)
+    assert "mcp" in s._data
 
     # plugin enabled + config merged
     assert s._data["plugins"]["search"]["enabled"] is True
     assert s._data["plugins"]["search"]["chunk_multiplier"] == 10
-    assert s._data["plugins"]["graph"]["enabled"] is True
+    assert s._data["plugins"]["knowledge_graph"]["enabled"] is True
     assert s._data["plugins"]["planner"]["enabled"] is True
     assert s._data["plugins"]["write_api"]["enabled"] is False
     assert s._data["plugins"]["tags"]["ai_generation"] is False
@@ -107,7 +104,6 @@ def test_migrated_flags_accessible_via_direct_methods(tmp_path):
     old_config = {
         "features": {
             "rag_chat": True,
-            "mcp_filesystem": True,
             "knowledge_graph": True,
             "mcp_tag_generator": True,
         },
@@ -116,8 +112,7 @@ def test_migrated_flags_accessible_via_direct_methods(tmp_path):
     s = Settings(config_file)
 
     assert s.core_enabled("rag_chat") is True
-    assert s.mcp_enabled("filesystem") is True
-    assert s.plugin_enabled("graph") is True
+    assert s.plugin_enabled("knowledge_graph") is True
     assert s.get_plugin_config("tags").get("ai_generation") is True
 
 

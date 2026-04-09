@@ -42,7 +42,7 @@ async def test_toggle_core(client):
 @pytest.mark.asyncio
 async def test_toggle_mcp_flag(client):
     resp = await client.put("/api/settings/mcp-flags", json={
-        "name": "filesystem",
+        "name": "read_only",
         "enabled": True,
     })
     assert resp.status_code == 200
