@@ -103,3 +103,30 @@ The path must be within a configured source directory. Accepts absolute or relat
 **Webhook ingestion:** A CI pipeline or webhook POSTs converted documents (from Confluence, Notion, etc.) to the write API. MarkdownKB indexes them alongside your local docs.
 
 **Bucket → permanent:** After evaluating temporary bucket content, promote useful docs by saving them to a watched source directory via `save_file`.
+
+## Pushing documents into buckets remotely
+
+Buckets can also be populated by **content push** — sending document content directly over the API without any filesystem access. This is the key use case for remote agents that cannot write files to the MarkdownKB host.
+
+### REST API
+
+```bash
+curl -X POST http://localhost:9713/api/buckets/{id}/documents \
+  -H "Content-Type: application/json" \
+  -d '{
+    "documents": [
+      {"name": "vendor-api.md", "content": "# Vendor API\n\nEndpoints..."},
+      {"name": "changelog.md", "content": "# Changelog\n\n## v2.0\n\n..."}
+    ]
+  }'
+```
+
+Each document needs a `name` (used as the filename) and `content` (markdown). Documents are stored as vectors in ChromaDB with virtual paths like `bucket://bucket-name/vendor-api.md` — they never touch disk.
+
+### MCP tool
+
+```
+bucket_push(bucket: "vendor-docs", documents: [{"name": "api.md", "content": "# API\n\n..."}])
+```
+
+This is particularly useful for agents that download or generate content and want to make it searchable without needing filesystem access to the MarkdownKB host.

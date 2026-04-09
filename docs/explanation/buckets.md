@@ -108,6 +108,21 @@ POST /api/buckets/{id}/add
 
 Duplicate files (same path) are skipped.
 
+### Content push (no filesystem access)
+
+Buckets can also be populated by pushing document content directly over the API, without any files on disk:
+
+```json
+POST /api/buckets/{id}/documents
+{
+  "documents": [
+    {"name": "api-reference.md", "content": "# API Reference\n\n..."}
+  ]
+}
+```
+
+Pushed documents exist only as vectors in ChromaDB with virtual paths like `bucket://bucket-name/api-reference.md`. This is designed for remote agents and integrations that cannot write files to the MarkdownKB host. The same capability is available via the `bucket_push` MCP tool.
+
 ## Expiration
 
 Buckets can be permanent (no `expires_in`) or auto-expiring:
@@ -123,6 +138,7 @@ When the buckets plugin is enabled, agents can create, search, and chat with buc
 |------|-------------|
 | `bucket_create` | Create a bucket from source paths |
 | `bucket_add` | Add documents to an existing bucket |
+| `bucket_push` | Push documents by content (no filesystem needed) |
 | `bucket_list` | List all buckets |
 | `bucket_list_files` | List files in a bucket |
 | `bucket_search` | Search within a bucket |

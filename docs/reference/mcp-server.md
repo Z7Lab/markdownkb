@@ -6,7 +6,7 @@ The server runs as a **separate process** alongside the FastAPI app. It imports 
 
 ## All MCP Tools at a Glance
 
-32 tools organized by category. Core tools are always available; plugin tools appear when their plugin is enabled.
+33 tools organized by category. Core tools are always available; plugin tools appear when their plugin is enabled.
 
 **Search & Retrieval:**
 - `search` — hybrid vector + keyword search, returns chunks with source paths
@@ -49,6 +49,7 @@ The server runs as a **separate process** alongside the FastAPI app. It imports 
 - `bucket_search` — search within a bucket *(buckets plugin)*
 - `bucket_chat` — RAG chat scoped to a bucket *(buckets plugin)*
 - `bucket_add` — add documents to a bucket *(buckets plugin, write)*
+- `bucket_push` — push documents by content, no filesystem needed *(buckets plugin, write)*
 - `bucket_delete` — delete a bucket *(buckets plugin, write)*
 
 **System:**
@@ -106,6 +107,7 @@ make mcp
 | `bucket_chat` | `app/plugins/buckets/` | buckets | | RAG chat scoped to a temporary bucket |
 | `bucket_delete` | `app/plugins/buckets/` | buckets | yes | Delete a temporary bucket and its vector data |
 | `bucket_add` | `app/plugins/buckets/` | buckets | yes | Add documents to an existing bucket |
+| `bucket_push` | `app/plugins/buckets/` | buckets | yes | Push documents by content (no filesystem needed) |
 | `bucket_list_files` | `app/plugins/buckets/` | buckets | | List files and chunk counts in a bucket |
 
 **Gating rules:**
@@ -113,7 +115,7 @@ make mcp
 - **Plugin** tools require `plugins.<name>.enabled: true` in settings
 - **Write** tools are disabled when `mcp.read_only: true`, regardless of other flags
 - `save_file` and `delete_file` have an additional feature flag: `mcp.save_document` must also be true
-- **Bucket write exemption:** when `mcp.allow_bucket_writes: true`, bucket write tools (`bucket_create`, `bucket_delete`, `bucket_add`) are allowed even with `read_only: true`. Buckets are ephemeral and isolated — they don't touch the main knowledge base.
+- **Bucket write exemption:** when `mcp.allow_bucket_writes: true`, bucket write tools (`bucket_create`, `bucket_delete`, `bucket_add`, `bucket_push`) are allowed even with `read_only: true`. Buckets are ephemeral and isolated — they don't touch the main knowledge base.
 
 ### search
 
@@ -294,6 +296,21 @@ bucket_list_files(bucket: "project-docs")
 ```
 
 List all files indexed in a bucket with their chunk counts.
+
+### bucket_push
+
+```
+bucket_push(
+  bucket: "project-docs",
+  documents: [
+    {"name": "api-reference.md", "content": "# API Reference\n\n..."},
+    {"name": "changelog.md", "content": "# Changelog\n\n## v2.0\n\n..."}
+  ]
+)
+→ {bucket_id, bucket_name, added_files, added_chunks, total_files, total_chunks}
+```
+
+Push documents by content without filesystem access. Each document needs a `name` and `content` field. Documents are stored as vectors in ChromaDB with virtual paths like `bucket://bucket-name/api-reference.md` — they never exist on disk. This is designed for remote agents that cannot write files to the MarkdownKB host.
 
 ### bucket_delete
 

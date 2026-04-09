@@ -351,6 +351,7 @@ Temporary scoped document collections with independent vector storage. Each buck
 | POST | `/api/buckets/{id}/search` | Search within a bucket |
 | POST | `/api/buckets/{id}/chat` | RAG chat scoped to a bucket |
 | POST | `/api/buckets/{id}/add` | Add documents to an existing bucket (skips duplicates) |
+| POST | `/api/buckets/{id}/documents` | Push documents by content (no filesystem access needed) |
 
 ### POST /api/buckets
 

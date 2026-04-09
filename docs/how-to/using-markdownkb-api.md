@@ -195,6 +195,10 @@ POST /api/buckets/{id}/chat
 POST /api/buckets/{id}/add
 {"sources": [{"path": "/tmp/more-docs", "glob": "**/*.md"}]}
 
+# Push documents by content (no filesystem access needed)
+POST /api/buckets/{id}/documents
+{"documents": [{"name": "file.md", "content": "# Markdown content..."}]}
+
 # List files in a bucket
 GET /api/buckets/{id}/files
 
@@ -280,6 +284,7 @@ Connect to the MCP server at `http://localhost:9715/mcp` (Streamable HTTP transp
 | `bucket_chat` | | Chat with a bucket |
 | `bucket_create` | yes | Create a bucket from a directory |
 | `bucket_add` | yes | Add files to an existing bucket |
+| `bucket_push` | yes | Push documents by content (no filesystem needed) |
 | `bucket_delete` | yes | Delete a bucket |
 
 Bucket write tools can be allowed even with `mcp.read_only: true` by setting `mcp.allow_bucket_writes: true` — buckets are isolated from the main knowledge base.
