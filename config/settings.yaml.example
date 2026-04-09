@@ -189,7 +189,7 @@ plugins:
   knowledge_graph:
     enabled: false                  # Requires LLM — extracts entities and relationships from docs
   converter:
-    enabled: true                   # Batch convert DOCX, PDF, HTML, etc. to markdown via Pandoc
+    enabled: false                  # Batch convert DOCX, PDF, PPTX, XLSX, HTML, etc. to markdown via markitdown
   planner:
     enabled: false
   write_api:
