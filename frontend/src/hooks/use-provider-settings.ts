@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from "react"
+import { toast } from "sonner"
 import { api, getApiKey } from "@/lib/api"
 import { parseSSEStream } from "@/lib/sse"
 import type { ModelEntry, ModelInfo } from "@/lib/types"
@@ -31,7 +32,10 @@ export function useProviderSettings(reload: () => Promise<boolean>) {
       const body: Record<string, string> = { name, model, api_base: apiBase }
       if (apiKey) body.api_key = apiKey
       await api.put("/api/settings/provider", body)
-      setModelStatus(`Saved: ${name} / ${model}`)
+      setModelStatus("")
+      toast.success(`Provider saved: ${name}`, {
+        description: model + (apiKey ? " (API key updated)" : ""),
+      })
       await reload()
     },
     [reload],
@@ -88,6 +92,7 @@ export function useProviderSettings(reload: () => Promise<boolean>) {
         max_tokens: maxTokens,
         num_ctx: numCtx,
       })
+      toast.success("Generation parameters saved")
       await reload()
     },
     [reload],

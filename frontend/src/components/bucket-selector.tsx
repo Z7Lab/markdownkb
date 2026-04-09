@@ -1,3 +1,4 @@
+import { useEffect } from "react"
 import { SidebarSection } from "@/components/ui/sidebar-section"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Database } from "lucide-react"
@@ -12,6 +13,13 @@ export function BucketSelector({
   selectedBucketId: string | null
   onBucketChange: (id: string | null) => void
 }) {
+  // Clear stale bucket selection (expired/deleted bucket)
+  useEffect(() => {
+    if (selectedBucketId && buckets.length > 0 && !buckets.some((b) => b.id === selectedBucketId)) {
+      onBucketChange(null)
+    }
+  }, [selectedBucketId, buckets, onBucketChange])
+
   if (buckets.length === 0) return null
 
   const selectedName = selectedBucketId
