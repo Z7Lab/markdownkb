@@ -48,12 +48,21 @@ def save_provider(
     API keys are written to the data secrets directory (not YAML).
     """
     settings.active_provider = req.name
+    found = False
     for p in settings.llm_providers:
         if p.get("name") == req.name:
             p["model"] = req.model
             p["api_base"] = req.api_base
             p.pop("api_key", None)  # never in YAML
+            found = True
             break
+    if not found:
+        # New provider — add it to the list
+        settings.llm_providers.append({
+            "name": req.name,
+            "model": req.model,
+            "api_base": req.api_base,
+        })
     settings.save()
 
     # Write API key to secrets directory if provided
