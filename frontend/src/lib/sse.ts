@@ -70,7 +70,7 @@ function streamSSE(
   url: string,
   body: Record<string, unknown>,
   onEvent: (event: string, data: Record<string, unknown>) => void,
-  onDone: () => void,
+  onDone: (data?: Record<string, unknown>) => void,
   onError: (error: Error) => void,
 ): AbortController {
   const controller = new AbortController()
@@ -94,7 +94,7 @@ function streamSSE(
       await parseSSEStream(reader, (event, data) => {
         if (event === "done") {
           doneReceived = true
-          onDone()
+          onDone(data)
         } else {
           onEvent(event, data)
         }
@@ -114,7 +114,7 @@ export interface SSECallbacks {
   onThread: (threadId: string, title: string) => void
   onToken: (content: string) => void
   onSources: (sources: string[], sourceMap?: Record<string, string>) => void
-  onDone: () => void
+  onDone: (meta?: { provider?: string; model?: string }) => void
   onError: (error: Error) => void
 }
 
@@ -155,7 +155,7 @@ export function streamChat(
         callbacks.onSources(asStringArray(data.sources), sourceMap)
       }
     },
-    callbacks.onDone,
+    (data) => callbacks.onDone(data ? { provider: data.provider as string, model: data.model as string } : undefined),
     callbacks.onError,
   )
 }

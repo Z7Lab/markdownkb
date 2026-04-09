@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS messages (
     content     TEXT NOT NULL,
     sources     TEXT,
     source_map  TEXT,
+    provider    TEXT,
+    model       TEXT,
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -37,6 +39,8 @@ CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(thread_id);
 _MIGRATIONS: list[tuple[int, str, str]] = [
     (1, "add sources column to messages", "ALTER TABLE messages ADD COLUMN sources TEXT"),
     (2, "add source_map column to messages", "ALTER TABLE messages ADD COLUMN source_map TEXT"),
+    (3, "add provider column to messages", "ALTER TABLE messages ADD COLUMN provider TEXT"),
+    (4, "add model column to messages", "ALTER TABLE messages ADD COLUMN model TEXT"),
 ]
 
 
@@ -158,14 +162,17 @@ class ChatDB:
             return out
 
     def add_message(
-        self, thread_id: str, role: str, content: str, sources: list[str] | None = None
+        self, thread_id: str, role: str, content: str,
+        sources: list[str] | None = None,
+        provider: str | None = None, model: str | None = None,
     ):
         """Add a new message to a thread and update the thread's timestamp."""
         src_json = json.dumps(sources) if sources else None
         with self._lock:
             self._conn.execute(
-                "INSERT INTO messages (thread_id, role, content, sources) VALUES (?, ?, ?, ?)",
-                (thread_id, role, content, src_json),
+                "INSERT INTO messages (thread_id, role, content, sources, provider, model) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (thread_id, role, content, src_json, provider, model),
             )
             self._conn.execute(
                 "UPDATE threads SET updated_at = datetime('now') WHERE id = ?",

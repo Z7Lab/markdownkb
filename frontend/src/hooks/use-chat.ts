@@ -149,7 +149,17 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null, b
               return updated
             })
           },
-          onDone() {
+          onDone(meta) {
+            if (meta?.provider || meta?.model) {
+              setMessages((prev) => {
+                const updated = [...prev]
+                const last = updated[updated.length - 1]
+                if (last?.role === "assistant") {
+                  updated[updated.length - 1] = { ...last, provider: meta.provider, model: meta.model }
+                }
+                return updated
+              })
+            }
             cleanupStream()
             refreshThreads()
           },
@@ -207,7 +217,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null, b
 
       try {
         const res = await api.get<{
-          messages: Array<{ role: string; content: string; sources?: string[] | null; source_map?: Record<string, string> | null }>
+          messages: Array<{ role: string; content: string; sources?: string[] | null; source_map?: Record<string, string> | null; provider?: string | null; model?: string | null }>
         }>(`/api/threads/${threadId}/messages`)
         if (currentLoad !== loadIdRef.current) return
         setMessages(
@@ -217,6 +227,8 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null, b
             content: m.content,
             ...(m.sources ? { sources: m.sources } : {}),
             ...(m.source_map ? { sourceMap: m.source_map } : {}),
+            ...(m.provider ? { provider: m.provider } : {}),
+            ...(m.model ? { model: m.model } : {}),
           })),
         )
       } catch (err) {

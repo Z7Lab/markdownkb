@@ -11,6 +11,8 @@ export interface ChatMessage {
   content: string
   sources?: string[]
   sourceMap?: Record<string, string>
+  provider?: string
+  model?: string
 }
 
 export interface SearchSnippet {
