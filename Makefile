@@ -13,7 +13,7 @@ API_PORT        ?= 9713
 FRONTEND_PORT   ?= 9714
 
 .DEFAULT_GOAL := help
-.PHONY: help install dev stop build up down restart logs ps shell clean backend prod test lint status check-ports mcp
+.PHONY: help install dev stop docker-build docker-up docker-down docker-restart docker-logs docker-ps docker-shell docker-clean docker-clean-all backend prod test lint status check-ports mcp
 
 # ── Quick Start ──────────────────────────────────
 
@@ -52,10 +52,10 @@ stop: ## Stop dev servers
 
 # ── Docker ───────────────────────────────────────
 
-build: ## Build Docker image
+docker-build: ## Build Docker image
 	@docker compose build
 
-up: ## Start container (detached)
+docker-up: ## Start container (detached)
 	@mkdir -p data/chromadb data/plans
 	@docker compose up -d
 	@echo ""
@@ -70,27 +70,33 @@ up: ## Start container (detached)
 	if [ -n "$$LAN_HOST" ]; then \
 		echo "                  http://$$LAN_HOST.local:$(MARKDOWNKB_PORT)"; \
 	fi
-	@echo "  Logs: make logs"
+	@echo "  Logs: make docker-logs"
 	@echo ""
 
-down: ## Stop container
+docker-down: ## Stop container
 	@docker compose down
 
-restart: ## Restart container
+docker-restart: ## Restart container
 	@docker compose restart
 
-logs: ## Tail container logs
+docker-logs: ## Tail container logs
 	@docker compose logs -f
 
-ps: ## Show container status
+docker-ps: ## Show container status
 	@docker compose ps
 
-shell: ## Open a shell in the container
+docker-shell: ## Open a shell in the container
 	@docker compose exec markdownkb /bin/bash
 
-clean: ## Stop container and remove image
+docker-clean: ## Stop container and remove image (preserves data volumes)
+	@docker compose down --rmi local
+	@echo "Cleaned up containers and images (data volumes preserved)."
+
+docker-clean-all: ## Stop container, remove image AND data volumes (destructive — re-index required)
+	@echo "WARNING: This will destroy all indexed data, plans, and plugins."
+	@printf "Are you sure? [y/N] " && read ans && [ "$${ans:-N}" = "y" ]
 	@docker compose down --rmi local --volumes
-	@echo "Cleaned up containers and images."
+	@echo "Cleaned up containers, images, and volumes."
 
 # ── Development ──────────────────────────────────
 

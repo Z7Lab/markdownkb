@@ -40,10 +40,10 @@ Creates `.venv`, installs Python and Node dependencies if needed, starts both se
 
 5. **Build and start**:
    ```bash
-   make build && make up
+   make docker-build && make docker-up
    ```
 
-Source directories are mounted individually into the container — `compose.override.yml` is auto-generated from your `settings.yaml` sources when you add or remove directories via the UI. Copy the example on first setup: `cp compose.override.yml.example compose.override.yml`. After adding sources, restart: `make down && make up`. The container binds to **localhost only** by default and runs as a non-root user.
+Source directories are mounted individually into the container — `compose.override.yml` is auto-generated from your `settings.yaml` sources when you add or remove directories via the UI. Copy the example on first setup: `cp compose.override.yml.example compose.override.yml`. After adding sources, restart: `make docker-down && make docker-up`. The container binds to **localhost only** by default and runs as a non-root user.
 
 ## run.sh
 
@@ -65,24 +65,25 @@ Source directories are mounted individually into the container — `compose.over
 ## Makefile
 
 ```bash
-make help       # show all targets
-make dev        # alias for ./run.sh
-make build      # build Docker image
-make up         # start container (detached)
-make down       # stop container
-make logs       # tail container logs
-make shell      # open a shell in the container
-make restart    # restart container
-make clean      # stop container and remove image
+make help              # show all targets
+make dev               # alias for ./run.sh
+make docker-build      # build Docker image
+make docker-up         # start container (detached)
+make docker-down       # stop container
+make docker-logs       # tail container logs
+make docker-shell      # open a shell in the container
+make docker-restart    # restart container
+make docker-clean      # stop container and remove image (preserves data volumes)
+make docker-clean-all  # stop container, remove image AND data volumes (destructive)
 ```
 
 **After changing config (Docker):**
 
 | What changed | What to run |
 |---|---|
-| `.env` (ports, API keys, bind address) | `make down && make up` |
-| `config/settings.yaml` (sources, LLM, features) | `make restart` |
-| Code or dependencies | `make build && make up` |
+| `.env` (ports, bind address) | `make docker-down && make docker-up` |
+| `config/settings.yaml` (sources, LLM, features) | `make docker-restart` |
+| Code or dependencies | `make docker-build && make docker-up` |
 
 ## Configuration
 

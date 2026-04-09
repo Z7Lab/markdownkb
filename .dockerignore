@@ -13,6 +13,13 @@ dist/
 build/
 tests/
 .env
+.env.example
 config/settings.yaml
 .pylintrc
 pytest.ini
+secrets/
+compose*.yml
+Makefile
+run.sh
+*.md
+.github/

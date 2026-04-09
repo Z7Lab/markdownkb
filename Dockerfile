@@ -1,5 +1,5 @@
 # ── Stage 1: Frontend build ──────────────────────
-FROM node:22-slim AS frontend-builder
+FROM node:22.14-slim AS frontend-builder
 
 WORKDIR /app/frontend
 
@@ -11,7 +11,7 @@ RUN npm run build
 
 
 # ── Stage 2: Python wheels ──────────────────────
-FROM python:3.13-slim AS python-builder
+FROM python:3.13.2-slim AS python-builder
 
 WORKDIR /app
 
@@ -24,7 +24,7 @@ RUN pip wheel --no-cache-dir --wheel-dir /app/wheels -r requirements.txt
 
 
 # ── Stage 3: Production ─────────────────────────
-FROM python:3.13-slim
+FROM python:3.13.2-slim
 
 WORKDIR /app
 

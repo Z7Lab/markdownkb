@@ -8,6 +8,7 @@ services:
     volumes:
       - ${MARKDOWNKB_DATA_DIR:-~/.local/share/markdownkb}:/data
       - ./config:/app/config
+      # config/settings.yaml is read at startup; restart after editing it.
       - ./skills:/app/skills
       # Mount only the source directories your settings.yaml references.
       # Use :ro for read-only sources, omit for writable ones.
@@ -18,26 +19,31 @@ services:
       #   - /home/user/captures:/home/user/captures
       #
       # The paths must match what's in config/settings.yaml sources[].path.
-      # Restart after changing mounts: make down && make up
+      # Restart after changing mounts: make docker-down && make docker-up
+    networks:
+      - markdownkb-net
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
       - SERVER_HOST=0.0.0.0
       - OLLAMA_API_BASE=${OLLAMA_API_BASE:-}
-      # API keys: secrets/ files (preferred) or env vars (convenience).
-      # Docker secrets are NOT visible in `docker inspect`.
-      # Env vars below ARE visible — use secrets/ for shared/production hosts.
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - VENICE_API_KEY=${VENICE_API_KEY:-}
-      - MARKDOWNKB_API_KEY=${MARKDOWNKB_API_KEY:-}
+      # API keys: use secrets/ files (preferred — not visible in docker inspect).
+      # Add env vars here via compose.override.yml if you cannot use secrets files.
     secrets:
       - anthropic_api_key
       - openai_api_key
       - venice_api_key
       - markdownkb_api_key
+    init: true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 4g
+          cpus: "2.0"
     healthcheck:
-      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:9713/api/health').raise_for_status()"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9713/api/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -57,6 +63,8 @@ services:
       - ./config:/app/config
       # Same source directory mounts as above (MCP needs read access for search).
       # Only the main service needs writable mounts for the write API.
+    networks:
+      - markdownkb-net
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
@@ -65,13 +73,28 @@ services:
       - anthropic_api_key
       - openai_api_key
       - venice_api_key
+    init: true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          cpus: "1.0"
+    depends_on:
+      markdownkb:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('localhost',9715),timeout=5); s.close()"]
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('localhost',9715),timeout=5); s.sendall(b'GET /mcp HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n'); data=s.recv(64); s.close(); assert data.startswith(b'HTTP/')"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
     restart: unless-stopped
+
+networks:
+  markdownkb-net:
+    driver: bridge
 
 # Docker secrets — create files in ./secrets/ with one key per file.
 # Only the secrets that exist will be mounted; missing files cause a
