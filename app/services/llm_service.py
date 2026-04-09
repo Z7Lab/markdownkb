@@ -57,7 +57,36 @@ def build_model_list(
     if catalog:
         return catalog, f"Found {len(catalog)} model(s)"
 
+    # Fall back to the standard OpenAI /v1/models endpoint
+    if api_base:
+        models = _fetch_openai_models(api_base)
+        if models:
+            return models, f"Found {len(models)} model(s)"
+        return [], f"Could not fetch models from {api_base}/v1/models"
+
     return [], "No models available for this provider"
+
+
+def _fetch_openai_models(api_base: str) -> list[dict]:
+    """Query /v1/models on an OpenAI-compatible server."""
+    try:
+        validate_api_base(api_base)
+        url = f"{api_base.rstrip('/')}/models"
+        if "/v1" not in url:
+            url = f"{api_base.rstrip('/')}/v1/models"
+        resp = httpx.get(url, timeout=10)
+        if resp.status_code != 200:
+            return []
+        data = resp.json()
+        models = data.get("data", [])
+        return [
+            {"id": f"openai/{m['id']}", "label": m["id"]}
+            for m in models
+            if isinstance(m, dict) and "id" in m
+        ]
+    except (httpx.HTTPError, ValueError, KeyError) as e:
+        logger.warning("Failed to fetch models from %s: %s", api_base, e)
+        return []
 
 
 # ── Connection Testing ────────────────────────────────────
