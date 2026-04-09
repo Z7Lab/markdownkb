@@ -54,7 +54,7 @@ curl -X POST http://localhost:9713/api/documents \
 
 - **path** — relative path within the source directory (must end with `.md`)
 - **content** — markdown content to write
-- **source** — target source directory (empty = first configured source)
+- **source** — target source directory. Required when multiple source directories are configured (the API returns an error listing available sources). With a single source, defaults to that source.
 - **overwrite** — set `true` to replace an existing file (default `false`, returns 409 if file exists)
 
 ### Delete a document
@@ -62,6 +62,8 @@ curl -X POST http://localhost:9713/api/documents \
 ```bash
 curl -X DELETE "http://localhost:9713/api/documents?path=notes/meeting-2026-04-09.md"
 ```
+
+The `source` query parameter is also required for `DELETE` when multiple source directories are configured.
 
 ## MCP tool usage
 
@@ -130,3 +132,5 @@ bucket_push(bucket: "vendor-docs", documents: [{"name": "api.md", "content": "# 
 ```
 
 This is particularly useful for agents that download or generate content and want to make it searchable without needing filesystem access to the MarkdownKB host.
+
+To read pushed documents back, use `GET /api/buckets/{id}/file?path=...` or the `bucket_read_file` MCP tool. Content is reconstructed from stored chunks.

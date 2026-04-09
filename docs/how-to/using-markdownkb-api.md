@@ -179,7 +179,7 @@ Buckets are temporary document collections — isolated from the main knowledge 
 # List buckets
 GET /api/buckets
 
-# Create a bucket from a directory
+# Create a bucket from a directory (sources is optional — omit for an empty bucket)
 POST /api/buckets
 {"name": "vendor-api-docs", "sources": [{"path": "/tmp/vendor-docs", "glob": "**/*.md"}]}
 
@@ -201,6 +201,9 @@ POST /api/buckets/{id}/documents
 
 # List files in a bucket
 GET /api/buckets/{id}/files
+
+# Read full content of a bucket file (reconstructed from chunks)
+GET /api/buckets/{id}/file?path=bucket://bucket-name/file.md
 
 # Set expiration (seconds from now, or null for permanent)
 PATCH /api/buckets/{id}
@@ -227,7 +230,7 @@ POST /api/documents
 DELETE /api/documents?path=notes/meeting-2026-04-09.md
 ```
 
-Files are written to the first configured source directory (or specify `"source": "/path/to/dir"`). The file watcher picks them up and indexes automatically.
+When multiple source directories are configured, the `source` field is required — the API will return an error listing available sources. With a single source, it defaults to that source. The file watcher picks up new files and indexes automatically.
 
 ## MCP tools
 
@@ -280,6 +283,7 @@ Connect to the MCP server at `http://localhost:9715/mcp` (Streamable HTTP transp
 |------|-------|-------------|
 | `bucket_list` | | List all buckets |
 | `bucket_list_files` | | List files in a bucket |
+| `bucket_read_file` | | Read full content of a bucket file |
 | `bucket_search` | | Search within a bucket |
 | `bucket_chat` | | Chat with a bucket |
 | `bucket_create` | yes | Create a bucket from a directory |

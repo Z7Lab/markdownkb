@@ -6,7 +6,7 @@ The server runs as a **separate process** alongside the FastAPI app. It imports 
 
 ## All MCP Tools at a Glance
 
-33 tools organized by category. Core tools are always available; plugin tools appear when their plugin is enabled.
+35 tools organized by category. Core tools are always available; plugin tools appear when their plugin is enabled.
 
 **Search & Retrieval:**
 - `search` — hybrid vector + keyword search, returns chunks with source paths
@@ -46,6 +46,7 @@ The server runs as a **separate process** alongside the FastAPI app. It imports 
 - `bucket_create` — create a bucket from source paths *(buckets plugin, write)*
 - `bucket_list` — list all buckets *(buckets plugin)*
 - `bucket_list_files` — list files in a bucket *(buckets plugin)*
+- `bucket_read_file` — read full content of a bucket file *(buckets plugin)*
 - `bucket_search` — search within a bucket *(buckets plugin)*
 - `bucket_chat` — RAG chat scoped to a bucket *(buckets plugin)*
 - `bucket_add` — add documents to a bucket *(buckets plugin, write)*
@@ -109,6 +110,7 @@ make mcp
 | `bucket_add` | `app/plugins/buckets/` | buckets | yes | Add documents to an existing bucket |
 | `bucket_push` | `app/plugins/buckets/` | buckets | yes | Push documents by content (no filesystem needed) |
 | `bucket_list_files` | `app/plugins/buckets/` | buckets | | List files and chunk counts in a bucket |
+| `bucket_read_file` | `app/plugins/buckets/` | buckets | | Read full content of a bucket file (reconstructed from chunks) |
 
 **Gating rules:**
 - **core** tools are always registered (unless they're write tools and `mcp.read_only` is true)
@@ -296,6 +298,15 @@ bucket_list_files(bucket: "project-docs")
 ```
 
 List all files indexed in a bucket with their chunk counts.
+
+### bucket_read_file
+
+```
+bucket_read_file(bucket: "project-docs", path: "bucket://project-docs/api-reference.md")
+→ {bucket_id, bucket_name, path, content}
+```
+
+Read the full content of a file in a bucket. The content is reconstructed from stored chunks. Works for both filesystem-sourced and pushed (virtual) documents.
 
 ### bucket_push
 

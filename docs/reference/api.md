@@ -352,6 +352,7 @@ Temporary scoped document collections with independent vector storage. Each buck
 | POST | `/api/buckets/{id}/chat` | RAG chat scoped to a bucket |
 | POST | `/api/buckets/{id}/add` | Add documents to an existing bucket (skips duplicates) |
 | POST | `/api/buckets/{id}/documents` | Push documents by content (no filesystem access needed) |
+| GET | `/api/buckets/{id}/file` | Read full content of a bucket file (reconstructed from chunks). Query param: `path`. |
 
 ### POST /api/buckets
 
@@ -368,5 +369,5 @@ Temporary scoped document collections with independent vector storage. Each buck
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `name` | (required) | Unique bucket name |
-| `sources` | (required) | List of `{path, glob}` source descriptors |
+| `sources` | `[]` | List of `{path, glob}` source descriptors (optional — omit to create an empty bucket) |
 | `expires_in` | null | Optional auto-delete after this many seconds (min 60) |

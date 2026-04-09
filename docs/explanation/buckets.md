@@ -108,6 +108,10 @@ POST /api/buckets/{id}/add
 
 Duplicate files (same path) are skipped.
 
+### Reading files back
+
+You can read the full content of any bucket file (filesystem-sourced or pushed) via `GET /api/buckets/{id}/file?path=...` or the `bucket_read_file` MCP tool. Content is reconstructed from stored chunks.
+
 ### Content push (no filesystem access)
 
 Buckets can also be populated by pushing document content directly over the API, without any files on disk:
@@ -141,6 +145,7 @@ When the buckets plugin is enabled, agents can create, search, and chat with buc
 | `bucket_push` | Push documents by content (no filesystem needed) |
 | `bucket_list` | List all buckets |
 | `bucket_list_files` | List files in a bucket |
+| `bucket_read_file` | Read full content of a bucket file |
 | `bucket_search` | Search within a bucket |
 | `bucket_chat` | RAG chat scoped to a bucket |
 | `bucket_delete` | Delete a bucket |
