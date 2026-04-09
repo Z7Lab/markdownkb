@@ -82,10 +82,10 @@ Go to the **Chat** tab and ask a question. MarkdownKB retrieves relevant documen
 
 ## 6. Connect Agents via MCP
 
-MarkdownKB exposes 32 MCP tools over stdio or SSE. Any MCP-compatible client can search, chat, and manage your knowledge base.
+MarkdownKB exposes 32 MCP tools over stdio or Streamable HTTP. Any MCP-compatible client can search, chat, and manage your knowledge base.
 
 **Claude Desktop / Claude Code:**
-Add MarkdownKB as an MCP server pointing to `http://localhost:9715/sse` (SSE transport) or run `python mcp_server.py` (stdio).
+Add MarkdownKB as an MCP server pointing to `http://localhost:9715/mcp` (Streamable HTTP) or run `python mcp_server.py` (stdio).
 
 See [MCP Server](../reference/mcp-server.md) for the full tool reference and setup instructions.
 

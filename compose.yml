@@ -41,7 +41,7 @@ services:
   markdownkb-mcp:
     build: .
     container_name: ${MARKDOWNKB_CONTAINER:-markdownkb}-mcp
-    command: python mcp_server.py --sse --host 0.0.0.0 --port 9715
+    command: python mcp_server.py --http --host 0.0.0.0 --port 9715
     ports:
       # MCP binds to localhost by default.  Set MARKDOWNKB_MCP_HOST=0.0.0.0
       # only when sandbox containers must reach it via host.docker.internal.

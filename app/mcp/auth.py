@@ -1,13 +1,11 @@
-"""API key authentication middleware for the MCP SSE server.
+"""API key authentication middleware for the MCP server.
 
 Accepts auth via any of:
   1. ``X-MarkdownKB-Key`` header (same as REST API)
-  2. ``?token=`` query parameter (for sandboxed agents that can't set
-     headers on SSE connections — matches the pattern used by
-     deliberative-ai's ephemeral token flow)
+  2. ``?token=`` query parameter (for agents that pass tokens via URL)
 
-When an API key is configured, every SSE/message request must include
-a valid credential via one of these methods.  If no key is configured,
+When an API key is configured, every request must include a valid
+credential via one of these methods.  If no key is configured,
 the middleware is not added and all requests are allowed.
 """
 

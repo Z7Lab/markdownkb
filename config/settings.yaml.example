@@ -162,7 +162,7 @@ mcp:
                               # with read_only: true. Buckets are ephemeral and isolated —
                               # they don't touch the main knowledge base.
   save_document: false  # allow MCP clients to write markdown files
-  allowed_hosts:                    # Hosts allowed to connect via SSE transport.
+  allowed_hosts:                    # Hosts allowed to connect via Streamable HTTP transport.
     # - "host.docker.internal:*"   # Docker containers connecting to host MCP (any port)
     # - "nuc.local:*"              # other machines on the network (any port)
 

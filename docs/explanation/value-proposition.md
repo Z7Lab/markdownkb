@@ -58,7 +58,7 @@ Most tools that address this are build-time — you run them, they produce a sna
 
 **Plugin-based architecture.** The core is RAG chat — search, doc map, knowledge graph, planner, tags, export, and buckets are all optional plugins. Enable what you need, disable what you don't. Write your own plugins (a directory with `__init__.py` and a router). External plugins install from GitHub URLs. The plugin system is why markdown-first works: the core stays focused while the ecosystem is open for extension.
 
-**MCP-first agent access.** The standalone MCP server (`mcp_server.py`) exposes 32 tools over stdio or SSE. Any MCP-compatible client — Claude Code, Claude Desktop, custom orchestrators, CI pipelines, or any application that speaks the protocol — can search, chat, retrieve full documents, manage tags, create buckets, and trigger indexing. The MCP server imports core services directly (no HTTP proxy), sharing the same vector store and databases as the web UI. This means your knowledge base is not locked inside a browser tab — it's infrastructure that any tool in your stack can query.
+**MCP-first agent access.** The standalone MCP server (`mcp_server.py`) exposes 32 tools over stdio or Streamable HTTP. Any MCP-compatible client — Claude Code, Claude Desktop, custom orchestrators, CI pipelines, or any application that speaks the protocol — can search, chat, retrieve full documents, manage tags, create buckets, and trigger indexing. The MCP server imports core services directly (no HTTP proxy), sharing the same vector store and databases as the web UI. This means your knowledge base is not locked inside a browser tab — it's infrastructure that any tool in your stack can query.
 
 **Knowledge graph with entity extraction.** MarkdownKB extracts concepts, tools, processes, and other entities from your documents during indexing, building a real knowledge graph with typed relationships (uses, is-a, part-of, depends-on, etc.). Agents can traverse relationships, find connections between concepts, and discover shortest paths between ideas — queries that embedding similarity alone can't answer. The KG data is stored separately from embeddings, so it survives model switches and accumulates as your knowledge base grows.
 
@@ -117,7 +117,7 @@ This composability is intentional. MarkdownKB doesn't try to be the orchestrator
 | Feature | Status |
 |---|---|
 | 32 tools (search, chat, documents, tags, buckets, doc map, knowledge graph, planner) | Built |
-| stdio + SSE transports | Built |
+| stdio + Streamable HTTP transports | Built |
 | Read-only mode, per-tool gating, plugin-aware tool registration | Built |
 | History tracking (MCP searches/chats appear in web UI sidebar) | Built |
 

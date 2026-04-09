@@ -10,8 +10,9 @@ when their flag is enabled in ``config/settings.yaml`` under ``mcp:``.
 
 Run as a separate process alongside the FastAPI app::
 
-    python mcp_server.py              # stdio transport (default)
-    python mcp_server.py --sse        # SSE transport on port 9715
+    python mcp_server.py                  # stdio transport (default)
+    python mcp_server.py --http           # Streamable HTTP on port 9715
+    python mcp_server.py --http --port 8000
 
 The server imports core services directly — it does NOT proxy through the
 FastAPI HTTP layer.
@@ -162,15 +163,15 @@ def _create_mcp() -> FastMCP:
     )
 
 
-def _run_sse_with_auth(mcp: FastMCP, host: str, port: int):
-    """Run SSE transport with optional API key middleware."""
+def _run_http_with_auth(mcp: FastMCP, host: str, port: int):
+    """Run Streamable HTTP transport with optional API key middleware."""
     import anyio
     import uvicorn
 
     async def _serve():
         mcp.settings.host = host
         mcp.settings.port = port
-        starlette_app = mcp.sse_app()
+        starlette_app = mcp.streamable_http_app()
 
         # Add API key auth if configured (same key as REST API)
         settings = Settings.get()
@@ -197,24 +198,24 @@ def _run_sse_with_auth(mcp: FastMCP, host: str, port: int):
 def main():
     parser = argparse.ArgumentParser(description="MarkdownKB MCP Server")
     parser.add_argument(
-        "--sse", action="store_true",
-        help="Run with SSE transport instead of stdio",
+        "--http", action="store_true",
+        help="Run with Streamable HTTP transport instead of stdio",
     )
     parser.add_argument(
         "--port", type=int, default=9715,
-        help="Port for SSE transport (default: 9715)",
+        help="Port for HTTP transport (default: 9715)",
     )
     parser.add_argument(
         "--host", type=str, default="127.0.0.1",
-        help="Host for SSE transport (default: 127.0.0.1)",
+        help="Host for HTTP transport (default: 127.0.0.1)",
     )
     args = parser.parse_args()
 
     mcp = _create_mcp()
 
-    if args.sse:
-        logger.info("Starting MCP server (SSE) on %s:%d", args.host, args.port)
-        _run_sse_with_auth(mcp, args.host, args.port)
+    if args.http:
+        logger.info("Starting MCP server (Streamable HTTP) on %s:%d", args.host, args.port)
+        _run_http_with_auth(mcp, args.host, args.port)
     else:
         logger.info("Starting MCP server (stdio)")
         mcp.run(transport="stdio")

@@ -17,10 +17,10 @@ MarkdownKB supports optional API key authentication via the `X-MarkdownKB-Key` h
 
 ### MCP Server Authentication
 
-The standalone MCP SSE server uses the same API key. When `MARKDOWNKB_API_KEY` is configured, the MCP server requires authentication via either:
+The standalone MCP server uses the same API key. When `MARKDOWNKB_API_KEY` is configured, the MCP server requires authentication via either:
 
 - **Header:** `X-MarkdownKB-Key: <key>` (same as the REST API)
-- **Query parameter:** `?token=<key>` (for SSE clients that can't set headers, e.g. sandboxed agents connecting via a URL-only configuration)
+- **Query parameter:** `?token=<key>` (for clients that pass tokens via URL)
 
 The stdio transport is never authenticated (stdio is process-local and not network-accessible). When no API key is configured, MCP connections are unauthenticated — suitable only for localhost-bound deployments.
 

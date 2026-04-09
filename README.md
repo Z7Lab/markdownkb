@@ -164,7 +164,7 @@ app/
 ├── planner/             # MCTS planning engine (optional)
 └── skills/              # Agent skills for plan review (optional)
 
-mcp_server.py            # Standalone MCP server (stdio/SSE, separate process)
+mcp_server.py            # Standalone MCP server (stdio/Streamable HTTP, separate process)
 
 frontend/
 ├── src/

@@ -69,7 +69,7 @@ MarkdownKB is a chat-with-your-docs tool with a Python backend and React fronten
 │    bucket_create │ bucket_add │ bucket_list              │
 │    bucket_list_files │ bucket_search │ bucket_chat      │
 │    bucket_delete                                        │
-│  Transports: stdio │ SSE  │  read_only mode            │
+│  Transports: stdio │ Streamable HTTP  │  read_only mode │
 │  Auth: X-MarkdownKB-Key header │ ?token= query param         │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -329,7 +329,7 @@ Legacy `features:` layouts are auto-migrated on first startup and saved to disk.
 
 ## MCP Server
 
-`mcp_server.py` runs as a **separate process** alongside the FastAPI app. It exposes MarkdownKB's core capabilities as MCP tools (search, chat, document access, indexing, stats) using the `mcp` SDK. Supports stdio (default) and SSE transports. See [mcp-server.md](mcp-server.md).
+`mcp_server.py` runs as a **separate process** alongside the FastAPI app. It exposes MarkdownKB's core capabilities as MCP tools (search, chat, document access, indexing, stats) using the `mcp` SDK. Supports stdio (default) and Streamable HTTP transports. See [mcp-server.md](mcp-server.md).
 
 ## Frontend
 

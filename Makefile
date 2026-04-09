@@ -60,12 +60,12 @@ up: ## Start container (detached)
 	@docker compose up -d
 	@echo ""
 	@echo "  MarkdownKB running at http://localhost:$(MARKDOWNKB_PORT)"
-	@echo "  MCP server at   http://localhost:$(MARKDOWNKB_MCP_PORT)/sse"
+	@echo "  MCP server at   http://localhost:$(MARKDOWNKB_MCP_PORT)/mcp"
 	@LAN_IP=$$(hostname -I 2>/dev/null | awk '{print $$1}'); \
 	LAN_HOST=$$(hostname 2>/dev/null); \
 	if [ -n "$$LAN_IP" ]; then \
 		echo "  Network:        http://$$LAN_IP:$(MARKDOWNKB_PORT)"; \
-		echo "  MCP network:    http://$$LAN_IP:$(MARKDOWNKB_MCP_PORT)/sse"; \
+		echo "  MCP network:    http://$$LAN_IP:$(MARKDOWNKB_MCP_PORT)/mcp"; \
 	fi; \
 	if [ -n "$$LAN_HOST" ]; then \
 		echo "                  http://$$LAN_HOST.local:$(MARKDOWNKB_PORT)"; \
@@ -97,8 +97,8 @@ clean: ## Stop container and remove image
 backend: ## Start backend only (no frontend)
 	@./run.sh --backend
 
-mcp: ## Start MCP server locally (SSE on port 9715)
-	@.venv/bin/python mcp_server.py --sse --port $(MARKDOWNKB_MCP_PORT)
+mcp: ## Start MCP server locally (Streamable HTTP on port 9715)
+	@.venv/bin/python mcp_server.py --http --port $(MARKDOWNKB_MCP_PORT)
 
 prod: ## Production mode (build frontend + serve)
 	@./run.sh --prod

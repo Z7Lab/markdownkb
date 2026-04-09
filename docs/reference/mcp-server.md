@@ -59,14 +59,14 @@ The server runs as a **separate process** alongside the FastAPI app. It imports 
 ## Quick Start
 
 ```bash
-# SSE transport via Makefile (recommended for local dev)
+# Streamable HTTP transport via Makefile (recommended for local dev)
 make mcp
 
 # stdio transport (for Claude Desktop, pipes, etc.)
 .venv/bin/python mcp_server.py
 
-# SSE transport (manual)
-.venv/bin/python mcp_server.py --sse --port 9715
+# Streamable HTTP transport (manual)
+.venv/bin/python mcp_server.py --http --port 9715
 ```
 
 ## Detailed Tool Reference
@@ -296,21 +296,21 @@ bucket_delete(bucket: "project-docs")
 | Transport | Flag | Use case |
 |-----------|------|----------|
 | **stdio** | (default) | Claude Desktop, subprocess pipes, local agents |
-| **SSE** | `--sse` | Network clients, remote agents |
+| **Streamable HTTP** | `--http` | Network clients, remote agents |
 
 ### stdio (default)
 
 The server reads JSON-RPC messages from stdin and writes responses to stdout. Logs go to stderr. This is the standard transport for Claude Desktop and similar tools.
 
-### SSE
+### Streamable HTTP
 
 ```bash
-.venv/bin/python mcp_server.py --sse --host 0.0.0.0 --port 9715
+.venv/bin/python mcp_server.py --http --host 0.0.0.0 --port 9715
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--sse` | off | Enable SSE transport |
+| `--http` | off | Enable Streamable HTTP transport |
 | `--host` | `127.0.0.1` | Bind address |
 | `--port` | `9715` | Listen port |
 
@@ -339,18 +339,18 @@ make up          # starts both markdownkb and markdownkb-mcp
 make logs        # tails logs for both services
 ```
 
-The `markdownkb-mcp` service uses SSE transport on port 9715 (configurable via `MARKDOWNKB_MCP_PORT`). It shares the same data volume and config as the main app.
+The `markdownkb-mcp` service uses Streamable HTTP transport on port 9715 (configurable via `MARKDOWNKB_MCP_PORT`). It shares the same data volume and config as the main app.
 
 Connect from another service on the Docker network:
 
 ```
-http://markdownkb-mcp:9715/sse
+http://markdownkb-mcp:9715/mcp
 ```
 
 Or from the host:
 
 ```
-http://localhost:9715/sse
+http://localhost:9715/mcp
 ```
 
 ## Architecture
@@ -389,16 +389,16 @@ Scope resolution is handled by `app/mcp/scope.py`, which resolves the scope ID t
 
 ## Authentication
 
-When an API key is configured (via `secrets/markdownkb_api_key` or `MARKDOWNKB_API_KEY` env var), the MCP SSE server requires authentication. Two methods are accepted:
+When an API key is configured (via `secrets/markdownkb_api_key` or `MARKDOWNKB_API_KEY` env var), the MCP Streamable HTTP server requires authentication. Two methods are accepted:
 
 1. **Header:** `X-MarkdownKB-Key: <key>` (same as the REST API)
-2. **Query parameter:** `?token=<key>` (for SSE clients that can't set headers — matches the pattern used by deliberative-ai)
+2. **Query parameter:** `?token=<key>` (for clients that can't set headers — matches the pattern used by deliberative-ai)
 
 If no API key is configured, all connections are allowed. The stdio transport is never authenticated.
 
 Connect with auth:
 ```
-http://localhost:9715/sse?token=YOUR_KEY
+http://localhost:9715/mcp?token=YOUR_KEY
 ```
 
 > **Note**: The MCP server and FastAPI app can run simultaneously — SQLite uses WAL mode for safe concurrent reads. However, only one process should write to the vector store at a time to avoid conflicts.

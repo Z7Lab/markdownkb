@@ -17,7 +17,7 @@ The API key protects all `/api/*` endpoints except `/api/health`. This includes:
 - **Reading:** search, chat, file content, knowledge graph queries
 - **Writing:** index files, create buckets, update tags, save documents
 - **Deleting:** unindex files, delete buckets, clear databases
-- **MCP:** SSE transport connections (stdio is local-only and doesn't need auth)
+- **MCP:** Streamable HTTP transport connections (stdio is local-only and doesn't need auth)
 
 Without a key, all of these are open to anyone who can reach the server.
 
@@ -64,13 +64,13 @@ curl -H "X-MarkdownKB-Key: your-key" http://localhost:9713/api/search \
   -d '{"query": "authentication"}'
 ```
 
-### MCP (SSE transport)
+### MCP (Streamable HTTP)
 
 Two options:
 
 **Header:** `X-MarkdownKB-Key: your-key`
 
-**Query parameter:** `http://localhost:9715/sse?token=your-key`
+**Query parameter:** `http://localhost:9715/mcp?token=your-key`
 
 The query parameter method works with MCP clients that don't support custom headers.
 
