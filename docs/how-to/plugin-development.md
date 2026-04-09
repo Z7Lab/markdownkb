@@ -97,29 +97,23 @@ config:
 | `integer` | Number input | `min`, `max` |
 | `string` | Text input | — |
 
-**System dependencies:**
+**Dependency philosophy:**
 
-Plugins that require external system binaries (not Python packages) can declare them in the manifest. The Settings UI checks availability and shows a warning with install instructions when dependencies are missing.
+Plugin enablement drives dependencies — the base image stays lean. If your plugin needs extra Python packages, add them to `requirements.txt` in the plugin directory. They're installed when the plugin is installed (external plugins) but bundled at build time for builtins.
+
+Prefer pure Python libraries over system binaries. For example, the converter plugin uses Microsoft's `markitdown` (Python) instead of pandoc (system binary). This avoids Docker image bloat and works out of the box.
+
+If your plugin absolutely requires a system binary, declare it in the manifest so the UI can warn users:
 
 ```yaml
 system_dependencies:
-  - name: pandoc
-    binary: pandoc
+  - name: ffmpeg
+    binary: ffmpeg
     required: true
-    install_hint: "apt install pandoc"
-  - name: pdftotext
-    binary: pdftotext
-    required: false
-    install_hint: "apt install poppler-utils (optional)"
+    install_hint: "apt install ffmpeg"
 ```
 
-| Field | Description |
-|-------|-------------|
-| `binary` | The executable name to check for on the system PATH |
-| `required` | If true, the plugin cannot function without it |
-| `install_hint` | Shown to the user when the dependency is missing |
-
-The plugin should also check at runtime (e.g. `shutil.which("pandoc")`) and return clear errors from its endpoints when dependencies are missing, since the manifest check only runs when the Settings page loads.
+Plugins that need heavy dependencies should be **disabled by default**. Users opt in when they need the feature. Don't bundle optional deps into the base Docker image just because they're small.
 
 Without a manifest, the plugin still works but appears in the UI with limited metadata (name derived from the directory, no config form).
 
@@ -317,5 +311,5 @@ Study the builtin plugins as examples:
 | `search` | Complex | Multiple endpoints, SSE streaming, rich config schema |
 | `docmap` | Complex | Background computation with caching and progress, event bus integration |
 | `knowledge_graph` | Complex | Plugin-owned database, background extraction with cancel, per-file operations, MCP tools |
-| `converter` | Medium | System dependency declaration, background processing, no database |
+| `converter` | Medium | Pure Python conversion (markitdown), background processing, no database |
 | `buckets` | Complex | Plugin-owned database + service layer, ChromaDB collections, expiration/cleanup |
