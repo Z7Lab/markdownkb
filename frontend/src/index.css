@@ -137,7 +137,7 @@
 /* ── Markdown prose overrides ─────────────────────────── */
 
 .markdownkb-prose {
-  @apply prose prose-sm max-w-none text-foreground break-words;
+  @apply prose prose-sm max-w-none text-foreground break-words overflow-hidden;
 
   a {
     @apply text-blue-600 underline decoration-blue-600/40 hover:decoration-blue-600;

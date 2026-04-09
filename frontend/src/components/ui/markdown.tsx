@@ -8,6 +8,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { CodeBlock } from "@/components/ui/code-block"
 
 const basePlugins = [remarkGfm]
 const citePlugins = [remarkGfm, remarkCitations]
@@ -58,8 +59,35 @@ export function Markdown({
   const plugins = sourceMap ? citePlugins : basePlugins
 
   const components = useMemo(() => {
-    if (!sourceMap) return undefined
+    const codeBlockComponent = {
+      pre({ children }: React.HTMLAttributes<HTMLPreElement>) {
+        // react-markdown wraps <code> in <pre>; unwrap to get language + content
+        const codeEl = (children as React.ReactElement<React.HTMLAttributes<HTMLElement>> | undefined)
+        const className = codeEl?.props?.className ?? ""
+        const language = className.match(/language-(\w+)/)?.[1]
+        const code = String(codeEl?.props?.children ?? "").replace(/\n$/, "")
+        return <CodeBlock code={code} language={language} />
+      },
+      code({ className, children, ...props }: React.HTMLAttributes<HTMLElement>) {
+        // Inline code (not inside a pre) — styled distinctly
+        if (!className?.startsWith("language-")) {
+          return (
+            <code
+              className="font-mono text-[0.85em] bg-zinc-100 dark:bg-zinc-800 text-pink-600 dark:text-pink-300 rounded px-1.5 py-0.5"
+              {...props}
+            >
+              {children}
+            </code>
+          )
+        }
+        return <code className={className} {...props}>{children}</code>
+      },
+    }
+
+    if (!sourceMap) return codeBlockComponent
+
     return {
+      ...codeBlockComponent,
       a: ({ href, children: linkChildren, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
         const match = href?.match(/^#cite-(\d+)$/)
         if (match) {
@@ -85,10 +113,51 @@ export function Markdown({
     }
   }, [sourceMap, onCiteClick])
 
+  // Fix LLM output where citations sit on the closing code fence line
+  // (``` [1]) which breaks markdown parsing. Move citations to the
+  // prose line before the code block opened.
+  const cleaned = useMemo(() => {
+    const lines = children.split("\n")
+    const result: string[] = []
+    let codeBlockStartIdx = -1 // index in result[] where the opening ``` is
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const fenceMatch = line.match(/^(```)(\w*)[ \t]*(\[[\d,\s\]\[]+\])?[ \t]*$/)
+
+      if (fenceMatch && codeBlockStartIdx === -1) {
+        // Opening fence — remember where it started
+        codeBlockStartIdx = result.length
+        const cite = fenceMatch[3]
+        if (cite && result.length > 0) {
+          // Citation on opening fence — attach to previous prose line
+          result[result.length - 1] += ` ${cite}`
+          result.push("```" + (fenceMatch[2] || ""))
+        } else {
+          result.push(line)
+        }
+      } else if (fenceMatch && codeBlockStartIdx !== -1) {
+        // Closing fence
+        const cite = fenceMatch[3]
+        result.push("```")
+        if (cite && codeBlockStartIdx > 0) {
+          // Move citation to the prose line before the code block
+          result[codeBlockStartIdx - 1] += ` ${cite}`
+        } else if (cite) {
+          result.push(cite)
+        }
+        codeBlockStartIdx = -1
+      } else {
+        result.push(line)
+      }
+    }
+    return result.join("\n")
+  }, [children])
+
   return (
     <div className={cn("markdownkb-prose", className)}>
       <ReactMarkdown remarkPlugins={plugins} components={components}>
-        {children}
+        {cleaned}
       </ReactMarkdown>
     </div>
   )
