@@ -138,7 +138,11 @@ def chat_stream(
             logger.exception("Unexpected error during chat stream")
             yield sse("error", {"message": "An unexpected error occurred. Check server logs for details."})
 
-        yield sse("done", {})
+        active_cfg = settings.get_active_llm_config()
+        yield sse("done", {
+            "provider": settings.active_provider,
+            "model": active_cfg.get("model", ""),
+        })
 
     return StreamingResponse(
         generate(),

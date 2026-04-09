@@ -68,40 +68,45 @@ def _get_openai_client(api_key: str, api_base: str | None = None) -> openai.Open
 def _needs_api_key(provider: dict) -> bool:
     """Check whether a provider requires an API key to function."""
     name = provider.get("name", "").lower()
-    # Ollama and local providers don't need API keys.
-    # Also check the model field — if the model uses the ollama/ prefix
-    # (e.g. "ollama/llama3") the provider_type from _parse_model is authoritative.
-    if "ollama" in name or "local" in name:
+    # Local providers never need keys
+    if "ollama" in name or "local" in name or "custom" in name or "llamacpp" in name:
         return False
     model = provider.get("model", "")
     if model:
         provider_type, _ = _parse_model(model)
         if provider_type == "ollama":
             return False
+    # If the API base points to a local/private server, no key needed
+    api_base = provider.get("api_base", "").lower()
+    if api_base and any(h in api_base for h in ("localhost", "127.0.0.1", ".local", "host.docker.internal")):
+        return False
     return True
 
 
 def _usable_providers(settings: Settings) -> list[dict]:
-    """Return providers in fallback order, skipping unconfigured ones."""
-    active = settings.get_active_llm_config()
-    others = [
-        p for p in settings.llm_providers
-        if p.get("name") != active.get("name")
-    ]
-    ordered = [active] + others
+    """Return the active provider only — no silent fallback.
 
-    usable = []
-    for p in ordered:
-        if not p.get("model"):
-            continue
-        if _needs_api_key(p) and not p.get("api_key"):
-            logger.debug(
-                "Skipping provider %s: no API key configured",
-                p.get("name"),
-            )
-            continue
-        usable.append(p)
-    return usable
+    Resolves the API key from secrets/env (not from the YAML dict)
+    and injects it into the provider config for downstream use.
+    """
+    active = settings.get_active_llm_config()
+    if not active.get("model"):
+        return []
+
+    # Resolve API key from secrets/env — the YAML dict never has it
+    name = active.get("name", "")
+    resolved_key = settings.resolve_provider_key(name)
+    if _needs_api_key(active) and not resolved_key:
+        logger.warning(
+            "Active provider %s needs an API key but none is configured",
+            name,
+        )
+        return []
+
+    provider = dict(active)
+    if resolved_key:
+        provider["api_key"] = resolved_key
+    return [provider]
 
 
 def _extract_system_message(messages: list[dict]) -> tuple[str | None, list[dict]]:
