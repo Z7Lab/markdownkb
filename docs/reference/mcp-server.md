@@ -25,6 +25,7 @@ The server runs as a **separate process** alongside the FastAPI app. It imports 
 - `list_files` — list all indexed files
 - `index_file` — re-index a single markdown file *(write)*
 - `save_file` — save a markdown file to a watched source directory *(write)*
+- `delete_file` — delete a markdown file from the knowledge base *(write)*
 
 **Planning:**
 - `plan` — generate an implementation plan using MCTS *(planner plugin)*
@@ -88,6 +89,7 @@ make mcp
 | `deep_research` | `app/services/deep_research` | core | | Multi-angle MCTS research synthesis |
 | `index_file` | `app/ingestion/` | core | yes | Re-index a single markdown file |
 | `save_file` | `app/routers/files` | core | yes | Save a markdown file to a watched source directory |
+| `delete_file` | `app/mcp/tools/` | core | yes | Delete a markdown file from the knowledge base |
 | `search_summarize` | `app/services/` | search | | Search and return an LLM-generated summary |
 | `plan` | `app/services/planner_service` | planner | | Generate an implementation plan using MCTS |
 | `list_tags` | `app/plugins/tags/tagdb` | tags | | List all tags with file counts, or tags for a specific file |
@@ -110,7 +112,7 @@ make mcp
 - **core** tools are always registered (unless they're write tools and `mcp.read_only` is true)
 - **Plugin** tools require `plugins.<name>.enabled: true` in settings
 - **Write** tools are disabled when `mcp.read_only: true`, regardless of other flags
-- `save_file` has an additional feature flag: `mcp.save_document` must also be true
+- `save_file` and `delete_file` have an additional feature flag: `mcp.save_document` must also be true
 - **Bucket write exemption:** when `mcp.allow_bucket_writes: true`, bucket write tools (`bucket_create`, `bucket_delete`, `bucket_add`) are allowed even with `read_only: true`. Buckets are ephemeral and isolated — they don't touch the main knowledge base.
 
 ### search
@@ -205,6 +207,15 @@ Path must be relative, must end in `.md`, and cannot contain `..` traversal. The
 mcp:
   save_document: true
 ```
+
+### delete_file
+
+```
+delete_file(path: "/home/user/docs/notes/outdated.md")
+→ {status: "deleted", path}
+```
+
+Removes the file from disk, vector store, and tracking database. Path must be within a configured source directory. Gated by the same `mcp.save_document` flag as `save_file`.
 
 ### index_file
 
