@@ -38,7 +38,7 @@ Look things up mid-task. Structured for scanning, not reading top-to-bottom.
 | [Configuration](reference/configuration.md) | All settings keys, feature flags, `.env` vs `settings.yaml` precedence |
 | [API](reference/api.md) | Full REST endpoint listing for all features |
 | [MCP Server](reference/mcp-server.md) | 32 MCP tools, transports (stdio/Streamable HTTP), authentication, scope support |
-| [CLI](reference/cli.md) | Command-line interface (index, search, add-source, stats) |
+| [CLI](reference/cli.md) | Command-line interface — search, chat, index, sources, buckets, over HTTP |
 | [LLM Benchmarking](reference/llm-benchmarking.md) | Measuring tokens/second for Ollama and llama.cpp |
 
 ## Explanation

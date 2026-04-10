@@ -105,7 +105,43 @@ See [docs/reference/api.md](docs/reference/api.md) for the full endpoint referen
 
 ## CLI
 
-MarkdownKB includes a command-line interface for indexing and search without starting the web server. See [docs/reference/cli.md](docs/reference/cli.md).
+MarkdownKB includes a command-line interface that wraps the REST API so you can search, chat, manage sources, and work with buckets without the web UI.
+
+```bash
+# Quick checks
+markdownkb health
+markdownkb stats
+
+# Search and chat
+markdownkb search "authentication flow" --top-k 5
+markdownkb chat "How does the auth system work?"
+
+# Sources
+markdownkb sources list
+markdownkb sources add /home/user/docs
+markdownkb sources remove /home/user/old-docs --cleanup
+
+# Buckets
+markdownkb buckets list
+markdownkb buckets create research --source /tmp/papers --expires-in 86400
+markdownkb buckets search research "key findings"
+markdownkb buckets delete research
+
+# Force re-index
+markdownkb index --force
+
+# Machine-readable output (any command)
+markdownkb search "query" --json | jq '.results[] | .metadata.source_path'
+```
+
+Configure the target instance via `~/.markdownkb` (YAML):
+
+```yaml
+url: http://nuc.local:9713
+api_key: your-key-here
+```
+
+Or via environment variables `MARKDOWNKB_URL` and `MARKDOWNKB_API_KEY`. Every command also accepts `--url` and `--api-key` flags. See [docs/reference/cli.md](docs/reference/cli.md) for the full reference.
 
 ## Documentation
 

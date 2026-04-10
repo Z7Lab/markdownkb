@@ -1,49 +1,174 @@
 # CLI
 
-MarkdownKB includes a command-line interface for indexing and search without starting the web server.
+MarkdownKB includes a command-line interface that wraps the REST API. You can search, chat, manage sources, and work with buckets from the terminal without the web UI or writing curl commands. The CLI talks to a running MarkdownKB instance over HTTP — run it on the same machine as the server, or point it at a remote instance.
 
 ```bash
 python -m app.cli <command> [options]
 ```
 
-Use `--config path/to/settings.yaml` to override the default config location.
+If you install MarkdownKB as a package, the CLI is also available as `markdownkb`.
+
+## Configuration
+
+The CLI resolves connection settings in this order (first match wins):
+
+1. `--url` / `--api-key` command-line flags
+2. `MARKDOWNKB_URL` / `MARKDOWNKB_API_KEY` environment variables
+3. `~/.markdownkb` config file (YAML)
+4. Defaults (`http://localhost:9713`, no key)
+
+### Config file
+
+Create `~/.markdownkb`:
+
+```yaml
+url: http://nuc.local:9713
+api_key: your-key-here
+```
+
+## Global flags
+
+Every command accepts these:
+
+| Flag | Description |
+|------|-------------|
+| `--url URL` | Base URL of the MarkdownKB server |
+| `--api-key KEY` | API key for authenticated instances |
+| `--json` | Output machine-readable JSON instead of pretty text |
+
+On failure, the CLI prints an error to stderr and exits with a non-zero code.
 
 ## Commands
 
-### index
+### health
 
-Index all configured source directories.
+Check that the server is reachable and report its status.
 
 ```bash
-python -m app.cli index
+markdownkb health
+```
+
+Returns exit code `0` if status is `ok`, `1` otherwise.
+
+### stats
+
+Show index statistics — files, chunks, embedding model, active LLM provider, configured sources.
+
+```bash
+markdownkb stats
 ```
 
 ### search
 
-Semantic search against the knowledge base.
+Semantic search against the knowledge base. Uses hybrid retrieval (vector + BM25) configured in the server.
 
 ```bash
-python -m app.cli search "your query here"
-python -m app.cli search "fastapi routing" -k 10
+markdownkb search "authentication flow"
+markdownkb search "fastapi routing" --top-k 10
+markdownkb search "docker setup" --json | jq '.results[] | .metadata.source_path'
 ```
 
 | Flag | Description |
 |------|-------------|
-| `query` | Search query (required) |
-| `-k` | Number of results (default: from settings.yaml `retrieval.top_k`) |
+| `query` | Search query (required, positional) |
+| `--top-k N`, `-k N` | Number of results (default: 5) |
 
-### add-source
+### chat
 
-Add a source directory to the configuration and save.
+Single-turn RAG chat. The server retrieves relevant chunks and uses the active LLM provider to generate a response.
 
 ```bash
-python -m app.cli add-source /path/to/docs
+markdownkb chat "How does authentication work?"
+markdownkb chat "Summarize the deployment process" --json
 ```
 
-### stats
+| Flag | Description |
+|------|-------------|
+| `message` | Question to ask (required, positional) |
 
-Display index statistics: configured sources, file count, chunk count, embedding model, and active LLM provider.
+Uses the non-streaming `/api/chat` endpoint. For streaming use the web UI or MCP.
+
+### index
+
+Trigger indexing of all configured source directories.
 
 ```bash
-python -m app.cli stats
+markdownkb index           # incremental — skips unchanged files
+markdownkb index --force   # clear hashes and re-embed everything
+```
+
+| Flag | Description |
+|------|-------------|
+| `--force` | Force full re-index regardless of hashes |
+
+### sources
+
+Manage source directories.
+
+```bash
+markdownkb sources                           # list (default action)
+markdownkb sources list
+markdownkb sources add /home/user/docs
+markdownkb sources remove /home/user/docs
+markdownkb sources remove /home/user/docs --cleanup
+```
+
+| Action | Description |
+|--------|-------------|
+| `list` | List configured source directories |
+| `add <path>` | Add and start watching a directory |
+| `remove <path>` | Remove from config |
+| `remove <path> --cleanup` | Also unindex all files from that source |
+
+When running in Docker and the added path isn't mounted into the container, the CLI reports `docker_restart_required` with a restart command.
+
+### buckets
+
+Manage temporary document collections. Buckets are isolated from the main knowledge base — each has its own ChromaDB collection.
+
+```bash
+markdownkb buckets                                       # list (default)
+markdownkb buckets list
+markdownkb buckets create research --source /tmp/papers
+markdownkb buckets create research --source /tmp/a --source /tmp/b --expires-in 86400
+markdownkb buckets search research "key findings"
+markdownkb buckets search research "auth patterns" -k 10
+markdownkb buckets delete research
+```
+
+| Action | Description |
+|--------|-------------|
+| `list` | List all buckets with file/chunk counts and expiration |
+| `create <name>` | Create an empty bucket (add `--source` repeatedly to populate from directories) |
+| `search <bucket> <query>` | Search within a bucket (accepts bucket name or ID prefix) |
+| `delete <bucket>` | Delete a bucket (accepts name or ID prefix) |
+
+Name resolution: bucket commands that take a `<bucket>` argument accept either the bucket name or a unique ID prefix (4+ chars). Ambiguous matches fail with an error listing the candidates.
+
+## Exit codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Success |
+| `1` | Error (connection failure, HTTP error, invalid input, health degraded) |
+| `130` | Interrupted (Ctrl+C) |
+
+## Examples
+
+```bash
+# Pipe search results to another tool
+markdownkb search "deployment" --json | jq -r '.results[].metadata.source_path' | sort -u
+
+# Use against a remote instance
+markdownkb --url http://nuc.local:9713 stats
+
+# Scripted bucket workflow
+BUCKET_ID=$(markdownkb buckets create vendor-docs --json | jq -r .id)
+markdownkb buckets search vendor-docs "rate limiting"
+markdownkb buckets delete vendor-docs
+
+# Quick health check in a cron job
+if ! markdownkb health --json > /dev/null; then
+    echo "MarkdownKB is down" | mail -s "alert" admin@example.com
+fi
 ```
