@@ -442,6 +442,10 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
         """Set an MCP tool enable flag."""
         self._data.setdefault("mcp", {})[name] = enabled
 
+    def set_mcp_allowed_hosts(self, hosts: list[str]) -> None:
+        """Replace the mcp.allowed_hosts list (DNS rebinding protection)."""
+        self._data.setdefault("mcp", {})["allowed_hosts"] = [str(h) for h in hosts]
+
     # --- Plugin Configuration ---
 
     def plugin_enabled(self, name: str) -> bool:

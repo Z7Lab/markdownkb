@@ -43,6 +43,7 @@ from app.routers import (
     health,
     llm,
     maintenance,
+    mcp,
     plugins,
     scopes,
     settings,
@@ -85,7 +86,7 @@ def create_app(lifespan=None, settings_override=None) -> FastAPI:
     for router_module in (
         health, chat, threads, files,
         settings, setup, sources, llm, maintenance,
-        embeddings, scopes, plugins,
+        embeddings, scopes, plugins, mcp,
     ):
         app.include_router(router_module.router)
 

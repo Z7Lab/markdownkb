@@ -1,0 +1,201 @@
+"""MCP inspection and configuration endpoints.
+
+Drives the Settings > MCP panel — exposes connection info, the tool
+browser (auto-discovered from app/mcp/tools/), and the allowed_hosts
+editor.  Feature flag toggles live in ``app/routers/settings.py``
+(``PUT /api/settings/mcp-flags``).
+"""
+
+import inspect
+import logging
+import os
+from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel, Field
+
+from app.config import Settings
+from app.deps import get_settings
+from app.mcp.tools import discover_tools
+from app.ratelimit import STANDARD, limiter
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/mcp", tags=["mcp"])
+
+
+_PARAM_TYPE_NAMES: dict[Any, str] = {
+    str: "string",
+    int: "integer",
+    float: "number",
+    bool: "boolean",
+    list: "array",
+    dict: "object",
+}
+
+
+def _type_name(annotation: Any) -> str:
+    """Best-effort human-readable name for a tool parameter annotation."""
+    if annotation is inspect.Parameter.empty or annotation is None:
+        return "any"
+    if annotation in _PARAM_TYPE_NAMES:
+        return _PARAM_TYPE_NAMES[annotation]
+    origin = getattr(annotation, "__origin__", None)
+    if origin is list:
+        return "array"
+    if origin is dict:
+        return "object"
+    # Union / Optional — strip NoneType and recurse
+    if getattr(annotation, "__args__", None):
+        args = [a for a in annotation.__args__ if a is not type(None)]
+        if len(args) == 1:
+            return _type_name(args[0])
+        return " | ".join(_type_name(a) for a in args) or "any"
+    return getattr(annotation, "__name__", str(annotation))
+
+
+def _handler_signature(handler: Any) -> list[dict[str, Any]]:
+    """Introspect a tool handler and return its parameter metadata."""
+    try:
+        sig = inspect.signature(handler)
+    except (TypeError, ValueError):
+        return []
+    params: list[dict[str, Any]] = []
+    for name, p in sig.parameters.items():
+        params.append({
+            "name": name,
+            "type": _type_name(p.annotation),
+            "required": p.default is inspect.Parameter.empty,
+            "default": None if p.default is inspect.Parameter.empty else repr(p.default),
+        })
+    return params
+
+
+def _mcp_endpoint_url(request: Request) -> str:
+    """Best-effort MCP endpoint URL for display in the settings panel.
+
+    The MCP server is a separate process — its host/port come from CLI
+    flags, not the settings.yaml.  We expose env var overrides so users
+    running non-default deployments see the right URL, and fall back to
+    the host the user is currently hitting + default port 9715.
+    """
+    explicit = os.environ.get("MARKDOWNKB_MCP_URL")
+    if explicit:
+        return explicit
+    host = os.environ.get("MARKDOWNKB_MCP_HOST")
+    port = os.environ.get("MARKDOWNKB_MCP_PORT", "9715")
+    if not host:
+        # Use the hostname the browser is currently talking to so the
+        # displayed URL "just works" from the same machine.
+        host = request.url.hostname or "localhost"
+    return f"http://{host}:{port}/mcp"
+
+
+@router.get("/info")
+@limiter.limit(STANDARD)
+def get_mcp_info(request: Request, settings: Settings = Depends(get_settings)):
+    """Return MCP connection info, feature flags, and allowed_hosts.
+
+    Drives the top of the Settings > MCP panel.  The endpoint URL is a
+    display hint — the MCP server runs in its own process and may be
+    behind a proxy.
+    """
+    endpoint = _mcp_endpoint_url(request)
+    mcp_features = settings.mcp_features
+    auth_enabled = bool(getattr(request.app.state, "api_key", ""))
+
+    # Split the mcp section into flags (bool) and other settings
+    flags = {
+        k: bool(v)
+        for k, v in mcp_features.items()
+        if isinstance(v, bool)
+    }
+    allowed_hosts = mcp_features.get("allowed_hosts", []) or []
+    if not isinstance(allowed_hosts, list):
+        allowed_hosts = []
+
+    return {
+        "endpoint": endpoint,
+        "transport": "streamable_http",
+        "auth_enabled": auth_enabled,
+        "auth_methods": (
+            ["Bearer token", "X-MarkdownKB-Key header", "?token= query param"]
+            if auth_enabled else []
+        ),
+        "flags": flags,
+        "allowed_hosts": [str(h) for h in allowed_hosts],
+    }
+
+
+@router.get("/tools")
+@limiter.limit(STANDARD)
+def list_mcp_tools(request: Request, settings: Settings = Depends(get_settings)):
+    """Return every discovered MCP tool with metadata and enabled state.
+
+    Powers the Settings > MCP tool browser.  Tools whose feature flag or
+    required plugin is disabled are included with ``enabled: false`` and
+    a ``disabled_reason`` so users can see what they'd get by flipping a
+    flag.
+    """
+    tools, import_errors = discover_tools(settings)
+
+    items: list[dict[str, Any]] = []
+    for t in tools:
+        handler = t["handler"]
+        doc = (inspect.getdoc(handler) or "").strip()
+        # Short description = first paragraph only
+        description = doc.split("\n\n", 1)[0] if doc else ""
+
+        disabled_reason: str | None = None
+        if not t["enabled"]:
+            if t.get("requires_plugin") and not settings.plugin_enabled(t["requires_plugin"]):
+                disabled_reason = f"plugin '{t['requires_plugin']}' disabled"
+            elif t.get("write") and settings.mcp_enabled("read_only"):
+                disabled_reason = "mcp.read_only is true"
+            elif t.get("feature_flag"):
+                disabled_reason = f"mcp.{t['feature_flag']} is false"
+
+        items.append({
+            "name": t["name"],
+            "description": description,
+            "write": bool(t.get("write")),
+            "requires_plugin": t.get("requires_plugin"),
+            "feature_flag": t.get("feature_flag"),
+            "enabled": bool(t["enabled"]),
+            "disabled_reason": disabled_reason,
+            "parameters": _handler_signature(handler),
+        })
+
+    items.sort(key=lambda i: i["name"])
+    enabled_count = sum(1 for i in items if i["enabled"])
+
+    return {
+        "tools": items,
+        "total": len(items),
+        "enabled": enabled_count,
+        "import_errors": import_errors,
+    }
+
+
+class AllowedHostsRequest(BaseModel):
+    """Request model for updating MCP allowed_hosts."""
+
+    allowed_hosts: list[str] = Field(default_factory=list)
+
+
+@router.put("/allowed-hosts")
+@limiter.limit(STANDARD)
+def update_allowed_hosts(
+    request: Request,
+    req: AllowedHostsRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """Replace the ``mcp.allowed_hosts`` list.
+
+    Used for DNS rebinding protection on the Streamable HTTP transport.
+    Takes effect after the MCP server is restarted.
+    """
+    cleaned = [h.strip() for h in req.allowed_hosts if h and h.strip()]
+    settings.set_mcp_allowed_hosts(cleaned)
+    settings.save()
+    return {"status": "saved", "allowed_hosts": cleaned}

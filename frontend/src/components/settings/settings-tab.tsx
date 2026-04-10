@@ -11,6 +11,7 @@ import {
   FolderCog,
   Layers,
   MessageSquareText,
+  Plug,
   ScrollText,
   Search,
   ToggleRight,
@@ -25,6 +26,7 @@ import { DatabasePanel } from "./database-panel"
 import { LoggingPanel } from "./logging-panel"
 import { ScopesPanel } from "./scopes-panel"
 import { BucketsPanel } from "./buckets-panel"
+import { McpPanel } from "./mcp-panel"
 import { SetupBanner } from "@/components/setup-banner"
 import { Library, Archive } from "lucide-react"
 
@@ -36,6 +38,7 @@ const sections = [
   { id: "scopes", label: "Scopes", icon: Library },
   { id: "buckets", label: "Buckets", icon: Archive, plugin: "buckets" },
   { id: "features", label: "Plugins", icon: ToggleRight },
+  { id: "mcp", label: "MCP", icon: Plug },
   { id: "prompt", label: "System Prompt", icon: MessageSquareText },
   { id: "database", label: "Database", icon: Database },
   { id: "logging", label: "Logging", icon: ScrollText },
@@ -215,6 +218,9 @@ export function SettingsTab() {
                 onToggleMcpFlag={toggleMcpFlag}
                 onTogglePlugin={togglePlugin}
               />
+            )}
+            {activeSection === "mcp" && (
+              <McpPanel onToggleMcpFlag={toggleMcpFlag} />
             )}
             {activeSection === "prompt" && (
               <SystemPromptPanel
