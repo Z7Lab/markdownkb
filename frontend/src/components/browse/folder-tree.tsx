@@ -156,7 +156,7 @@ export function FolderTree({
 
   return (
     <AppSidebar
-      header={<h3 className="text-sm font-semibold text-muted-foreground">Watched Folders</h3>}
+      header={<h3 className="text-sm font-semibold text-muted-foreground">Watch Directories</h3>}
     >
       <div className="p-2 space-y-0.5">
         <button
