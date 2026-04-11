@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { useBuckets, type Bucket } from "@/hooks/use-buckets"
+import { usePathCheck } from "@/hooks/use-path-check"
 import { api } from "@/lib/api"
 import { relativeTime } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -12,6 +13,14 @@ import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
 import { Database, Plus, Trash2, FileText, ChevronDown, ChevronRight, Loader2, Clock, Infinity as InfinityIcon } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { EmptyHero } from "@/components/ui/empty-hero"
+
+function BucketPathStatus({ path }: { path: string }) {
+  const check = usePathCheck(path)
+  if (check.status === "checking") return <p className="text-xs text-muted-foreground mt-1">Checking...</p>
+  if (check.status === "ok") return <p className="text-xs text-green-600 dark:text-green-400 mt-1">Path found</p>
+  if (check.status === "not_found") return <p className="text-xs text-destructive mt-1">Path not found</p>
+  return null
+}
 
 interface BucketFile {
   path: string
@@ -290,6 +299,7 @@ export function BucketsTab() {
                     placeholder="Absolute path to file or directory"
                     className="mt-1"
                   />
+                  <BucketPathStatus path={newPath} />
                 </div>
                 <div>
                   <label className="text-sm font-medium">Glob pattern</label>
