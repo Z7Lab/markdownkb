@@ -11,6 +11,35 @@ import type { ProjectRoot } from "@/lib/types"
 import { CheckCircle2, AlertCircle, Loader2, Trash2, FileText, Pencil, Plus, X, FolderGit2 } from "lucide-react"
 import { toast } from "sonner"
 
+function AddDirectoryForm({ onSubmit }: { onSubmit: (path: string) => void }) {
+  const [path, setPath] = useState("")
+
+  function handleSubmit() {
+    const v = path.trim()
+    if (!v) return
+    onSubmit(v)
+    setPath("")
+  }
+
+  return (
+    <div className="pt-2">
+      <div className="flex gap-2">
+        <Input
+          value={path}
+          onChange={(e) => setPath(e.target.value)}
+          placeholder="/path/to/documents"
+          className="flex-1"
+          onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+        />
+        <Button onClick={handleSubmit} disabled={!path.trim()}>
+          Add
+        </Button>
+      </div>
+      <PathStatus path={path} />
+    </div>
+  )
+}
+
 function PathStatus({ path }: { path: string }) {
   const check = usePathCheck(path)
 
@@ -175,7 +204,6 @@ export function SourcesPanel({
   onRemoveProjectRoot: (path: string, cleanup: boolean) => Promise<void>
   onUpdateProjectRoot: (path: string, include: string[], exclude: string[]) => Promise<void>
 }) {
-  const [newSource, setNewSource] = useState("")
   const [newPattern, setNewPattern] = useState("")
   const [pendingRemove, setPendingRemove] = useState<string | null>(null)
   const [pendingRemoveRoot, setPendingRemoveRoot] = useState<string | null>(null)
@@ -197,14 +225,6 @@ export function SourcesPanel({
       chunks_indexed: number
     }>("/api/stats").then(setStats).catch(() => { /* stats are non-critical UI data */ })
   }, [lastIndexedAt])
-
-  async function handleAdd() {
-    if (!newSource.trim()) return
-    const path = newSource.trim()
-    setNewSource("")
-    await onAdd(path)
-    toast.success(`Added "${path}" — indexing started in background`)
-  }
 
   async function handleAddPattern() {
     if (!newPattern.trim()) return
@@ -373,21 +393,10 @@ export function SourcesPanel({
           {sources.length === 0 && (
             <p className="text-sm text-muted-foreground">No watch directories configured.</p>
           )}
-          <div className="pt-2">
-            <div className="flex gap-2">
-              <Input
-                value={newSource}
-                onChange={(e) => setNewSource(e.target.value)}
-                placeholder="/path/to/documents"
-                className="flex-1"
-                onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-              />
-              <Button onClick={handleAdd} disabled={!newSource.trim()}>
-                Add
-              </Button>
-            </div>
-            <PathStatus path={newSource} />
-          </div>
+          <AddDirectoryForm onSubmit={async (path) => {
+            await onAdd(path)
+            toast.success(`Added "${path}" — indexing started in background`)
+          }} />
         </CardContent>
       </Card>
 
