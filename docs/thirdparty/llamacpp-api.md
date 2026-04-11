@@ -442,13 +442,9 @@ ss -tlnp | grep 8080
 
 ---
 
-## Using MarkdownKB with llama.cpp
+## Using llama.cpp as MarkdownKB's LLM backend
 
-There are several ways to combine MarkdownKB's knowledge base with llama.cpp, depending on how you work.
-
-### Option 1: Point MarkdownKB at your llama.cpp (recommended)
-
-The simplest path. MarkdownKB handles all retrieval and uses your llama.cpp instance as the LLM. You get RAG chat, search, and the full web UI — without changing how llama.cpp runs.
+MarkdownKB uses the OpenAI Python SDK for any OpenAI-compatible endpoint, so llama-server works as a drop-in LLM backend.
 
 In `config/settings.yaml`:
 
@@ -461,44 +457,20 @@ llm:
   active_provider: llamacpp
 ```
 
-Then use MarkdownKB normally — web UI, CLI, or MCP — and your llama.cpp does the generation.
+That's it. MarkdownKB uses llama.cpp for all generation — RAG chat, search summaries, Deep Research, Planner, knowledge graph — without any changes to how llama-server runs.
 
-### Option 2: Use the MarkdownKB CLI alongside llama.cpp
+### llama.cpp browser UI and MCP
 
-If you're scripting with llama.cpp's API directly and want to inject relevant knowledge, use the CLI to retrieve context first:
-
-```bash
-# Retrieve relevant chunks as JSON
-CONTEXT=$(markdownkb search "your question here" --json | jq -r '.results[].content' | head -c 4000)
-
-# Feed into llama.cpp with your own prompt
-curl http://localhost:8080/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"model\": \"your-model\",
-    \"messages\": [
-      {\"role\": \"system\", \"content\": \"Answer using this context:\n$CONTEXT\"},
-      {\"role\": \"user\", \"content\": \"your question here\"}
-    ]
-  }"
-```
-
-This is the manual RAG pipeline — you own the prompt, MarkdownKB owns the retrieval. Useful when you need full control over how context is injected.
-
-### Option 3: Use the MarkdownKB REST API from your own code
-
-MarkdownKB exposes `/api/search` and `/api/chat` endpoints you can call from any language. If you want to build your own application that uses llama.cpp for some things and MarkdownKB's knowledge for others, call the MarkdownKB API for retrieval and your llama.cpp endpoint for generation — mixing them however you need.
-
-See [API Reference](../reference/api.md) and [CLI](../reference/cli.md).
-
-### What about the llama.cpp browser UI and MCP?
-
-llama-server's built-in web UI supports MCP — you can add MarkdownKB as an MCP server there. However, this only works **inside that browser session**. The MCP tools run in the browser: it fetches tool definitions from MarkdownKB, injects them into the prompt as text, and intercepts model responses to execute calls.
+llama-server's built-in web UI supports MCP. You can add MarkdownKB as an MCP server there and use MarkdownKB's search, chat, and file tools from the llama.cpp chat interface. However, this only works **inside that browser session** — the MCP tools run in the browser, not natively in the server.
 
 This means:
-- **llama.cpp browser chat** — MCP works, MarkdownKB tools available
-- **Direct API calls** (`/v1/chat/completions`) — no MCP, nothing intercepts tool calls
-- **Your own scripts** — use Option 2 or 3 above instead
+- **llama.cpp browser chat** — MCP works, full MarkdownKB tool set available
+- **Direct API calls** (`/v1/chat/completions`) — no MCP intercept, tool calls won't fire
+- **Your own scripts** — call the MarkdownKB REST API directly; see [Using the MarkdownKB API](../how-to/using-markdownkb-api.md)
+
+### Using MarkdownKB from a separate llama.cpp workflow
+
+If your llama.cpp instance is doing its own thing (different machine, different purpose) and you want to pull MarkdownKB's retrieval into it — search results, Deep Research synthesis, Planner output — see [Using the MarkdownKB API](../how-to/using-markdownkb-api.md#integrating-with-external-llm-workflows) for patterns and examples.
 
 ---
 

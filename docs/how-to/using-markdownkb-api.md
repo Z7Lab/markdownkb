@@ -326,6 +326,145 @@ GET /api/stats
 GET /api/settings/database-stats
 ```
 
+## Integrating with external LLM workflows
+
+MarkdownKB works as a retrieval and research layer alongside any LLM — not just the one configured as its backend. If you have MarkdownKB running (say, with Venice or Claude as the backend) and a separate llama.cpp instance doing generation work, you can call MarkdownKB's API from that workflow to get grounded context, synthesized research, or structured plans.
+
+### What MarkdownKB provides without its own LLM
+
+These features involve no generation — they work regardless of what LLM backend MarkdownKB has configured, and have no dependencies on your external LLM:
+
+- **Semantic search** — hybrid vector + BM25 retrieval, returns ranked chunks with scores
+- **Scopes** — restrict retrieval to a subset of your docs (one project, one language, etc.)
+- **Buckets** — ephemeral doc collections, searchable in isolation from the main KB
+- **File listing and content** — browse and read indexed documents
+
+### What MarkdownKB generates (uses its own configured LLM)
+
+These endpoints produce generated output using MarkdownKB's configured backend, and return the result — your external LLM just receives it as a string:
+
+- **Search with AI summary** — synthesized answer across top results
+- **Deep Research** — MCTS multi-angle synthesis, explores the question from multiple angles over several iterations before summarizing
+- **Planner** — structured plan grounded in your docs
+
+You can call any of these from a script and pipe the result into your own LLM call.
+
+### Shell: search → inject into llama.cpp
+
+```bash
+# Retrieve relevant chunks from MarkdownKB
+CONTEXT=$(curl -s -X POST http://localhost:9713/api/search \
+  -H "Content-Type: application/json" \
+  -d '{"query": "deployment checklist", "top_k": 5}' \
+  | jq -r '.results[].document' | head -c 4000)
+
+# Use them as context in your own llama.cpp call
+curl http://localhost:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"model\": \"your-model\",
+    \"messages\": [
+      {\"role\": \"system\", \"content\": \"Use this context:\n$CONTEXT\"},
+      {\"role\": \"user\", \"content\": \"What are the deployment steps?\"}
+    ]
+  }"
+```
+
+To scope the search to a specific project:
+
+```bash
+CONTEXT=$(curl -s -X POST http://localhost:9713/api/search \
+  -H "Content-Type: application/json" \
+  -d '{"query": "auth flow", "scope_ids": "your-scope-id", "top_k": 5}' \
+  | jq -r '.results[].document' | head -c 4000)
+```
+
+### Shell: Deep Research → inject into llama.cpp
+
+For complex questions, let MarkdownKB run Deep Research (MCTS synthesis) and inject the result as context rather than raw chunks:
+
+```bash
+RESEARCH=$(curl -s -X POST http://localhost:9713/api/search/summarize \
+  -H "Content-Type: application/json" \
+  -d '{"query": "compare auth approaches", "deep_research": true, "deep_research_iterations": 3}' \
+  | jq -r '.summary')
+
+curl http://localhost:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"model\": \"your-model\",
+    \"messages\": [
+      {\"role\": \"system\", \"content\": \"Research summary:\n$RESEARCH\"},
+      {\"role\": \"user\", \"content\": \"Which approach fits our use case?\"}
+    ]
+  }"
+```
+
+### Python: search + external generation loop
+
+```python
+import httpx
+
+MKDB = "http://localhost:9713"
+LLAMA = "http://localhost:8080"
+
+def ask(question: str) -> str:
+    # Retrieve context from MarkdownKB
+    r = httpx.post(f"{MKDB}/api/search", json={"query": question, "top_k": 5})
+    chunks = [c["document"] for c in r.json()["results"]]
+    context = "\n\n".join(chunks)
+
+    # Generate with llama.cpp (or any OpenAI-compatible endpoint)
+    r = httpx.post(f"{LLAMA}/v1/chat/completions", json={
+        "model": "your-model",
+        "messages": [
+            {"role": "system", "content": f"Answer using this context:\n{context}"},
+            {"role": "user", "content": question},
+        ],
+    })
+    return r.json()["choices"][0]["message"]["content"]
+
+print(ask("How do I configure rate limiting?"))
+```
+
+### Multi-turn RAG from a script
+
+MarkdownKB's `/api/chat` endpoint is single-turn — each call is independent. If you need a persistent multi-turn conversation that is also RAG-grounded, maintain history yourself and re-retrieve context on each turn:
+
+```python
+import httpx
+
+MKDB = "http://localhost:9713"
+LLAMA = "http://localhost:8080"
+
+history = []
+
+def chat_turn(user_message: str) -> str:
+    # Retrieve fresh context for this turn
+    r = httpx.post(f"{MKDB}/api/search", json={"query": user_message, "top_k": 5})
+    context = "\n\n".join(c["document"] for c in r.json()["results"])
+
+    # Build messages: system context + history + current user message
+    messages = [
+        {"role": "system", "content": f"Answer using this context:\n{context}"},
+        *history,
+        {"role": "user", "content": user_message},
+    ]
+
+    r = httpx.post(f"{LLAMA}/v1/chat/completions", json={"model": "your-model", "messages": messages})
+    assistant_reply = r.json()["choices"][0]["message"]["content"]
+
+    # Append to history for next turn
+    history.append({"role": "user", "content": user_message})
+    history.append({"role": "assistant", "content": assistant_reply})
+    return assistant_reply
+
+print(chat_turn("How does authentication work?"))
+print(chat_turn("What about API key rotation?"))
+```
+
+If you don't need the script — Option 1 (using the MarkdownKB web UI) gives you multi-turn RAG chat without writing anything.
+
 ## Error handling
 
 - **401** — missing or invalid API key
