@@ -40,6 +40,21 @@ function AddDirectoryForm({ onSubmit }: { onSubmit: (path: string) => void }) {
   )
 }
 
+function PathBadge({ path }: { path: string }) {
+  const check = usePathCheck(path, 0)
+  if (check.status === "idle" || check.status === "checking") {
+    return <span className="h-2 w-2 rounded-full bg-muted-foreground/30 shrink-0" title="Checking..." />
+  }
+  if (check.status === "ok") {
+    return <span className="h-2 w-2 rounded-full bg-green-500 shrink-0" title="Accessible" />
+  }
+  if (check.status === "needs_restart") {
+    return <span className="h-2 w-2 rounded-full bg-yellow-500 shrink-0" title="Not mounted — restart container to apply" />
+  }
+  // not_found or bad_mount
+  return <span className="h-2 w-2 rounded-full bg-destructive shrink-0" title={check.status === "bad_mount" ? "Configured but not accessible — check host path and restart" : "Path not found"} />
+}
+
 function PathStatus({ path }: { path: string }) {
   const check = usePathCheck(path)
 
@@ -327,6 +342,7 @@ export function SourcesPanel({
               ) : (
                 <div className="rounded-md border p-3">
                   <div className="flex items-center gap-2 mb-2">
+                    <PathBadge path={root.path} />
                     <span className="font-mono text-sm flex-1 truncate">{root.path}</span>
                     <Button
                       variant="ghost"
@@ -379,6 +395,7 @@ export function SourcesPanel({
         <CardContent className="space-y-3">
           {sources.map((s) => (
             <div key={s} className="flex items-center gap-2">
+              <PathBadge path={s} />
               <span className="font-mono text-sm flex-1 truncate">{s}</span>
               <Button
                 variant="ghost"
