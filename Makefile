@@ -57,6 +57,7 @@ docker-build: ## Build Docker image
 
 docker-up: ## Start container (detached)
 	@mkdir -p data/chromadb data/plans
+	@touch config/compose.override.yml
 	@docker compose up -d
 	@echo ""
 	@echo "  MarkdownKB running at http://localhost:$(MARKDOWNKB_PORT)"

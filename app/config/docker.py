@@ -66,12 +66,27 @@ def generate_compose_override(source_configs: list[dict], project_root: Path) ->
     return "\n".join(lines)
 
 
+def _override_path(project_root: Path) -> Path:
+    """Return the compose override path to write.
+
+    In Docker, /app is ephemeral — writes there never reach the host.
+    The config directory IS bind-mounted (./config → /app/config), so
+    writing there makes the file available on the host at config/compose.override.yml.
+    docker compose reads both files when COMPOSE_FILE includes both.
+
+    Outside Docker, use the conventional project-root location.
+    """
+    if in_docker():
+        return Path("/app/config/compose.override.yml")
+    return project_root / "compose.override.yml"
+
+
 def write_compose_override(source_configs: list[dict], project_root: Path) -> bool:
     """Write compose.override.yml if it would change.
 
     Returns True if the file was written (content changed or new).
     """
-    override_path = project_root / "compose.override.yml"
+    override_path = _override_path(project_root)
     content = generate_compose_override(source_configs, project_root)
 
     # Don't rewrite if unchanged

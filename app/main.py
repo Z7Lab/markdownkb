@@ -75,6 +75,16 @@ async def lifespan(app: FastAPI):
     else:
         app.state.embedding_model_missing = False
 
+    # Regenerate compose.override.yml from current config so Docker volume
+    # mounts always reflect settings.yaml sources and project roots.
+    from app.config.docker import write_compose_override
+    try:
+        project_root = settings._path.resolve().parent.parent
+        all_configs = settings.source_configs + settings.project_root_source_configs
+        write_compose_override(all_configs, project_root)
+    except Exception:
+        logger.debug("Could not sync compose.override.yml on startup", exc_info=True)
+
     # Reset files stuck in "indexing" from a previous interrupted run
     reset_count = tracking.reset_incomplete()
     if reset_count:
