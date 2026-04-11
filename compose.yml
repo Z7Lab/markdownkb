@@ -27,6 +27,8 @@ services:
     environment:
       - SERVER_HOST=0.0.0.0
       - OLLAMA_API_BASE=${OLLAMA_API_BASE:-}
+      # Internal URL used by the main app to proxy MCP log/level requests.
+      - MARKDOWNKB_MCP_INTERNAL_URL=http://markdownkb-mcp:${MARKDOWNKB_MCP_PORT:-9715}
       # API keys: use secrets/ files (preferred — not visible in docker inspect).
       # Add env vars here via compose.override.yml if you cannot use secrets files.
     secrets:

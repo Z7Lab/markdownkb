@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { LogViewer } from "./log-viewer"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
@@ -33,6 +34,7 @@ type McpInfo = {
   auth_methods: string[]
   flags: Record<string, boolean>
   allowed_hosts: string[]
+  allowed_origins: string[]
 }
 
 type McpToolParam = {
@@ -213,6 +215,9 @@ export function McpPanel({
   const [testResult, setTestResult] = useState<"ok" | "fail" | null>(null)
   const [newHost, setNewHost] = useState("")
   const [savingHosts, setSavingHosts] = useState(false)
+  const [newOrigin, setNewOrigin] = useState("")
+  const [savingOrigins, setSavingOrigins] = useState(false)
+  const [mcpLogLevel, setMcpLogLevel] = useState("INFO")
 
   const load = useCallback(async () => {
     try {
@@ -231,7 +236,19 @@ export function McpPanel({
 
   useEffect(() => {
     load()
+    api.get<{ level: string }>("/api/mcp/log-level")
+      .then((r) => setMcpLogLevel(r.level))
+      .catch(() => {})
   }, [load])
+
+  const handleMcpLogLevel = useCallback(async (level: string) => {
+    try {
+      await api.put("/api/mcp/log-level", { level })
+      setMcpLogLevel(level)
+    } catch (err) {
+      toast.error(`Failed to change MCP log level: ${(err as Error).message}`)
+    }
+  }, [])
 
   const handleToggleFlag = useCallback(
     async (name: string, enabled: boolean) => {
@@ -284,6 +301,39 @@ export function McpPanel({
         toast.error(`Failed to save: ${(err as Error).message}`)
       } finally {
         setSavingHosts(false)
+      }
+    },
+    [info, load],
+  )
+
+  const handleAddOrigin = useCallback(async () => {
+    if (!info || !newOrigin.trim()) return
+    const next = [...info.allowed_origins, newOrigin.trim()]
+    setSavingOrigins(true)
+    try {
+      await api.put("/api/mcp/allowed-origins", { allowed_origins: next })
+      setNewOrigin("")
+      await load()
+      toast.success("Allowed origins updated. Restart MCP server to apply.")
+    } catch (err) {
+      toast.error(`Failed to save: ${(err as Error).message}`)
+    } finally {
+      setSavingOrigins(false)
+    }
+  }, [info, newOrigin, load])
+
+  const handleRemoveOrigin = useCallback(
+    async (origin: string) => {
+      if (!info) return
+      const next = info.allowed_origins.filter((o) => o !== origin)
+      setSavingOrigins(true)
+      try {
+        await api.put("/api/mcp/allowed-origins", { allowed_origins: next })
+        await load()
+      } catch (err) {
+        toast.error(`Failed to save: ${(err as Error).message}`)
+      } finally {
+        setSavingOrigins(false)
       }
     },
     [info, load],
@@ -466,6 +516,78 @@ export function McpPanel({
           </div>
         </CardContent>
       </Card>
+
+      {/* Allowed origins */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Allowed origins</CardTitle>
+          <CardDescription>
+            Controls which browser origins (the <code>Origin</code> header) can connect.
+            Use <code>*</code> to allow all, or <code>http://hostname:*</code> for a wildcard port
+            match. Restart the MCP server to apply changes.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {info.allowed_origins.length === 0 ? (
+            <div className="text-xs text-muted-foreground italic">
+              No origins configured — all cross-origin requests will be rejected.
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {info.allowed_origins.map((origin) => (
+                <div
+                  key={origin}
+                  className="flex items-center justify-between gap-2 rounded border bg-muted/30 px-2 py-1"
+                >
+                  <span className="text-xs font-mono break-all">{origin}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 text-destructive hover:text-destructive"
+                    onClick={() => handleRemoveOrigin(origin)}
+                    disabled={savingOrigins}
+                    aria-label={`Remove ${origin}`}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Input
+              placeholder="* or http://your-server.local:*"
+              value={newOrigin}
+              onChange={(e) => setNewOrigin(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  handleAddOrigin()
+                }
+              }}
+              className="h-8 text-xs"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAddOrigin}
+              disabled={savingOrigins || !newOrigin.trim()}
+            >
+              <Plus className="h-3 w-3 mr-1" />
+              Add
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* MCP server logs */}
+      <LogViewer
+        logsUrl="/api/mcp/logs"
+        title="MCP Server Logs"
+        description="Live log output from the MCP server process. Restart MCP server to reconnect."
+        logLevel={mcpLogLevel}
+        onLogLevelChange={handleMcpLogLevel}
+      />
 
       {/* Tool browser */}
       <Card>

@@ -214,13 +214,18 @@ Behaviour toggles for built-in features (not plugins).
 
 ## MCP
 
-MCP tool enable flags.
+MCP tool flags and transport security. Editable via **Settings → MCP** in the web UI.
 
 | Key | Default | Description |
 |-----|---------|-------------|
 | `mcp.read_only` | `true` | Disable all write tools (save_document, index_file) regardless of individual flags |
 | `mcp.allow_bucket_writes` | `false` | When true, bucket write tools (create/delete/add) are allowed even with `read_only: true`. Buckets are ephemeral and isolated. |
 | `mcp.save_document` | `false` | Allow MCP clients to write markdown files |
+| `mcp.track_history` | `false` | Record MCP search and chat calls to the web UI history sidebar |
+| `mcp.allowed_hosts` | `[]` | Allowed `Host` header values for DNS rebinding protection. Use `*` to disable protection entirely, or `hostname:*` for wildcard port matching. Takes effect after MCP server restart. |
+| `mcp.allowed_origins` | `[]` | Allowed browser `Origin` header values for cross-origin access. Use `*` to allow all origins, or `http://hostname:*` for wildcard port matching. Takes effect after MCP server restart. |
+
+For LAN access from another machine's browser, add `*` to `allowed_hosts` (disables both host and origin checks) or configure specific entries in both lists. See the [MCP server reference](mcp-server.md#dns-rebinding-protection-and-allowed-hosts) for pattern details.
 
 ## Plugins
 

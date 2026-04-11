@@ -11,6 +11,7 @@ import logging
 import os
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
@@ -113,6 +114,9 @@ def get_mcp_info(request: Request, settings: Settings = Depends(get_settings)):
     allowed_hosts = mcp_features.get("allowed_hosts", []) or []
     if not isinstance(allowed_hosts, list):
         allowed_hosts = []
+    allowed_origins = mcp_features.get("allowed_origins", []) or []
+    if not isinstance(allowed_origins, list):
+        allowed_origins = []
 
     return {
         "endpoint": endpoint,
@@ -124,6 +128,7 @@ def get_mcp_info(request: Request, settings: Settings = Depends(get_settings)):
         ),
         "flags": flags,
         "allowed_hosts": [str(h) for h in allowed_hosts],
+        "allowed_origins": [str(o) for o in allowed_origins],
     }
 
 
@@ -199,3 +204,114 @@ def update_allowed_hosts(
     settings.set_mcp_allowed_hosts(cleaned)
     settings.save()
     return {"status": "saved", "allowed_hosts": cleaned}
+
+
+class AllowedOriginsRequest(BaseModel):
+    """Request model for updating MCP allowed_origins."""
+
+    allowed_origins: list[str] = Field(default_factory=list)
+
+
+@router.put("/allowed-origins")
+@limiter.limit(STANDARD)
+def update_allowed_origins(
+    request: Request,
+    req: AllowedOriginsRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """Replace the ``mcp.allowed_origins`` list.
+
+    Used to control which client origins (browser Origin headers) are allowed.
+    Use ``*`` to allow all origins, or ``http://hostname:*`` for wildcard port
+    matching.  Takes effect after the MCP server is restarted.
+    """
+    cleaned = [o.strip() for o in req.allowed_origins if o and o.strip()]
+    settings.set_mcp_allowed_origins(cleaned)
+    settings.save()
+    return {"status": "saved", "allowed_origins": cleaned}
+
+
+# -- MCP server log proxy -------------------------------------------------------
+# The MCP server runs in a separate process (and Docker container).
+# These endpoints proxy to its /logs and /log-level routes so the frontend
+# can read MCP logs without making cross-origin requests.
+
+def _mcp_internal_base() -> str:
+    """Internal base URL for the MCP server (Docker service or localhost)."""
+    return os.environ.get("MARKDOWNKB_MCP_INTERNAL_URL", "http://localhost:9715")
+
+
+async def _mcp_get(path: str, settings: Settings, params: dict | None = None):
+    headers = {"Authorization": f"Bearer {settings.api_key}"} if settings.api_key else {}
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{_mcp_internal_base()}{path}", headers=headers,
+                params=params, timeout=5.0,
+            )
+            return resp.json()
+    except httpx.RequestError as exc:
+        raise HTTPException(503, f"MCP server unavailable: {exc}") from exc
+
+
+async def _mcp_delete(path: str, settings: Settings):
+    headers = {"Authorization": f"Bearer {settings.api_key}"} if settings.api_key else {}
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.delete(
+                f"{_mcp_internal_base()}{path}", headers=headers, timeout=5.0,
+            )
+            return resp.json()
+    except httpx.RequestError as exc:
+        raise HTTPException(503, f"MCP server unavailable: {exc}") from exc
+
+
+async def _mcp_put(path: str, body: dict, settings: Settings):
+    headers = {"Authorization": f"Bearer {settings.api_key}"} if settings.api_key else {}
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.put(
+                f"{_mcp_internal_base()}{path}", json=body,
+                headers=headers, timeout=5.0,
+            )
+            return resp.json()
+    except httpx.RequestError as exc:
+        raise HTTPException(503, f"MCP server unavailable: {exc}") from exc
+
+
+@router.get("/logs")
+@limiter.limit(STANDARD)
+async def get_mcp_logs(
+    request: Request, since: int = 0, settings: Settings = Depends(get_settings),
+):
+    """Proxy GET /logs from the MCP server's ring buffer."""
+    return await _mcp_get("/logs", settings, params={"since": since})
+
+
+@router.delete("/logs")
+@limiter.limit(STANDARD)
+async def clear_mcp_logs(request: Request, settings: Settings = Depends(get_settings)):
+    """Proxy DELETE /logs to clear the MCP server's ring buffer."""
+    return await _mcp_delete("/logs", settings)
+
+
+class McpLogLevelRequest(BaseModel):
+    level: str = Field(default="INFO")
+
+
+@router.get("/log-level")
+@limiter.limit(STANDARD)
+async def get_mcp_log_level(request: Request, settings: Settings = Depends(get_settings)):
+    """Proxy GET /log-level from the MCP server."""
+    return await _mcp_get("/log-level", settings)
+
+
+@router.put("/log-level")
+@limiter.limit(STANDARD)
+async def set_mcp_log_level(
+    request: Request,
+    req: McpLogLevelRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """Proxy PUT /log-level to change the MCP server's log level at runtime."""
+    return await _mcp_put("/log-level", {"level": req.level}, settings)

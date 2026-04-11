@@ -353,6 +353,20 @@ The server reads JSON-RPC messages from stdin and writes responses to stdout. Lo
 | `--host` | `127.0.0.1` | Bind address |
 | `--port` | `9715` | Listen port |
 
+### DNS Rebinding Protection and Allowed Hosts
+
+When the Streamable HTTP transport is active, all requests are validated against the `mcp.allowed_hosts` list in `config/settings.yaml`. The **Host** header must match one of the configured patterns:
+
+| Pattern | Meaning |
+|---------|---------|
+| `*` | Disable DNS rebinding protection entirely — allow any host |
+| `nuc.local:*` | Allow `nuc.local` on any port (wildcard port match) |
+| `nuc.local:9715` | Exact match only |
+
+Plain `*` is the recommended setting for LAN access when you trust your network. Edit via **Settings → MCP → Allowed hosts** in the web UI. **Restart the MCP server to apply changes.**
+
+> Note: `*` in the list disables DNS rebinding protection at the transport level. API key authentication (if configured) still applies to every request regardless of this setting.
+
 ## Claude Desktop Configuration
 
 Add to `~/.config/claude/claude_desktop_config.json`:
@@ -374,8 +388,10 @@ Add to `~/.config/claude/claude_desktop_config.json`:
 The MCP server runs as a separate service in `compose.yml`:
 
 ```bash
-make up          # starts both markdownkb and markdownkb-mcp
-make logs        # tails logs for both services
+make docker-up          # starts both markdownkb and markdownkb-mcp
+make docker-logs        # tails logs for both services
+make docker-restart     # restart both services
+make docker-down        # stop both services
 ```
 
 The `markdownkb-mcp` service uses Streamable HTTP transport on port 9715 (configurable via `MARKDOWNKB_MCP_PORT`). It shares the same data volume and config as the main app.

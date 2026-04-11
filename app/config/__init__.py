@@ -446,6 +446,10 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
         """Replace the mcp.allowed_hosts list (DNS rebinding protection)."""
         self._data.setdefault("mcp", {})["allowed_hosts"] = [str(h) for h in hosts]
 
+    def set_mcp_allowed_origins(self, origins: list[str]) -> None:
+        """Replace the mcp.allowed_origins list (cross-origin request protection)."""
+        self._data.setdefault("mcp", {})["allowed_origins"] = [str(o) for o in origins]
+
     # --- Plugin Configuration ---
 
     def plugin_enabled(self, name: str) -> bool:

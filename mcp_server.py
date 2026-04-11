@@ -29,6 +29,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from app.config import Settings
 from app.embeddings.registry import load_models
 from app.ingestion.indexer import run_index
+from app.logbuffer import log_buffer
 from app.mcp.tools import register_tools
 from app.rag.retriever import Retriever
 from app.storage.chatdb import ChatDB
@@ -38,12 +39,18 @@ from app.storage.searchdb import SearchDB
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 
+_settings_for_loglevel = Settings.get()
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, _settings_for_loglevel.log_level, logging.INFO),
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     stream=sys.stderr,
 )
+logging.getLogger().addHandler(log_buffer)
 logger = logging.getLogger(__name__)
+
+# Guard against FastMCP's streamable-HTTP session manager calling the lifespan
+# context for every new session.  We only want to register tools once.
+_tools_registered = False
 
 
 # -- Lifespan: initialize core services once at startup --------------------
@@ -99,12 +106,18 @@ async def lifespan(server: FastMCP):
         searchdb = SearchDB(settings.data_directory)
         logger.info("MCP history tracking enabled (searches + chat threads)")
 
-    # Auto-discover and register MCP tools
-    registered = register_tools(server, settings)
-    logger.info(
-        "MCP server ready (%d documents indexed, %d tools: %s)",
-        store.count, len(registered), registered,
-    )
+    # Auto-discover and register MCP tools (guard: session manager calls this
+    # lifespan per-session in HTTP mode, but tools must only be registered once)
+    global _tools_registered
+    if not _tools_registered:
+        registered = register_tools(server, settings)
+        _tools_registered = True
+        logger.info(
+            "MCP server ready (%d documents indexed, %d tools: %s)",
+            store.count, len(registered), registered,
+        )
+    else:
+        logger.debug("MCP lifespan re-entered (new session) — tools already registered")
 
     yield {
         "settings": settings,
@@ -148,6 +161,23 @@ def _create_mcp() -> FastMCP:
     allowed_hosts = settings.mcp_features.get("allowed_hosts", [])
     if not isinstance(allowed_hosts, list):
         allowed_hosts = []
+    allowed_origins = settings.mcp_features.get("allowed_origins", [])
+    if not isinstance(allowed_origins, list):
+        allowed_origins = []
+
+    # '*' in either list means "allow all" — disable DNS rebinding protection entirely.
+    # This covers both Host and Origin checks with a single wildcard.
+    if "*" in allowed_hosts or "*" in allowed_origins:
+        transport_security = TransportSecuritySettings(
+            enable_dns_rebinding_protection=False,
+        )
+    else:
+        transport_security = TransportSecuritySettings(
+            enable_dns_rebinding_protection=True,
+            allowed_hosts=[str(h) for h in allowed_hosts],
+            allowed_origins=[str(o) for o in allowed_origins],
+        )
+
     return FastMCP(
         "markdownkb",
         instructions=(
@@ -156,37 +186,112 @@ def _create_mcp() -> FastMCP:
             "files, generate implementation plans, and trigger re-indexing."
         ),
         lifespan=lifespan,
-        transport_security=TransportSecuritySettings(
-            enable_dns_rebinding_protection=True,
-            allowed_hosts=[str(h) for h in allowed_hosts],
-        ),
+        transport_security=transport_security,
     )
 
 
 def _run_http_with_auth(mcp: FastMCP, host: str, port: int):
-    """Run Streamable HTTP transport with optional API key middleware."""
+    """Run Streamable HTTP transport with optional API key middleware.
+
+    Middleware stack (outermost → innermost):
+      CORSMiddleware        — adds CORS headers; handles OPTIONS preflight
+      McpApiKeyMiddleware   — rejects requests without valid key (if configured)
+      _WithUtilityRoutes    — intercepts /logs and /log-level
+      mcp_asgi              — FastMCP with DNS rebinding protection on /mcp
+
+    CORS must be outermost so OPTIONS preflight responses are served without
+    hitting auth middleware, which is standard browser CORS behaviour.
+    """
     import anyio
     import uvicorn
+    from starlette.middleware.cors import CORSMiddleware
+    from starlette.requests import Request
+    from starlette.responses import JSONResponse
 
     async def _serve():
         mcp.settings.host = host
         mcp.settings.port = port
-        starlette_app = mcp.streamable_http_app()
+        mcp_asgi = mcp.streamable_http_app()
 
-        # Add API key auth if configured (same key as REST API)
+        class _WithUtilityRoutes:
+            """Thin ASGI wrapper: intercepts /logs and /log-level; forwards everything
+            else (including lifespan) to the inner MCP app unchanged."""
+
+            def __init__(self, inner):
+                self._inner = inner
+
+            async def __call__(self, scope, receive, send):
+                if scope["type"] == "http":
+                    path = scope.get("path", "")
+                    if path == "/logs":
+                        await self._handle_logs(scope, receive, send)
+                        return
+                    if path == "/log-level":
+                        await self._handle_log_level(scope, receive, send)
+                        return
+                await self._inner(scope, receive, send)
+
+            async def _handle_logs(self, scope, receive, send):
+                request = Request(scope, receive)
+                if request.method == "DELETE":
+                    log_buffer.clear()
+                    response = JSONResponse({"status": "cleared"})
+                else:
+                    since = int(request.query_params.get("since", 0))
+                    entries, seq = log_buffer.get_entries(since)
+                    response = JSONResponse({"entries": entries, "seq": seq})
+                await response(scope, receive, send)
+
+            async def _handle_log_level(self, scope, receive, send):
+                request = Request(scope, receive)
+                if request.method == "PUT":
+                    body = await request.json()
+                    level_str = body.get("level", "INFO").upper()
+                    level = getattr(logging, level_str, logging.INFO)
+                    logging.getLogger().setLevel(level)
+                    logger.info("MCP log level changed to %s", level_str)
+                    response = JSONResponse({"level": level_str})
+                else:
+                    level_name = logging.getLevelName(logging.getLogger().level)
+                    response = JSONResponse({"level": level_name})
+                await response(scope, receive, send)
+
+        combined_app = _WithUtilityRoutes(mcp_asgi)
+
         settings = Settings.get()
         api_key = settings.api_key
+
+        # Auth middleware — wraps utility routes + MCP app
         if api_key:
             from app.mcp.auth import McpApiKeyMiddleware
-            starlette_app = McpApiKeyMiddleware(starlette_app, api_key)
+            combined_app = McpApiKeyMiddleware(combined_app, api_key)
             logger.info(
-                "MCP auth enabled (accepts X-MarkdownKB-Key header or ?token= query param)"
+                "MCP auth enabled (accepts Authorization: Bearer, X-MarkdownKB-Key, or ?token=)"
             )
         else:
             logger.info("MCP auth disabled (no API key configured)")
 
+        # CORS — outermost so OPTIONS preflight is answered before auth.
+        # Derive allowed origins from settings: '*' → allow all.
+        allowed_origins_setting = settings.mcp_features.get("allowed_origins", []) or []
+        allowed_hosts_setting = settings.mcp_features.get("allowed_hosts", []) or []
+        if "*" in allowed_origins_setting or "*" in allowed_hosts_setting:
+            cors_origins = ["*"]
+        elif allowed_origins_setting:
+            cors_origins = [str(o) for o in allowed_origins_setting]
+        else:
+            cors_origins = ["*"]  # default permissive for LAN deployments
+        combined_app = CORSMiddleware(
+            combined_app,
+            allow_origins=cors_origins,
+            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            allow_headers=["*"],
+            expose_headers=["*"],
+        )
+        logger.info("MCP CORS enabled (origins: %s)", cors_origins)
+
         config = uvicorn.Config(
-            starlette_app, host=host, port=port,
+            combined_app, host=host, port=port,
             log_level="info",
         )
         server = uvicorn.Server(config)
