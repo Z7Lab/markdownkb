@@ -5,10 +5,34 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useIndexEvents } from "@/hooks/use-index-events"
+import { usePathCheck } from "@/hooks/use-path-check"
 import { api } from "@/lib/api"
 import type { ProjectRoot } from "@/lib/types"
 import { CheckCircle2, AlertCircle, Loader2, Trash2, FileText, Pencil, Plus, X, FolderGit2 } from "lucide-react"
 import { toast } from "sonner"
+
+function PathStatus({ path }: { path: string }) {
+  const check = usePathCheck(path)
+
+  if (check.status === "idle" || check.status === "checking") {
+    return check.status === "checking"
+      ? <p className="text-xs text-muted-foreground mt-1">Checking...</p>
+      : null
+  }
+  if (check.status === "ok") {
+    return <p className="text-xs text-green-600 dark:text-green-400 mt-1">Path found</p>
+  }
+  if (check.status === "not_found") {
+    return <p className="text-xs text-destructive mt-1">Path not found</p>
+  }
+  if (check.status === "needs_restart") {
+    return <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">Not mounted yet — will be available after saving and restarting the container</p>
+  }
+  if (check.status === "bad_mount") {
+    return <p className="text-xs text-destructive mt-1">Configured in compose.override.yml but not accessible — check that the host path exists, then restart the container</p>
+  }
+  return null
+}
 
 function ProjectRootForm({
   initial,
@@ -48,12 +72,15 @@ function ProjectRootForm({
   return (
     <div className="space-y-3 rounded-md border p-3">
       {!initial && (
-        <Input
-          value={path}
-          onChange={(e) => setPath(e.target.value)}
-          placeholder="/home/user/projects"
-          onKeyDown={(e) => e.key === "Enter" && canSubmit && onSubmit(path.trim(), include, exclude)}
-        />
+        <div>
+          <Input
+            value={path}
+            onChange={(e) => setPath(e.target.value)}
+            placeholder="/home/user/projects"
+            onKeyDown={(e) => e.key === "Enter" && canSubmit && onSubmit(path.trim(), include, exclude)}
+          />
+          <PathStatus path={path} />
+        </div>
       )}
 
       <div>
@@ -346,17 +373,20 @@ export function SourcesPanel({
           {sources.length === 0 && (
             <p className="text-sm text-muted-foreground">No watch directories configured.</p>
           )}
-          <div className="flex gap-2 pt-2">
-            <Input
-              value={newSource}
-              onChange={(e) => setNewSource(e.target.value)}
-              placeholder="/path/to/documents"
-              className="flex-1"
-              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-            />
-            <Button onClick={handleAdd} disabled={!newSource.trim()}>
-              Add
-            </Button>
+          <div className="pt-2">
+            <div className="flex gap-2">
+              <Input
+                value={newSource}
+                onChange={(e) => setNewSource(e.target.value)}
+                placeholder="/path/to/documents"
+                className="flex-1"
+                onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+              />
+              <Button onClick={handleAdd} disabled={!newSource.trim()}>
+                Add
+              </Button>
+            </div>
+            <PathStatus path={newSource} />
           </div>
         </CardContent>
       </Card>

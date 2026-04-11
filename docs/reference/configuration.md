@@ -64,13 +64,17 @@ sources:
 
 In Docker, each source directory must be mounted into the container. MarkdownKB auto-generates `compose.override.yml` from your sources when you add or remove directories via the Settings UI. The writable flag maps to Docker mount mode: `writable: true` → read-write, `writable: false` → `:ro`.
 
-After adding or removing sources, restart the container: `make down && make up`.
+After adding or removing sources, restart the container: `make docker-restart`.
 
 On first setup, copy the example: `cp compose.override.yml.example compose.override.yml`.
 
 ### Project Roots
 
-Point MarkdownKB at a directory containing cloned repositories and it will automatically discover and index documentation matching your patterns:
+Point MarkdownKB at a directory containing cloned repositories and it will automatically discover and index documentation matching your patterns. Each immediate subdirectory is treated as a project — if any files match the `include` patterns (minus `exclude`), that project is watched and indexed. New repos cloned into the root are picked up automatically (~60s).
+
+**Via UI:** Settings → Sources → Project Directories → Add. Enter the parent path and configure include/exclude glob patterns.
+
+**Via `settings.yaml`:**
 
 ```yaml
 project_roots:
@@ -83,7 +87,7 @@ project_roots:
       - "LICENSE.md"
 ```
 
-Each immediate subdirectory of `path` is treated as a project. If any files match the `include` patterns (minus `exclude`), that project directory is watched and indexed. New repos cloned into the root are picked up automatically (~60s).
+**Docker:** The project root path must be mounted into the container. When you add a project root via the UI, MarkdownKB adds it as a read-only mount in `compose.override.yml` automatically. Restart to apply: `make docker-restart`. If a path is listed in `compose.override.yml` but still not accessible after restart, the host path is wrong or the mount failed — verify the path exists on the host.
 
 ## Embeddings
 

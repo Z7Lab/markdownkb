@@ -50,6 +50,34 @@ def _sync_compose_override(settings: Settings):
         logger.debug("Could not update compose.override.yml", exc_info=True)
 
 
+# -- Path validation --
+
+@router.get("/check-path")
+@limiter.limit(STANDARD)
+def check_path(request: Request, path: str, settings: Settings = Depends(get_settings)):
+    """Check whether a path is accessible on the server.
+
+    Returns:
+    - ``accessible``: whether the path is a readable directory
+    - ``in_docker``: whether the server is running inside Docker
+    - ``already_configured``: (Docker only, when not accessible) whether this path
+      is already saved in sources or project roots, meaning it should be in
+      compose.override.yml. If true and still not accessible, the host path is
+      wrong or the container hasn't been restarted.
+    """
+    resolved = str(Path(path).resolve())
+    accessible = Path(resolved).is_dir()
+    docker = in_docker()
+
+    result: dict = {"accessible": accessible, "in_docker": docker}
+
+    if not accessible and docker:
+        saved_paths = {c["path"] for c in settings.source_configs + settings.project_root_source_configs}
+        result["already_configured"] = resolved in saved_paths
+
+    return result
+
+
 # -- Sources --
 
 @router.get("/sources")

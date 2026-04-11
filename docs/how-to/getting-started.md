@@ -17,7 +17,7 @@ git clone <repo-url> && cd markdownkb
 cp config/settings.yaml.example config/settings.yaml
 cp .env.example .env
 cp compose.override.yml.example compose.override.yml
-make build && make up
+make docker-build && make docker-up
 ```
 
 Open http://localhost:9713. You should see the MarkdownKB UI with a setup banner.
@@ -61,7 +61,9 @@ llama.cpp, vLLM, LM Studio, or any server with an OpenAI-compatible API:
 
 ## 3. Add Your Documents
 
-Edit `config/settings.yaml` and add your markdown directories under `sources:`:
+Go to **Settings → Sources** in the UI and add directories under **Watch Directories**. MarkdownKB will immediately start indexing all `.md` files it finds.
+
+Alternatively, edit `config/settings.yaml` directly and add directories under `sources:`:
 
 ```yaml
 sources:
@@ -71,7 +73,15 @@ sources:
 
 Each source has a `path` and an optional `writable` flag (defaults to `true`). Set `writable: false` to prevent the Write API and MCP tools from modifying files in that directory.
 
-Restart the container (`make restart`) or use Settings > Sources in the UI. MarkdownKB will auto-index all `.md` files.
+In Docker, newly added source paths must be mounted into the container. MarkdownKB updates `compose.override.yml` automatically when you add a source via the UI — restart the container after to apply the mount: `make docker-restart`.
+
+### Indexing a project directory
+
+If your documents live across many repositories, use **Project Directories** instead of adding each repo individually. Point MarkdownKB at a parent directory containing cloned repos and it will discover and index matching docs in each subdirectory automatically.
+
+In **Settings → Sources → Project Directories**, click **Add**, enter the path (e.g. `/home/user/projects`), and configure include/exclude patterns. New repos cloned into that directory are picked up automatically within ~60 seconds.
+
+In Docker, the project directory path must also be mounted — MarkdownKB adds it to `compose.override.yml` when you save, then restart: `make docker-restart`.
 
 ## 4. Your First Search
 
