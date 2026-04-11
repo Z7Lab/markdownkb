@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import React, { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -8,6 +8,7 @@ import { useIndexEvents } from "@/hooks/use-index-events"
 import { usePathCheck } from "@/hooks/use-path-check"
 import { api } from "@/lib/api"
 import type { ProjectRoot } from "@/lib/types"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { CheckCircle2, AlertCircle, Loader2, Trash2, FileText, Pencil, Plus, X, FolderGit2 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -42,17 +43,37 @@ function AddDirectoryForm({ onSubmit }: { onSubmit: (path: string) => void }) {
 
 function PathBadge({ path }: { path: string }) {
   const check = usePathCheck(path, 0)
+
+  let icon: React.ReactNode
+  let message: string
+
   if (check.status === "idle" || check.status === "checking") {
-    return <span className="h-2 w-2 rounded-full bg-muted-foreground/30 shrink-0" title="Checking..." />
+    icon = <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+    message = "Checking..."
+  } else if (check.status === "ok") {
+    icon = <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+    message = "Accessible"
+  } else if (check.status === "needs_restart") {
+    icon = <AlertCircle className="h-3.5 w-3.5 text-yellow-500" />
+    message = "Not mounted — restart container to apply"
+  } else if (check.status === "bad_mount") {
+    icon = <AlertCircle className="h-3.5 w-3.5 text-destructive" />
+    message = "Configured but not accessible — check host path and restart"
+  } else {
+    icon = <AlertCircle className="h-3.5 w-3.5 text-destructive" />
+    message = "Path not found"
   }
-  if (check.status === "ok") {
-    return <span className="h-2 w-2 rounded-full bg-green-500 shrink-0" title="Accessible" />
-  }
-  if (check.status === "needs_restart") {
-    return <span className="h-2 w-2 rounded-full bg-yellow-500 shrink-0" title="Not mounted — restart container to apply" />
-  }
-  // not_found or bad_mount
-  return <span className="h-2 w-2 rounded-full bg-destructive shrink-0" title={check.status === "bad_mount" ? "Configured but not accessible — check host path and restart" : "Path not found"} />
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="shrink-0 cursor-default">{icon}</span>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p className="text-xs">{message}</p>
+      </TooltipContent>
+    </Tooltip>
+  )
 }
 
 function PathStatus({ path }: { path: string }) {
