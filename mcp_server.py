@@ -53,6 +53,129 @@ logger = logging.getLogger(__name__)
 _tools_registered = False
 
 
+# -- Resources -----------------------------------------------------------------
+
+def _register_resources(server: FastMCP, settings) -> None:
+    """Register MCP resources: static source-directory listings + file template."""
+    from pathlib import Path
+
+    # Static resources: one per configured source directory so clients can
+    # browse the top-level structure without listing every file.
+    # Use a factory to close over loop variables without adding function
+    # parameters (any params on a resource fn → FastMCP treats it as a template).
+    def _make_listing(source_path: str, source_name: str):
+        def _listing() -> str:
+            src = Path(source_path)
+            if not src.exists():
+                return f"Source directory not found: {source_path}"
+            files = sorted(src.rglob("*.md"))
+            lines = [f"# Source: {source_name}", f"Path: {source_path}", ""]
+            lines += [str(f.relative_to(src)) for f in files[:500]]
+            if len(files) > 500:
+                lines.append(f"... and {len(files) - 500} more")
+            return "\n".join(lines)
+        return _listing
+
+    for source_path in settings.sources:
+        p = Path(source_path)
+        uri = f"markdownkb://source/{p.name}"
+        server.resource(
+            uri,
+            name=f"Source: {p.name}",
+            description=f"Markdown source directory: {source_path}",
+            mime_type="text/plain",
+        )(_make_listing(source_path, p.name))
+
+    # Resource template: read any indexed file by path.
+    @server.resource(
+        "markdownkb://file/{path}",
+        name="File",
+        description="Read the content of any indexed markdown file. Use search or list_files to find paths.",
+        mime_type="text/markdown",
+    )
+    def _file_resource(path: str) -> str:
+        """Read a file from the knowledge base by its relative or absolute path."""
+        from pathlib import Path as _Path
+
+        # Support both relative (from any source root) and absolute paths
+        resolved: str | None = None
+        for src in settings.sources:
+            candidate = _Path(src) / path
+            if candidate.exists():
+                resolved = str(candidate.resolve())
+                break
+
+        if resolved is None:
+            abs_candidate = _Path(path)
+            if abs_candidate.is_absolute() and abs_candidate.exists():
+                resolved = str(abs_candidate.resolve())
+
+        if resolved is None:
+            return f"File not found: {path}"
+
+        in_source = any(
+            resolved.startswith(str(_Path(s).resolve()) + "/")
+            for s in settings.sources
+        )
+        if not in_source:
+            return "Access denied: path is outside configured sources"
+
+        try:
+            return _Path(resolved).read_text(encoding="utf-8", errors="replace")
+        except OSError as exc:
+            return f"Cannot read file: {exc}"
+
+
+# -- Prompts -------------------------------------------------------------------
+
+def _register_prompts(server: FastMCP, settings) -> None:
+    """Register built-in MCP prompt templates."""
+
+    @server.prompt(
+        name="ask-kb",
+        description="Ask a question and get an answer grounded in the knowledge base.",
+    )
+    def ask_kb(question: str) -> str:
+        """Ask a question against the knowledge base.
+
+        Args:
+            question: The question to ask.
+        """
+        return (
+            f"Use the `chat` tool to answer this question using the knowledge base:\n\n{question}"
+        )
+
+    @server.prompt(
+        name="summarize-topic",
+        description="Search the knowledge base and summarize what it says about a topic.",
+    )
+    def summarize_topic(topic: str) -> str:
+        """Summarize knowledge-base content about a topic.
+
+        Args:
+            topic: The topic to summarize.
+        """
+        return (
+            f"Use the `search_summarize` tool to find and summarize everything "
+            f"the knowledge base contains about: {topic}"
+        )
+
+    @server.prompt(
+        name="research-topic",
+        description="Run deep multi-angle research on a topic using the knowledge base.",
+    )
+    def research_topic(topic: str) -> str:
+        """Run comprehensive deep research on a topic.
+
+        Args:
+            topic: The topic to research thoroughly.
+        """
+        return (
+            f"Use the `deep_research` tool to run thorough multi-angle research "
+            f"on this topic using the knowledge base: {topic}"
+        )
+
+
 # -- Lifespan: initialize core services once at startup --------------------
 
 @asynccontextmanager
@@ -106,8 +229,9 @@ async def lifespan(server: FastMCP):
         searchdb = SearchDB(settings.data_directory)
         logger.info("MCP history tracking enabled (searches + chat threads)")
 
-    # Auto-discover and register MCP tools (guard: session manager calls this
-    # lifespan per-session in HTTP mode, but tools must only be registered once)
+    # Auto-discover and register MCP tools.
+    # Guard: FastMCP's streamable-HTTP session manager calls the lifespan
+    # context for every new session — tools must only be registered once.
     global _tools_registered
     if not _tools_registered:
         registered = register_tools(server, settings)
@@ -178,7 +302,7 @@ def _create_mcp() -> FastMCP:
             allowed_origins=[str(o) for o in allowed_origins],
         )
 
-    return FastMCP(
+    mcp = FastMCP(
         "markdownkb",
         instructions=(
             "MarkdownKB is a personal markdown knowledge base. Use the tools below to "
@@ -188,6 +312,13 @@ def _create_mcp() -> FastMCP:
         lifespan=lifespan,
         transport_security=transport_security,
     )
+
+    # Resources and prompts are static — register at creation time so they
+    # are available immediately, not deferred to the first lifespan call.
+    _register_resources(mcp, settings)
+    _register_prompts(mcp, settings)
+
+    return mcp
 
 
 def _run_http_with_auth(mcp: FastMCP, host: str, port: int):

@@ -330,6 +330,54 @@ bucket_delete(bucket: "project-docs")
 → {deleted: true, id, name}
 ```
 
+## Resources
+
+MarkdownKB exposes your indexed sources as MCP resources so browser-based tools and resource-aware clients can browse and attach documents without calling tools.
+
+### Static resources — source directories
+
+One resource per configured source directory. Lists every `.md` file in that source (up to 500).
+
+| URI | Description |
+|-----|-------------|
+| `markdownkb://source/<name>` | Listing of markdown files in the source named `<name>` |
+
+Example — source named `docs`:
+```
+markdownkb://source/docs
+→ # Source: docs
+  Path: /app/docs
+
+  explanation/chat.md
+  explanation/chunking.md
+  ...
+```
+
+Use `list_sources` to discover configured source names.
+
+### Resource template — file content
+
+Read any indexed file by path using the `markdownkb://file/{path}` template.
+
+```
+markdownkb://file/explanation/chat.md
+→ (full markdown content of that file)
+```
+
+Path is resolved relative to each source directory in order. Absolute paths are also accepted. Access is restricted to configured source directories.
+
+## Prompts
+
+Three built-in prompt templates route common questions to the right tool. Clients that support MCP prompts (e.g. the Claude browser extension) surface these as shortcuts.
+
+| Name | Description | Uses tool |
+|------|-------------|-----------|
+| `ask-kb` | Ask a question grounded in the knowledge base | `chat` |
+| `summarize-topic` | Summarize what the knowledge base says about a topic | `search_summarize` |
+| `research-topic` | Run deep multi-angle research on a topic | `deep_research` |
+
+Each prompt takes a single argument (`question` or `topic`) and returns a message that directs the agent to call the appropriate tool.
+
 ## Transports
 
 | Transport | Flag | Use case |
