@@ -41,10 +41,11 @@ def _watch_and_index(watcher, path: str):
 
 
 def _sync_compose_override(settings: Settings):
-    """Regenerate compose.override.yml from current source configs."""
+    """Regenerate compose.override.yml from current source and project root configs."""
     try:
         project_root = settings._path.resolve().parent.parent
-        write_compose_override(settings.source_configs, project_root)
+        all_configs = settings.source_configs + settings.project_root_source_configs
+        write_compose_override(all_configs, project_root)
     except Exception:
         logger.debug("Could not update compose.override.yml", exc_info=True)
 
@@ -63,7 +64,7 @@ def get_sources(request: Request, settings: Settings = Depends(get_settings)):
         if in_docker():
             result["message"] = (
                 "Some sources are not mounted into the container. "
-                "Restart to apply: make down && make up"
+                "Restart to apply: make docker-down && make docker-up"
             )
     return result
 
@@ -102,7 +103,7 @@ def add_source(
         result["docker_restart_required"] = True
         result["message"] = (
             f"Source added to config. '{req.path}' is not accessible inside the container yet. "
-            "Restart to mount it: make down && make up"
+            "Restart to mount it: make docker-down && make docker-up"
         )
 
     return result
@@ -189,12 +190,35 @@ def add_project_root(
     The project root is scanned for subdirectories containing files that
     match the include patterns.  Each matching project is watched and
     indexed automatically.
+
+    In Docker, the path must be mounted into the container.  The response
+    includes a ``docker_restart_required`` flag when the path is not
+    accessible, with instructions to restart.
     """
     settings.add_project_root(req.path, req.include, req.exclude)
     settings.save()
     for source in settings.sources:
         _watch_and_index(watcher, source)
-    return {"project_roots": settings.project_roots}
+
+    _sync_compose_override(settings)
+
+    resolved = str(Path(req.path).resolve())
+    accessible = Path(resolved).is_dir()
+
+    result: dict = {"project_roots": settings.project_roots}
+
+    if not accessible:
+        if in_docker():
+            result["docker_restart_required"] = True
+            result["message"] = (
+                f"Project root added to config. '{req.path}' is not accessible inside the "
+                "container yet. Restart to mount it: make docker-down && make docker-up"
+            )
+        else:
+            result["path_not_found"] = True
+            result["message"] = f"Project root added to config but '{req.path}' does not exist."
+
+    return result
 
 
 @router.put("/project-roots")
@@ -213,6 +237,7 @@ def update_project_root(
     settings.save()
     for source in settings.sources:
         _watch_and_index(watcher, source)
+    _sync_compose_override(settings)
     return {"project_roots": settings.project_roots}
 
 
@@ -243,4 +268,5 @@ def remove_project_root(
 
     settings.remove_project_root(req.path)
     settings.save()
+    _sync_compose_override(settings)
     return {"project_roots": settings.project_roots, "unindexed_count": removed_count}

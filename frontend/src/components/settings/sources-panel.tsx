@@ -144,7 +144,7 @@ export function SourcesPanel({
   onRemove: (path: string, cleanup: boolean) => Promise<void>
   onAddIgnore: (pattern: string) => Promise<void>
   onRemoveIgnore: (pattern: string) => Promise<void>
-  onAddProjectRoot: (path: string, include: string[], exclude: string[]) => Promise<void>
+  onAddProjectRoot: (path: string, include: string[], exclude: string[]) => Promise<{ docker_restart_required?: boolean; path_not_found?: boolean } | void>
   onRemoveProjectRoot: (path: string, cleanup: boolean) => Promise<void>
   onUpdateProjectRoot: (path: string, include: string[], exclude: string[]) => Promise<void>
 }) {
@@ -252,8 +252,14 @@ export function SourcesPanel({
               onCancel={() => setShowAddRoot(false)}
               onSubmit={async (path, include, exclude) => {
                 setShowAddRoot(false)
-                await onAddProjectRoot(path, include, exclude)
-                toast.success(`Added project root "${path}" — scanning for projects`)
+                const result = await onAddProjectRoot(path, include, exclude)
+                if (result?.docker_restart_required) {
+                  toast.warning(`Project root added — restart required to mount "${path}" into the container: make docker-down && make docker-up`)
+                } else if (result?.path_not_found) {
+                  toast.warning(`Project root added but "${path}" does not exist — check the path`)
+                } else {
+                  toast.success(`Added project root "${path}" — scanning for projects`)
+                }
               }}
             />
           )}

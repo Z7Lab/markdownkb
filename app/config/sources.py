@@ -103,6 +103,14 @@ class SourcesMixin:
         """Return the list of project root configurations."""
         return list(self._data.get("project_roots", []))
 
+    @property
+    def project_root_source_configs(self) -> list[dict]:
+        """Return project root paths as read-only source configs for Docker mounting."""
+        return [
+            {"path": self._resolve_path(r.get("path", "")), "writable": False}
+            for r in self._data.get("project_roots", [])
+        ]
+
     def _expand_project_roots(self) -> list[str]:
         """Expand project roots into individual project directories to watch.
 

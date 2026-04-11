@@ -42,7 +42,7 @@ def generate_compose_override(source_configs: list[dict], project_root: Path) ->
     lines = [
         "# Auto-generated from settings.yaml sources.",
         "# Regenerated when sources are added or removed via the UI.",
-        "# After changes: make down && make up",
+        "# After changes: make docker-down && make docker-up",
         "",
         "services:",
         "  markdownkb:",
