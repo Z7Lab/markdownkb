@@ -209,10 +209,7 @@ cp config/settings.yaml.example config/settings.yaml
 # Edit settings.yaml with your LLM server IP
 
 # Build and start
-make build && make up
-
-# Or using docker-compose directly:
-docker-compose up -d
+make docker-build && make docker-up
 ```
 
 **Access MarkdownKB:**

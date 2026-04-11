@@ -16,7 +16,6 @@ This guide walks you through setting up MarkdownKB, indexing your first document
 git clone <repo-url> && cd markdownkb
 cp config/settings.yaml.example config/settings.yaml
 cp .env.example .env
-cp compose.override.yml.example compose.override.yml
 make docker-build && make docker-up
 ```
 
@@ -73,7 +72,7 @@ sources:
 
 Each source has a `path` and an optional `writable` flag (defaults to `true`). Set `writable: false` to prevent the Write API and MCP tools from modifying files in that directory.
 
-In Docker, newly added source paths must be mounted into the container. MarkdownKB updates `compose.override.yml` automatically when you add a source via the UI — restart the container after to apply the mount: `make docker-restart`.
+In Docker, newly added source paths must be mounted into the container. MarkdownKB updates `config/compose.override.yml` automatically when you add a source via the UI, and also regenerates it on every startup. Restart the container after adding a source to apply the new mount: `make docker-restart`.
 
 ### Indexing a project directory
 
@@ -81,7 +80,7 @@ If your documents live across many repositories, use **Project Directories** ins
 
 In **Settings → Sources → Project Directories**, click **Add**, enter the path (e.g. `/home/user/projects`), and configure include/exclude patterns. New repos cloned into that directory are picked up automatically within ~60 seconds.
 
-In Docker, the project directory path must also be mounted — MarkdownKB adds it to `compose.override.yml` when you save, then restart: `make docker-restart`.
+In Docker, the project directory path must also be mounted — MarkdownKB adds it to `config/compose.override.yml` when you save, then restart: `make docker-restart`.
 
 ## 4. Your First Search
 

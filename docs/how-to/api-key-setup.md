@@ -43,7 +43,7 @@ In `.env`:
 MARKDOWNKB_API_KEY=your-key-here
 ```
 
-Then `make down && make up`.
+Then `make docker-down && make docker-up`.
 
 ### Option 3: Generate from the UI
 
