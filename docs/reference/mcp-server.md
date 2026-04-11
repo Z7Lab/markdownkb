@@ -332,19 +332,20 @@ bucket_delete(bucket: "project-docs")
 
 ## Resources
 
-MarkdownKB exposes your indexed sources as MCP resources so browser-based tools and resource-aware clients can browse and attach documents without calling tools.
+MarkdownKB exposes watched directories, scopes, and buckets as MCP resources so browser-based tools and resource-aware clients can browse and attach documents without calling tools. Resources appear grouped by type in supporting clients (e.g. "watch-directories (6)", "scopes (3)", "buckets (1)").
 
-### Static resources — source directories
+Resources are registered at MCP server startup — a restart is required to pick up newly added sources, scopes, or buckets.
 
-One resource per configured source directory. Lists every `.md` file in that source (up to 500).
+### Watch Directories
+
+One resource per configured watch directory. Lists every `.md` file in that directory (up to 500).
 
 | URI | Description |
 |-----|-------------|
-| `markdownkb://source/<name>` | Listing of markdown files in the source named `<name>` |
+| `markdownkb://watch-directories/<name>` | File listing for the watch directory named `<name>` |
 
-Example — source named `docs`:
 ```
-markdownkb://source/docs
+markdownkb://watch-directories/docs
 → # Source: docs
   Path: /app/docs
 
@@ -353,7 +354,47 @@ markdownkb://source/docs
   ...
 ```
 
-Use `list_sources` to discover configured source names.
+Use `list_sources` to discover configured directory names.
+
+### Scopes
+
+One resource per named scope. Lists files from the scope's configured folders, live at read time.
+
+| URI | Description |
+|-----|-------------|
+| `markdownkb://scopes/<name-slug>` | File listing for the named scope |
+
+```
+markdownkb://scopes/Architecture-Docs
+→ # Scope: Architecture Docs
+  Folders: /home/user/projects/myapp/docs
+  Tags: architecture
+
+  /home/user/projects/myapp/docs/overview.md
+  ...
+```
+
+Use `list_scopes` to discover scope IDs and names.
+
+### Buckets
+
+One resource per bucket. Lists the bucket's source paths and their matching files.
+
+| URI | Description |
+|-----|-------------|
+| `markdownkb://buckets/<name-slug>` | File listing for the named bucket |
+
+```
+markdownkb://buckets/grpc-evaluation
+→ # Bucket: grpc-evaluation
+  Files: 12  Chunks: 48
+
+  Source: /home/user/projects/grpc-gateway/docs  (**/*.md)
+    /home/user/projects/grpc-gateway/docs/getting-started.md
+    ...
+```
+
+Use `bucket_list` to discover bucket IDs and names.
 
 ### Resource template — file content
 
@@ -364,7 +405,7 @@ markdownkb://file/explanation/chat.md
 → (full markdown content of that file)
 ```
 
-Path is resolved relative to each source directory in order. Absolute paths are also accepted. Access is restricted to configured source directories.
+Path is resolved relative to each watched directory in order. Absolute paths are also accepted. Access is restricted to configured source directories.
 
 ## Prompts
 

@@ -55,6 +55,12 @@ _tools_registered = False
 
 # -- Resources -----------------------------------------------------------------
 
+def _slugify(name: str) -> str:
+    """Convert a name to a URI-safe slug."""
+    import re
+    return re.sub(r"[^a-zA-Z0-9._-]+", "-", name).strip("-") or "unnamed"
+
+
 def _register_resources(server: FastMCP, settings) -> None:
     """Register MCP resources: static source-directory listings + file template."""
     from pathlib import Path
@@ -78,13 +84,124 @@ def _register_resources(server: FastMCP, settings) -> None:
 
     for source_path in settings.sources:
         p = Path(source_path)
-        uri = f"markdownkb://source/{p.name}"
+        uri = f"markdownkb://watch-directories/{p.name}"
         server.resource(
             uri,
-            name=f"Source: {p.name}",
-            description=f"Markdown source directory: {source_path}",
+            name=p.name,
+            description=f"Watched directory: {source_path}",
             mime_type="text/plain",
         )(_make_listing(source_path, p.name))
+
+    # Scope resources: one per named scope, listing files from its folders.
+    from app.storage.scopedb import ScopeDB
+
+    def _make_scope_listing(scope_id: str, scope_name: str, folders: list[str], tags: list[str]):
+        def _listing() -> str:
+            # Re-read scope live in case it was updated since registration
+            scopedb = ScopeDB(settings.data_directory)
+            try:
+                scope = scopedb.get(scope_id)
+            finally:
+                scopedb.close()
+            if scope is None:
+                return f"Scope '{scope_name}' no longer exists."
+            current_folders = scope["folders"]
+            current_tags = scope["tags"]
+            lines = [f"# Scope: {scope_name}"]
+            if current_folders:
+                lines.append(f"Folders: {', '.join(current_folders)}")
+            if current_tags:
+                lines.append(f"Tags: {', '.join(current_tags)}")
+            lines.append("")
+            files = []
+            for folder in current_folders:
+                p = Path(folder)
+                if p.is_dir():
+                    files.extend(sorted(p.rglob("*.md")))
+            if not files:
+                lines.append("(no files found in scope folders)")
+            else:
+                lines += [str(f) for f in files[:500]]
+                if len(files) > 500:
+                    lines.append(f"... and {len(files) - 500} more")
+            return "\n".join(lines)
+        return _listing
+
+    try:
+        _scopedb = ScopeDB(settings.data_directory)
+        _scopes = _scopedb.list_scopes()
+        _scopedb.close()
+    except Exception:
+        _scopes = []
+
+    for scope in _scopes:
+        _sid = scope["id"]
+        _sname = scope["name"]
+        _folders = scope.get("folders", [])
+        _tags = scope.get("tags", [])
+        _desc = f"Scope '{_sname}'"
+        if _folders:
+            _desc += f" — folders: {', '.join(_folders)}"
+        if _tags:
+            _desc += f" — tags: {', '.join(_tags)}"
+        server.resource(
+            f"markdownkb://scopes/{_slugify(_sname)}",
+            name=_sname,
+            description=_desc,
+            mime_type="text/plain",
+        )(_make_scope_listing(_sid, _sname, _folders, _tags))
+
+    # Bucket resources: one per bucket, listing its indexed files.
+    if settings.plugin_enabled("buckets"):
+        from app.plugins.buckets.bucketdb import BucketDB
+        import json as _json
+
+        def _make_bucket_listing(bucket_id: str, bucket_name: str):
+            def _listing() -> str:
+                bucketdb = BucketDB(settings.data_directory)
+                try:
+                    bucket = bucketdb.get(bucket_id)
+                finally:
+                    bucketdb.close()
+                if bucket is None:
+                    return f"Bucket '{bucket_name}' no longer exists."
+                sources = _json.loads(bucket.get("sources", "[]"))
+                lines = [
+                    f"# Bucket: {bucket_name}",
+                    f"Files: {bucket['file_count']}  Chunks: {bucket['chunk_count']}",
+                    "",
+                ]
+                for src in sources:
+                    path = src.get("path", "")
+                    glob = src.get("glob", "**/*.md")
+                    lines.append(f"Source: {path}  ({glob})")
+                    p = Path(path)
+                    if p.is_dir():
+                        files = sorted(p.glob(glob))
+                        lines += [f"  {f}" for f in files[:200]]
+                        if len(files) > 200:
+                            lines.append(f"  ... and {len(files) - 200} more")
+                    elif p.is_file():
+                        lines.append(f"  {path}")
+                return "\n".join(lines)
+            return _listing
+
+        try:
+            _bucketdb = BucketDB(settings.data_directory)
+            _buckets = _bucketdb.list_all()
+            _bucketdb.close()
+        except Exception:
+            _buckets = []
+
+        for bucket in _buckets:
+            _bid = bucket["id"]
+            _bname = bucket["name"]
+            server.resource(
+                f"markdownkb://buckets/{_slugify(_bname)}",
+                name=_bname,
+                description=f"Temporary bucket '{_bname}' — {bucket['file_count']} files, {bucket['chunk_count']} chunks",
+                mime_type="text/plain",
+            )(_make_bucket_listing(_bid, _bname))
 
     # Resource template: read any indexed file by path.
     @server.resource(
