@@ -163,7 +163,7 @@ In Docker, compose.yml mounts a named volume to `/data` and the Dockerfile sets 
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `logging.level` | `INFO` | Log level for UI log viewer (`INFO` or `DEBUG`) |
+| `logging.level` | `INFO` | Log level: `INFO`, `DEBUG`, or `OFF` (silences all logging). Togglable live from Settings → Logging without restart. |
 
 ## Authentication
 

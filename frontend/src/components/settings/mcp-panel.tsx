@@ -587,6 +587,7 @@ export function McpPanel({
         description="Live log output from the MCP server process. Restart MCP server to reconnect."
         logLevel={mcpLogLevel}
         onLogLevelChange={handleMcpLogLevel}
+        pollInterval={5000}
       />
 
       {/* Tool browser */}

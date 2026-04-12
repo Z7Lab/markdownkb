@@ -129,7 +129,9 @@ def compact_search_database(request: Request, searchdb=Depends(get_searchdb)):
 @limiter.limit(STANDARD)
 def get_log_level(request: Request, settings: Settings = Depends(get_settings)):
     """Get the current logging level."""
-    return {"level": settings.log_level}
+    current = logging.getLogger().level
+    level = "OFF" if current >= 60 else settings.log_level
+    return {"level": level}
 
 
 @router.put("/settings/log-level")
@@ -139,8 +141,8 @@ def set_log_level(
     req: LogLevelRequest,
     settings: Settings = Depends(get_settings),
 ):
-    """Set the logging level (INFO or DEBUG) and persist to config."""
-    level = getattr(logging, req.level, logging.INFO)
+    """Set the logging level (INFO, DEBUG, or OFF) and persist to config."""
+    level = 60 if req.level == "OFF" else getattr(logging, req.level, logging.INFO)
     logging.getLogger().setLevel(level)
     settings.log_level = req.level
     settings.save()

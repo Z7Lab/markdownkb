@@ -24,6 +24,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/mcp", tags=["mcp"])
 
+# Shared client — reuses TCP connections across log-proxy calls instead of
+# opening a new connection per request (which causes FD exhaustion under polling).
+_mcp_http_client = httpx.AsyncClient(timeout=5.0)
+
 
 _PARAM_TYPE_NAMES: dict[Any, str] = {
     str: "string",
@@ -244,12 +248,10 @@ def _mcp_internal_base() -> str:
 async def _mcp_get(path: str, settings: Settings, params: dict | None = None):
     headers = {"Authorization": f"Bearer {settings.api_key}"} if settings.api_key else {}
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                f"{_mcp_internal_base()}{path}", headers=headers,
-                params=params, timeout=5.0,
-            )
-            return resp.json()
+        resp = await _mcp_http_client.get(
+            f"{_mcp_internal_base()}{path}", headers=headers, params=params,
+        )
+        return resp.json()
     except httpx.RequestError as exc:
         raise HTTPException(503, f"MCP server unavailable: {exc}") from exc
 
@@ -257,11 +259,10 @@ async def _mcp_get(path: str, settings: Settings, params: dict | None = None):
 async def _mcp_delete(path: str, settings: Settings):
     headers = {"Authorization": f"Bearer {settings.api_key}"} if settings.api_key else {}
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.delete(
-                f"{_mcp_internal_base()}{path}", headers=headers, timeout=5.0,
-            )
-            return resp.json()
+        resp = await _mcp_http_client.delete(
+            f"{_mcp_internal_base()}{path}", headers=headers,
+        )
+        return resp.json()
     except httpx.RequestError as exc:
         raise HTTPException(503, f"MCP server unavailable: {exc}") from exc
 
@@ -269,12 +270,10 @@ async def _mcp_delete(path: str, settings: Settings):
 async def _mcp_put(path: str, body: dict, settings: Settings):
     headers = {"Authorization": f"Bearer {settings.api_key}"} if settings.api_key else {}
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.put(
-                f"{_mcp_internal_base()}{path}", json=body,
-                headers=headers, timeout=5.0,
-            )
-            return resp.json()
+        resp = await _mcp_http_client.put(
+            f"{_mcp_internal_base()}{path}", json=body, headers=headers,
+        )
+        return resp.json()
     except httpx.RequestError as exc:
         raise HTTPException(503, f"MCP server unavailable: {exc}") from exc
 

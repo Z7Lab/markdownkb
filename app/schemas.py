@@ -275,7 +275,7 @@ class PlanRequest(BaseModel):
 class LogLevelRequest(BaseModel):
     """Request model for setting log level."""
 
-    level: str = Field(..., pattern=r"^(INFO|DEBUG)$")
+    level: str = Field(..., pattern=r"^(INFO|DEBUG|OFF)$")
 
 
 # -- Export --

@@ -495,12 +495,14 @@ def _run_http_with_auth(mcp: FastMCP, host: str, port: int):
                 if request.method == "PUT":
                     body = await request.json()
                     level_str = body.get("level", "INFO").upper()
-                    level = getattr(logging, level_str, logging.INFO)
+                    level = 60 if level_str == "OFF" else getattr(logging, level_str, logging.INFO)
                     logging.getLogger().setLevel(level)
-                    logger.info("MCP log level changed to %s", level_str)
+                    if level_str != "OFF":
+                        logger.info("MCP log level changed to %s", level_str)
                     response = JSONResponse({"level": level_str})
                 else:
-                    level_name = logging.getLevelName(logging.getLogger().level)
+                    current = logging.getLogger().level
+                    level_name = "OFF" if current >= 60 else logging.getLevelName(current)
                     response = JSONResponse({"level": level_name})
                 await response(scope, receive, send)
 

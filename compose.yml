@@ -78,6 +78,10 @@ services:
     init: true
     cap_drop:
       - ALL
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     deploy:
       resources:
         limits:

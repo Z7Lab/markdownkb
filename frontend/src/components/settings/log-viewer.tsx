@@ -17,6 +17,8 @@ interface LogViewerProps {
   /** Controlled log level — shows a Verbose toggle when provided alongside onLogLevelChange. */
   logLevel?: string
   onLogLevelChange?: (level: string) => Promise<void>
+  /** Poll interval in ms. Default 2000. Use higher values for proxied endpoints (e.g. MCP logs). */
+  pollInterval?: number
 }
 
 export function LogViewer({
@@ -25,6 +27,7 @@ export function LogViewer({
   description,
   logLevel,
   onLogLevelChange,
+  pollInterval = 2000,
 }: LogViewerProps) {
   const [entries, setEntries] = useState<LogEntry[]>([])
   const seqRef = useRef(0)
@@ -52,9 +55,9 @@ export function LogViewer({
     setEntries([])
     seqRef.current = 0
     fetchLogs()
-    const interval = setInterval(fetchLogs, 2000)
+    const interval = setInterval(fetchLogs, pollInterval)
     return () => clearInterval(interval)
-  }, [fetchLogs])
+  }, [fetchLogs, pollInterval])
 
   // Auto-scroll to bottom on new entries
   useEffect(() => {
@@ -84,7 +87,8 @@ export function LogViewer({
     }
   }
 
-  const showVerboseToggle = !!onLogLevelChange
+  const showLevelToggles = !!onLogLevelChange
+  const loggingEnabled = logLevel !== "OFF"
 
   return (
     <Card>
@@ -99,22 +103,40 @@ export function LogViewer({
             <CardDescription>{entries.length} entries (last 500 kept)</CardDescription>
           </div>
           <div className="flex items-center gap-3">
-            {showVerboseToggle && (
-              <div className="flex items-center gap-2">
-                <Switch
-                  id={`verbose-${logsUrl}`}
-                  checked={logLevel === "DEBUG"}
-                  onCheckedChange={(checked) =>
-                    onLogLevelChange(checked ? "DEBUG" : "INFO")
-                  }
-                />
-                <Label
-                  htmlFor={`verbose-${logsUrl}`}
-                  className="text-xs text-muted-foreground cursor-pointer"
-                >
-                  Verbose
-                </Label>
-              </div>
+            {showLevelToggles && (
+              <>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id={`enabled-${logsUrl}`}
+                    checked={loggingEnabled}
+                    onCheckedChange={(checked) =>
+                      onLogLevelChange(checked ? "INFO" : "OFF")
+                    }
+                  />
+                  <Label
+                    htmlFor={`enabled-${logsUrl}`}
+                    className="text-xs text-muted-foreground cursor-pointer"
+                  >
+                    Logging
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id={`verbose-${logsUrl}`}
+                    checked={logLevel === "DEBUG"}
+                    disabled={!loggingEnabled}
+                    onCheckedChange={(checked) =>
+                      onLogLevelChange(checked ? "DEBUG" : "INFO")
+                    }
+                  />
+                  <Label
+                    htmlFor={`verbose-${logsUrl}`}
+                    className="text-xs text-muted-foreground cursor-pointer"
+                  >
+                    Verbose
+                  </Label>
+                </div>
+              </>
             )}
             <Button
               variant="outline"

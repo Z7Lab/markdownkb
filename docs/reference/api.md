@@ -99,7 +99,7 @@ Supports Google-style quoted phrases: `"exact phrase"` requires literal match in
 | GET | `/api/settings/plugins/{name}` | Get plugin configuration |
 | PUT | `/api/settings/plugins/{name}` | Update plugin configuration (shallow merge) |
 | GET | `/api/settings/log-level` | Get current log level |
-| PUT | `/api/settings/log-level` | Set log level (INFO/DEBUG) |
+| PUT | `/api/settings/log-level` | Set log level (`INFO`, `DEBUG`, or `OFF`) |
 | GET | `/api/settings/logs` | Get log entries (incremental via `?since=`) |
 | DELETE | `/api/settings/logs` | Clear log buffer |
 | GET | `/api/settings/presets` | List retrieval presets |
