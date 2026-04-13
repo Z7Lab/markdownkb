@@ -11,7 +11,7 @@ interface GraphProgress {
 /** Server-side minimum edge weight — edges below this are never sent. */
 export const DOCMAP_MIN_WEIGHT = 0.6
 
-export function buildDocmapQs(scopeIds?: string | null, wordClouds = true, adHocTags?: string[] | null, bucketId?: string | null, bucketTopN?: number | null): string {
+export function buildDocmapQs(scopeIds?: string | null, wordClouds = true, adHocTags?: string[] | null, bucketId?: string | null, bucketThreshold?: number | null, clientThreshold?: number | null): string {
   const params = new URLSearchParams()
   if (scopeIds) params.set("scope_ids", scopeIds)
   if (!wordClouds) params.set("word_clouds", "false")
@@ -20,7 +20,8 @@ export function buildDocmapQs(scopeIds?: string | null, wordClouds = true, adHoc
     for (const t of adHocTags) params.append("ad_hoc_tags", t)
   }
   if (bucketId) params.set("bucket_id", bucketId)
-  if (bucketId && bucketTopN != null) params.set("bucket_top_n", String(bucketTopN))
+  if (bucketId && bucketThreshold != null) params.set("bucket_min_weight", String(bucketThreshold))
+  if (clientThreshold != null) params.set("client_threshold", String(clientThreshold))
   const qs = params.toString()
   return qs ? `?${qs}` : ""
 }
@@ -33,7 +34,7 @@ export function useDocmap() {
   const [fetchedAt, setFetchedAt] = useState<number | null>(null)
   const [threshold, setThreshold] = useState(0.75)
   const [wordClouds, setWordClouds] = useState(true)
-  const [bucketTopN, setBucketTopN] = useState(3)
+  const [bucketThreshold, setBucketThreshold] = useState(0.55)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [progress, setProgress] = useState<GraphProgress>({ fraction: 0, phase: "idle" })
@@ -43,8 +44,15 @@ export function useDocmap() {
   const lastScopeRef = useRef<string | null | undefined>(undefined)
   const lastTagsRef = useRef<string | null>(null)
   const lastBucketRef = useRef<string | null>(null)
-  const lastBucketTopNRef = useRef<number | null>(null)
+  const lastBucketThresholdRef = useRef<number | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+
+  // Threshold is client-side filter state, but we still want the backend
+  // debug log to reflect the current slider value at build time. A ref
+  // lets fetchDocMap read it without adding it to the callback's deps,
+  // since changing the threshold must NOT trigger a refetch.
+  const thresholdRef = useRef(0.75)
+  useEffect(() => { thresholdRef.current = threshold }, [threshold])
 
   // Clean up poll on unmount
   useEffect(() => {
@@ -69,25 +77,25 @@ export function useDocmap() {
     wc = true,
     adHocTags?: string[] | null,
     bucketId?: string | null,
-    topN?: number | null,
+    bucketThresh?: number | null,
   ) => {
     const tagsKey = adHocTags ? adHocTags.sort().join(",") : null
     const bucketKey = bucketId ?? null
-    const topNKey = bucketId ? (topN ?? null) : null
+    const bucketThreshKey = bucketId ? (bucketThresh ?? null) : null
     if (
       !force
       && docmapDataRef.current
       && lastScopeRef.current === scopeIds
       && lastTagsRef.current === tagsKey
       && lastBucketRef.current === bucketKey
-      && lastBucketTopNRef.current === topNKey
+      && lastBucketThresholdRef.current === bucketThreshKey
     ) {
       return
     }
     lastScopeRef.current = scopeIds ?? null
     lastTagsRef.current = tagsKey
     lastBucketRef.current = bucketKey
-    lastBucketTopNRef.current = topNKey
+    lastBucketThresholdRef.current = bucketThreshKey
 
     abortRef.current?.abort()
     if (pollRef.current) {
@@ -107,7 +115,7 @@ export function useDocmap() {
     setProgress({ fraction: 0, phase: "Starting..." })
 
     try {
-      const dataPromise = api.get<DocMapData>(`/api/docmap/data${buildDocmapQs(scopeIds, wc, adHocTags, bucketId, topN)}`, controller.signal)
+      const dataPromise = api.get<DocMapData>(`/api/docmap/data${buildDocmapQs(scopeIds, wc, adHocTags, bucketId, bucketThresh, thresholdRef.current)}`, controller.signal)
       await new Promise(r => setTimeout(r, 50))
       if (isCurrent()) {
         pollRef.current = setInterval(async () => {
@@ -167,8 +175,8 @@ export function useDocmap() {
     setThreshold,
     wordClouds,
     setWordClouds,
-    bucketTopN,
-    setBucketTopN,
+    bucketThreshold,
+    setBucketThreshold,
     selectedNodeId,
     selectNode,
     clearSelection,

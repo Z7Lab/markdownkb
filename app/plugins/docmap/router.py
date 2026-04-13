@@ -2,6 +2,8 @@
 
 import logging
 import threading
+from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
@@ -23,6 +25,70 @@ router = APIRouter(prefix="/api/docmap", tags=["docmap"])
 # In-memory cache: key = (frozenset(folders), frozenset(tags), top_k, ...) -> graph data
 _graph_cache: dict[tuple, dict] = {}
 _cache_lock = threading.Lock()
+
+_debug_log_lock = threading.Lock()
+
+
+def _debug_log_path(settings: Settings) -> Path:
+    return Path(settings.data_directory) / "docmap-debug.log"
+
+
+def _debug_log(settings: Settings, line: str) -> None:
+    """Append a line to the docmap debug log. Best effort — swallow errors."""
+    try:
+        path = _debug_log_path(settings)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        with _debug_log_lock:
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(f"[{ts}] {line}\n")
+    except Exception:
+        pass
+
+
+def _debug_log_build(
+    settings: Settings,
+    *,
+    scope_ids_raw: str | None,
+    scope_name: str | None,
+    scope_folders: list[str] | None,
+    bucket_id: str | None,
+    bucket_name: str | None,
+    min_weight: float,
+    client_threshold: float | None,
+    bucket_min_weight: float,
+    word_clouds: bool,
+    cache_status: str,
+    main_doc_count: int,
+    main_edge_count: int,
+    bucket_doc_count: int,
+    bucket_intra_edge_count: int,
+    cross_edges: list[dict],
+) -> None:
+    """Write one multi-line block summarising a build. Keeps lines tight."""
+    scope_desc = scope_name or scope_ids_raw or "all"
+    bucket_desc = bucket_name or bucket_id or "-"
+    threshold_str = f"{client_threshold:.2f}" if client_threshold is not None else "?"
+    header = (
+        f"{cache_status} scope={scope_desc} bucket={bucket_desc} "
+        f"threshold={threshold_str} min_weight={min_weight:.2f} "
+        f"bucket_min_weight={bucket_min_weight:.2f} wc={'on' if word_clouds else 'off'}"
+    )
+    _debug_log(settings, header)
+    if cache_status == "HIT":
+        return
+    _debug_log(
+        settings,
+        f"  main={main_doc_count}d/{main_edge_count}e  "
+        f"bucket={bucket_doc_count}d/{bucket_intra_edge_count}e  "
+        f"cross={len(cross_edges)}",
+    )
+    if cross_edges:
+        _debug_log(settings, "  overlap:")
+        for e in sorted(cross_edges, key=lambda x: -x["weight"])[:10]:
+            src_name = e["source"].rsplit("/", 1)[-1]
+            tgt_name = e["target"].rsplit("/", 1)[-1]
+            _debug_log(settings, f"    {tgt_name}  <->  {src_name}  w={e['weight']:.4f}")
 
 
 def _cache_key(
@@ -52,7 +118,8 @@ def graph_data(
     word_clouds: bool = True,
     min_weight: float = 0.5,
     bucket_id: str | None = None,
-    bucket_top_n: int = 3,
+    bucket_min_weight: float = 0.55,
+    client_threshold: float | None = None,
     retriever: Retriever = Depends(get_retriever),
     settings: Settings = Depends(get_settings),
     scopedb: ScopeDB = Depends(get_scopedb),
@@ -95,15 +162,48 @@ def graph_data(
         scope_folders = None  # filtering via allowed_paths now
     allowed = apply_exclude_patterns(allowed, exclude_patterns)
 
-    # Include bucket_id and bucket_top_n in cache key — different top-N
-    # values produce different edge sets and must not share a cache entry.
+    # Include bucket_id and bucket_min_weight in cache key — different
+    # bucket thresholds produce different edge sets and must not share a
+    # cache entry.
     cache_bucket = bucket_id or ""
     key = _cache_key(scope_folders, scope_tags, ad_hoc_tags, top_k, word_clouds, min_weight, exclude_patterns)
-    key = key + (cache_bucket, bucket_top_n if bucket_id else 0)
+    key = key + (cache_bucket, bucket_min_weight if bucket_id else 0.0)
+
+    # Resolve human-readable scope/bucket names for the debug log.
+    scope_name = None
+    if ids:
+        rows = [scopedb.get(s) for s in ids]
+        names = [r["name"] for r in rows if r]
+        scope_name = ", ".join(names) if names else None
+    bucket_name = None
+    bucket_record = None
+    if bucket_id:
+        bucket_service = getattr(request.app.state, "bucket_service", None)
+        if bucket_service:
+            bucket_record = bucket_service.db.resolve(bucket_id)
+            if bucket_record:
+                bucket_name = bucket_record.get("name")
 
     with _cache_lock:
         if key in _graph_cache:
-            return _graph_cache[key]
+            cached = _graph_cache[key]
+            _debug_log_build(
+                settings,
+                scope_ids_raw=scope_ids,
+                scope_name=scope_name,
+                scope_folders=scope_folders,
+                bucket_id=bucket_id,
+                bucket_name=bucket_name,
+                min_weight=min_weight,
+                client_threshold=client_threshold,
+                bucket_min_weight=bucket_min_weight,
+                word_clouds=word_clouds,
+                cache_status="HIT",
+                main_doc_count=0, main_edge_count=0,
+                bucket_doc_count=0, bucket_intra_edge_count=0,
+                cross_edges=[],
+            )
+            return cached
 
     excluded = set(tracking.get_rag_excluded_paths())
     result = compute_graph(
@@ -112,53 +212,94 @@ def graph_data(
         allowed_paths=allowed, excluded_paths=excluded,
     )
 
+    main_doc_count = result["stats"]["doc_count"]
+    main_edge_count = result["stats"]["edge_count"]
+    bucket_doc_count = 0
+    bucket_intra_edge_count = 0
+    cross_edges: list[dict] = []
+
     # Merge bucket documents into the graph with _bucket tag
-    if bucket_id:
-        bucket_service = getattr(request.app.state, "bucket_service", None)
-        if bucket_service:
-            record = bucket_service.db.resolve(bucket_id)
-            if record:
-                bucket_store = bucket_service.get_store(record["id"])
-                bucket_graph = compute_graph(
-                    bucket_store, None, top_k,
-                    word_clouds=word_clouds, min_weight=min_weight,
-                )
-                # Tag bucket nodes and apply the bucket's color
-                bucket_color = record.get("color") or "#ff3333"
-                for node in bucket_graph["nodes"]:
-                    node["_bucket"] = True
-                    node["bucket_color"] = bucket_color
-                # Merge nodes and intra-bucket edges
-                result["nodes"].extend(bucket_graph["nodes"])
-                result["edges"].extend(bucket_graph["edges"])
+    if bucket_id and bucket_record:
+        bucket_service = request.app.state.bucket_service
+        bucket_store = bucket_service.get_store(bucket_record["id"])
+        bucket_graph = compute_graph(
+            bucket_store, None, top_k,
+            word_clouds=word_clouds, min_weight=min_weight,
+        )
+        bucket_doc_count = bucket_graph["stats"]["doc_count"]
+        bucket_intra_edge_count = bucket_graph["stats"]["edge_count"]
 
-                # Compute cross-collection edges (bucket ↔ main). Use the
-                # same min_weight as intra-scope edges (typical thematic
-                # overlap lives well below the old 0.75 floor), and cap to
-                # bucket_top_n strongest connections per bucket doc so
-                # bucket nodes don't turn into over-connected hubs.
-                cross_edges = compute_cross_edges(
-                    retriever.store, bucket_store,
-                    top_k=top_k, min_weight=min_weight,
-                    allowed_paths_a=allowed, excluded_paths_a=excluded,
-                    top_n_per_target=bucket_top_n,
-                )
-                result["edges"].extend(cross_edges)
-                logger.info("docmap: %d cross-collection edges between main and bucket", len(cross_edges))
+        # Tag bucket nodes and apply the bucket's color
+        bucket_color = bucket_record.get("color") or "#ff3333"
+        for node in bucket_graph["nodes"]:
+            node["_bucket"] = True
+            node["bucket_color"] = bucket_color
+        # Merge nodes and intra-bucket edges
+        result["nodes"].extend(bucket_graph["nodes"])
+        result["edges"].extend(bucket_graph["edges"])
 
-                # Merge word clouds
-                for term, weight in bucket_graph.get("global_word_cloud", {}).items():
-                    result["global_word_cloud"][term] = max(
-                        result["global_word_cloud"].get(term, 0), weight
-                    )
-                # Update stats
-                result["stats"]["doc_count"] += bucket_graph["stats"]["doc_count"]
-                result["stats"]["chunk_count"] += bucket_graph["stats"]["chunk_count"]
-                result["stats"]["edge_count"] += len(cross_edges) + bucket_graph["stats"]["edge_count"]
-                result["stats"]["bucket_doc_count"] = bucket_graph["stats"]["doc_count"]
+        # Compute cross-collection edges (bucket ↔ main). Use an
+        # independent bucket_min_weight threshold rather than capping
+        # to top-N: cross-edge weights naturally sit in a narrower,
+        # lower band (~0.55–0.70 for thematic overlap), and a top-N
+        # cap hides that reality behind an arbitrary knob. A separate
+        # threshold lets the user control bucket edge density with
+        # the same mental model as the main Similarity slider.
+        #
+        # compute_cross_edges only post-filters via allowed_paths_a; it
+        # has no concept of scope_folders. So if the scope is folder-only
+        # (tags/excludes already expanded above leave scope_folders set
+        # with allowed=None), we must expand folders into an explicit
+        # allowed set here, otherwise cross-edges leak across the scope
+        # boundary and the bucket connects to the global-top neighbours
+        # instead of scope-top neighbours.
+        cross_allowed = allowed
+        if cross_allowed is None and scope_folders:
+            all_tracked = tracking.get_all_files()
+            cross_allowed = {
+                f["path"] for f in all_tracked
+                if any(f["path"].startswith(d + "/") or f["path"] == d for d in scope_folders)
+            }
+        cross_edges = compute_cross_edges(
+            retriever.store, bucket_store,
+            top_k=top_k, min_weight=bucket_min_weight,
+            allowed_paths_a=cross_allowed, excluded_paths_a=excluded,
+        )
+        result["edges"].extend(cross_edges)
+        logger.info("docmap: %d cross-collection edges between main and bucket", len(cross_edges))
+
+        # Merge word clouds
+        for term, weight in bucket_graph.get("global_word_cloud", {}).items():
+            result["global_word_cloud"][term] = max(
+                result["global_word_cloud"].get(term, 0), weight
+            )
+        # Update stats
+        result["stats"]["doc_count"] += bucket_doc_count
+        result["stats"]["chunk_count"] += bucket_graph["stats"]["chunk_count"]
+        result["stats"]["edge_count"] += len(cross_edges) + bucket_intra_edge_count
+        result["stats"]["bucket_doc_count"] = bucket_doc_count
 
     bucket_nodes = sum(1 for n in result["nodes"] if n.get("_bucket"))
     logger.info("docmap/data result: %d nodes (%d bucket), %d edges", len(result["nodes"]), bucket_nodes, len(result["edges"]))
+
+    _debug_log_build(
+        settings,
+        scope_ids_raw=scope_ids,
+        scope_name=scope_name,
+        scope_folders=scope_folders,
+        bucket_id=bucket_id,
+        bucket_name=bucket_name,
+        min_weight=min_weight,
+        client_threshold=client_threshold,
+        bucket_min_weight=bucket_min_weight,
+        word_clouds=word_clouds,
+        cache_status="BUILD",
+        main_doc_count=main_doc_count,
+        main_edge_count=main_edge_count,
+        bucket_doc_count=bucket_doc_count,
+        bucket_intra_edge_count=bucket_intra_edge_count,
+        cross_edges=cross_edges,
+    )
 
     with _cache_lock:
         _graph_cache[key] = result

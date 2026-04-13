@@ -79,7 +79,7 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
   const {
     docmapData, isLoading, isComputing, checkingCache, fetchedAt, threshold, setThreshold,
     wordClouds, setWordClouds,
-    bucketTopN, setBucketTopN,
+    bucketThreshold, setBucketThreshold,
     selectedNodeId, selectNode, clearSelection,
     searchTerm, setSearchTerm, fetchDocMap, progress,
     mode, setMode, kgData, kgLoading, fetchKG,
@@ -125,7 +125,7 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
   const prevTagsRef = useRef<string[] | null | undefined>(undefined)
   const prevWordCloudsRef = useRef<boolean | undefined>(undefined)
   const prevBucketRef = useRef<string | null | undefined>(undefined)
-  const prevBucketTopNRef = useRef<number | undefined>(undefined)
+  const prevBucketThresholdRef = useRef<number | undefined>(undefined)
 
   // Fetch on mount with the user's active scope, and re-fetch when any
   // filter input changes.
@@ -134,16 +134,16 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
     const tagsChanged = JSON.stringify(prevTagsRef.current) !== JSON.stringify(adHocTagsParam)
     const wcChanged = prevWordCloudsRef.current !== wordClouds
     const bucketChanged = prevBucketRef.current !== bucketIdsParam
-    const topNChanged = prevBucketTopNRef.current !== bucketTopN && !!firstBucketId
-    if (scopeChanged || tagsChanged || wcChanged || bucketChanged || topNChanged) {
+    const bucketThreshChanged = prevBucketThresholdRef.current !== bucketThreshold && !!firstBucketId
+    if (scopeChanged || tagsChanged || wcChanged || bucketChanged || bucketThreshChanged) {
       prevScopeRef.current = scopeIdsParam
       prevTagsRef.current = adHocTagsParam
       prevWordCloudsRef.current = wordClouds
       prevBucketRef.current = bucketIdsParam
-      prevBucketTopNRef.current = bucketTopN
-      fetchDocMap(scopeIdsParam, wcChanged || bucketChanged || topNChanged, wordClouds, adHocTagsParam, firstBucketId, bucketTopN)
+      prevBucketThresholdRef.current = bucketThreshold
+      fetchDocMap(scopeIdsParam, wcChanged || bucketChanged || bucketThreshChanged, wordClouds, adHocTagsParam, firstBucketId, bucketThreshold)
     }
-  }, [fetchDocMap, scopeIdsParam, adHocTagsParam, wordClouds, bucketIdsParam, firstBucketId, bucketTopN])
+  }, [fetchDocMap, scopeIdsParam, adHocTagsParam, wordClouds, bucketIdsParam, firstBucketId, bucketThreshold])
 
   // Staleness
   const isStale = !!(lastIndexedAt && fetchedAt && lastIndexedAt > fetchedAt)
@@ -188,9 +188,16 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
   const forceDocMapData = useMemo(() => {
     if (!docmapData) return { nodes: [], links: [] }
     const nodeIds = new Set(docmapData.nodes.map(n => n.id))
-    // Only include edges where BOTH endpoints exist as nodes
+    // Bucket-involving edges already passed the server min_weight floor and
+    // the per-bucket-doc top-N cap. The user's similarity threshold governs
+    // intra-scope clarity — applying it to bucket edges silently nullifies
+    // the Bucket Connections slider whenever cross-edge weights happen to
+    // sit below the threshold (which is typical for thematic overlap).
+    const bucketIds = new Set(docmapData.nodes.filter(n => n._bucket).map(n => n.id))
+    const isBucketEdge = (e: { source: string; target: string }) =>
+      bucketIds.has(e.source) || bucketIds.has(e.target)
     const links = docmapData.edges
-      .filter(e => e.weight >= threshold && nodeIds.has(e.source) && nodeIds.has(e.target))
+      .filter(e => nodeIds.has(e.source) && nodeIds.has(e.target) && (isBucketEdge(e) || e.weight >= threshold))
       .map(e => ({
         source: e.source,
         target: e.target,
@@ -438,9 +445,9 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
     if (mode === "knowledge") {
       fetchKG()
     } else {
-      fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam, firstBucketId, bucketTopN)
+      fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam, firstBucketId, bucketThreshold)
     }
-  }, [mode, fetchKG, fetchDocMap, scopeIdsParam, wordClouds, adHocTagsParam, firstBucketId, bucketTopN])
+  }, [mode, fetchKG, fetchDocMap, scopeIdsParam, wordClouds, adHocTagsParam, firstBucketId, bucketThreshold])
 
   return (
     <div className="flex flex-row h-full overflow-hidden">
@@ -458,8 +465,8 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
         onThresholdChange={setThreshold}
         spread={spread}
         onSpreadChange={setSpread}
-        bucketTopN={bucketTopN}
-        onBucketTopNChange={setBucketTopN}
+        bucketThreshold={bucketThreshold}
+        onBucketThresholdChange={setBucketThreshold}
         hasBucket={!!firstBucketId}
         searchTerm={searchTerm}
         onSearchChange={handleSearchChange}
@@ -487,7 +494,7 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
               variant="ghost"
               size="sm"
               className="h-6 text-xs text-yellow-500"
-              onClick={() => fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam, firstBucketId, bucketTopN)}
+              onClick={() => fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam, firstBucketId, bucketThreshold)}
             >
               Refresh
             </Button>
@@ -533,7 +540,7 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
             <div className="text-center text-muted-foreground space-y-3">
               <p className="text-sm font-medium">Document map not built yet</p>
               <p className="text-xs">Build the document map to visualize document relationships</p>
-              <Button variant="outline" size="sm" onClick={() => fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam, firstBucketId, bucketTopN)}>
+              <Button variant="outline" size="sm" onClick={() => fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam, firstBucketId, bucketThreshold)}>
                 Build Doc Map
               </Button>
             </div>

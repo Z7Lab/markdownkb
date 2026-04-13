@@ -26,8 +26,8 @@ export function VisualizationSidebar({
   onThresholdChange,
   spread,
   onSpreadChange,
-  bucketTopN,
-  onBucketTopNChange,
+  bucketThreshold,
+  onBucketThresholdChange,
   hasBucket,
   searchTerm,
   onSearchChange,
@@ -57,8 +57,8 @@ export function VisualizationSidebar({
   onThresholdChange: (v: number) => void
   spread: number
   onSpreadChange: (v: number) => void
-  bucketTopN: number
-  onBucketTopNChange: (v: number) => void
+  bucketThreshold: number
+  onBucketThresholdChange: (v: number) => void
   hasBucket: boolean
   searchTerm: string
   onSearchChange: (term: string) => void
@@ -148,23 +148,23 @@ export function VisualizationSidebar({
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1.5">
                     <label className="text-xs text-muted-foreground">
-                      Bucket connections: {bucketTopN}
+                      Bucket similarity: {bucketThreshold.toFixed(2)}
                     </label>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Info className="h-3 w-3 text-muted-foreground/70 cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent className="max-w-xs">
-                        How many of the strongest scope connections to draw per bucket document. Keeps bucket nodes tethered to their nearest scope docs without letting them become hubs.
+                        Minimum similarity for an edge between a bucket document and a scope document. Cross-collection overlap is usually weaker than intra-scope overlap (thematic rather than near-quoted), so this slider is separate from the main Similarity. Lower = more bucket connections, higher = only the strongest.
                       </TooltipContent>
                     </Tooltip>
                   </div>
                   <Slider
-                    value={[bucketTopN]}
-                    onValueChange={([v]) => onBucketTopNChange(v)}
-                    min={1}
-                    max={10}
-                    step={1}
+                    value={[bucketThreshold]}
+                    onValueChange={([v]) => onBucketThresholdChange(v)}
+                    min={0.5}
+                    max={0.85}
+                    step={0.01}
                     className="w-full"
                   />
                 </div>
