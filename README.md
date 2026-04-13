@@ -67,7 +67,8 @@ Source directories are mounted individually into the container — `compose.over
 ```bash
 make help              # show all targets
 make dev               # alias for ./run.sh
-make docker-build      # build Docker image
+make docker-build      # build image (cached layers — use docker-rebuild after source changes)
+make docker-rebuild    # clean rebuild (no cache) + restart — use after code or dependency changes
 make docker-up         # start container (detached)
 make docker-down       # stop container
 make docker-logs       # tail container logs
@@ -83,7 +84,7 @@ make docker-clean-all  # stop container, remove image AND data volumes (destruct
 |---|---|
 | `.env` (ports, bind address) | `make docker-down && make docker-up` |
 | `config/settings.yaml` (sources, LLM, features) | `make docker-restart` |
-| Code or dependencies | `make docker-build && make docker-up` |
+| Code or dependencies | `make docker-rebuild` |
 
 ## Configuration
 

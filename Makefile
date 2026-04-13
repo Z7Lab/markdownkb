@@ -32,6 +32,12 @@ help: ## Show this help
 			printf "    \033[36m%-16s\033[0m %s\n", $$1, $$2 \
 		}' $(MAKEFILE_LIST)
 	@echo ""
+	@echo "  \033[1mWhen to use what\033[0m"
+	@echo "    .env changes (ports, keys, bind)     docker-down && docker-up"
+	@echo "    Config files (mounted volumes)       docker-restart"
+	@echo "    Code or dependency changes           docker-rebuild"
+	@echo "    No changes — just start the app      docker-up"
+	@echo ""
 
 install: ## Install dependencies (Python venv + npm)
 	@echo "Setting up Python venv..."
@@ -52,10 +58,10 @@ stop: ## Stop dev servers
 
 # ── Docker ───────────────────────────────────────
 
-docker-build: ## Build Docker image
+docker-build: ## Build image (cached layers — use docker-rebuild after source changes)
 	@docker compose build
 
-docker-rebuild: ## Force clean rebuild of Docker image (bypasses layer cache), then restart
+docker-rebuild: ## Clean rebuild (no cache) + restart — use after code or dependency changes
 	@docker compose build --no-cache
 	@docker compose up -d
 

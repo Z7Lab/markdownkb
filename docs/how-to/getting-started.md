@@ -19,7 +19,7 @@ cp .env.example .env
 make docker-build && make docker-up
 ```
 
-If the UI looks stale after pulling updates or switching branches, use `make docker-rebuild` instead — it builds the image from scratch (bypasses Docker's layer cache) and starts the container.
+After any code or dependency change — including pulling updates or switching branches — use `make docker-rebuild`. It bypasses Docker's layer cache and restarts the container. `make docker-build` is only safe when you haven't changed source; its layer cache can occasionally miss frontend changes silently.
 
 Open http://localhost:9713. You should see the MarkdownKB UI with a setup banner.
 
