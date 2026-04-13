@@ -341,7 +341,7 @@ export function FilesTab() {
 
         <div className="flex-1 border rounded-md min-h-0 flex flex-col overflow-hidden">
           {/* Resizable header */}
-          <div className="border-b bg-background sticky top-0 z-10 shrink-0">
+          <div className="border-b bg-background sticky top-0 z-10 shrink-0 overflow-hidden">
             <ResizablePanelGroup
               orientation="horizontal"
               onLayoutChange={handleLayoutChange}
