@@ -13,7 +13,7 @@ API_PORT        ?= 9713
 FRONTEND_PORT   ?= 9714
 
 .DEFAULT_GOAL := help
-.PHONY: help install dev stop docker-build docker-up docker-down docker-restart docker-logs docker-ps docker-shell docker-clean docker-clean-all backend prod test lint status check-ports mcp
+.PHONY: help install dev stop docker-build docker-rebuild docker-up docker-down docker-restart docker-logs docker-ps docker-shell docker-clean docker-clean-all backend prod test lint status check-ports mcp
 
 # ── Quick Start ──────────────────────────────────
 
@@ -54,6 +54,10 @@ stop: ## Stop dev servers
 
 docker-build: ## Build Docker image
 	@docker compose build
+
+docker-rebuild: ## Force clean rebuild of Docker image (bypasses layer cache), then restart
+	@docker compose build --no-cache
+	@docker compose up -d
 
 docker-up: ## Start container (detached)
 	@mkdir -p data/chromadb data/plans
