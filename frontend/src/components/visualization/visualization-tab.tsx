@@ -117,12 +117,16 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
   // Docmap backend supports one bucket — use the first selected
   const firstBucketId = selectedBucketIds.size > 0 ? Array.from(selectedBucketIds)[0] : null
 
-  const prevScopeRef = useRef(scopeIdsParam)
-  const prevTagsRef = useRef(adHocTagsParam)
-  const prevWordCloudsRef = useRef(wordClouds)
-  const prevBucketRef = useRef(bucketIdsParam)
+  // Sentinel initial values so the first effect run always dispatches a
+  // scope-aware fetch — otherwise the mount render would see refs === params
+  // and skip, leaving the hook with no data at the user's actual scope.
+  const prevScopeRef = useRef<string | null | undefined>(undefined)
+  const prevTagsRef = useRef<string[] | null | undefined>(undefined)
+  const prevWordCloudsRef = useRef<boolean | undefined>(undefined)
+  const prevBucketRef = useRef<string | null | undefined>(undefined)
 
-  // Re-fetch when scope, tag, bucket, or word cloud selection changes
+  // Fetch on mount with the user's active scope, and re-fetch when any
+  // filter input changes.
   useEffect(() => {
     const scopeChanged = prevScopeRef.current !== scopeIdsParam
     const tagsChanged = JSON.stringify(prevTagsRef.current) !== JSON.stringify(adHocTagsParam)
@@ -193,9 +197,11 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
       connectedIds.add(link.source)
       connectedIds.add(link.target)
     }
+    // Always keep bucket nodes so isolated bucket docs render as floating
+    // colored markers — the whole point of bucket selection is visibility.
     const result = {
       nodes: docmapData.nodes
-        .filter(n => connectedIds.has(n.id))
+        .filter(n => connectedIds.has(n.id) || n._bucket)
         .map(n => ({ ...n })),
       links,
     }

@@ -43,11 +43,6 @@ export function useDocmap() {
   const lastBucketRef = useRef<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
-  // Ref to read latest wordClouds value inside the mount-only effect without
-  // adding wordClouds to the dependency array (which would break mount-once semantics).
-  const wordCloudsRef = useRef(wordClouds)
-  useEffect(() => { wordCloudsRef.current = wordClouds }, [wordClouds])
-
   // Clean up poll on unmount
   useEffect(() => {
     return () => {
@@ -55,72 +50,15 @@ export function useDocmap() {
     }
   }, [])
 
-  // On mount, check for cached data or in-progress build
+  // On mount, release the checking-cache gate so the scope-aware fetch
+  // effect in the consumer can run. Adoption of any in-progress build is
+  // handled implicitly: fetchDocMap's own progress poll picks it up.
+  // We deliberately do NOT fetch data here — this hook has no knowledge of
+  // the active scope/tags/bucket, so a fetch here would pull the full
+  // unscoped corpus and then immediately get aborted by the scoped fetch.
   useEffect(() => {
-    const controller = new AbortController()
-    abortRef.current = controller
-    ;(async () => {
-      try {
-        const mw = `&min_weight=${DOCMAP_MIN_WEIGHT}`
-        const [withWc, withoutWc, prog] = await Promise.all([
-          api.get<{ cached: boolean }>(`/api/docmap/status?word_clouds=true${mw}`, controller.signal),
-          api.get<{ cached: boolean }>(`/api/docmap/status?word_clouds=false${mw}`, controller.signal),
-          api.get<{ fraction: number; phase: string }>("/api/docmap/progress", controller.signal),
-        ])
-        if (controller.signal.aborted) return
-        if (docmapDataRef.current) return
-
-        const hasCached = withWc.cached || withoutWc.cached
-        if (hasCached) {
-          const useWc = withWc.cached
-          setIsLoading(true)
-          const data = await api.get<DocMapData>(`/api/docmap/data${buildDocmapQs(null, useWc)}`, controller.signal)
-          if (controller.signal.aborted) return
-          if (docmapDataRef.current) return
-          docmapDataRef.current = data
-          lastScopeRef.current = null
-          setWordClouds(useWc)
-          setDocMapData(data)
-          setFetchedAt(Date.now() / 1000)
-        } else if (prog.phase !== "idle") {
-          setIsLoading(true)
-          setIsComputing(true)
-          setProgress(prog)
-          pollRef.current = setInterval(async () => {
-            try {
-              const p = await api.get<{ fraction: number; phase: string }>("/api/docmap/progress")
-              if (p.phase === "idle") {
-                if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
-                setProgress({ fraction: 0, phase: "idle" })
-                setIsComputing(false)
-                try {
-                  const data = await api.get<DocMapData>(`/api/docmap/data${buildDocmapQs(null, wordCloudsRef.current)}`)
-                  docmapDataRef.current = data
-                  lastScopeRef.current = null
-                  setDocMapData(data)
-                  setFetchedAt(Date.now() / 1000)
-                } finally {
-                  setIsLoading(false)
-                }
-              } else {
-                setProgress(p)
-              }
-            } catch {
-              // ignore poll errors
-            }
-          }, 1000)
-        }
-      } catch {
-        // Ignore — user can manually build (or request was aborted)
-      } finally {
-        if (!controller.signal.aborted && !pollRef.current) {
-          setIsLoading(false)
-          setCheckingCache(false)
-        }
-      }
-    })()
-    return () => { controller.abort() }
-  }, []) // Mount-only: wordCloudsRef provides latest wordClouds without triggering re-runs
+    setCheckingCache(false)
+  }, [])
 
   const fetchDocMap = useCallback(async (
     scopeIds?: string | null,
@@ -146,6 +84,10 @@ export function useDocmap() {
 
     const controller = new AbortController()
     abortRef.current = controller
+    // Tracks whether this invocation is still the live fetch. A superseded
+    // call must not touch shared state (isLoading, progress, pollRef) or
+    // it will clobber the newer call that replaced it.
+    const isCurrent = () => abortRef.current === controller
 
     setIsLoading(true)
     setIsComputing(true)
@@ -154,34 +96,41 @@ export function useDocmap() {
     try {
       const dataPromise = api.get<DocMapData>(`/api/docmap/data${buildDocmapQs(scopeIds, wc, adHocTags, bucketId)}`, controller.signal)
       await new Promise(r => setTimeout(r, 50))
-      pollRef.current = setInterval(async () => {
-        try {
-          const p = await api.get<GraphProgress>("/api/docmap/progress")
-          if (p.phase !== "idle") {
-            setProgress(p)
+      if (isCurrent()) {
+        pollRef.current = setInterval(async () => {
+          try {
+            const p = await api.get<GraphProgress>("/api/docmap/progress")
+            if (p.phase !== "idle" && isCurrent()) {
+              setProgress(p)
+            }
+          } catch {
+            // Ignore poll errors
           }
-        } catch {
-          // Ignore poll errors
-        }
-      }, 1000)
+        }, 1000)
+      }
 
       const data = await dataPromise
-      if (controller.signal.aborted) return
+      if (!isCurrent() || controller.signal.aborted) return
       docmapDataRef.current = data
       setDocMapData(data)
       setFetchedAt(Date.now() / 1000)
       setSelectedNodeId(null)
       setSearchTerm("")
     } catch (err) {
-      toast.error(`Failed to load graph: ${(err as Error).message}`)
+      if (!isCurrent() || controller.signal.aborted) return
+      const e = err as Error
+      if (e.name === "AbortError") return
+      toast.error(`Failed to load graph: ${e.message}`)
     } finally {
-      if (pollRef.current) {
-        clearInterval(pollRef.current)
-        pollRef.current = null
+      if (isCurrent()) {
+        if (pollRef.current) {
+          clearInterval(pollRef.current)
+          pollRef.current = null
+        }
+        setProgress({ fraction: 0, phase: "idle" })
+        setIsComputing(false)
+        setIsLoading(false)
       }
-      setProgress({ fraction: 0, phase: "idle" })
-      setIsComputing(false)
-      setIsLoading(false)
     }
   }, [])
 
