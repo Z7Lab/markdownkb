@@ -263,6 +263,7 @@ export function BucketsTab() {
   const [newName, setNewName] = useState("")
   const [newPath, setNewPath] = useState("")
   const [newGlob, setNewGlob] = useState("**/*.md")
+  const [newExpiresInSecs, setNewExpiresInSecs] = useState<number | null>(null)
 
   // Poll for bucket updates — faster when any bucket is indexing
   const anyIndexing = buckets.some((b) => b.indexing)
@@ -274,13 +275,18 @@ export function BucketsTab() {
   async function handleCreate() {
     if (!newName.trim() || !newPath.trim()) return
     setCreating(false)
-    await createBucket({
+    const params: Parameters<typeof createBucket>[0] = {
       name: newName.trim(),
       sources: [{ path: newPath.trim(), glob: newGlob.trim() || "**/*.md" }],
-    })
+    }
+    if (newExpiresInSecs && newExpiresInSecs > 0) {
+      params.expires_in = newExpiresInSecs
+    }
+    await createBucket(params)
     setNewName("")
     setNewPath("")
     setNewGlob("**/*.md")
+    setNewExpiresInSecs(null)
   }
 
   async function handleReindex(id: string) {
@@ -359,6 +365,36 @@ export function BucketsTab() {
                     placeholder="**/*.md"
                     className="mt-1"
                   />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Expires in</label>
+                  <Select
+                    value={newExpiresInSecs === null ? "permanent" : newExpiresInSecs === 3600 ? "1h" : newExpiresInSecs === 86400 ? "24h" : newExpiresInSecs === 604800 ? "7d" : ""}
+                    onValueChange={(v) => {
+                      if (v === "permanent") setNewExpiresInSecs(null)
+                      else if (v === "1h") setNewExpiresInSecs(3600)
+                      else if (v === "24h") setNewExpiresInSecs(86400)
+                      else if (v === "7d") setNewExpiresInSecs(604800)
+                    }}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Permanent" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="permanent">
+                        <span className="flex items-center gap-1"><InfinityIcon className="h-4 w-4" /> Permanent</span>
+                      </SelectItem>
+                      <SelectItem value="1h">
+                        <span className="flex items-center gap-1"><Clock className="h-4 w-4" /> 1 hour</span>
+                      </SelectItem>
+                      <SelectItem value="24h">
+                        <span className="flex items-center gap-1"><Clock className="h-4 w-4" /> 24 hours</span>
+                      </SelectItem>
+                      <SelectItem value="7d">
+                        <span className="flex items-center gap-1"><Clock className="h-4 w-4" /> 7 days</span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="flex gap-2">
                   <Button

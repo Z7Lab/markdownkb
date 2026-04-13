@@ -21,7 +21,7 @@ export function BucketsPanel() {
   const [name, setName] = useState("")
   const [sourcePath, setSourcePath] = useState("")
   const [sourceGlob, setSourceGlob] = useState("**/*.md")
-  const [expiresIn, setExpiresIn] = useState<string>("")
+  const [expiresInSecs, setExpiresInSecs] = useState<number | null>(null)
   const [creating, setCreating] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Bucket | null>(null)
 
@@ -32,17 +32,18 @@ export function BucketsPanel() {
       name: name.trim(),
       sources: [{ path: sourcePath.trim(), glob: sourceGlob.trim() || "**/*.md" }],
     }
-    if (expiresIn && parseInt(expiresIn) > 0) {
-      params.expires_in = parseInt(expiresIn)
+    if (expiresInSecs && expiresInSecs > 0) {
+      params.expires_in = expiresInSecs
     }
     const result = await createBucket(params)
     if (result) {
       setName("")
       setSourcePath("")
-      setExpiresIn("")
+      setSourceGlob("**/*.md")
+      setExpiresInSecs(null)
     }
     setCreating(false)
-  }, [name, sourcePath, sourceGlob, expiresIn, createBucket])
+  }, [name, sourcePath, sourceGlob, expiresInSecs, createBucket])
 
   const handleDelete = useCallback(async () => {
     if (!deleteTarget) return
@@ -87,16 +88,34 @@ export function BucketsPanel() {
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="bucket-expires" className="text-xs">Expires in (seconds)</Label>
-              <Input
-                id="bucket-expires"
-                type="number"
-                value={expiresIn}
-                onChange={(e) => setExpiresIn(e.target.value)}
-                placeholder="Optional"
-                className="h-8 text-sm"
-                min={60}
-              />
+              <Label htmlFor="bucket-expires" className="text-xs">Expires in</Label>
+              <Select
+                value={expiresInSecs === null ? "permanent" : expiresInSecs === 3600 ? "1h" : expiresInSecs === 86400 ? "24h" : expiresInSecs === 604800 ? "7d" : ""}
+                onValueChange={(v) => {
+                  if (v === "permanent") setExpiresInSecs(null)
+                  else if (v === "1h") setExpiresInSecs(3600)
+                  else if (v === "24h") setExpiresInSecs(86400)
+                  else if (v === "7d") setExpiresInSecs(604800)
+                }}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue placeholder="Permanent" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="permanent">
+                    <span className="flex items-center gap-1"><InfinityIcon className="h-3.5 w-3.5" /> Permanent</span>
+                  </SelectItem>
+                  <SelectItem value="1h">
+                    <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> 1 hour</span>
+                  </SelectItem>
+                  <SelectItem value="24h">
+                    <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> 24 hours</span>
+                  </SelectItem>
+                  <SelectItem value="7d">
+                    <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> 7 days</span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <Button
