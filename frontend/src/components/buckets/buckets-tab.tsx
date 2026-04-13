@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { useBuckets, type Bucket } from "@/hooks/use-buckets"
 import { usePathCheck } from "@/hooks/use-path-check"
 import { api } from "@/lib/api"
+import { toast } from "sonner"
 import { relativeTime } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,15 +11,30 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
-import { Database, Plus, Trash2, FileText, ChevronDown, ChevronRight, Loader2, Clock, Infinity as InfinityIcon } from "lucide-react"
+import { Database, Plus, Trash2, FileText, ChevronDown, ChevronRight, Loader2, Clock, Infinity as InfinityIcon, RefreshCw } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { EmptyHero } from "@/components/ui/empty-hero"
 
 function BucketPathStatus({ path }: { path: string }) {
   const check = usePathCheck(path)
+  if (check.status === "idle") return null
   if (check.status === "checking") return <p className="text-xs text-muted-foreground mt-1">Checking...</p>
   if (check.status === "ok") return <p className="text-xs text-green-600 dark:text-green-400 mt-1">Path found</p>
   if (check.status === "not_found") return <p className="text-xs text-destructive mt-1">Path not found</p>
+  if (check.status === "needs_restart") {
+    return (
+      <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+        Path not mounted — creating this bucket will add the mount and prompt you to restart Docker.
+      </p>
+    )
+  }
+  if (check.status === "bad_mount") {
+    return (
+      <p className="text-xs text-destructive mt-1">
+        Path configured but not accessible — check the host path exists and restart Docker.
+      </p>
+    )
+  }
   return null
 }
 
@@ -33,15 +49,18 @@ function BucketCard({
   onDelete,
   onViewFile,
   onUpdateExpiration,
+  onReindex,
 }: {
   bucket: Bucket
   onDelete: (id: string) => void
   onViewFile: (path: string) => void
   onUpdateExpiration: (id: string, expiresIn: number | null) => Promise<void>
+  onReindex: (id: string) => Promise<void>
 }) {
   const [expanded, setExpanded] = useState(false)
   const [files, setFiles] = useState<BucketFile[]>([])
   const [loadingFiles, setLoadingFiles] = useState(false)
+  const [reindexing, setReindexing] = useState(false)
 
   const [filesIndexing, setFilesIndexing] = useState(false)
 
@@ -109,6 +128,21 @@ function BucketCard({
               )}
             </div>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"
+            disabled={reindexing}
+            title="Reindex from sources"
+            onClick={async () => {
+              setReindexing(true)
+              await onReindex(bucket.id)
+              setReindexing(false)
+              loadFiles()
+            }}
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${reindexing ? "animate-spin" : ""}`} />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -249,6 +283,22 @@ export function BucketsTab() {
     setNewGlob("**/*.md")
   }
 
+  async function handleReindex(id: string) {
+    const name = buckets.find((b) => b.id === id)?.name
+    const toastId = toast.loading(`Reindexing "${name}"...`)
+    try {
+      const res = await api.post<{ added_files: number; added_chunks: number }>(`/api/buckets/${id}/reindex`, {})
+      await refresh()
+      toast.success(`Reindexed "${name}"`, {
+        id: toastId,
+        description: `${res.added_files} file${res.added_files !== 1 ? "s" : ""}, ${res.added_chunks} chunk${res.added_chunks !== 1 ? "s" : ""} added`,
+        duration: 4000,
+      })
+    } catch (err) {
+      toast.error(`Reindex failed: ${(err as Error).message}`, { id: toastId })
+    }
+  }
+
   async function handleDelete() {
     if (!confirmDelete) return
     await deleteBucket(confirmDelete)
@@ -350,6 +400,7 @@ export function BucketsTab() {
               onDelete={setConfirmDelete}
               onViewFile={setViewingPath}
               onUpdateExpiration={updateExpiration}
+              onReindex={handleReindex}
             />
           ))}
         </div>

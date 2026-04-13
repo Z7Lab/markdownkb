@@ -182,6 +182,7 @@ GET /api/buckets
 # Create a bucket from a directory (sources is optional — omit for an empty bucket)
 POST /api/buckets
 {"name": "vendor-api-docs", "sources": [{"path": "/tmp/vendor-docs", "glob": "**/*.md"}]}
+# Response includes docker_restart_required: true if the path wasn't mounted — restart Docker to index
 
 # Search within a bucket
 POST /api/buckets/{id}/search

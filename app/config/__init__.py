@@ -553,6 +553,31 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
         """Return the maximum number of files to return in file listings."""
         return self._data.get("ui", {}).get("file_list_limit", 5000)
 
+    # --- Bucket mounts ---
+
+    @property
+    def bucket_mount_configs(self) -> list[dict]:
+        """Read-only mount configs for bucket source paths that need Docker mounts."""
+        paths = self._data.get("bucket_mounts", [])
+        return [{"path": p, "writable": False} for p in paths if p]
+
+    def add_bucket_mount(self, path: str) -> bool:
+        """Add a path to bucket_mounts if not already present. Returns True if added."""
+        mounts = self._data.setdefault("bucket_mounts", [])
+        if path not in mounts:
+            mounts.append(path)
+            return True
+        return False
+
+    def remove_bucket_mount(self, path: str):
+        """Remove a path from bucket_mounts."""
+        mounts = self._data.get("bucket_mounts", [])
+        self._data["bucket_mounts"] = [m for m in mounts if m != path]
+
+    def set_bucket_mounts(self, paths: list[str]):
+        """Replace the full bucket_mounts list (used to clean up after bucket deletion)."""
+        self._data["bucket_mounts"] = paths
+
     # --- Logging ---
     @property
     def log_level(self) -> str:

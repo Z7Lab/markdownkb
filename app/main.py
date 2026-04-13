@@ -80,7 +80,11 @@ async def lifespan(app: FastAPI):
     from app.config.docker import write_compose_override
     try:
         project_root = settings._path.resolve().parent.parent
-        all_configs = settings.source_configs + settings.project_root_source_configs
+        all_configs = (
+            settings.source_configs
+            + settings.project_root_source_configs
+            + settings.bucket_mount_configs
+        )
         write_compose_override(all_configs, project_root)
     except Exception:
         logger.debug("Could not sync compose.override.yml on startup", exc_info=True)

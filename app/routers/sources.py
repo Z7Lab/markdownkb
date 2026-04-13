@@ -41,10 +41,14 @@ def _watch_and_index(watcher, path: str):
 
 
 def _sync_compose_override(settings: Settings):
-    """Regenerate compose.override.yml from current source and project root configs."""
+    """Regenerate compose.override.yml from source, project root, and bucket mount configs."""
     try:
         project_root = settings._path.resolve().parent.parent
-        all_configs = settings.source_configs + settings.project_root_source_configs
+        all_configs = (
+            settings.source_configs
+            + settings.project_root_source_configs
+            + settings.bucket_mount_configs
+        )
         write_compose_override(all_configs, project_root)
     except Exception:
         logger.debug("Could not update compose.override.yml", exc_info=True)

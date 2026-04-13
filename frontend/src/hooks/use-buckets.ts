@@ -43,13 +43,21 @@ export function useBuckets() {
         description: "Scanning, chunking, and embedding documents",
       })
       try {
-        const res = await api.post<Bucket>("/api/buckets", params)
+        const res = await api.post<Bucket & { docker_restart_required?: boolean }>("/api/buckets", params)
         await refresh()
-        toast.success(`Bucket "${res.name}" ready`, {
-          id: toastId,
-          description: `${res.file_count} file${res.file_count !== 1 ? "s" : ""}, ${res.chunk_count} chunk${res.chunk_count !== 1 ? "s" : ""}`,
-          duration: 4000,
-        })
+        if (res.docker_restart_required) {
+          toast.warning(`Bucket "${res.name}" created — restart required`, {
+            id: toastId,
+            description: "Path added to Docker mounts. Run: make docker-down && make docker-up",
+            duration: 8000,
+          })
+        } else {
+          toast.success(`Bucket "${res.name}" ready`, {
+            id: toastId,
+            description: `${res.file_count} file${res.file_count !== 1 ? "s" : ""}, ${res.chunk_count} chunk${res.chunk_count !== 1 ? "s" : ""}`,
+            duration: 4000,
+          })
+        }
         return res
       } catch (err) {
         toast.error(`Failed to create bucket: ${(err as Error).message}`, {

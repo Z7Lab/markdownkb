@@ -60,6 +60,8 @@ POST /api/buckets
 
 Sources accept absolute paths to files or directories. The `glob` pattern defaults to `**/*.md`. Set `expires_in` to auto-delete the bucket after that many seconds (minimum 60), or omit it for a permanent bucket.
 
+**Docker:** If a source path isn't mounted into the container, MarkdownKB automatically adds it to `config/compose.override.yml` and returns `docker_restart_required: true`. Restart with `make docker-down && make docker-up` — the bucket will index on next startup. When a bucket is deleted, its mount is removed from `compose.override.yml` if no other bucket needs it.
+
 ## Using a Bucket
 
 Select a bucket from the sidebar dropdown in Chat, Search, Planner, or Doc Map.

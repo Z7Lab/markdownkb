@@ -1,11 +1,14 @@
 """Bucket management endpoints — CRUD, search, and chat."""
 
+import json
 import logging
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.config import Settings
+from app.config.docker import in_docker, write_compose_override
 from app.deps import get_settings
 from app.ratelimit import LLM, STANDARD, limiter
 
@@ -57,6 +60,45 @@ class UpdateBucketRequest(BaseModel):
 
 # -- Helpers -----------------------------------------------------------------
 
+def _sync_bucket_compose(settings: Settings, svc: BucketService) -> bool:
+    """Regenerate compose.override.yml including all active bucket mounts.
+
+    Returns True if the file changed (Docker restart needed for new mounts).
+    """
+    if not in_docker():
+        return False
+    try:
+        project_root = settings._path.resolve().parent.parent
+        all_configs = (
+            settings.source_configs
+            + settings.project_root_source_configs
+            + settings.bucket_mount_configs
+        )
+        return write_compose_override(all_configs, project_root)
+    except Exception:
+        logger.debug("Could not sync compose.override.yml for buckets", exc_info=True)
+        return False
+
+
+def _collect_bucket_mount_paths(svc: BucketService) -> list[str]:
+    """Return the set of unique directory paths needed for Docker mounts across all buckets."""
+    paths: list[str] = []
+    seen: set[str] = set()
+    for bucket in svc.db.list_all():
+        sources = json.loads(bucket.get("sources", "[]"))
+        for src in sources:
+            raw = src.get("path", "")
+            if not raw:
+                continue
+            p = Path(raw)
+            # Mount the directory containing the path (file or dir)
+            mount = str(p if p.is_dir() else p.parent)
+            if mount not in seen:
+                seen.add(mount)
+                paths.append(mount)
+    return paths
+
+
 def _get_bucket_service(request: Request) -> BucketService:
     svc = getattr(request.app.state, "bucket_service", None)
     if svc is None:
@@ -90,12 +132,29 @@ def create_bucket(
     request: Request,
     req: CreateBucketRequest,
     svc: BucketService = Depends(_get_bucket_service),
+    settings: Settings = Depends(get_settings),
 ):
     """Create a new bucket from source paths."""
     try:
         sources = [s.model_dump() for s in req.sources]
         record = svc.create(req.name, sources, req.expires_in)
-        return record
+
+        # In Docker, paths that aren't mounted need to be added to compose.override.yml.
+        docker_restart_required = False
+        if in_docker():
+            changed = False
+            for src in req.sources:
+                p = Path(src.path)
+                mount = str(p if p.is_dir() else p.parent)
+                if not Path(mount).exists():
+                    if settings.add_bucket_mount(mount):
+                        changed = True
+            if changed:
+                settings.save()
+                _sync_bucket_compose(settings, svc)
+                docker_restart_required = True
+
+        return {**record, "docker_restart_required": docker_restart_required}
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
     except Exception as e:
@@ -252,10 +311,17 @@ def delete_bucket(
     request: Request,
     bucket_id: str,
     svc: BucketService = Depends(_get_bucket_service),
+    settings: Settings = Depends(get_settings),
 ):
     """Delete a bucket and its vector data."""
     try:
         result = svc.delete(bucket_id)
+        # Recalculate which mount paths are still needed and update settings.
+        if in_docker():
+            still_needed = _collect_bucket_mount_paths(svc)
+            settings.set_bucket_mounts(still_needed)
+            settings.save()
+            _sync_bucket_compose(settings, svc)
         return result
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -291,6 +357,31 @@ def chat_bucket(
         return svc.chat(bucket_id, req.message, settings)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/buckets/{bucket_id}/reindex")
+@limiter.limit(STANDARD)
+def reindex_bucket(
+    request: Request,
+    bucket_id: str,
+    svc: BucketService = Depends(_get_bucket_service),
+):
+    """Re-scan the bucket's original sources and index any files not yet embedded.
+
+    Useful when a bucket was created before its source path was mounted in Docker.
+    Skips files already present in the bucket.
+    """
+    record = svc.db.resolve(bucket_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Bucket not found")
+    sources = json.loads(record.get("sources", "[]"))
+    if not sources:
+        return {"added_files": 0, "added_chunks": 0, "message": "No sources configured"}
+    try:
+        return svc.add_documents(bucket_id, sources)
+    except Exception as e:
+        logger.error("Bucket reindex failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Bucket reindex failed")
 
 
 @router.post("/buckets/{bucket_id}/add")
