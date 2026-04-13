@@ -19,7 +19,7 @@ export function VisualizationSidebar({
   selectedTags,
   onTagChange,
   buckets,
-  selectedBucketId,
+  selectedBucketIds,
   onBucketChange,
   threshold,
   onThresholdChange,
@@ -47,8 +47,8 @@ export function VisualizationSidebar({
   selectedTags: Set<string>
   onTagChange: (tags: Set<string>) => void
   buckets: Bucket[]
-  selectedBucketId: string | null
-  onBucketChange: (id: string | null) => void
+  selectedBucketIds: Set<string>
+  onBucketChange: (ids: Set<string>) => void
   threshold: number
   onThresholdChange: (v: number) => void
   spread: number
@@ -81,11 +81,11 @@ export function VisualizationSidebar({
                 availableTags={availableTags}
                 selectedTags={selectedTags}
                 onTagChange={onTagChange}
-                hasBucket={!!selectedBucketId}
+                hasBucket={selectedBucketIds.size > 0}
               />
               <BucketSelector
                 buckets={buckets}
-                selectedBucketId={selectedBucketId}
+                selectedBucketIds={selectedBucketIds}
                 onBucketChange={onBucketChange}
               />
 

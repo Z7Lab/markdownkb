@@ -21,7 +21,7 @@ export function SearchSidebar({
   selectedAdHocTags,
   onAdHocTagChange,
   buckets,
-  selectedBucketId,
+  selectedBucketIds,
   onBucketChange,
 }: {
   searches: SavedSearch[]
@@ -37,8 +37,8 @@ export function SearchSidebar({
   selectedAdHocTags: Set<string>
   onAdHocTagChange: (tags: Set<string>) => void
   buckets: Bucket[]
-  selectedBucketId: string | null
-  onBucketChange: (id: string | null) => void
+  selectedBucketIds: Set<string>
+  onBucketChange: (ids: Set<string>) => void
 }) {
   return (
     <AppSidebar
@@ -60,11 +60,11 @@ export function SearchSidebar({
             availableTags={availableTags}
             selectedTags={selectedAdHocTags}
             onTagChange={onAdHocTagChange}
-            hasBucket={!!selectedBucketId}
+            hasBucket={selectedBucketIds.size > 0}
           />
           <BucketSelector
             buckets={buckets}
-            selectedBucketId={selectedBucketId}
+            selectedBucketIds={selectedBucketIds}
             onBucketChange={onBucketChange}
           />
         </div>

@@ -37,22 +37,26 @@ def plan(
     scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
     allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
 
-    # Bucket-scoped planning: use a bucket-specific retriever
-    bucket_retriever = None
-    if req.bucket_id:
+    # Bucket-scoped planning: resolve one or more bucket retrievers
+    bucket_retrievers: list = []
+    bucket_ids = parse_scope_ids(req.bucket_ids)
+    if bucket_ids:
         bucket_service = getattr(request.app.state, "bucket_service", None)
         if bucket_service:
-            record = bucket_service.db.resolve(req.bucket_id)
-            if record:
-                bucket_retriever = bucket_service.get_retriever(record["id"], settings)
+            for bid in bucket_ids:
+                record = bucket_service.db.resolve(bid)
+                if record:
+                    bucket_retrievers.append(bucket_service.get_retriever(record["id"], settings))
 
     has_scope = bool(scope_folders or allowed)
-    bucket_only = bucket_retriever and not has_scope
+    bucket_only = bool(bucket_retrievers) and not has_scope
 
+    # Planner uses a single secondary retriever; first bucket is primary in bucket_only mode
+    first_bucket = bucket_retrievers[0] if bucket_retrievers else None
     try:
         result = run_planner(
             req.request,
-            bucket_retriever if bucket_only else retriever,
+            first_bucket if bucket_only else retriever,
             settings,
             iterations=req.iterations,
             n_approaches=req.n_approaches,
@@ -60,7 +64,7 @@ def plan(
             folders_filter=scope_folders if not bucket_only else None,
             allowed_paths=allowed if not bucket_only else None,
             exclude_patterns=exclude_patterns if not bucket_only else None,
-            bucket_retriever=bucket_retriever if not bucket_only else None,
+            bucket_retriever=first_bucket if not bucket_only else None,
         )
     except RuntimeError as e:
         logger.error("Planner error: %s", e)
@@ -83,23 +87,26 @@ def plan_stream(
     scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
     allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
 
-    # Bucket-scoped planning: use a bucket-specific retriever
-    bucket_retriever = None
-    if req.bucket_id:
+    # Bucket-scoped planning: resolve one or more bucket retrievers
+    bucket_retrievers_s: list = []
+    bucket_ids_s = parse_scope_ids(req.bucket_ids) or ([req.bucket_id] if req.bucket_id else None)
+    if bucket_ids_s:
         bucket_service = getattr(request.app.state, "bucket_service", None)
         if bucket_service:
-            record = bucket_service.db.resolve(req.bucket_id)
-            if record:
-                bucket_retriever = bucket_service.get_retriever(record["id"], settings)
+            for bid in bucket_ids_s:
+                record = bucket_service.db.resolve(bid)
+                if record:
+                    bucket_retrievers_s.append(bucket_service.get_retriever(record["id"], settings))
 
     has_scope = bool(scope_folders or allowed)
-    bucket_only = bucket_retriever and not has_scope
+    bucket_only = bool(bucket_retrievers_s) and not has_scope
+    first_bucket_s = bucket_retrievers_s[0] if bucket_retrievers_s else None
 
     def generate():
         try:
             yield from stream_planner(
                 req.request,
-                bucket_retriever if bucket_only else retriever,
+                first_bucket_s if bucket_only else retriever,
                 settings,
                 iterations=req.iterations,
                 n_approaches=req.n_approaches,
@@ -107,7 +114,7 @@ def plan_stream(
                 folders_filter=scope_folders if not bucket_only else None,
                 allowed_paths=allowed if not bucket_only else None,
                 exclude_patterns=exclude_patterns if not bucket_only else None,
-                bucket_retriever=bucket_retriever if not bucket_only else None,
+                bucket_retriever=first_bucket_s if not bucket_only else None,
             )
         except RuntimeError as e:
             logger.error("Planner stream error: %s", e)

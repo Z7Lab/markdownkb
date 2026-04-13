@@ -132,13 +132,13 @@ export function streamChat(
   threadId?: string | null,
   scopeIds?: string | null,
   adHocTags?: string[] | null,
-  bucketId?: string | null,
+  bucketIds?: string | null,
 ): AbortController {
   const body: Record<string, unknown> = { message }
   if (threadId) body.thread_id = threadId
   if (scopeIds) body.scope_ids = scopeIds
   if (adHocTags && adHocTags.length > 0) body.ad_hoc_tags = adHocTags
-  if (bucketId) body.bucket_id = bucketId
+  if (bucketIds) body.bucket_ids = bucketIds
 
   return streamSSE(
     "/api/chat/stream",
@@ -174,7 +174,7 @@ export interface PlanCallbacks {
 export function streamPlan(
   request: string,
   callbacks: PlanCallbacks,
-  options?: { iterations?: number; n_approaches?: number; skill_names?: string[]; scope_ids?: string | null; ad_hoc_tags?: string[] | null; bucket_id?: string | null },
+  options?: { iterations?: number; n_approaches?: number; skill_names?: string[]; scope_ids?: string | null; ad_hoc_tags?: string[] | null; bucket_ids?: string | null },
 ): AbortController {
   const body: Record<string, unknown> = { request }
   if (options?.iterations) body.iterations = options.iterations
@@ -182,7 +182,7 @@ export function streamPlan(
   if (options?.skill_names) body.skill_names = options.skill_names
   if (options?.scope_ids) body.scope_ids = options.scope_ids
   if (options?.ad_hoc_tags && options.ad_hoc_tags.length > 0) body.ad_hoc_tags = options.ad_hoc_tags
-  if (options?.bucket_id) body.bucket_id = options.bucket_id
+  if (options?.bucket_ids) body.bucket_ids = options.bucket_ids
 
   return streamSSE(
     "/api/planner/plan/stream",

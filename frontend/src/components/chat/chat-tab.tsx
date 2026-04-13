@@ -16,7 +16,8 @@ export function ChatTab() {
   const {
     selectedScopeIds, selectedTags,
     scopeIdsParam, adHocTagsParam,
-    selectedBucketId,
+    selectedBucketIds,
+    bucketIdsParam,
     handleScopeChange, handleTagChange,
     handleBucketChange,
   } = useScopeTagFilter();
@@ -35,7 +36,7 @@ export function ChatTab() {
     loadThread,
     renameThread,
     deleteThread,
-  } = useChat(scopeIdsParam, adHocTagsParam, selectedBucketId);
+  } = useChat(scopeIdsParam, adHocTagsParam, bucketIdsParam);
 
   const { settings } = useSettings();
   const showDiagnostics = settings?.core?.diagnostics ?? false;
@@ -56,7 +57,7 @@ export function ChatTab() {
         onRenameThread={renameThread}
         onDeleteThread={deleteThread}
         buckets={buckets}
-        selectedBucketId={selectedBucketId}
+        selectedBucketIds={selectedBucketIds}
         onBucketChange={handleBucketChange}
       />
       <div className="flex flex-col flex-1 min-w-0 min-h-0">

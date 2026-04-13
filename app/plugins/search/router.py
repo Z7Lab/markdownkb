@@ -117,19 +117,21 @@ def search(
     scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
     allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
 
-    # Resolve bucket retriever if bucket_id is set
-    bucket_retriever = None
-    if req.bucket_id:
+    # Resolve bucket retrievers
+    bucket_retrievers: list = []
+    bucket_ids = parse_scope_ids(req.bucket_ids)
+    if bucket_ids:
         bucket_service = getattr(request.app.state, "bucket_service", None)
         if bucket_service is None:
             raise HTTPException(status_code=503, detail="Buckets plugin not initialized")
-        record = bucket_service.db.resolve(req.bucket_id)
-        if not record:
-            raise HTTPException(status_code=404, detail=f"Bucket not found: {req.bucket_id}")
-        bucket_retriever = bucket_service.get_retriever(record["id"], settings)
+        for bid in bucket_ids:
+            record = bucket_service.db.resolve(bid)
+            if not record:
+                raise HTTPException(status_code=404, detail=f"Bucket not found: {bid}")
+            bucket_retrievers.append(bucket_service.get_retriever(record["id"], settings))
 
     has_scope = bool(scope_folders or allowed)
-    bucket_only = bucket_retriever and not has_scope
+    bucket_only = bool(bucket_retrievers) and not has_scope
     # Extract "quoted phrases" for exact post-filtering when enabled
     exact_phrases: list[str] = []
     if cfg["exact_phrase_matching"]:
@@ -153,11 +155,16 @@ def search(
     multiplier = cfg["exact_phrase_multiplier"] if exact_phrases else cfg["chunk_multiplier"]
     chunk_fetch_limit = top_k * multiplier
 
+    def _search_buckets(brs, query, limit):
+        results = []
+        for br in brs:
+            for r in br.search(query, top_k=limit):
+                r.metadata["_bucket"] = "true"
+                results.append(r)
+        return results
+
     if bucket_only:
-        chunk_results = bucket_retriever.search(search_query, top_k=chunk_fetch_limit)
-        # Tag bucket results
-        for r in chunk_results:
-            r.metadata["_bucket"] = "true"
+        chunk_results = _search_buckets(bucket_retrievers, search_query, chunk_fetch_limit)
     else:
         chunk_results = retriever.search(
             search_query,
@@ -166,11 +173,8 @@ def search(
             allowed_paths=allowed,
             exclude_patterns=exclude_patterns or None,
         )
-        # Merge bucket results when both scope and bucket are active
-        if bucket_retriever and not bucket_only:
-            bucket_chunks = bucket_retriever.search(search_query, top_k=chunk_fetch_limit)
-            for r in bucket_chunks:
-                r.metadata["_bucket"] = "true"
+        if bucket_retrievers:
+            bucket_chunks = _search_buckets(bucket_retrievers, search_query, chunk_fetch_limit)
             chunk_results = sorted(chunk_results + bucket_chunks, key=lambda r: r.score, reverse=True)
 
     # Post-filter: if quoted phrases were used, only keep chunks containing them

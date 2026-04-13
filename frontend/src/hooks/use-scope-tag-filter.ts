@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 
 const STORAGE_KEY_SCOPES = "markdownkb-scope-ids"
 const STORAGE_KEY_TAGS = "markdownkb-ad-hoc-tags"
-const STORAGE_KEY_BUCKET = "markdownkb-bucket-id"
+const STORAGE_KEY_BUCKETS = "markdownkb-bucket-ids"
 
 /** Read a Set<string> from localStorage */
 function loadSet(key: string): Set<string> {
@@ -33,11 +33,7 @@ function saveSet(key: string, set: Set<string>) {
 export function useScopeTagFilter() {
   const [selectedScopeIds, setSelectedScopeIdsRaw] = useState<Set<string>>(() => loadSet(STORAGE_KEY_SCOPES))
   const [selectedTags, setSelectedTagsRaw] = useState<Set<string>>(() => loadSet(STORAGE_KEY_TAGS))
-  const [selectedBucketId, setSelectedBucketIdRaw] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem(STORAGE_KEY_BUCKET) || null
-    } catch { return null }
-  })
+  const [selectedBucketIds, setSelectedBucketIdsRaw] = useState<Set<string>>(() => loadSet(STORAGE_KEY_BUCKETS))
 
   // Persist on change
   const setSelectedScopeIds = useCallback((value: Set<string> | ((prev: Set<string>) => Set<string>)) => {
@@ -56,12 +52,12 @@ export function useScopeTagFilter() {
     })
   }, [])
 
-  const setSelectedBucketId = useCallback((value: string | null) => {
-    setSelectedBucketIdRaw(value)
-    try {
-      if (value) localStorage.setItem(STORAGE_KEY_BUCKET, value)
-      else localStorage.removeItem(STORAGE_KEY_BUCKET)
-    } catch { /* ignore */ }
+  const setSelectedBucketIds = useCallback((value: Set<string> | ((prev: Set<string>) => Set<string>)) => {
+    setSelectedBucketIdsRaw((prev) => {
+      const next = typeof value === "function" ? value(prev) : value
+      saveSet(STORAGE_KEY_BUCKETS, next)
+      return next
+    })
   }, [])
 
   // Listen for storage events from other tabs (same browser)
@@ -69,11 +65,16 @@ export function useScopeTagFilter() {
     function onStorage(e: StorageEvent) {
       if (e.key === STORAGE_KEY_SCOPES) setSelectedScopeIdsRaw(loadSet(STORAGE_KEY_SCOPES))
       if (e.key === STORAGE_KEY_TAGS) setSelectedTagsRaw(loadSet(STORAGE_KEY_TAGS))
-      if (e.key === STORAGE_KEY_BUCKET) setSelectedBucketIdRaw(e.newValue || null)
+      if (e.key === STORAGE_KEY_BUCKETS) setSelectedBucketIdsRaw(loadSet(STORAGE_KEY_BUCKETS))
     }
     window.addEventListener("storage", onStorage)
     return () => window.removeEventListener("storage", onStorage)
   }, [])
+
+  const bucketIdsParam = useMemo(() => {
+    if (selectedBucketIds.size === 0) return null
+    return Array.from(selectedBucketIds).sort().join(",")
+  }, [selectedBucketIds])
 
   const scopeIdsParam = useMemo(() => {
     if (selectedScopeIds.size === 0) return null
@@ -88,11 +89,12 @@ export function useScopeTagFilter() {
   return {
     selectedScopeIds,
     selectedTags,
-    selectedBucketId,
+    selectedBucketIds,
     scopeIdsParam,
+    bucketIdsParam,
     adHocTagsParam,
     handleScopeChange: setSelectedScopeIds,
     handleTagChange: setSelectedTags,
-    handleBucketChange: setSelectedBucketId,
+    handleBucketChange: setSelectedBucketIds,
   }
 }

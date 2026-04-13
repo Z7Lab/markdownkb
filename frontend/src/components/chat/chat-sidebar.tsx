@@ -31,7 +31,7 @@ export function ChatSidebar({
   onRenameThread,
   onDeleteThread,
   buckets,
-  selectedBucketId,
+  selectedBucketIds,
   onBucketChange,
 }: {
   threads: Thread[];
@@ -47,8 +47,8 @@ export function ChatSidebar({
   onRenameThread: (id: string, title: string) => void;
   onDeleteThread: (id: string) => void;
   buckets: Bucket[];
-  selectedBucketId: string | null;
-  onBucketChange: (id: string | null) => void;
+  selectedBucketIds: Set<string>;
+  onBucketChange: (ids: Set<string>) => void;
 }) {
   return (
     <AppSidebar
@@ -70,11 +70,11 @@ export function ChatSidebar({
             availableTags={availableTags}
             selectedTags={selectedTags}
             onTagChange={onTagChange}
-            hasBucket={!!selectedBucketId}
+            hasBucket={selectedBucketIds.size > 0}
           />
           <BucketSelector
             buckets={buckets}
-            selectedBucketId={selectedBucketId}
+            selectedBucketIds={selectedBucketIds}
             onBucketChange={onBucketChange}
           />
         </div>

@@ -79,7 +79,7 @@ export function usePlanner() {
 
   const generatePlan = useCallback((
     request: string,
-    options?: { iterations?: number; n_approaches?: number; skill_names?: string[]; scope_ids?: string | null; ad_hoc_tags?: string[] | null; bucket_id?: string | null },
+    options?: { iterations?: number; n_approaches?: number; skill_names?: string[]; scope_ids?: string | null; ad_hoc_tags?: string[] | null; bucket_ids?: string | null },
   ) => {
     if (!request.trim()) return
 

@@ -6,32 +6,45 @@ import type { Bucket } from "@/hooks/use-buckets"
 
 export function BucketSelector({
   buckets,
-  selectedBucketId,
+  selectedBucketIds,
   onBucketChange,
 }: {
   buckets: Bucket[]
-  selectedBucketId: string | null
-  onBucketChange: (id: string | null) => void
+  selectedBucketIds: Set<string>
+  onBucketChange: (ids: Set<string>) => void
 }) {
-  // Clear stale bucket selection (expired/deleted bucket)
+  // Clear stale bucket selections (expired/deleted buckets)
   useEffect(() => {
-    if (selectedBucketId && buckets.length > 0 && !buckets.some((b) => b.id === selectedBucketId)) {
-      onBucketChange(null)
+    if (selectedBucketIds.size === 0) return
+    const validIds = new Set(buckets.map((b) => b.id))
+    const stale = Array.from(selectedBucketIds).filter((id) => !validIds.has(id))
+    if (stale.length > 0) {
+      const next = new Set(selectedBucketIds)
+      stale.forEach((id) => next.delete(id))
+      onBucketChange(next)
     }
-  }, [selectedBucketId, buckets, onBucketChange])
+  }, [selectedBucketIds, buckets, onBucketChange])
 
   if (buckets.length === 0) return null
 
-  const selectedName = selectedBucketId
-    ? buckets.find((b) => b.id === selectedBucketId)?.name
-    : undefined
+  function toggle(id: string, checked: boolean) {
+    const next = new Set(selectedBucketIds)
+    if (checked) next.add(id)
+    else next.delete(id)
+    onBucketChange(next)
+  }
+
+  const selectedNames = buckets
+    .filter((b) => selectedBucketIds.has(b.id))
+    .map((b) => b.name)
+    .join(", ")
 
   return (
     <SidebarSection
       icon={Database}
       label="Buckets"
-      count={selectedBucketId ? 1 : 0}
-      summary={selectedName}
+      count={selectedBucketIds.size}
+      summary={selectedNames || undefined}
     >
       <div className="space-y-0.5 pl-2">
         {buckets.map((b) => (
@@ -40,8 +53,8 @@ export function BucketSelector({
             className="flex items-center gap-2 px-1 py-1 rounded hover:bg-accent cursor-pointer text-xs"
           >
             <Checkbox
-              checked={selectedBucketId === b.id}
-              onCheckedChange={(checked) => onBucketChange(checked ? b.id : null)}
+              checked={selectedBucketIds.has(b.id)}
+              onCheckedChange={(checked) => toggle(b.id, !!checked)}
             />
             <span className="truncate flex-1">{b.name}</span>
             <span className="text-[10px] text-muted-foreground shrink-0">

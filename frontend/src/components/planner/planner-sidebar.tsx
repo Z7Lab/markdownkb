@@ -27,7 +27,7 @@ export function PlannerSidebar({
   selectedTags,
   onTagChange,
   buckets,
-  selectedBucketId,
+  selectedBucketIds,
   onBucketChange,
   onNewPlan,
   onLoadPlan,
@@ -43,8 +43,8 @@ export function PlannerSidebar({
   selectedTags: Set<string>
   onTagChange: (tags: Set<string>) => void
   buckets: Bucket[]
-  selectedBucketId: string | null
-  onBucketChange: (id: string | null) => void
+  selectedBucketIds: Set<string>
+  onBucketChange: (ids: Set<string>) => void
   onNewPlan: () => void
   onLoadPlan: (planId: string) => void
   onRenamePlan: (planId: string, title: string) => void
@@ -69,11 +69,11 @@ export function PlannerSidebar({
             availableTags={availableTags}
             selectedTags={selectedTags}
             onTagChange={onTagChange}
-            hasBucket={!!selectedBucketId}
+            hasBucket={selectedBucketIds.size > 0}
           />
           <BucketSelector
             buckets={buckets}
-            selectedBucketId={selectedBucketId}
+            selectedBucketIds={selectedBucketIds}
             onBucketChange={onBucketChange}
           />
         </div>

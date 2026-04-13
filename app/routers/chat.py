@@ -76,16 +76,18 @@ def chat_stream(
     scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
     allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
 
-    # Bucket-scoped chat: use a bucket-specific retriever
-    bucket_retriever = None
-    if req.bucket_id:
+    # Bucket-scoped chat: resolve one or more bucket retrievers
+    bucket_retrievers: list = []
+    bucket_ids = parse_scope_ids(req.bucket_ids)
+    if bucket_ids:
         bucket_service = getattr(request.app.state, "bucket_service", None)
         if bucket_service is None:
             raise HTTPException(status_code=503, detail="Buckets plugin not initialized")
-        record = bucket_service.db.resolve(req.bucket_id)
-        if not record:
-            raise HTTPException(status_code=404, detail=f"Bucket not found: {req.bucket_id}")
-        bucket_retriever = bucket_service.get_retriever(record["id"], settings)
+        for bid in bucket_ids:
+            record = bucket_service.db.resolve(bid)
+            if not record:
+                raise HTTPException(status_code=404, detail=f"Bucket not found: {bid}")
+            bucket_retrievers.append(bucket_service.get_retriever(record["id"], settings))
 
     if req.thread_id:
         thread_id = req.thread_id
@@ -106,19 +108,18 @@ def chat_stream(
             # - scope only (no bucket): use main retriever with scope filters
             # - both: use main retriever with scope filters + bucket retriever merged
             has_scope = bool(scope_folders or allowed)
-            bucket_only = bucket_retriever and not has_scope
-            combined = bucket_retriever and has_scope
+            bucket_only = bool(bucket_retrievers) and not has_scope
 
             for partial in chat_respond(
                 req.message,
-                bucket_retriever if bucket_only else retriever,
+                bucket_retrievers[0] if bucket_only else retriever,
                 settings,
                 chatdb=chatdb,
                 thread_id=thread_id,
                 folders_filter=scope_folders if not bucket_only else None,
                 allowed_paths=allowed if not bucket_only else None,
                 exclude_patterns=exclude_patterns if not bucket_only else None,
-                bucket_retriever=bucket_retriever if combined else None,
+                bucket_retrievers=(bucket_retrievers[1:] if bucket_only else bucket_retrievers) or None,
                 sources_out=sources,
                 source_map_out=source_map,
                 conversation_history=conv_history,

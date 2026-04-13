@@ -32,7 +32,8 @@ export function SearchTab() {
   const {
     selectedScopeIds, selectedTags: selectedAdHocTags,
     scopeIdsParam, adHocTagsParam,
-    selectedBucketId,
+    selectedBucketIds,
+    bucketIdsParam,
     handleScopeChange, handleTagChange: handleAdHocTagChange,
     handleBucketChange,
   } = useScopeTagFilter()
@@ -60,7 +61,7 @@ export function SearchTab() {
     requery,
     loadVersion,
     fetchVersions,
-  } = useSearch(scopeIdsParam, adHocTagsParam, selectedBucketId)
+  } = useSearch(scopeIdsParam, adHocTagsParam, bucketIdsParam)
   const { lastIndexedAt } = useIndexEvents()
   const [viewingPath, setViewingPath] = useState<string | null>(null)
   const [resultsChangedDialogOpen, setResultsChangedDialogOpen] = useState(false)
@@ -98,7 +99,7 @@ export function SearchTab() {
         selectedAdHocTags={selectedAdHocTags}
         onAdHocTagChange={handleAdHocTagChange}
         buckets={buckets}
-        selectedBucketId={selectedBucketId}
+        selectedBucketIds={selectedBucketIds}
         onBucketChange={handleBucketChange}
       />
 

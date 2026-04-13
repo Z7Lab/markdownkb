@@ -31,7 +31,8 @@ export function PlannerTab() {
   const {
     selectedScopeIds, selectedTags,
     scopeIdsParam, adHocTagsParam,
-    selectedBucketId,
+    selectedBucketIds,
+    bucketIdsParam,
     handleScopeChange, handleTagChange,
     handleBucketChange,
   } = useScopeTagFilter()
@@ -60,7 +61,7 @@ export function PlannerTab() {
 
   function handleGenerate() {
     if (!inputQuery.trim() || isPlanning) return
-    generatePlan(inputQuery, { scope_ids: scopeIdsParam, ad_hoc_tags: adHocTagsParam, bucket_id: selectedBucketId })
+    generatePlan(inputQuery, { scope_ids: scopeIdsParam, ad_hoc_tags: adHocTagsParam, bucket_ids: bucketIdsParam })
   }
 
   function handleNewPlan() {
@@ -94,7 +95,7 @@ export function PlannerTab() {
         selectedTags={selectedTags}
         onTagChange={handleTagChange}
         buckets={buckets}
-        selectedBucketId={selectedBucketId}
+        selectedBucketIds={selectedBucketIds}
         onBucketChange={handleBucketChange}
         onNewPlan={handleNewPlan}
         onLoadPlan={loadPlan}

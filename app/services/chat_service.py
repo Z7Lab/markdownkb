@@ -142,16 +142,16 @@ def chat_respond(message: str, retriever: Retriever,
                  scope_tags: list[str] | None = None,
                  allowed_paths: set[str] | None = None,
                  exclude_patterns: list[str] | None = None,
-                 bucket_retriever: Retriever | None = None,
+                 bucket_retrievers: list[Retriever] | None = None,
                  sources_out: list[str] | None = None,
                  source_map_out: dict[str, str] | None = None,
                  conversation_history: ConversationHistory | None = None,
                  history_override: list[dict] | None = None) -> Generator:
     """Generate a streaming RAG response for the given message.
 
-    When ``bucket_retriever`` is provided alongside the main retriever,
-    both are searched and results are merged — enabling combined
-    scope + bucket queries.
+    When ``bucket_retrievers`` is provided alongside the main retriever,
+    all bucket stores are searched and results are merged — enabling combined
+    scope + bucket queries. Multiple buckets are also supported.
     """
     if not message.strip():
         yield ""
@@ -163,17 +163,14 @@ def chat_respond(message: str, retriever: Retriever,
         allowed_paths=allowed_paths, exclude_patterns=exclude_patterns,
     )
 
-    # Merge bucket results when both scope and bucket are active
-    if bucket_retriever:
-        bucket_results = bucket_retriever.search(search_query)
-        # Tag bucket results so sources can be distinguished
-        for r in bucket_results:
-            r.metadata["_bucket"] = "true"
-        # Merge and re-sort by score
-        results = sorted(results + bucket_results, key=lambda r: r.score, reverse=True)
-        # Limit to top_k
-        top_k = settings.top_k
-        results = results[:top_k]
+    # Merge bucket results when both scope and bucket(s) are active
+    if bucket_retrievers:
+        for br in bucket_retrievers:
+            bucket_results = br.search(search_query)
+            for r in bucket_results:
+                r.metadata["_bucket"] = "true"
+            results = results + bucket_results
+        results = sorted(results, key=lambda r: r.score, reverse=True)[:settings.top_k]
 
     if not results:
         reply = ("I don't have any relevant information in your knowledge base. "
