@@ -1,214 +1,192 @@
-import { useCallback, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Database, Plus, Trash2, Clock, Infinity as InfinityIcon } from "lucide-react"
-import { useBuckets, type Bucket, type CreateBucketParams } from "@/hooks/use-buckets"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Trash2 } from "lucide-react"
+import { useBuckets, type Bucket } from "@/hooks/use-buckets"
+import { useTableSort } from "@/hooks/use-table-sort"
+import { relativeTime } from "@/lib/utils"
 
+type BucketStatus = "active" | "expiring" | "expired"
 
-function formatExpiry(expiresAt: string | null): string {
-  if (!expiresAt) return "Never"
-  const d = new Date(expiresAt + "Z")
-  return d.toLocaleString()
+function bucketStatus(b: Bucket): BucketStatus {
+  if (b.expired) return "expired"
+  if (b.expires_at) {
+    const expiresMs = new Date(b.expires_at + "Z").getTime()
+    const hoursRemaining = (expiresMs - Date.now()) / 1000 / 3600
+    if (hoursRemaining < 24) return "expiring"
+  }
+  return "active"
+}
+
+function StatusBadge({ status }: { status: BucketStatus }) {
+  if (status === "expired") {
+    return (
+      <Badge variant="outline" className="text-[10px] text-destructive border-destructive/40">
+        Expired
+      </Badge>
+    )
+  }
+  if (status === "expiring") {
+    return (
+      <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-500/50">
+        Expiring soon
+      </Badge>
+    )
+  }
+  return (
+    <Badge variant="secondary" className="text-[10px]">
+      Active
+    </Badge>
+  )
+}
+
+function getValue(b: Bucket, key: string): string | number | null {
+  if (key === "name") return b.name
+  if (key === "file_count") return b.file_count
+  if (key === "chunk_count") return b.chunk_count
+  if (key === "created_at") return b.created_at
+  if (key === "expires_at") return b.expires_at ?? ""
+  if (key === "status") return bucketStatus(b)
+  return null
+}
+
+function SortHeader({
+  label,
+  sortKey,
+  currentKey,
+  currentDir,
+  onSort,
+}: {
+  label: string
+  sortKey: string
+  currentKey: string | null
+  currentDir: "asc" | "desc"
+  onSort: (key: string) => void
+}) {
+  const active = currentKey === sortKey
+  return (
+    <button
+      type="button"
+      className="flex items-center gap-1 text-left font-medium hover:text-foreground transition-colors"
+      onClick={() => onSort(sortKey)}
+    >
+      {label}
+      {active && (
+        <span className="text-[10px] text-muted-foreground">
+          {currentDir === "asc" ? "↑" : "↓"}
+        </span>
+      )}
+    </button>
+  )
 }
 
 export function BucketsPanel() {
-  const { buckets, createBucket, deleteBucket, updateExpiration } = useBuckets()
-  const [name, setName] = useState("")
-  const [sourcePath, setSourcePath] = useState("")
-  const [sourceGlob, setSourceGlob] = useState("**/*.md")
-  const [expiresInSecs, setExpiresInSecs] = useState<number | null>(null)
-  const [creating, setCreating] = useState(false)
+  const { buckets, deleteBucket } = useBuckets()
   const [deleteTarget, setDeleteTarget] = useState<Bucket | null>(null)
 
-  const handleCreate = useCallback(async () => {
-    if (!name.trim() || !sourcePath.trim()) return
-    setCreating(true)
-    const params: CreateBucketParams = {
-      name: name.trim(),
-      sources: [{ path: sourcePath.trim(), glob: sourceGlob.trim() || "**/*.md" }],
-    }
-    if (expiresInSecs && expiresInSecs > 0) {
-      params.expires_in = expiresInSecs
-    }
-    const result = await createBucket(params)
-    if (result) {
-      setName("")
-      setSourcePath("")
-      setSourceGlob("**/*.md")
-      setExpiresInSecs(null)
-    }
-    setCreating(false)
-  }, [name, sourcePath, sourceGlob, expiresInSecs, createBucket])
+  const { sorted, sortKey, sortDir, onSort } = useTableSort(
+    buckets,
+    getValue,
+    "created_at",
+  )
 
-  const handleDelete = useCallback(async () => {
+  async function handleDelete() {
     if (!deleteTarget) return
     await deleteBucket(deleteTarget.id)
     setDeleteTarget(null)
-  }, [deleteTarget, deleteBucket])
+  }
+
+  const headerProps = { currentKey: sortKey, currentDir: sortDir, onSort }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-sm font-medium mb-3">Create Bucket</h3>
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <Label htmlFor="bucket-name" className="text-xs">Name</Label>
-            <Input
-              id="bucket-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="my-docs"
-              className="h-8 text-sm"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="bucket-path" className="text-xs">Source path</Label>
-            <Input
-              id="bucket-path"
-              value={sourcePath}
-              onChange={(e) => setSourcePath(e.target.value)}
-              placeholder="/path/to/docs"
-              className="h-8 text-sm"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label htmlFor="bucket-glob" className="text-xs">Glob pattern</Label>
-              <Input
-                id="bucket-glob"
-                value={sourceGlob}
-                onChange={(e) => setSourceGlob(e.target.value)}
-                placeholder="**/*.md"
-                className="h-8 text-sm"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="bucket-expires" className="text-xs">Expires in</Label>
-              <Select
-                value={expiresInSecs === null ? "permanent" : expiresInSecs === 3600 ? "1h" : expiresInSecs === 86400 ? "24h" : expiresInSecs === 604800 ? "7d" : ""}
-                onValueChange={(v) => {
-                  if (v === "permanent") setExpiresInSecs(null)
-                  else if (v === "1h") setExpiresInSecs(3600)
-                  else if (v === "24h") setExpiresInSecs(86400)
-                  else if (v === "7d") setExpiresInSecs(604800)
-                }}
-              >
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue placeholder="Permanent" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="permanent">
-                    <span className="flex items-center gap-1"><InfinityIcon className="h-3.5 w-3.5" /> Permanent</span>
-                  </SelectItem>
-                  <SelectItem value="1h">
-                    <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> 1 hour</span>
-                  </SelectItem>
-                  <SelectItem value="24h">
-                    <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> 24 hours</span>
-                  </SelectItem>
-                  <SelectItem value="7d">
-                    <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> 7 days</span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <Button
-            onClick={handleCreate}
-            disabled={creating || !name.trim() || !sourcePath.trim()}
-            size="sm"
-            className="w-full"
-          >
-            <Plus className="h-3.5 w-3.5 mr-1.5" />
-            {creating ? "Creating..." : "Create Bucket"}
-          </Button>
-        </div>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium">Bucket History</h3>
+        {buckets.length > 0 && (
+          <span className="text-xs text-muted-foreground">{buckets.length} bucket{buckets.length !== 1 ? "s" : ""}</span>
+        )}
       </div>
 
-      <div>
-        <h3 className="text-sm font-medium mb-3">
-          Active Buckets
-          {buckets.length > 0 && (
-            <Badge variant="secondary" className="ml-2 text-[10px]">
-              {buckets.length}
-            </Badge>
-          )}
-        </h3>
-
-        {buckets.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No buckets created yet.</p>
-        ) : (
-          <ScrollArea className="max-h-64">
-            <div className="space-y-2">
-              {buckets.map((b) => (
-                <div
-                  key={b.id}
-                  className="p-2 rounded border text-xs space-y-2"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <Database className="h-3 w-3 text-muted-foreground shrink-0" />
-                        <span className="font-medium truncate">{b.name}</span>
-                      </div>
-                      <div className="text-muted-foreground mt-0.5 space-x-2">
-                        <span>{b.file_count} files</span>
-                        <span>{b.chunk_count} chunks</span>
-                      </div>
+      {buckets.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          No buckets. Create one on the Buckets tab.
+        </p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>
+                <SortHeader label="Name" sortKey="name" {...headerProps} />
+              </TableHead>
+              <TableHead>
+                <SortHeader label="Files" sortKey="file_count" {...headerProps} />
+              </TableHead>
+              <TableHead>
+                <SortHeader label="Created" sortKey="created_at" {...headerProps} />
+              </TableHead>
+              <TableHead>
+                <SortHeader label="Expires" sortKey="expires_at" {...headerProps} />
+              </TableHead>
+              <TableHead>
+                <SortHeader label="Status" sortKey="status" {...headerProps} />
+              </TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sorted.map((b) => {
+              const status = bucketStatus(b)
+              return (
+                <TableRow key={b.id} className={b.expired ? "opacity-60" : undefined}>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="h-2 w-2 rounded-full shrink-0"
+                        style={{ backgroundColor: b.color ?? "#ff3333" }}
+                      />
+                      <span className="font-medium text-xs">{b.name}</span>
                     </div>
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground tabular-nums">
+                    {b.file_count}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {relativeTime(b.created_at)}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {b.expires_at
+                      ? new Date(b.expires_at + "Z").toLocaleDateString()
+                      : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge status={status} />
+                  </TableCell>
+                  <TableCell>
                     <Button
                       variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                      title="Delete bucket"
                       onClick={() => setDeleteTarget(b)}
                     >
                       <Trash2 className="h-3 w-3" />
                     </Button>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground shrink-0">Expiration:</span>
-                    <Select
-                      value="__pick__"
-                      onValueChange={async (v) => {
-                        if (v === "permanent") await updateExpiration(b.id, null)
-                        else if (v === "1h") await updateExpiration(b.id, 3600)
-                        else if (v === "24h") await updateExpiration(b.id, 86400)
-                        else if (v === "7d") await updateExpiration(b.id, 604800)
-                      }}
-                    >
-                      <SelectTrigger className="h-6 text-[11px] w-36">
-                        <SelectValue placeholder={b.expires_at ? formatExpiry(b.expires_at) : "Permanent"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__pick__" disabled className="text-muted-foreground">
-                          {b.expires_at ? `Current: ${formatExpiry(b.expires_at)}` : "Currently permanent"}
-                        </SelectItem>
-                        <SelectItem value="permanent">
-                          <span className="flex items-center gap-1"><InfinityIcon className="h-2.5 w-2.5" /> Permanent</span>
-                        </SelectItem>
-                        <SelectItem value="1h">
-                          <span className="flex items-center gap-1"><Clock className="h-2.5 w-2.5" /> 1 hour</span>
-                        </SelectItem>
-                        <SelectItem value="24h">
-                          <span className="flex items-center gap-1"><Clock className="h-2.5 w-2.5" /> 24 hours</span>
-                        </SelectItem>
-                        <SelectItem value="7d">
-                          <span className="flex items-center gap-1"><Clock className="h-2.5 w-2.5" /> 7 days</span>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-        )}
-      </div>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
+      )}
 
       <ConfirmDialog
         open={!!deleteTarget}
@@ -216,6 +194,7 @@ export function BucketsPanel() {
         title="Delete bucket?"
         description={`This will permanently delete bucket "${deleteTarget?.name}" and all its vector data.`}
         confirmLabel="Delete"
+        variant="destructive"
         onConfirm={handleDelete}
       />
     </div>

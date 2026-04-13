@@ -96,6 +96,7 @@ export interface TrackedFile {
   tags: string
   indexed_at: string | null
   entity_count?: number
+  bucket_ids?: string[]
 }
 
 export interface Provider {
@@ -256,6 +257,7 @@ export interface DocMapNode {
   headings: string[]
   word_cloud: Record<string, number>
   _bucket?: boolean
+  bucket_color?: string
 }
 
 export interface DocMapEdge {

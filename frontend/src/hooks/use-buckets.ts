@@ -12,12 +12,21 @@ export interface Bucket {
   indexing?: boolean
   created_at: string
   expires_at: string | null
+  expired: boolean
+  color: string | null
 }
 
 export interface CreateBucketParams {
   name: string
   sources: { path: string; glob?: string }[]
   expires_in?: number | null
+  color?: string | null
+}
+
+export interface UpdateBucketParams {
+  name?: string
+  expires_in?: number | null
+  color?: string | null
 }
 
 export function useBuckets() {
@@ -27,7 +36,8 @@ export function useBuckets() {
   const refresh = useCallback(async () => {
     try {
       const res = await api.get<{ buckets: Bucket[] }>("/api/buckets")
-      setBuckets(res.buckets)
+      // SQLite returns expired as 0/1 integer; coerce to boolean at the boundary
+      setBuckets(res.buckets.map(b => ({ ...b, expired: Boolean(b.expired) })))
     } catch {
       // Buckets plugin may be disabled
     }
@@ -69,6 +79,19 @@ export function useBuckets() {
     [refresh],
   )
 
+  const updateBucket = useCallback(
+    async (id: string, params: UpdateBucketParams) => {
+      try {
+        await api.patch(`/api/buckets/${id}`, params)
+        await refresh()
+        toast.success("Bucket updated", { duration: 2000 })
+      } catch (err) {
+        toast.error(`Failed to update: ${(err as Error).message}`)
+      }
+    },
+    [refresh],
+  )
+
   const deleteBucket = useCallback(
     async (id: string) => {
       const name = buckets.find((b) => b.id === id)?.name
@@ -88,15 +111,9 @@ export function useBuckets() {
 
   const updateExpiration = useCallback(
     async (id: string, expiresIn: number | null) => {
-      try {
-        await api.patch(`/api/buckets/${id}`, { expires_in: expiresIn })
-        await refresh()
-        toast.success(expiresIn ? "Expiration updated" : "Bucket set to permanent", { duration: 2000 })
-      } catch (err) {
-        toast.error(`Failed to update: ${(err as Error).message}`)
-      }
+      await updateBucket(id, { expires_in: expiresIn })
     },
-    [refresh],
+    [updateBucket],
   )
 
   return {
@@ -104,6 +121,7 @@ export function useBuckets() {
     selectedBucketId,
     setSelectedBucketId,
     createBucket,
+    updateBucket,
     deleteBucket,
     updateExpiration,
     refresh,

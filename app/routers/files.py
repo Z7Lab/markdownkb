@@ -53,6 +53,10 @@ def list_files(
 ):
     """List all discovered files, merging tracking DB info when available.
 
+    Files assigned to a bucket are excluded — they appear in the Buckets tab.
+    Each file includes a ``bucket_ids`` list (always empty here, kept for
+    forward-compatibility if the filter is ever relaxed).
+
     This is a read-only endpoint — pruning of stale records is handled by
     the indexer (run_index) and the explicit POST /api/files/prune endpoint.
     """
@@ -63,6 +67,12 @@ def list_files(
     from app.tag_utils import get_all_file_tags
     tag_map = {ft["path"]: ft["tags"] for ft in get_all_file_tags()}
 
+    # Build bucket membership map (path → [bucket_ids]) — empty when plugin inactive
+    bucket_service = getattr(request.app.state, "bucket_service", None)
+    bucketed_path_map: dict[str, list[str]] = (
+        bucket_service.db.get_bucketed_path_map() if bucket_service else {}
+    )
+
     # Discover all files across watch directories (lightweight, no hashing)
     discovered = discover_sources(settings.sources, settings.global_ignore)
 
@@ -71,10 +81,16 @@ def list_files(
     discovered_paths: set[str] = set()
     for d in discovered:
         discovered_paths.add(d["path"])
+        bucket_ids = bucketed_path_map.get(d["path"], [])
+        if bucket_ids:
+            # File belongs to a bucket — skip from Files tab
+            tracked_map.pop(d["path"], None)
+            continue
         tracked = tracked_map.pop(d["path"], None)
         if tracked:
             tracked = dict(tracked)
             tracked["tags"] = tag_map.get(d["path"], tracked.get("tags", ""))
+            tracked["bucket_ids"] = []
             merged.append(tracked)
         else:
             merged.append({
@@ -90,12 +106,16 @@ def list_files(
                 "updated_at": None,
                 "include_rag": 1,
                 "tags": tag_map.get(d["path"], ""),
+                "bucket_ids": [],
             })
 
     # Include tracked files not in discovery — mark missing ones
     for leftover in tracked_map.values():
+        if bucketed_path_map.get(leftover["path"]):
+            continue
         leftover = dict(leftover)
         leftover["tags"] = tag_map.get(leftover["path"], leftover.get("tags", ""))
+        leftover["bucket_ids"] = []
         if not Path(leftover["path"]).exists():
             leftover["status"] = "missing"
         merged.append(leftover)

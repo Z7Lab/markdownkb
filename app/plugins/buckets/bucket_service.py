@@ -51,6 +51,7 @@ class BucketService:
         name: str,
         sources: list[dict],
         expires_in: int | None = None,
+        color: str | None = None,
     ) -> dict:
         """Create a bucket, ingest sources, return metadata."""
         if self._db.name_exists(name):
@@ -105,8 +106,13 @@ class BucketService:
             file_count=file_count,
             chunk_count=len(all_ids),
             expires_at=expires_at,
+            color=color,
         )
         bucket_id = record["id"]
+
+        # Record which files belong to this bucket
+        if scan_paths:
+            self._db.set_file_memberships(bucket_id, scan_paths)
 
         # Embed and store in ChromaDB
         if all_docs:
@@ -164,6 +170,7 @@ class BucketService:
         all_metas: list[dict] = []
         added_files = 0
         skipped_files = 0
+        new_file_paths: list[str] = []
 
         for file_path in scan_paths:
             if file_path in existing_paths:
@@ -177,6 +184,7 @@ class BucketService:
             if not chunks:
                 continue
             added_files += 1
+            new_file_paths.append(file_path)
             for i, chunk in enumerate(chunks):
                 chunk_id = f"bucket:{bucket_name}:{file_path}:{i}"
                 all_ids.append(chunk_id)
@@ -186,6 +194,10 @@ class BucketService:
         if all_docs:
             embeddings = embed_texts(all_docs, self._embedding_model, remote_config=self._remote_config)
             store.add(all_ids, all_docs, embeddings, all_metas)
+
+        # Update membership records for newly added files
+        if new_file_paths:
+            self._db.set_file_memberships(bucket_id, new_file_paths)
 
         # Update metadata counts
         new_file_count = record["file_count"] + added_files
@@ -370,20 +382,18 @@ class BucketService:
             result["warning"] = "Bucket record deleted but ChromaDB collection cleanup failed"
         return result
 
-    # -- Cleanup expired -----------------------------------------------------
+    # -- Flag expired (does NOT delete) --------------------------------------
 
-    def cleanup_expired(self) -> int:
-        """Delete expired buckets. Returns count of cleaned up buckets."""
-        expired = self._db.get_expired()
-        cleaned = 0
-        failed = 0
-        for record in expired:
-            try:
-                self.delete(record["id"])
-                cleaned += 1
-            except Exception as e:
-                logger.warning("Failed to clean up expired bucket %s: %s", record["id"], e)
-                failed += 1
-        if expired:
-            logger.info("Cleaned up %d expired bucket(s), %d failed", cleaned, failed)
-        return cleaned
+    def flag_expired(self) -> int:
+        """Flag expired buckets as expired in place. Does NOT delete them.
+
+        Expired buckets remain visible in the UI until explicitly deleted.
+        Returns count of newly flagged buckets.
+        """
+        newly_expired = self._db.get_expired()
+        flagged = 0
+        for record in newly_expired:
+            self._db.mark_expired(record["id"])
+            flagged += 1
+            logger.info("Bucket '%s' (%s) flagged as expired", record["name"], record["id"])
+        return flagged

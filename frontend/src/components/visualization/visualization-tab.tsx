@@ -334,12 +334,12 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
     if (hasHighlight) {
       if (highlightedNodes.has(node.id)) {
         if (node.id === selectedNodeId) return HIGHLIGHT_COLOR
-        if (node._bucket) return BUCKET_COLOR
+        if (node._bucket) return node.bucket_color ?? BUCKET_COLOR
         return CLUSTER_COLORS[((node.cluster_id % CLUSTER_COLORS.length) + CLUSTER_COLORS.length) % CLUSTER_COLORS.length] || UNCLUSTERED_COLOR
       }
       return colors.dim
     }
-    if (node._bucket) return BUCKET_COLOR
+    if (node._bucket) return node.bucket_color ?? BUCKET_COLOR
     if (node.cluster_id < 0) return UNCLUSTERED_COLOR
     return CLUSTER_COLORS[node.cluster_id % CLUSTER_COLORS.length] || UNCLUSTERED_COLOR
   // docmapData is a phantom dep: its value isn't read here, but including it forces

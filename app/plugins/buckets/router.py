@@ -2,6 +2,7 @@
 
 import json
 import logging
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -18,6 +19,18 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["buckets"])
 
+# Palette for auto-assigning colors to new buckets (rotates through by index)
+_BUCKET_COLORS = [
+    "#6366f1",  # indigo
+    "#8b5cf6",  # violet
+    "#ec4899",  # pink
+    "#f97316",  # orange
+    "#14b8a6",  # teal
+    "#06b6d4",  # cyan
+    "#84cc16",  # lime
+    "#f59e0b",  # amber
+]
+
 
 # -- Request schemas ---------------------------------------------------------
 
@@ -29,7 +42,8 @@ class BucketSource(BaseModel):
 class CreateBucketRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     sources: list[BucketSource] = Field(default_factory=list)
-    expires_in: int | None = Field(None, ge=60, description="Seconds until auto-delete")
+    expires_in: int | None = Field(None, ge=60, description="Seconds until expiry")
+    color: str | None = Field(None, max_length=20, description="Hex color for this bucket")
 
 
 class BucketSearchRequest(BaseModel):
@@ -56,6 +70,8 @@ class PushDocumentsRequest(BaseModel):
 
 class UpdateBucketRequest(BaseModel):
     expires_in: int | None = Field(None, description="Seconds from now, or null for permanent")
+    name: str | None = Field(None, min_length=1, max_length=200, description="New bucket name")
+    color: str | None = Field(None, max_length=20, description="Hex color")
 
 
 # -- Helpers -----------------------------------------------------------------
@@ -115,7 +131,8 @@ def list_buckets(
     svc: BucketService = Depends(_get_bucket_service),
 ):
     """List all buckets with metadata and indexing status."""
-    svc.cleanup_expired()
+    # Flag newly expired buckets (does not delete them)
+    svc.flag_expired()
     buckets = svc.db.list_all()
     # Add indexing status by comparing DB chunk count vs ChromaDB
     for b in buckets:
@@ -136,8 +153,14 @@ def create_bucket(
 ):
     """Create a new bucket from source paths."""
     try:
+        # Auto-assign color from palette if not provided
+        color = req.color
+        if not color:
+            existing = svc.db.list_all()
+            color = _BUCKET_COLORS[len(existing) % len(_BUCKET_COLORS)]
+
         sources = [s.model_dump() for s in req.sources]
-        record = svc.create(req.name, sources, req.expires_in)
+        record = svc.create(req.name, sources, req.expires_in, color=color)
 
         # In Docker, paths that aren't mounted need to be added to compose.override.yml.
         docker_restart_required = False
@@ -184,21 +207,39 @@ def update_bucket(
     req: UpdateBucketRequest,
     svc: BucketService = Depends(_get_bucket_service),
 ):
-    """Update bucket settings (expiration)."""
+    """Update bucket settings (name, expiration, color)."""
     record = svc.db.resolve(bucket_id)
     if not record:
         raise HTTPException(status_code=404, detail="Bucket not found")
 
-    from datetime import datetime, timedelta, timezone
-    if req.expires_in is None:
-        expires_at = None
-    elif req.expires_in <= 0:
-        expires_at = None
-    else:
-        expires_at = (datetime.now(timezone.utc) + timedelta(seconds=req.expires_in)).strftime("%Y-%m-%d %H:%M:%S")
+    updates: dict = {}
 
-    svc.db.update_expiration(record["id"], expires_at)
-    return {"status": "updated", "expires_at": expires_at}
+    # Handle expiration change
+    if "expires_in" in req.model_fields_set:
+        if req.expires_in is None or req.expires_in <= 0:
+            updates["expires_at"] = None
+            updates["expired"] = 0
+        else:
+            updates["expires_at"] = (
+                datetime.now(timezone.utc) + timedelta(seconds=req.expires_in)
+            ).strftime("%Y-%m-%d %H:%M:%S")
+            updates["expired"] = 0
+
+    # Handle name change
+    if req.name is not None:
+        if req.name != record["name"] and svc.db.name_exists(req.name):
+            raise HTTPException(status_code=409, detail="Bucket name already taken")
+        updates["name"] = req.name
+
+    # Handle color change
+    if req.color is not None:
+        updates["color"] = req.color
+
+    if updates:
+        svc.db.update(record["id"], **updates)
+
+    updated = svc.db.get(record["id"])
+    return {"status": "updated", **{k: updated.get(k) for k in ("name", "expires_at", "expired", "color")}}
 
 
 @router.get("/buckets/{bucket_id}/files")
@@ -238,14 +279,14 @@ def list_bucket_files(
     else:
         # ChromaDB empty — scan source paths to show files during indexing
         indexing = record["chunk_count"] > 0
-        import json
-        from pathlib import Path
-        sources = json.loads(record.get("sources", "[]"))
+        import json as _json
+        from pathlib import Path as _Path
+        sources = _json.loads(record.get("sources", "[]"))
         file_list = []
         for src in sources:
             path = src.get("path", "")
             glob_pattern = src.get("glob", "**/*.md")
-            resolved = Path(path).resolve()
+            resolved = _Path(path).resolve()
             if resolved.is_file() and resolved.suffix == ".md":
                 file_list.append({"path": str(resolved), "title": "", "chunk_count": 0})
             elif resolved.is_dir():

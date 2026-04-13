@@ -7,13 +7,23 @@ import { relativeTime } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
-import { Database, Plus, Trash2, FileText, ChevronDown, ChevronRight, Loader2, Clock, Infinity as InfinityIcon, RefreshCw } from "lucide-react"
+import {
+  Database, Pencil, Plus, Trash2, FileText,
+  Loader2, Clock, Infinity as InfinityIcon, RefreshCw, X, Check,
+} from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { EmptyHero } from "@/components/ui/empty-hero"
+import { BucketsSidebar } from "./buckets-sidebar"
+
+// Color palette — must match _BUCKET_COLORS in backend router.py
+const BUCKET_PALETTE = [
+  "#6366f1", "#8b5cf6", "#ec4899", "#f97316",
+  "#14b8a6", "#06b6d4", "#84cc16", "#f59e0b",
+]
 
 function BucketPathStatus({ path }: { path: string }) {
   const check = usePathCheck(path)
@@ -44,265 +54,529 @@ interface BucketFile {
   chunk_count: number
 }
 
-function BucketCard({
+// -- Create form -------------------------------------------------------------
+
+function BucketCreateForm({
+  onCreated,
+  onCancel,
+  createBucket,
+}: {
+  onCreated: (id: string) => void
+  onCancel: () => void
+  createBucket: ReturnType<typeof useBuckets>["createBucket"]
+}) {
+  const [name, setName] = useState("")
+  const [path, setPath] = useState("")
+  const [glob, setGlob] = useState("**/*.md")
+  const [expiresIn, setExpiresIn] = useState<number | null>(null)
+  const [color, setColor] = useState<string | null>(null)
+
+  async function handleCreate() {
+    if (!name.trim() || !path.trim()) return
+    const res = await createBucket({
+      name: name.trim(),
+      sources: [{ path: path.trim(), glob: glob.trim() || "**/*.md" }],
+      expires_in: expiresIn,
+      color: color ?? undefined,
+    })
+    if (res) {
+      onCreated(res.id)
+    }
+  }
+
+  return (
+    <div className="p-6 max-w-xl">
+      <h2 className="text-base font-semibold mb-4">New Bucket</h2>
+      <div className="space-y-4">
+        <div>
+          <label className="text-sm font-medium">Name</label>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. grpc-evaluation"
+            className="mt-1"
+            autoFocus
+          />
+        </div>
+        <div>
+          <label className="text-sm font-medium">Source path</label>
+          <Input
+            value={path}
+            onChange={(e) => setPath(e.target.value)}
+            placeholder="Absolute path to file or directory"
+            className="mt-1"
+          />
+          <BucketPathStatus path={path} />
+        </div>
+        <div>
+          <label className="text-sm font-medium">Glob pattern</label>
+          <Input
+            value={glob}
+            onChange={(e) => setGlob(e.target.value)}
+            placeholder="**/*.md"
+            className="mt-1"
+          />
+        </div>
+        <div>
+          <label className="text-sm font-medium">Expires in</label>
+          <Select
+            value={expiresIn === null ? "permanent" : String(expiresIn)}
+            onValueChange={(v) => {
+              if (v === "permanent") setExpiresIn(null)
+              else setExpiresIn(Number(v))
+            }}
+          >
+            <SelectTrigger className="mt-1">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="permanent">
+                <span className="flex items-center gap-1.5"><InfinityIcon className="h-4 w-4" /> Permanent</span>
+              </SelectItem>
+              <SelectItem value="3600">
+                <span className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> 1 hour</span>
+              </SelectItem>
+              <SelectItem value="86400">
+                <span className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> 24 hours</span>
+              </SelectItem>
+              <SelectItem value="604800">
+                <span className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> 7 days</span>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <label className="text-sm font-medium">Color</label>
+          <div className="flex items-center gap-2 mt-1">
+            {BUCKET_PALETTE.map((c) => (
+              <button
+                key={c}
+                type="button"
+                title={c}
+                className="h-6 w-6 rounded-full border-2 transition-transform hover:scale-110"
+                style={{
+                  backgroundColor: c,
+                  borderColor: color === c ? "hsl(var(--foreground))" : "transparent",
+                }}
+                onClick={() => setColor(color === c ? null : c)}
+              />
+            ))}
+            <span className="text-xs text-muted-foreground ml-1">
+              {color ? color : "auto-assigned"}
+            </span>
+          </div>
+        </div>
+        <div className="flex gap-2 pt-1">
+          <Button
+            size="sm"
+            onClick={handleCreate}
+            disabled={!name.trim() || !path.trim()}
+          >
+            Create
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onCancel}>
+            Cancel
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// -- Edit form (inline in detail panel) -------------------------------------
+
+function BucketEditForm({
+  bucket,
+  onSave,
+  onCancel,
+  updateBucket,
+}: {
+  bucket: Bucket
+  onSave: () => void
+  onCancel: () => void
+  updateBucket: ReturnType<typeof useBuckets>["updateBucket"]
+}) {
+  const [name, setName] = useState(bucket.name)
+  const [color, setColor] = useState<string | null>(bucket.color)
+  const [expiresIn, setExpiresIn] = useState<number | null | "keep">("keep")
+
+  async function handleSave() {
+    const params: Parameters<typeof updateBucket>[1] = {}
+    if (name.trim() && name.trim() !== bucket.name) params.name = name.trim()
+    if (color !== bucket.color) params.color = color
+    if (expiresIn !== "keep") params.expires_in = expiresIn
+    if (Object.keys(params).length > 0) {
+      await updateBucket(bucket.id, params)
+    }
+    onSave()
+  }
+
+  return (
+    <Card className="mb-4">
+      <CardContent className="pt-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Edit bucket</span>
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onCancel}>
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        <div>
+          <label className="text-xs font-medium">Name</label>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="mt-1 h-8 text-sm"
+            autoFocus
+          />
+        </div>
+        <div>
+          <label className="text-xs font-medium">Expiration</label>
+          <Select
+            value={expiresIn === "keep" ? "keep" : expiresIn === null ? "permanent" : String(expiresIn)}
+            onValueChange={(v) => {
+              if (v === "keep") setExpiresIn("keep")
+              else if (v === "permanent") setExpiresIn(null)
+              else setExpiresIn(Number(v))
+            }}
+          >
+            <SelectTrigger className="mt-1 h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="keep">
+                <span className="text-muted-foreground">
+                  {bucket.expires_at
+                    ? `Keep: expires ${new Date(bucket.expires_at + "Z").toLocaleDateString()}`
+                    : "Keep: permanent"}
+                </span>
+              </SelectItem>
+              <SelectItem value="permanent">
+                <span className="flex items-center gap-1.5"><InfinityIcon className="h-3.5 w-3.5" /> Make permanent</span>
+              </SelectItem>
+              <SelectItem value="3600">
+                <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> 1 hour from now</span>
+              </SelectItem>
+              <SelectItem value="86400">
+                <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> 24 hours from now</span>
+              </SelectItem>
+              <SelectItem value="604800">
+                <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> 7 days from now</span>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <label className="text-xs font-medium">Color</label>
+          <div className="flex items-center gap-1.5 mt-1">
+            {BUCKET_PALETTE.map((c) => (
+              <button
+                key={c}
+                type="button"
+                title={c}
+                className="h-5 w-5 rounded-full border-2 transition-transform hover:scale-110"
+                style={{
+                  backgroundColor: c,
+                  borderColor: (color ?? bucket.color) === c ? "hsl(var(--foreground))" : "transparent",
+                }}
+                onClick={() => setColor(color === c ? bucket.color : c)}
+              />
+            ))}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button size="sm" onClick={handleSave} className="gap-1">
+            <Check className="h-3.5 w-3.5" /> Save
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// -- Bucket detail panel ----------------------------------------------------
+
+function BucketDetailPanel({
   bucket,
   onDelete,
   onViewFile,
-  onUpdateExpiration,
-  onReindex,
+  updateBucket,
+  refresh,
 }: {
   bucket: Bucket
   onDelete: (id: string) => void
   onViewFile: (path: string) => void
-  onUpdateExpiration: (id: string, expiresIn: number | null) => Promise<void>
-  onReindex: (id: string) => Promise<void>
+  updateBucket: ReturnType<typeof useBuckets>["updateBucket"]
+  refresh: () => Promise<void>
 }) {
-  const [expanded, setExpanded] = useState(false)
   const [files, setFiles] = useState<BucketFile[]>([])
   const [loadingFiles, setLoadingFiles] = useState(false)
-  const [reindexing, setReindexing] = useState(false)
-
   const [filesIndexing, setFilesIndexing] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [reindexing, setReindexing] = useState(false)
 
   const loadFiles = useCallback(async () => {
     setLoadingFiles(true)
     try {
-      const res = await api.get<{ files: BucketFile[]; indexing?: boolean }>(`/api/buckets/${bucket.id}/files`)
+      const res = await api.get<{ files: BucketFile[]; indexing?: boolean }>(
+        `/api/buckets/${bucket.id}/files`
+      )
       setFiles(res.files)
       setFilesIndexing(res.indexing ?? false)
     } catch (err) {
-      console.error("Failed to load bucket files for", bucket.id, err)
+      console.error("Failed to load bucket files", err)
     } finally {
       setLoadingFiles(false)
     }
   }, [bucket.id])
 
-  function handleToggle() {
-    if (!expanded) loadFiles()
-    setExpanded(!expanded)
+  useEffect(() => {
+    loadFiles()
+  }, [loadFiles])
+
+  async function handleReindex() {
+    setReindexing(true)
+    const toastId = toast.loading(`Reindexing "${bucket.name}"...`)
+    try {
+      const res = await api.post<{ added_files: number; added_chunks: number }>(
+        `/api/buckets/${bucket.id}/reindex`, {}
+      )
+      await refresh()
+      toast.success(`Reindexed "${bucket.name}"`, {
+        id: toastId,
+        description: `${res.added_files} file${res.added_files !== 1 ? "s" : ""}, ${res.added_chunks} chunk${res.added_chunks !== 1 ? "s" : ""} added`,
+        duration: 4000,
+      })
+      loadFiles()
+    } catch (err) {
+      toast.error(`Reindex failed: ${(err as Error).message}`, { id: toastId })
+    } finally {
+      setReindexing(false)
+    }
   }
 
   const sources = (() => {
     try { return JSON.parse(bucket.sources) as { path: string; glob?: string }[] }
-    catch (err) {
-      console.error("Failed to parse bucket sources for", bucket.id, err)
-      return []
-    }
+    catch { return [] }
   })()
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            className="shrink-0 text-muted-foreground hover:text-foreground"
-            onClick={handleToggle}
-          >
-            {expanded
-              ? <ChevronDown className="h-4 w-4" />
-              : <ChevronRight className="h-4 w-4" />
-            }
-          </button>
-          <div className="flex-1 min-w-0">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Database className="h-4 w-4 shrink-0" />
-              {bucket.name}
-            </CardTitle>
-            <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-              <span>{bucket.file_count} files</span>
-              <span>{bucket.chunk_count} chunks</span>
-              <span>{relativeTime(bucket.created_at)}</span>
-              {bucket.indexing && (
-                <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-500/50 gap-1">
-                  <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                  indexing
-                </Badge>
-              )}
-              {bucket.expires_at ? (
-                <Badge variant="outline" className="text-[10px]">
-                  expires {new Date(bucket.expires_at + "Z").toLocaleDateString()}
-                </Badge>
-              ) : (
-                <Badge variant="secondary" className="text-[10px]">permanent</Badge>
-              )}
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"
-            disabled={reindexing}
-            title="Reindex from sources"
-            onClick={async () => {
-              setReindexing(true)
-              await onReindex(bucket.id)
-              setReindexing(false)
-              loadFiles()
-            }}
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${reindexing ? "animate-spin" : ""}`} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
-            onClick={() => onDelete(bucket.id)}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      </CardHeader>
-      {expanded && (
-        <CardContent className="pt-0">
-          {/* Sources */}
-          <div className="mb-3">
-            <p className="text-xs text-muted-foreground font-medium mb-1">Sources</p>
-            <div className="space-y-0.5">
-              {sources.map((s, i) => (
-                <p key={i} className="text-xs text-muted-foreground font-mono truncate">
-                  {s.path} <span className="text-muted-foreground/60">{s.glob || "**/*.md"}</span>
-                </p>
-              ))}
-            </div>
-          </div>
-
-          {/* Expiration */}
-          <div className="mb-3">
-            <p className="text-xs text-muted-foreground font-medium mb-1">Change expiration</p>
-            <div className="flex items-center gap-2">
-              <Select
-                value="__pick__"
-                onValueChange={async (v) => {
-                  if (v === "permanent") await onUpdateExpiration(bucket.id, null)
-                  else if (v === "1h") await onUpdateExpiration(bucket.id, 3600)
-                  else if (v === "24h") await onUpdateExpiration(bucket.id, 86400)
-                  else if (v === "7d") await onUpdateExpiration(bucket.id, 604800)
-                }}
-              >
-                <SelectTrigger className="h-7 text-xs w-44">
-                  <SelectValue placeholder={bucket.expires_at ? `Expires: ${new Date(bucket.expires_at + "Z").toLocaleDateString()}` : "Permanent"} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__pick__" disabled className="text-muted-foreground">
-                    {bucket.expires_at ? `Current: ${new Date(bucket.expires_at + "Z").toLocaleDateString()}` : "Currently permanent"}
-                  </SelectItem>
-                  <SelectItem value="permanent">
-                    <span className="flex items-center gap-1"><InfinityIcon className="h-3 w-3" /> Make permanent</span>
-                  </SelectItem>
-                  <SelectItem value="1h">
-                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> 1 hour from now</span>
-                  </SelectItem>
-                  <SelectItem value="24h">
-                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> 24 hours from now</span>
-                  </SelectItem>
-                  <SelectItem value="7d">
-                    <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> 7 days from now</span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Files */}
-          {loadingFiles && (
-            <div className="flex items-center gap-2 py-4 justify-center text-xs text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Loading files...
-            </div>
-          )}
-          {!loadingFiles && files.length > 0 && (
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2 mb-1">
-                <p className="text-xs text-muted-foreground font-medium">
-                  Files ({files.length})
-                </p>
-                {filesIndexing && (
-                  <span className="text-[10px] text-amber-600 flex items-center gap-1">
-                    <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                    Embedding in progress — search available when complete
-                  </span>
-                )}
+    <div className="flex flex-col h-full overflow-hidden">
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="p-6 space-y-4">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <span
+                className="h-3 w-3 rounded-full shrink-0 mt-0.5"
+                style={{ backgroundColor: bucket.color ?? "#ff3333" }}
+              />
+              <div className="min-w-0">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  {bucket.name}
+                  {bucket.indexing && (
+                    <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-500/50 gap-1">
+                      <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                      indexing
+                    </Badge>
+                  )}
+                  {bucket.expired && (
+                    <Badge variant="outline" className="text-[10px] text-destructive border-destructive/40">
+                      expired
+                    </Badge>
+                  )}
+                </h2>
+                <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
+                  <span>{bucket.file_count} files</span>
+                  <span>{bucket.chunk_count} chunks</span>
+                  <span>{relativeTime(bucket.created_at)}</span>
+                  {bucket.expires_at && !bucket.expired && (
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      expires {new Date(bucket.expires_at + "Z").toLocaleDateString()}
+                    </span>
+                  )}
+                  {!bucket.expires_at && !bucket.expired && (
+                    <span className="flex items-center gap-1">
+                      <InfinityIcon className="h-3 w-3" /> permanent
+                    </span>
+                  )}
+                </div>
               </div>
-              <ScrollArea style={{ height: Math.min(files.length * 32, 320) }}>
-                {files.map((f) => (
-                  <button
-                    key={f.path}
-                    type="button"
-                    className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded hover:bg-accent text-xs"
-                    onClick={() => onViewFile(f.path)}
-                  >
-                    <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
-                    <span className="truncate flex-1 min-w-0">
-                      {f.title || f.path.split("/").pop()}
-                    </span>
-                    <span className="text-muted-foreground shrink-0">
-                      {f.chunk_count} chunks
-                    </span>
-                  </button>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                title="Edit bucket"
+                onClick={() => setEditing(!editing)}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                title="Reindex from sources"
+                disabled={reindexing}
+                onClick={handleReindex}
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${reindexing ? "animate-spin" : ""}`} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                title="Delete bucket"
+                onClick={() => onDelete(bucket.id)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Edit form */}
+          {editing && (
+            <BucketEditForm
+              bucket={bucket}
+              onSave={() => setEditing(false)}
+              onCancel={() => setEditing(false)}
+              updateBucket={updateBucket}
+            />
+          )}
+
+          {/* Sources */}
+          {sources.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">Sources</p>
+              <div className="space-y-0.5">
+                {sources.map((s, i) => (
+                  <p key={i} className="text-xs font-mono text-muted-foreground truncate">
+                    {s.path}
+                    {s.glob && s.glob !== "**/*.md" && (
+                      <span className="text-muted-foreground/60 ml-2">{s.glob}</span>
+                    )}
+                  </p>
                 ))}
-              </ScrollArea>
+              </div>
             </div>
           )}
-          {!loadingFiles && files.length === 0 && !loadingFiles && (
-            <p className="text-xs text-muted-foreground text-center py-2">
-              No files in this bucket
-            </p>
-          )}
-        </CardContent>
-      )}
-    </Card>
+
+          {/* Files table */}
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <p className="text-xs font-medium text-muted-foreground">
+                Files {files.length > 0 && `(${files.length})`}
+              </p>
+              {filesIndexing && (
+                <span className="text-[10px] text-amber-600 flex items-center gap-1">
+                  <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                  Embedding in progress
+                </span>
+              )}
+            </div>
+
+            {loadingFiles && (
+              <div className="flex items-center gap-2 py-6 justify-center text-xs text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Loading files...
+              </div>
+            )}
+
+            {!loadingFiles && files.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-6">
+                No files in this bucket
+              </p>
+            )}
+
+            {!loadingFiles && files.length > 0 && (
+              <div className="border rounded-md overflow-hidden">
+                <div className="grid grid-cols-[1fr_auto] text-xs font-medium text-muted-foreground bg-muted/30 px-3 py-1.5 border-b">
+                  <span>File</span>
+                  <span>Chunks</span>
+                </div>
+                <div className="divide-y">
+                  {files.map((f) => (
+                    <button
+                      key={f.path}
+                      type="button"
+                      className="w-full grid grid-cols-[1fr_auto] items-center px-3 py-2 text-xs hover:bg-accent text-left transition-colors"
+                      onClick={() => onViewFile(f.path)}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
+                        <span className="truncate">
+                          {f.title || f.path.split("/").pop()}
+                        </span>
+                      </div>
+                      <span className="text-muted-foreground tabular-nums pl-4">
+                        {f.chunk_count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </ScrollArea>
+    </div>
   )
 }
 
+// -- Empty state -------------------------------------------------------------
+
+function BucketsEmptyState({ onNewBucket }: { onNewBucket: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-full gap-4">
+      <EmptyHero icon={Database} label="Buckets" />
+      <p className="text-sm text-muted-foreground text-center max-w-sm">
+        Buckets are temporary document collections for focused analysis.
+        Create one to load external docs, vendor APIs, or research material
+        without mixing them into your permanent knowledge base.
+      </p>
+      <Button size="sm" className="gap-1.5" onClick={onNewBucket}>
+        <Plus className="h-4 w-4" />
+        New Bucket
+      </Button>
+    </div>
+  )
+}
+
+// -- Main tab ----------------------------------------------------------------
+
 export function BucketsTab() {
-  const { buckets, createBucket, deleteBucket, updateExpiration, refresh } = useBuckets()
+  const { buckets, createBucket, updateBucket, deleteBucket, refresh } = useBuckets()
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [viewingPath, setViewingPath] = useState<string | null>(null)
-  const [creating, setCreating] = useState(false)
-  const [newName, setNewName] = useState("")
-  const [newPath, setNewPath] = useState("")
-  const [newGlob, setNewGlob] = useState("**/*.md")
-  const [newExpiresInSecs, setNewExpiresInSecs] = useState<number | null>(null)
 
-  // Poll for bucket updates — faster when any bucket is indexing
+  // Poll for updates — faster when any bucket is indexing
   const anyIndexing = buckets.some((b) => b.indexing)
   useEffect(() => {
     const interval = setInterval(refresh, anyIndexing ? 3000 : 15000)
     return () => clearInterval(interval)
   }, [refresh, anyIndexing])
 
-  async function handleCreate() {
-    if (!newName.trim() || !newPath.trim()) return
+  // If selected bucket was deleted, deselect it
+  useEffect(() => {
+    if (selectedId && !buckets.find((b) => b.id === selectedId)) {
+      setSelectedId(null)
+    }
+  }, [buckets, selectedId])
+
+  const selectedBucket = buckets.find((b) => b.id === selectedId) ?? null
+
+  function handleSelectBucket(id: string) {
     setCreating(false)
-    const params: Parameters<typeof createBucket>[0] = {
-      name: newName.trim(),
-      sources: [{ path: newPath.trim(), glob: newGlob.trim() || "**/*.md" }],
-    }
-    if (newExpiresInSecs && newExpiresInSecs > 0) {
-      params.expires_in = newExpiresInSecs
-    }
-    await createBucket(params)
-    setNewName("")
-    setNewPath("")
-    setNewGlob("**/*.md")
-    setNewExpiresInSecs(null)
+    setSelectedId(id)
   }
 
-  async function handleReindex(id: string) {
-    const name = buckets.find((b) => b.id === id)?.name
-    const toastId = toast.loading(`Reindexing "${name}"...`)
-    try {
-      const res = await api.post<{ added_files: number; added_chunks: number }>(`/api/buckets/${id}/reindex`, {})
-      await refresh()
-      toast.success(`Reindexed "${name}"`, {
-        id: toastId,
-        description: `${res.added_files} file${res.added_files !== 1 ? "s" : ""}, ${res.added_chunks} chunk${res.added_chunks !== 1 ? "s" : ""} added`,
-        duration: 4000,
-      })
-    } catch (err) {
-      toast.error(`Reindex failed: ${(err as Error).message}`, { id: toastId })
-    }
+  function handleNewBucket() {
+    setSelectedId(null)
+    setCreating(true)
   }
 
   async function handleDelete() {
@@ -312,135 +586,40 @@ export function BucketsTab() {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <ScrollArea className="flex-1 min-h-0">
-        <div className="p-4 space-y-4 max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold">Buckets</h2>
-              <p className="text-sm text-muted-foreground">
-                Temporary document collections with isolated search and chat.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              className="gap-1.5"
-              onClick={() => setCreating(!creating)}
-            >
-              <Plus className="h-4 w-4" />
-              New Bucket
-            </Button>
-          </div>
+    <div className="flex h-full overflow-hidden">
+      <BucketsSidebar
+        buckets={buckets}
+        selectedId={creating ? null : selectedId}
+        onSelect={handleSelectBucket}
+        onNewBucket={handleNewBucket}
+      />
 
-          {/* Create form */}
-          {creating && (
-            <Card>
-              <CardContent className="pt-4 space-y-3">
-                <div>
-                  <label className="text-sm font-medium">Name</label>
-                  <Input
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    placeholder="e.g. grpc-evaluation"
-                    className="mt-1"
-                    autoFocus
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Source path</label>
-                  <Input
-                    value={newPath}
-                    onChange={(e) => setNewPath(e.target.value)}
-                    placeholder="Absolute path to file or directory"
-                    className="mt-1"
-                  />
-                  <BucketPathStatus path={newPath} />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Glob pattern</label>
-                  <Input
-                    value={newGlob}
-                    onChange={(e) => setNewGlob(e.target.value)}
-                    placeholder="**/*.md"
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Expires in</label>
-                  <Select
-                    value={newExpiresInSecs === null ? "permanent" : newExpiresInSecs === 3600 ? "1h" : newExpiresInSecs === 86400 ? "24h" : newExpiresInSecs === 604800 ? "7d" : ""}
-                    onValueChange={(v) => {
-                      if (v === "permanent") setNewExpiresInSecs(null)
-                      else if (v === "1h") setNewExpiresInSecs(3600)
-                      else if (v === "24h") setNewExpiresInSecs(86400)
-                      else if (v === "7d") setNewExpiresInSecs(604800)
-                    }}
-                  >
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Permanent" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="permanent">
-                        <span className="flex items-center gap-1"><InfinityIcon className="h-4 w-4" /> Permanent</span>
-                      </SelectItem>
-                      <SelectItem value="1h">
-                        <span className="flex items-center gap-1"><Clock className="h-4 w-4" /> 1 hour</span>
-                      </SelectItem>
-                      <SelectItem value="24h">
-                        <span className="flex items-center gap-1"><Clock className="h-4 w-4" /> 24 hours</span>
-                      </SelectItem>
-                      <SelectItem value="7d">
-                        <span className="flex items-center gap-1"><Clock className="h-4 w-4" /> 7 days</span>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={handleCreate}
-                    disabled={!newName.trim() || !newPath.trim()}
-                  >
-                    Create
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setCreating(false)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+      <div className="flex-1 min-w-0 overflow-hidden">
+        {creating && (
+          <BucketCreateForm
+            createBucket={createBucket}
+            onCreated={(id) => {
+              setCreating(false)
+              setSelectedId(id)
+            }}
+            onCancel={() => setCreating(false)}
+          />
+        )}
 
-          {/* Empty state */}
-          {buckets.length === 0 && !creating && (
-            <div className="flex flex-col items-center justify-center py-20 gap-4">
-              <EmptyHero icon={Database} label="Buckets" />
-              <p className="text-sm text-muted-foreground text-center max-w-md">
-                Buckets are temporary document collections for focused analysis.
-                Create one to load external docs, vendor APIs, or research material
-                without mixing them into your permanent knowledge base.
-              </p>
-            </div>
-          )}
+        {!creating && selectedBucket && (
+          <BucketDetailPanel
+            bucket={selectedBucket}
+            onDelete={setConfirmDelete}
+            onViewFile={(path) => setViewingPath(path)}
+            updateBucket={updateBucket}
+            refresh={refresh}
+          />
+        )}
 
-          {/* Bucket list */}
-          {buckets.map((bucket) => (
-            <BucketCard
-              key={bucket.id}
-              bucket={bucket}
-              onDelete={setConfirmDelete}
-              onViewFile={setViewingPath}
-              onUpdateExpiration={updateExpiration}
-              onReindex={handleReindex}
-            />
-          ))}
-        </div>
-      </ScrollArea>
+        {!creating && !selectedBucket && (
+          <BucketsEmptyState onNewBucket={handleNewBucket} />
+        )}
+      </div>
 
       <FileViewerDialog
         path={viewingPath}

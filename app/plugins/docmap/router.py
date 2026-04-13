@@ -121,9 +121,11 @@ def graph_data(
                     bucket_store, None, top_k,
                     word_clouds=word_clouds, min_weight=min_weight,
                 )
-                # Tag bucket nodes
+                # Tag bucket nodes and apply the bucket's color
+                bucket_color = record.get("color") or "#ff3333"
                 for node in bucket_graph["nodes"]:
                     node["_bucket"] = True
+                    node["bucket_color"] = bucket_color
                 # Merge nodes and intra-bucket edges
                 result["nodes"].extend(bucket_graph["nodes"])
                 result["edges"].extend(bucket_graph["edges"])
