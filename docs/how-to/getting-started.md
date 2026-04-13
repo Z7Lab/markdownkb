@@ -19,6 +19,8 @@ cp .env.example .env
 make docker-build && make docker-up
 ```
 
+If the UI looks stale after pulling updates or switching branches, use `make docker-rebuild` instead — it builds the image from scratch (bypasses Docker's layer cache) and starts the container.
+
 Open http://localhost:9713. You should see the MarkdownKB UI with a setup banner.
 
 ### Native

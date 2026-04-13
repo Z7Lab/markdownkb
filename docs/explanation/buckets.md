@@ -36,14 +36,29 @@ When you create a bucket:
 
 When you search or chat with a bucket selected, retrieval is scoped to that bucket's collection. Your permanent knowledge base is not searched, and the bucket's content doesn't appear in unscoped searches.
 
+Files assigned to a bucket are excluded from the **Files tab** — they appear in the Buckets tab instead, keeping the two views from overlapping.
+
+## The Buckets Tab
+
+The **Buckets tab** is the primary UI for managing buckets. It has a left sidebar listing all buckets and a main panel for detail and creation.
+
+**Sidebar:** Lists all buckets with a color indicator and file count. Expired buckets are dimmed and badged. Clicking a bucket opens its detail view. The **New Bucket** button at the top of the sidebar opens the creation form.
+
+**Detail panel:** Shows the selected bucket's name, stats (file count, chunk count, created time, expiration), sources, and a file table. Three action icons appear in the header:
+- **Edit** (pencil) — opens an inline form to change the name, expiration, and color
+- **Reindex** (refresh) — re-scans the original sources and indexes any new files
+- **Delete** (trash) — removes the bucket and all its vector data
+
+**Files table:** Lists all files indexed in the bucket with their chunk counts. Click a file to open it in the viewer.
+
 ## Creating a Bucket
 
 ### From the UI
 
-1. Go to any tab with a sidebar (Chat, Search, Planner)
-2. In the **Bucket** section, click **Create**
-3. Enter a name and source paths
-4. Optionally set an expiration time
+1. Go to the **Buckets tab**
+2. Click **New Bucket** in the left sidebar
+3. Enter a name, source path, glob pattern, expiration, and optional color
+4. Click **Create**
 
 ### From the API
 
@@ -54,13 +69,56 @@ POST /api/buckets
   "sources": [
     {"path": "/home/user/research/grpc-docs", "glob": "**/*.md"}
   ],
-  "expires_in": 86400
+  "expires_in": 86400,
+  "color": "#6366f1"
 }
 ```
 
-Sources accept absolute paths to files or directories. The `glob` pattern defaults to `**/*.md`. Set `expires_in` to auto-delete the bucket after that many seconds (minimum 60), or omit it for a permanent bucket.
+Sources accept absolute paths to files or directories. The `glob` pattern defaults to `**/*.md`. Set `expires_in` to auto-expire the bucket after that many seconds (minimum 60), or omit it for a permanent bucket. `color` accepts any hex color — if omitted, one is auto-assigned from the built-in palette.
 
 **Docker:** If a source path isn't mounted into the container, MarkdownKB automatically adds it to `config/compose.override.yml` and returns `docker_restart_required: true`. Restart with `make docker-down && make docker-up` — the bucket will index on next startup. When a bucket is deleted, its mount is removed from `compose.override.yml` if no other bucket needs it.
+
+## Editing a Bucket
+
+Click the **pencil icon** in the bucket detail panel to enter edit mode. You can change:
+
+- **Name** — rename the bucket
+- **Expiration** — set or remove the expiration
+- **Color** — pick from the built-in palette
+
+Changes take effect immediately.
+
+Via the API:
+```json
+PATCH /api/buckets/{id}
+{
+  "name": "new-name",
+  "expires_in": 604800,
+  "color": "#ec4899"
+}
+```
+
+Any combination of fields can be sent — only the fields present in the request are updated.
+
+## Expiration
+
+Buckets can be permanent (no `expires_in`) or set to expire:
+
+- **Permanent** — stays until you explicitly delete it. The built-in docs bucket is permanent.
+- **Expiring** — when the expiry time passes, the bucket is flagged as **expired** and stops being indexed. It is **not automatically deleted** — it remains visible in the UI with an "expired" badge until you delete it manually.
+
+This means you won't silently lose a bucket you wanted to keep. Expired buckets are still browsable — their files and vector data remain intact.
+
+**Settings panel history:** Settings > Buckets shows a sortable table of all buckets with their status (Active, Expiring soon, Expired). You can delete any bucket from this table, including expired ones. Bucket creation is on the Buckets tab — the Settings panel is management-only.
+
+## Bucket Colors
+
+Each bucket gets a color — auto-assigned from the palette on creation, or set explicitly. Colors appear in:
+
+- The **Buckets tab sidebar** — colored dot next to each bucket name
+- The **Doc Map** — bucket nodes use the bucket's color instead of a hardcoded red, making it easy to see which external documents belong to which bucket when multiple buckets are selected
+
+The default palette cycles through indigo, violet, pink, orange, teal, cyan, lime, and amber.
 
 ## Using a Bucket
 
@@ -82,20 +140,7 @@ This is the most powerful mode. Use cases:
 
 **Migration planning.** Load the new framework's documentation into a bucket. Select the scope covering your current implementation. Planner: "Plan a migration from our current auth system to the new one." The planner has context from both the destination (bucket) and the origin (scope).
 
-**Team knowledge sharing.** A colleague exports a bucket of their project docs. You import it. Select your own project scope alongside the imported bucket. Chat: "Where do our two projects handle caching differently?" — finds differences across both document sets.
-
-**Doc Map overlap discovery.** Select a scope and a bucket in the Doc Map tab. Your permanent documents appear in their usual cluster colors. Bucket documents appear in a distinct color. Edges between them show where the external material connects to your existing knowledge — which vendor concepts cluster near which of your documents, which research papers relate to which of your notes.
-
-### Comparing Against Your Knowledge Base
-
-A simpler workflow when you don't need combined results:
-
-1. Create a bucket with external docs (vendor API, new framework, research papers)
-2. Chat with the bucket to understand the new material
-3. Deselect the bucket and ask the same questions against your permanent knowledge base
-4. Compare the answers — where does your existing knowledge overlap? Where are the gaps?
-
-This is what the [philosophy doc](philosophy.md#convert-dont-connect) describes as temporary input for synthesis: the bucket is disposable, but the insights you extract from comparing it against your own documents can be captured as permanent markdown.
+**Doc Map overlap discovery.** Select a scope and a bucket in the Doc Map tab. Your permanent documents appear in their usual cluster colors. Bucket documents appear in the bucket's assigned color. Edges between them show where the external material connects to your existing knowledge.
 
 ## Adding Documents
 
@@ -129,13 +174,6 @@ POST /api/buckets/{id}/documents
 
 Pushed documents exist only as vectors in ChromaDB with virtual paths like `bucket://bucket-name/api-reference.md`. This is designed for remote agents and integrations that cannot write files to the MarkdownKB host. The same capability is available via the `bucket_push` MCP tool.
 
-## Expiration
-
-Buckets can be permanent (no `expires_in`) or auto-expiring:
-
-- **Permanent** — stays until you delete it. The built-in docs bucket is permanent.
-- **Auto-expiring** — deleted automatically after the specified duration. Cleanup runs on startup and when the bucket list is loaded.
-
 ## MCP Tools
 
 When the buckets plugin is enabled, agents can create, search, and chat with buckets via MCP:
@@ -164,4 +202,4 @@ plugins:
 
 ## Storage
 
-Each bucket gets its own ChromaDB collection (`bucket_{id}`), stored alongside the main collection. Bucket metadata (name, sources, expiration) is in `{data_directory}/buckets.db`. Deleting a bucket removes both the DB record and the ChromaDB collection.
+Each bucket gets its own ChromaDB collection (`bucket_{id}`), stored alongside the main collection. Bucket metadata (name, sources, expiration, color) is in `{data_directory}/buckets.db`. File membership records (which files belong to which bucket) are also stored there, used to exclude bucket files from the Files tab. Deleting a bucket removes the DB record, the file memberships, and the ChromaDB collection.
