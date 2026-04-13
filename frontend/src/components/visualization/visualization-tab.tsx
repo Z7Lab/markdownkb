@@ -79,6 +79,7 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
   const {
     docmapData, isLoading, isComputing, checkingCache, fetchedAt, threshold, setThreshold,
     wordClouds, setWordClouds,
+    bucketTopN, setBucketTopN,
     selectedNodeId, selectNode, clearSelection,
     searchTerm, setSearchTerm, fetchDocMap, progress,
     mode, setMode, kgData, kgLoading, fetchKG,
@@ -124,6 +125,7 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
   const prevTagsRef = useRef<string[] | null | undefined>(undefined)
   const prevWordCloudsRef = useRef<boolean | undefined>(undefined)
   const prevBucketRef = useRef<string | null | undefined>(undefined)
+  const prevBucketTopNRef = useRef<number | undefined>(undefined)
 
   // Fetch on mount with the user's active scope, and re-fetch when any
   // filter input changes.
@@ -132,14 +134,16 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
     const tagsChanged = JSON.stringify(prevTagsRef.current) !== JSON.stringify(adHocTagsParam)
     const wcChanged = prevWordCloudsRef.current !== wordClouds
     const bucketChanged = prevBucketRef.current !== bucketIdsParam
-    if (scopeChanged || tagsChanged || wcChanged || bucketChanged) {
+    const topNChanged = prevBucketTopNRef.current !== bucketTopN && !!firstBucketId
+    if (scopeChanged || tagsChanged || wcChanged || bucketChanged || topNChanged) {
       prevScopeRef.current = scopeIdsParam
       prevTagsRef.current = adHocTagsParam
       prevWordCloudsRef.current = wordClouds
       prevBucketRef.current = bucketIdsParam
-      fetchDocMap(scopeIdsParam, wcChanged || bucketChanged, wordClouds, adHocTagsParam, firstBucketId)
+      prevBucketTopNRef.current = bucketTopN
+      fetchDocMap(scopeIdsParam, wcChanged || bucketChanged || topNChanged, wordClouds, adHocTagsParam, firstBucketId, bucketTopN)
     }
-  }, [fetchDocMap, scopeIdsParam, adHocTagsParam, wordClouds, bucketIdsParam, firstBucketId])
+  }, [fetchDocMap, scopeIdsParam, adHocTagsParam, wordClouds, bucketIdsParam, firstBucketId, bucketTopN])
 
   // Staleness
   const isStale = !!(lastIndexedAt && fetchedAt && lastIndexedAt > fetchedAt)
@@ -434,9 +438,9 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
     if (mode === "knowledge") {
       fetchKG()
     } else {
-      fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam, firstBucketId)
+      fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam, firstBucketId, bucketTopN)
     }
-  }, [mode, fetchKG, fetchDocMap, scopeIdsParam, wordClouds, adHocTagsParam, firstBucketId])
+  }, [mode, fetchKG, fetchDocMap, scopeIdsParam, wordClouds, adHocTagsParam, firstBucketId, bucketTopN])
 
   return (
     <div className="flex flex-row h-full overflow-hidden">
@@ -454,6 +458,9 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
         onThresholdChange={setThreshold}
         spread={spread}
         onSpreadChange={setSpread}
+        bucketTopN={bucketTopN}
+        onBucketTopNChange={setBucketTopN}
+        hasBucket={!!firstBucketId}
         searchTerm={searchTerm}
         onSearchChange={handleSearchChange}
         onRefresh={handleVisualizationRefresh}
@@ -480,7 +487,7 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
               variant="ghost"
               size="sm"
               className="h-6 text-xs text-yellow-500"
-              onClick={() => fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam, firstBucketId)}
+              onClick={() => fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam, firstBucketId, bucketTopN)}
             >
               Refresh
             </Button>
@@ -526,7 +533,7 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
             <div className="text-center text-muted-foreground space-y-3">
               <p className="text-sm font-medium">Document map not built yet</p>
               <p className="text-xs">Build the document map to visualize document relationships</p>
-              <Button variant="outline" size="sm" onClick={() => fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam, firstBucketId)}>
+              <Button variant="outline" size="sm" onClick={() => fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam, firstBucketId, bucketTopN)}>
                 Build Doc Map
               </Button>
             </div>

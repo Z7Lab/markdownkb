@@ -11,7 +11,7 @@ interface GraphProgress {
 /** Server-side minimum edge weight — edges below this are never sent. */
 export const DOCMAP_MIN_WEIGHT = 0.6
 
-export function buildDocmapQs(scopeIds?: string | null, wordClouds = true, adHocTags?: string[] | null, bucketId?: string | null): string {
+export function buildDocmapQs(scopeIds?: string | null, wordClouds = true, adHocTags?: string[] | null, bucketId?: string | null, bucketTopN?: number | null): string {
   const params = new URLSearchParams()
   if (scopeIds) params.set("scope_ids", scopeIds)
   if (!wordClouds) params.set("word_clouds", "false")
@@ -20,6 +20,7 @@ export function buildDocmapQs(scopeIds?: string | null, wordClouds = true, adHoc
     for (const t of adHocTags) params.append("ad_hoc_tags", t)
   }
   if (bucketId) params.set("bucket_id", bucketId)
+  if (bucketId && bucketTopN != null) params.set("bucket_top_n", String(bucketTopN))
   const qs = params.toString()
   return qs ? `?${qs}` : ""
 }
@@ -32,6 +33,7 @@ export function useDocmap() {
   const [fetchedAt, setFetchedAt] = useState<number | null>(null)
   const [threshold, setThreshold] = useState(0.75)
   const [wordClouds, setWordClouds] = useState(true)
+  const [bucketTopN, setBucketTopN] = useState(3)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [progress, setProgress] = useState<GraphProgress>({ fraction: 0, phase: "idle" })
@@ -41,6 +43,7 @@ export function useDocmap() {
   const lastScopeRef = useRef<string | null | undefined>(undefined)
   const lastTagsRef = useRef<string | null>(null)
   const lastBucketRef = useRef<string | null>(null)
+  const lastBucketTopNRef = useRef<number | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   // Clean up poll on unmount
@@ -66,15 +69,25 @@ export function useDocmap() {
     wc = true,
     adHocTags?: string[] | null,
     bucketId?: string | null,
+    topN?: number | null,
   ) => {
     const tagsKey = adHocTags ? adHocTags.sort().join(",") : null
     const bucketKey = bucketId ?? null
-    if (!force && docmapDataRef.current && lastScopeRef.current === scopeIds && lastTagsRef.current === tagsKey && lastBucketRef.current === bucketKey) {
+    const topNKey = bucketId ? (topN ?? null) : null
+    if (
+      !force
+      && docmapDataRef.current
+      && lastScopeRef.current === scopeIds
+      && lastTagsRef.current === tagsKey
+      && lastBucketRef.current === bucketKey
+      && lastBucketTopNRef.current === topNKey
+    ) {
       return
     }
     lastScopeRef.current = scopeIds ?? null
     lastTagsRef.current = tagsKey
     lastBucketRef.current = bucketKey
+    lastBucketTopNRef.current = topNKey
 
     abortRef.current?.abort()
     if (pollRef.current) {
@@ -94,7 +107,7 @@ export function useDocmap() {
     setProgress({ fraction: 0, phase: "Starting..." })
 
     try {
-      const dataPromise = api.get<DocMapData>(`/api/docmap/data${buildDocmapQs(scopeIds, wc, adHocTags, bucketId)}`, controller.signal)
+      const dataPromise = api.get<DocMapData>(`/api/docmap/data${buildDocmapQs(scopeIds, wc, adHocTags, bucketId, topN)}`, controller.signal)
       await new Promise(r => setTimeout(r, 50))
       if (isCurrent()) {
         pollRef.current = setInterval(async () => {
@@ -154,6 +167,8 @@ export function useDocmap() {
     setThreshold,
     wordClouds,
     setWordClouds,
+    bucketTopN,
+    setBucketTopN,
     selectedNodeId,
     selectNode,
     clearSelection,

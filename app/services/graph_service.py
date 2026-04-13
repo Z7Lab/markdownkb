@@ -368,11 +368,16 @@ def compute_cross_edges(
     min_weight: float = 0.0,
     allowed_paths_a: set[str] | None = None,
     excluded_paths_a: set[str] | None = None,
+    top_n_per_target: int | None = None,
 ) -> list[dict]:
     """Compute similarity edges between documents in two different stores.
 
     Used to find connections between bucket documents and main collection
     documents. Returns edges in the same format as compute_graph.
+
+    When ``top_n_per_target`` is set, each target (store_b) document keeps
+    only its N strongest edges after ``min_weight`` filtering, preventing
+    bucket docs from becoming over-connected hubs.
     """
     raw_a = store_a.get_all_with_embeddings()
     raw_b = store_b.get_all_with_embeddings()
@@ -420,6 +425,16 @@ def compute_cross_edges(
                     "target": path_b,
                     "weight": round(weight, 4),
                 })
+
+    if top_n_per_target is not None and top_n_per_target > 0:
+        by_target: dict[str, list[dict]] = {}
+        for e in edges:
+            by_target.setdefault(e["target"], []).append(e)
+        kept: list[dict] = []
+        for target_edges in by_target.values():
+            target_edges.sort(key=lambda x: x["weight"], reverse=True)
+            kept.extend(target_edges[:top_n_per_target])
+        edges = kept
 
     return edges
 

@@ -6,8 +6,9 @@ import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { WordCloud } from "./word-cloud"
-import { RefreshCw, Search, Square, Wand2, X } from "lucide-react"
+import { Info, RefreshCw, Search, Square, Wand2, X } from "lucide-react"
 import type { GraphMode } from "@/hooks/use-visualization"
 import type { KGData, Scope } from "@/lib/types"
 
@@ -25,6 +26,9 @@ export function VisualizationSidebar({
   onThresholdChange,
   spread,
   onSpreadChange,
+  bucketTopN,
+  onBucketTopNChange,
+  hasBucket,
   searchTerm,
   onSearchChange,
   onRefresh,
@@ -53,6 +57,9 @@ export function VisualizationSidebar({
   onThresholdChange: (v: number) => void
   spread: number
   onSpreadChange: (v: number) => void
+  bucketTopN: number
+  onBucketTopNChange: (v: number) => void
+  hasBucket: boolean
   searchTerm: string
   onSearchChange: (term: string) => void
   onRefresh: () => void
@@ -90,10 +97,18 @@ export function VisualizationSidebar({
               />
 
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
                   <label className="text-xs text-muted-foreground">
                     Similarity: {threshold.toFixed(2)}
                   </label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3 w-3 text-muted-foreground/70 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      Minimum similarity for an edge between two documents. Higher = fewer, stronger connections and tighter clusters. Lower = more edges and a denser graph.
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
                 <Slider
                   value={[threshold]}
@@ -106,10 +121,18 @@ export function VisualizationSidebar({
               </div>
 
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
                   <label className="text-xs text-muted-foreground">
                     Spread: {spread.toFixed(0)}%
                   </label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3 w-3 text-muted-foreground/70 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      Visual spacing between nodes. Does not change which edges exist — only how far apart the graph lays out.
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
                 <Slider
                   value={[spread]}
@@ -120,6 +143,32 @@ export function VisualizationSidebar({
                   className="w-full"
                 />
               </div>
+
+              {hasBucket && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-xs text-muted-foreground">
+                      Bucket connections: {bucketTopN}
+                    </label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3 w-3 text-muted-foreground/70 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        How many of the strongest scope connections to draw per bucket document. Keeps bucket nodes tethered to their nearest scope docs without letting them become hubs.
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Slider
+                    value={[bucketTopN]}
+                    onValueChange={([v]) => onBucketTopNChange(v)}
+                    min={1}
+                    max={10}
+                    step={1}
+                    className="w-full"
+                  />
+                </div>
+              )}
 
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />

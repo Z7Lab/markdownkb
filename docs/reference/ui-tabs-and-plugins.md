@@ -51,7 +51,7 @@ AI-powered implementation planning using MCTS (Monte Carlo Tree Search). Describ
 **Plugin:** `docmap` (enabled by default)
 **Requires:** Embedding model installed. WebGL support in the browser.
 
-**Sidebar:** Scope filter, similarity threshold slider, spread control, search filter, word cloud toggle, refresh button.
+**Sidebar:** Scope filter, bucket selector, similarity threshold slider, spread control, bucket connections slider (visible only when a bucket is selected), search filter, word cloud toggle, refresh button. Slider labels include info-icon tooltips explaining what each control does.
 
 ### Knowledge Graph
 

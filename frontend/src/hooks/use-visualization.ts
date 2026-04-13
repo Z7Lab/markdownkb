@@ -35,6 +35,8 @@ export function useVisualization() {
     setThreshold: docmap.setThreshold,
     wordClouds: docmap.wordClouds,
     setWordClouds: docmap.setWordClouds,
+    bucketTopN: docmap.bucketTopN,
+    setBucketTopN: docmap.setBucketTopN,
     selectedNodeId: docmap.selectedNodeId,
     selectNode: docmap.selectNode,
     clearSelection: docmap.clearSelection,

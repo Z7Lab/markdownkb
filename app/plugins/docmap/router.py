@@ -52,6 +52,7 @@ def graph_data(
     word_clouds: bool = True,
     min_weight: float = 0.5,
     bucket_id: str | None = None,
+    bucket_top_n: int = 3,
     retriever: Retriever = Depends(get_retriever),
     settings: Settings = Depends(get_settings),
     scopedb: ScopeDB = Depends(get_scopedb),
@@ -94,10 +95,11 @@ def graph_data(
         scope_folders = None  # filtering via allowed_paths now
     allowed = apply_exclude_patterns(allowed, exclude_patterns)
 
-    # Include bucket_id in cache key
+    # Include bucket_id and bucket_top_n in cache key — different top-N
+    # values produce different edge sets and must not share a cache entry.
     cache_bucket = bucket_id or ""
     key = _cache_key(scope_folders, scope_tags, ad_hoc_tags, top_k, word_clouds, min_weight, exclude_patterns)
-    key = key + (cache_bucket,)
+    key = key + (cache_bucket, bucket_top_n if bucket_id else 0)
 
     with _cache_lock:
         if key in _graph_cache:
@@ -130,14 +132,16 @@ def graph_data(
                 result["nodes"].extend(bucket_graph["nodes"])
                 result["edges"].extend(bucket_graph["edges"])
 
-                # Compute cross-collection edges (bucket ↔ main)
-                # Use a higher threshold for cross-edges — only show strong
-                # connections, otherwise bucket nodes attract everything
-                cross_min_weight = max(min_weight, 0.75)
+                # Compute cross-collection edges (bucket ↔ main). Use the
+                # same min_weight as intra-scope edges (typical thematic
+                # overlap lives well below the old 0.75 floor), and cap to
+                # bucket_top_n strongest connections per bucket doc so
+                # bucket nodes don't turn into over-connected hubs.
                 cross_edges = compute_cross_edges(
                     retriever.store, bucket_store,
-                    top_k=top_k, min_weight=cross_min_weight,
+                    top_k=top_k, min_weight=min_weight,
                     allowed_paths_a=allowed, excluded_paths_a=excluded,
+                    top_n_per_target=bucket_top_n,
                 )
                 result["edges"].extend(cross_edges)
                 logger.info("docmap: %d cross-collection edges between main and bucket", len(cross_edges))

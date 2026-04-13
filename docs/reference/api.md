@@ -283,7 +283,9 @@ Requires `plugins.docmap.enabled: true`. Plugin: `app/plugins/docmap/`.
 | GET | `/api/docmap/edge-detail` | Chunk-level similarity detail for a document pair |
 | GET | `/api/docmap/progress` | Current computation progress |
 
-Accepts optional `scope_ids`, `ad_hoc_tags[]`, `word_clouds`, and `min_weight` query parameters. Supports both scope and tag filtering. Filters out files with `include_rag=false`.
+Accepts optional `scope_ids`, `ad_hoc_tags[]`, `word_clouds`, `min_weight`, `bucket_id`, and `bucket_top_n` query parameters. Supports both scope and tag filtering. Filters out files with `include_rag=false`.
+
+When `bucket_id` is set, the response includes the bucket's documents merged into the graph with `_bucket: true` markers and the bucket's color. Cross-collection edges (bucket ↔ scope) use the same `min_weight` threshold as intra-scope edges, capped to the strongest `bucket_top_n` connections per bucket document (default 3). Bucket nodes always render even if they have no surviving edges — selecting a bucket should never make it invisible.
 
 ## Knowledge Graph
 

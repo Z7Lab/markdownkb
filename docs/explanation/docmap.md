@@ -32,12 +32,14 @@ Documents are laid out using a force-directed simulation (d3-force-3d):
 
 ### Similarity Threshold (slider: 0.60 – 0.95)
 
-Controls which edges are visible. Only edges with a similarity score at or above this threshold are drawn. Nodes without any visible edges are hidden.
+Controls which edges are visible. Only edges with a similarity score at or above this threshold are drawn. Nodes without any visible edges are hidden — except bucket nodes, which always render so a selected bucket is never invisible.
 
 - **Lower threshold (0.60)** — shows more connections, including weaker similarities. The graph is denser, more documents visible.
 - **Higher threshold (0.85+)** — shows only strong connections. The graph is sparser, only highly similar documents are linked.
 
 This is a client-side filter — it doesn't refetch data, just hides/shows edges and nodes from the data already loaded. Adjusting it is instant and doesn't recenter the camera.
+
+Hover the info icon next to the label for an in-app reminder of what the slider controls.
 
 ### Spread (slider: 10% – 200%)
 
@@ -48,6 +50,16 @@ Controls the spacing between nodes in the force simulation. This is purely visua
 - **High spread (150–200%)** — nodes spread far apart. Good for reading labels on individual nodes.
 
 Changing spread reheats the physics simulation so nodes reposition smoothly.
+
+### Bucket Connections (slider: 1 – 10, only visible with a bucket selected)
+
+Controls how many of the strongest scope-side connections each bucket document keeps. Default is 3.
+
+- **Low (1–2)** — each bucket node tethers to only its closest scope match. Cleanest layout, easiest to read.
+- **Default (3)** — each bucket node shows its top 3 connections. Good balance.
+- **High (5–10)** — bucket nodes show many connections. Useful for exploring all related scope docs but can clutter the view.
+
+This is a server-side filter — adjusting it triggers a fresh fetch with the new cap. Different values produce different cache entries, so flipping back to a previous value is instant on the second visit.
 
 ### Filter by Term
 
@@ -122,13 +134,15 @@ The backend computes three sets of edges:
 2. **Bucket-to-bucket edges** — pairwise similarity within the bucket's documents
 3. **Cross-collection edges** — similarity between every bucket document and every permanent document. These are computed by comparing chunk embeddings across the two separate ChromaDB collections
 
-Cross-collection edges use a **higher similarity threshold** (0.75 vs 0.60 for normal edges). Without this, bucket nodes attract too many weak connections and the graph collapses into an unreadable ball. The higher threshold ensures only genuinely related documents are linked across collections.
+Cross-collection edges use the **same similarity threshold** as the rest of the graph (controlled by the Similarity slider, default 0.60). To prevent bucket nodes from attracting many weak connections and turning into hairball hubs, the backend caps each bucket document to its **top N strongest** scope-side connections. N defaults to 3 and is controlled by the Bucket Connections slider (1–10), which only appears when a bucket is selected.
+
+If a bucket document has no scope connections at the current threshold (or only connections weaker than its top-N peers), it still renders as a floating colored marker — bucket nodes are never silently dropped.
 
 ### Visual Distinction
 
 - **Permanent document nodes** — colored by cluster (DBSCAN clustering based on embedding similarity)
-- **Bucket nodes** — colored **red** and rendered larger (3x base size) so they're immediately identifiable among hundreds of permanent nodes
-- **Cross-collection edges** — same visual treatment as other edges, but they connect red nodes to cluster-colored nodes, making the overlap pattern visible
+- **Bucket nodes** — colored using the bucket's assigned color (red by default) and rendered larger (3x base size) so they're immediately identifiable among hundreds of permanent nodes
+- **Cross-collection edges** — same visual treatment as other edges, but they connect bucket-colored nodes to cluster-colored nodes, making the overlap pattern visible
 
 ### What the Overlay Reveals
 
