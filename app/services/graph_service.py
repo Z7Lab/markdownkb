@@ -500,11 +500,6 @@ def compute_cross_edges_fused(
     paths_a = list(chunks_a.keys())
     paths_b = list(chunks_b.keys())
 
-    logger.info(
-        "fused cross-edges: starting (%d scope docs, %d bucket docs)",
-        len(paths_a), len(paths_b),
-    )
-
     # Signal 1 (baseline mean-top-K) and Signal 2 (max chunk-pair) —
     # both computed in one pass over the bucket × scope chunk matrix.
     baseline: dict[tuple[str, str], float] = {}
@@ -518,7 +513,6 @@ def compute_cross_edges_fused(
             top = np.partition(sim, -k)[-k:]
             baseline[(pb, pa)] = float(top.mean())
             max_sig[(pb, pa)] = float(sim.max())
-    logger.info("fused cross-edges: baseline+max done")
 
     # Signal 3 (TF-IDF cosine) over concatenated per-doc chunk texts.
     tfidf_sig: dict[tuple[str, str], float] = {}
@@ -540,7 +534,6 @@ def compute_cross_edges_fused(
             tfidf_sig = {(pb, pa): 0.0 for pb in paths_b for pa in paths_a}
     else:
         tfidf_sig = {(pb, pa): 0.0 for pb in paths_b for pa in paths_a}
-    logger.info("fused cross-edges: tfidf done")
 
     # Signal 4 (relative rank) — for each scope doc, rank the bucket doc
     # among its own neighbours (other scope docs + this bucket doc),
@@ -564,7 +557,6 @@ def compute_cross_edges_fused(
             neigh.sort(key=lambda x: -x[1])
             rank = next(idx for idx, (name, _) in enumerate(neigh) if name == "__bucket__")
             rel_rank_sig[(pb, pa)] = 1.0 / (1.0 + rank)
-    logger.info("fused cross-edges: relative-rank done")
 
     # Reciprocal Rank Fusion — per bucket doc, rank scope docs by each
     # signal, sum 1 / (K + rank) across signals.

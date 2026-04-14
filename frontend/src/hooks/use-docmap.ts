@@ -11,7 +11,7 @@ interface GraphProgress {
 /** Server-side minimum edge weight — edges below this are never sent. */
 export const DOCMAP_MIN_WEIGHT = 0.6
 
-export function buildDocmapQs(scopeIds?: string | null, wordClouds = true, adHocTags?: string[] | null, bucketId?: string | null, bucketThreshold?: number | null, clientThreshold?: number | null): string {
+export function buildDocmapQs(scopeIds?: string | null, wordClouds = true, adHocTags?: string[] | null, bucketId?: string | null, bucketThreshold?: number | null): string {
   const params = new URLSearchParams()
   if (scopeIds) params.set("scope_ids", scopeIds)
   if (!wordClouds) params.set("word_clouds", "false")
@@ -21,7 +21,6 @@ export function buildDocmapQs(scopeIds?: string | null, wordClouds = true, adHoc
   }
   if (bucketId) params.set("bucket_id", bucketId)
   if (bucketId && bucketThreshold != null) params.set("bucket_min_weight", String(bucketThreshold))
-  if (clientThreshold != null) params.set("client_threshold", String(clientThreshold))
   const qs = params.toString()
   return qs ? `?${qs}` : ""
 }
@@ -46,13 +45,6 @@ export function useDocmap() {
   const lastBucketRef = useRef<string | null>(null)
   const lastBucketThresholdRef = useRef<number | null>(null)
   const abortRef = useRef<AbortController | null>(null)
-
-  // Threshold is client-side filter state, but we still want the backend
-  // debug log to reflect the current slider value at build time. A ref
-  // lets fetchDocMap read it without adding it to the callback's deps,
-  // since changing the threshold must NOT trigger a refetch.
-  const thresholdRef = useRef(0.75)
-  useEffect(() => { thresholdRef.current = threshold }, [threshold])
 
   // Clean up poll on unmount
   useEffect(() => {
@@ -115,7 +107,7 @@ export function useDocmap() {
     setProgress({ fraction: 0, phase: "Starting..." })
 
     try {
-      const dataPromise = api.get<DocMapData>(`/api/docmap/data${buildDocmapQs(scopeIds, wc, adHocTags, bucketId, bucketThresh, thresholdRef.current)}`, controller.signal)
+      const dataPromise = api.get<DocMapData>(`/api/docmap/data${buildDocmapQs(scopeIds, wc, adHocTags, bucketId, bucketThresh)}`, controller.signal)
       await new Promise(r => setTimeout(r, 50))
       if (isCurrent()) {
         pollRef.current = setInterval(async () => {
