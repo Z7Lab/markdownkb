@@ -15,6 +15,7 @@ Task-oriented. Follow these when you're trying to get something done.
 | [Remote LLM Setup](how-to/remote-llm-setup.md) | Connect Docker MarkdownKB to remote Ollama or llama.cpp servers |
 | [Scopes and Filtering](how-to/scopes-and-filtering.md) | Named filter presets — folders, tags, exclude patterns, persistent sidebar state |
 | [AI Tagging](how-to/ai-tagging.md) | LLM-powered tag generation — preview, apply, bulk, manual tagging |
+| [Compile Sources into a Wiki](how-to/compile-sources.md) | Turn dense source material into LLM-synthesized summary pages via the wiki_compile plugin |
 | [Plugin Development](how-to/plugin-development.md) | Build custom plugins — structure, manifest, databases, MCP tools |
 
 ## Third-Party Integration
@@ -55,6 +56,7 @@ Background and reasoning. Read when you want to understand why, not how.
 | [Knowledge Graph](explanation/knowledge-graph.md) | Entity extraction, typed relationships, document similarity |
 | [Buckets](explanation/buckets.md) | Temporary isolated document collections — built-in docs, comparison workflows |
 | [Planner](explanation/planner.md) | MCTS-based implementation planner with skill reviews |
+| [Wiki Compile](explanation/wiki-compile.md) | Karpathy-style wiki compilation — the Ingest verb, the three-tier model, when to use it |
 | [Philosophy](explanation/philosophy.md) | The markdown-first paradigm — why tokens are value |
 | [Value Proposition](explanation/value-proposition.md) | What MarkdownKB is, who it's for, what makes it different |
 | [Security](../SECURITY.md) | Threat model, API key auth, feature flags, network exposure |

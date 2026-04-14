@@ -351,6 +351,29 @@ These endpoints additionally require the `mcp_tag_generator` feature flag (sub-f
 | POST | `/api/tags/apply` | Apply tags to a file's frontmatter |
 | POST | `/api/tags/bulk` | Bulk-tag files in a directory |
 
+## Wiki Compile
+
+Requires `plugins.wiki_compile.enabled: true`. Plugin: `app/plugins/wiki_compile/`.
+
+Karpathy-style wiki compilation — reads a source document, asks the configured LLM to produce a summary page, and writes it into a configured writable source directory while maintaining `index.md` and `log.md` for navigation. See [docmap.md](../explanation/docmap.md) and `app/plugins/wiki_compile/README.md` for the architectural pattern.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/wiki-compile/targets` | List writable sources valid as ingest targets |
+| POST | `/api/wiki-compile/ingest` | Ingest one source file (writes summary + updates index.md + appends log.md) |
+
+Request body for `/ingest`:
+
+```json
+{
+  "source_path": "/absolute/path/to/source.md",
+  "target_source": "/absolute/path/to/writable/source",
+  "force": false
+}
+```
+
+The target must match one of the paths returned by `/targets` — paths that aren't configured `writable: true` sources are rejected with a 400. `force=true` overwrites an existing summary for the same source. Uses `app.rag.llm.get_completion` — same LLM plumbing as search summarize and edge explain.
+
 ## Buckets
 
 Requires `plugins.buckets.enabled: true`. Plugin: `app/plugins/buckets/`.

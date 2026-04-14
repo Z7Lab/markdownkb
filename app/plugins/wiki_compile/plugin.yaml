@@ -1,0 +1,19 @@
+name: wiki_compile
+display_name: Wiki Compile
+description: Karpathy-style wiki compilation — read a source document, synthesize a summary page into a writable source directory, and maintain index.md and log.md for navigation.
+version: 0.1.0
+author: markdownkb
+icon: book-open
+category: synthesis
+feature_flag: wiki_compile
+requires: []
+
+endpoints:
+  - method: POST
+    path: /api/wiki-compile/ingest
+    description: Ingest a source file into a wiki target directory (writes summary page, updates index.md, appends log.md)
+  - method: GET
+    path: /api/wiki-compile/targets
+    description: List writable sources that are valid ingest targets
+
+config: {}

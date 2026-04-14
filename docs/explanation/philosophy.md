@@ -46,6 +46,8 @@ This creates a compounding loop:
 
 Patterns that took a frontier model to figure out the first time become retrievable knowledge that a local model can apply the next time.
 
+The `wiki_compile` plugin is the concrete implementation of step 2–3 for source material that wasn't produced interactively. Point it at a research note, a meeting transcript, a vendor's whitepaper — anything dense and unstructured — and it writes a synthesized summary page into a writable source directory, updates an index, appends to a chronological log. The output is ordinary markdown, so everything downstream of it (search, chat, doc map, other agents via MCP) benefits without knowing the pages are machine-written. Raw sources stay in their own layer and are never modified. See [wiki-compile.md](wiki-compile.md) for the full architecture.
+
 ## Keeping the Knowledge Base Healthy
 
 The compounding loop only works if what goes in is accurate and current.

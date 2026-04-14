@@ -255,6 +255,8 @@ plugins:
     enabled: false
   write_api:
     enabled: false
+  wiki_compile:
+    enabled: false              # Requires LLM — ingest sources into a writable wiki dir, maintain index.md + log.md
   buckets:
     enabled: false
 ```

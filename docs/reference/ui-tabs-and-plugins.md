@@ -78,6 +78,7 @@ All plugins live in `app/plugins/<name>/` and are toggled via `plugins.<name>.en
 | `knowledge_graph` | off | Knowledge Graph | Entity extraction and relationship visualization |
 | `buckets` | off | — | Temporary scoped document collections with independent vector storage |
 | `write_api` | off | — | MCP/API write access (save documents, index files) |
+| `wiki_compile` | off | — | Karpathy-style wiki compilation — ingest a source file, write a summary page into a writable source, maintain index.md + log.md |
 
 Plugins marked "on" are enabled in the default configuration. Plugins marked "off" need to be explicitly enabled — either in `config/settings.yaml` or via Settings > Plugins in the UI.
 
