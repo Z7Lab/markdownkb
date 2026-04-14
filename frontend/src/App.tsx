@@ -9,7 +9,7 @@ import { LLMStatusIndicator } from "@/components/llm-status-indicator"
 import { IndexEventProvider } from "@/hooks/use-index-events"
 import { SettingsProvider, useSettings } from "@/hooks/use-settings"
 import { NavigationProvider } from "@/lib/navigation"
-import { MessageSquare, Globe, FolderOpen, Lightbulb, Network, Share2, Database } from "lucide-react"
+import { MessageSquare, Globe, FolderOpen, Lightbulb, Network, Share2, Database, BookOpen } from "lucide-react"
 import { SetupBanner } from "@/components/setup-banner"
 import { LlmSetupNudge } from "@/components/llm-setup-nudge"
 import { EmbeddingSetupNudge } from "@/components/embedding-setup-nudge"
@@ -20,6 +20,7 @@ const PlannerTab = lazy(() => import("@/components/planner/planner-tab").then(m 
 const SettingsTab = lazy(() => import("@/components/settings/settings-tab").then(m => ({ default: m.SettingsTab })))
 const VisualizationTab = lazy(() => import("@/components/visualization/visualization-tab").then(m => ({ default: m.VisualizationTab })))
 const BucketsTab = lazy(() => import("@/components/buckets/buckets-tab").then(m => ({ default: m.BucketsTab })))
+const WikiTab = lazy(() => import("@/components/wiki/wiki-tab").then(m => ({ default: m.WikiTab })))
 
 function TabFallback() {
   return <div className="flex-1 flex items-center justify-center text-muted-foreground">Loading...</div>
@@ -34,6 +35,7 @@ const routeToTab: Record<string, string> = {
   "/knowledge-graph": "knowledge-graph",
   "/files": "files",
   "/buckets": "buckets",
+  "/wiki": "wiki",
   "/settings": "settings",
 }
 
@@ -45,6 +47,7 @@ const tabToRoute: Record<string, string> = {
   "knowledge-graph": "/knowledge-graph",
   files: "/files",
   buckets: "/buckets",
+  wiki: "/wiki",
   settings: "/settings",
 }
 
@@ -77,6 +80,17 @@ function BucketsTabTrigger() {
     <TabsTrigger value="buckets">
       <Database className="h-4 w-4" />
       Buckets
+    </TabsTrigger>
+  )
+}
+
+function WikiTabTrigger() {
+  const { settings } = useSettings()
+  if (!settings?.plugins_enabled?.wiki_compile) return null
+  return (
+    <TabsTrigger value="wiki">
+      <BookOpen className="h-4 w-4" />
+      Wiki
     </TabsTrigger>
   )
 }
@@ -135,6 +149,7 @@ export function App() {
                 <DocMapTabTrigger />
                 <KnowledgeGraphTabTrigger />
                 <BucketsTabTrigger />
+                <WikiTabTrigger />
                 <TabsTrigger value="files">
                   <FolderOpen className="h-4 w-4" />
                   Files
@@ -181,6 +196,13 @@ export function App() {
                 <ErrorBoundary fallbackMessage="Buckets encountered an error">
                   <Suspense fallback={<TabFallback />}>
                     <BucketsTab />
+                  </Suspense>
+                </ErrorBoundary>
+              </TabsContent>
+              <TabsContent value="wiki" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
+                <ErrorBoundary fallbackMessage="Wiki encountered an error">
+                  <Suspense fallback={<TabFallback />}>
+                    <WikiTab />
                   </Suspense>
                 </ErrorBoundary>
               </TabsContent>

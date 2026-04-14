@@ -50,11 +50,19 @@ export function Markdown({
   className,
   sourceMap,
   onCiteClick,
+  onLinkClick,
 }: {
   children: string
   className?: string
   sourceMap?: Record<string, string>
   onCiteClick?: (path: string) => void
+  /**
+   * Called when a non-citation anchor is clicked. If the handler returns
+   * true the default navigation is suppressed — use this for intercepting
+   * relative markdown links (e.g. wiki index entries) and routing them
+   * into an in-app viewer instead of the SPA fallback.
+   */
+  onLinkClick?: (href: string) => boolean
 }) {
   const plugins = sourceMap ? citePlugins : basePlugins
 
@@ -84,34 +92,44 @@ export function Markdown({
       },
     }
 
-    if (!sourceMap) return codeBlockComponent
-
-    return {
-      ...codeBlockComponent,
-      a: ({ href, children: linkChildren, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
-        const match = href?.match(/^#cite-(\d+)$/)
-        if (match) {
-          const num = match[1]
-          const path = sourceMap[num]
-          if (path) {
-            return (
-              <CitationRef
-                num={num}
-                path={path}
-                onClick={() => onCiteClick?.(path)}
-              />
-            )
-          }
-          // Unknown/hallucinated reference — render as dimmed text
+    const anchorRenderer = ({ href, children: linkChildren, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
+      const match = href?.match(/^#cite-(\d+)$/)
+      if (match && sourceMap) {
+        const num = match[1]
+        const path = sourceMap[num]
+        if (path) {
           return (
-            <span className="text-muted-foreground text-xs">[{num}]</span>
+            <CitationRef
+              num={num}
+              path={path}
+              onClick={() => onCiteClick?.(path)}
+            />
           )
         }
-        // Normal links pass through
-        return <a href={href} {...props}>{linkChildren}</a>
-      },
+        // Unknown/hallucinated reference — render as dimmed text
+        return (
+          <span className="text-muted-foreground text-xs">[{num}]</span>
+        )
+      }
+      if (onLinkClick && href) {
+        return (
+          <a
+            href={href}
+            {...props}
+            onClick={(e) => {
+              if (onLinkClick(href)) e.preventDefault()
+            }}
+          >
+            {linkChildren}
+          </a>
+        )
+      }
+      return <a href={href} {...props}>{linkChildren}</a>
     }
-  }, [sourceMap, onCiteClick])
+
+    if (!sourceMap && !onLinkClick) return codeBlockComponent
+    return { ...codeBlockComponent, a: anchorRenderer }
+  }, [sourceMap, onCiteClick, onLinkClick])
 
   // Fix LLM output where citations sit on the closing code fence line
   // (``` [1]) which breaks markdown parsing. Move citations to the

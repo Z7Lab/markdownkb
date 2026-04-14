@@ -46,10 +46,16 @@ export function WikiCompileDialog({
   open,
   sourcePath,
   onClose,
+  defaultWiki,
+  pickSourcePath = false,
 }: {
   open: boolean
   sourcePath: string | null
   onClose: () => void
+  /** When set, pre-selects this wiki in the dropdown. */
+  defaultWiki?: string
+  /** When true, renders a source-path input instead of assuming sourcePath is fixed. */
+  pickSourcePath?: boolean
 }) {
   const [wikis, setWikis] = useState<WikiRecord[] | null>(null)
   const [wikisError, setWikisError] = useState<string | null>(null)
@@ -58,20 +64,25 @@ export function WikiCompileDialog({
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<IngestResult | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [manualSourcePath, setManualSourcePath] = useState<string>("")
 
   // Inline-create state for when no wikis exist yet.
   const [newWikiName, setNewWikiName] = useState("")
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
 
+  const effectiveSourcePath = pickSourcePath ? manualSourcePath.trim() : sourcePath
+
   const loadWikis = () => {
     setWikis(null)
     setWikisError(null)
-    setSelectedWiki("")
     api.get<{ wikis: WikiRecord[] }>("/api/wiki-compile/wikis")
       .then((r) => {
         setWikis(r.wikis)
-        if (r.wikis.length > 0) setSelectedWiki(r.wikis[0].name)
+        const preferred = defaultWiki && r.wikis.some((w) => w.name === defaultWiki)
+          ? defaultWiki
+          : r.wikis[0]?.name ?? ""
+        setSelectedWiki(preferred)
       })
       .catch((err) => setWikisError((err as Error).message))
   }
@@ -84,16 +95,18 @@ export function WikiCompileDialog({
     setCreateError(null)
     setForce(false)
     setNewWikiName("")
+    setManualSourcePath("")
     loadWikis()
-  }, [open])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, defaultWiki])
 
   const handleSubmit = async () => {
-    if (!sourcePath || !selectedWiki) return
+    if (!effectiveSourcePath || !selectedWiki) return
     setSubmitting(true)
     setSubmitError(null)
     try {
       const r = await api.post<IngestResult>("/api/wiki-compile/ingest", {
-        source_path: sourcePath,
+        source_path: effectiveSourcePath,
         wiki: selectedWiki,
         force,
       })
@@ -135,7 +148,7 @@ export function WikiCompileDialog({
     onClose()
   }
 
-  const sourceName = sourcePath?.split("/").pop() ?? ""
+  const sourceName = effectiveSourcePath?.split("/").pop() ?? ""
 
   return (
     <AlertDialog open={open} onOpenChange={(o) => { if (!o) handleClose() }}>
@@ -145,12 +158,28 @@ export function WikiCompileDialog({
           Compile into wiki
         </AlertDialogTitle>
         <AlertDialogDescription className="text-xs">
-          Reads <span className="font-mono">{sourceName}</span>, asks the configured LLM to synthesize a summary page, and writes it into a writable source directory. Updates <span className="font-mono">index.md</span> and appends <span className="font-mono">log.md</span>.
+          {pickSourcePath
+            ? <>Enter an absolute path to a markdown file; mdkb reads it, asks the configured LLM to synthesize a summary page, and writes it into the target wiki.</>
+            : <>Reads <span className="font-mono">{sourceName}</span>, asks the configured LLM to synthesize a summary page, and writes it into a writable source directory. Updates <span className="font-mono">index.md</span> and appends <span className="font-mono">log.md</span>.</>
+          }
         </AlertDialogDescription>
 
         {/* Wiki selection — only shown pre-submit */}
         {!result && (
           <div className="space-y-3 py-2">
+            {pickSourcePath && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Source file path</Label>
+                <input
+                  type="text"
+                  value={manualSourcePath}
+                  onChange={(e) => setManualSourcePath(e.target.value)}
+                  placeholder="/absolute/path/to/source.md"
+                  className="w-full text-xs border rounded px-2 py-1.5 bg-background font-mono"
+                  disabled={submitting}
+                />
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label className="text-xs">Target wiki</Label>
               {wikisError ? (
@@ -264,7 +293,7 @@ export function WikiCompileDialog({
           {!result && (
             <AlertDialogAction
               onClick={handleSubmit}
-              disabled={submitting || !selectedWiki || wikis === null || (wikis?.length ?? 0) === 0}
+              disabled={submitting || !selectedWiki || wikis === null || (wikis?.length ?? 0) === 0 || !effectiveSourcePath}
             >
               {submitting ? (
                 <><Loader2 className="h-3 w-3 animate-spin mr-1.5" /> Compiling…</>
