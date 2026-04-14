@@ -58,6 +58,8 @@ The compounding loop only works if what goes in is accurate and current.
 
 **Don't add junk.** Not every AI output is worth saving. Stale or superseded documents get updated or removed as new work happens.
 
+**Lint periodically.** The `lint` plugin (the third of Karpathy's three verbs) runs four passes over the configured source tiers: raw-coverage gaps, orphaned tier-1 docs, within-tier contradictions, and cross-tier tensions between derived and canonical sources. It never modifies anything — it produces a flag-only report that the file watcher picks up and adds to the retrieval corpus, so the findings themselves become queryable context. Lint works across the whole knowledge base regardless of whether wiki_compile is active.
+
 ## The Role of Frontier Models
 
 Frontier models aren't eliminated — they're repositioned. They become the tool you reach for when the knowledge base doesn't have the answer yet: novel architecture decisions, unfamiliar problem domains, complex debugging across unfamiliar code.

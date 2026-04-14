@@ -157,7 +157,10 @@ def update_source(
     history — only new writes are blocked.
     """
     entry = settings.update_source(
-        req.path, writable=req.writable, versioned=req.versioned,
+        req.path,
+        writable=req.writable,
+        versioned=req.versioned,
+        tier=req.tier,
     )
     if entry is None:
         raise HTTPException(404, f"source not found: {req.path}")

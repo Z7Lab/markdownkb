@@ -6,7 +6,7 @@ Wiki Compile turns dense, unstructured source material into structured summary p
 
 The pattern is Andrej Karpathy's ["LLM Wiki" gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), which describes three operations over a personal knowledge wiki: **Ingest** (add new sources and have the LLM integrate them into the wiki), **Query** (ask questions against the wiki), and **Lint** (periodically health-check for contradictions, stale claims, orphan pages, missing cross-references).
 
-MarkdownKB already does Query well — that's what the chat, search, and doc map surfaces are for. The `wiki_compile` plugin implements Ingest. A separate (future) plugin implements Lint. The three verbs are architecturally independent: you can run all three, or use MarkdownKB purely as a retrieval substrate and do ingestion by hand.
+MarkdownKB already does Query well — that's what the chat, search, and doc map surfaces are for. The `wiki_compile` plugin implements Ingest. The `lint` plugin implements Lint — it runs four passes over the configured source tiers (raw coverage, orphan detection, within-tier contradictions, cross-tier tensions) and produces a flag-only report. The three verbs are architecturally independent: you can run all three, or use MarkdownKB purely as a retrieval substrate and do ingestion by hand.
 
 The compile step is what most RAG systems skip. Naive RAG retrieves from raw documents at query time, so the LLM rediscovers the connections between sources on every question. A compiled wiki pre-synthesizes those connections once, offline, and the query-time retrieval pulls from compiled pages instead of raw material. Same retrieval pipeline; better retrieved content.
 
@@ -55,7 +55,7 @@ The next time a question comes up about that topic, the compiled page is in the 
 - **One verb, one page.** `wiki_compile` v1 writes a summary page per source. It does not yet update existing entity or concept pages when new sources are ingested. A richer version — which reads the existing wiki and proposes cross-references or revisions — is a follow-up.
 - **No schema file.** Karpathy's gist describes a schema file (CLAUDE.md or AGENTS.md) that tells the LLM the wiki's conventions, page templates, and workflows. v1 uses hard-coded defaults. A per-target schema is a natural v2 addition.
 - **No in-UI ingest.** Compilation is CLI/API-only right now. A future "ingest this bucket doc" button is a planned UI gesture.
-- **No lint.** The Lint verb belongs to a separate plugin (queued, not built). Without it, the compiled wiki can drift — contradictions between pages, stale claims, orphan pages — and there's no automated detection.
+- **Lint is a separate plugin.** The Lint verb is implemented in the `lint` plugin (`plugins.lint.enabled: true`). Without it, the compiled wiki can drift — contradictions between pages, stale claims, orphan pages — and there's no automated detection. See `app/plugins/lint/README.md` for the four passes and their LLM cost model.
 - **No automatic re-compilation on source change.** If the raw source file changes, the compiled page stays stale until you re-ingest with `force=true`. Detecting source drift and flagging it for re-compile is a straightforward extension.
 
 ## Managed wikis

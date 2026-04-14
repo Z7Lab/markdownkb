@@ -196,6 +196,8 @@ plugins:
     enabled: false
   wiki_compile:
     enabled: false                  # Requires LLM — ingest sources into a writable wiki directory, maintain index.md + log.md
+  lint:
+    enabled: false                  # Tiered health check — flag raw-coverage gaps, orphans, contradictions. LLM for within/cross-tier passes only
   buckets:
     enabled: false
   catalogs:

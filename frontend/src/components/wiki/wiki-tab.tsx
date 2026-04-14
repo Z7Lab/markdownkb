@@ -12,8 +12,9 @@ import { WikiCompileDialog } from "./wiki-compile-dialog"
 import { EmptyHero } from "@/components/ui/empty-hero"
 import { AppSidebar } from "@/components/ui/app-sidebar"
 import {
-  BookOpen, FileText, Clock, Loader2, Plus, Trash2, RefreshCw, ScrollText, GitBranch, Archive,
+  BookOpen, FileText, Clock, Loader2, Plus, Trash2, RefreshCw, ScrollText, GitBranch, Archive, ClipboardCheck,
 } from "lucide-react"
+import { WikiLintDialog } from "./wiki-lint-dialog"
 import { relativeTime, cn } from "@/lib/utils"
 
 interface WikiRecord {
@@ -50,7 +51,15 @@ export function WikiTab() {
 
   const [pendingDelete, setPendingDelete] = useState<WikiRecord | null>(null)
   const [compileOpen, setCompileOpen] = useState(false)
+  const [lintOpen, setLintOpen] = useState(false)
   const [viewingFile, setViewingFile] = useState<string | null>(null)
+  const [lintEnabled, setLintEnabled] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    api.get<{ plugins_enabled?: Record<string, boolean> }>("/api/settings")
+      .then((r) => setLintEnabled(!!r.plugins_enabled?.lint))
+      .catch(() => setLintEnabled(false))
+  }, [])
 
   const loadWikis = useCallback(() => {
     api.get<{ wikis: WikiRecord[] }>("/api/wiki-compile/wikis")
@@ -223,6 +232,8 @@ export function WikiTab() {
             onIngest={() => setCompileOpen(true)}
             onDelete={() => setPendingDelete(selectedWiki)}
             onOpenFile={setViewingFile}
+            lintEnabled={!!lintEnabled}
+            onLint={() => setLintOpen(true)}
           />
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center p-8 gap-4 text-center">
@@ -270,13 +281,22 @@ export function WikiTab() {
         path={viewingFile}
         onClose={() => setViewingFile(null)}
       />
+
+      {selectedWiki && (
+        <WikiLintDialog
+          open={lintOpen}
+          onClose={() => setLintOpen(false)}
+          targetWiki={selectedWiki.name}
+          onOpenReport={setViewingFile}
+        />
+      )}
     </div>
   )
 }
 
 
 function WikiDetail({
-  wiki, view, onViewChange, onIngest, onDelete, onOpenFile,
+  wiki, view, onViewChange, onIngest, onDelete, onOpenFile, lintEnabled, onLint,
 }: {
   wiki: WikiRecord
   view: DetailView
@@ -284,6 +304,8 @@ function WikiDetail({
   onIngest: () => void
   onDelete: () => void
   onOpenFile: (path: string) => void
+  lintEnabled: boolean
+  onLint: () => void
 }) {
   return (
     <>
@@ -311,6 +333,18 @@ function WikiDetail({
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
+            {lintEnabled && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={onLint}
+                title="Run tiered lint — flag contradictions, orphans, uncovered raw sources"
+              >
+                <ClipboardCheck className="h-3.5 w-3.5" />
+                Run lint
+              </Button>
+            )}
             <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={onIngest}>
               <Plus className="h-3.5 w-3.5" />
               Ingest source

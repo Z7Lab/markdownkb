@@ -107,11 +107,12 @@ class RemoveSourceRequest(BaseModel):
 
 
 class UpdateSourceRequest(BaseModel):
-    """Request model for updating source flags (writable, versioned)."""
+    """Request model for updating source flags (writable, versioned, tier)."""
 
     path: str = Field(..., min_length=1, max_length=4096)
     writable: bool | None = None
     versioned: bool | None = None
+    tier: int | None = Field(None, ge=-1, le=1)
 
 
 class SourceActionRequest(BaseModel):

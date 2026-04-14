@@ -440,3 +440,39 @@ Temporary scoped document collections with independent vector storage. Each buck
 | `name` | (required) | Unique bucket name |
 | `sources` | `[]` | List of `{path, glob}` source descriptors (optional — omit to create an empty bucket) |
 | `expires_in` | null | Optional auto-delete after this many seconds (min 60) |
+
+## Lint
+
+Requires `plugins.lint.enabled: true`. Plugin: `app/plugins/lint/`.
+
+Tiered knowledge-base health check modelled on Karpathy's Lint verb. Runs four passes over the configured source tiers and writes a flag-only markdown report. Never modifies documents. Works across the whole knowledge base — wiki_compile is not required.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/lint/run` | Run selected passes, persist report, return findings |
+| GET | `/api/lint/reports` | List previously generated lint reports sorted newest-first |
+
+### POST /api/lint/run
+
+```json
+{
+  "passes": ["raw_coverage", "orphan", "within_tier", "cross_tier"],
+  "target_wiki": "research"
+}
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `passes` | all four | Subset of passes to run |
+| `target_wiki` | `null` | Wiki name to write the report into. When set, report lands in `{wiki_path}/lint/`. When null, uses `{data_dir}/lint-reports/`. |
+
+**Passes:**
+
+| Pass | Type | Description |
+|------|------|-------------|
+| `raw_coverage` | deterministic | Tier -1 files with no synthesis entry in any wiki's `log.md` |
+| `orphan` | deterministic | Tier-1 docs linked by nothing else in the corpus |
+| `within_tier` | LLM | Up to 12 pairs of related tier-1 docs checked for contradictions |
+| `cross_tier` | LLM | Each tier-1 doc vs its closest tier-0 neighbour: aligned / extension / contradiction / evolution |
+
+Response includes `findings` (array of finding objects with `pass`, `severity`, `kind`, `title`, `detail`, `paths`, `suggested_action`), `counts` by severity, `report_path`, and `report_markdown`. The report is written to disk and picked up by the file watcher — lint findings become retrievable context for future queries.

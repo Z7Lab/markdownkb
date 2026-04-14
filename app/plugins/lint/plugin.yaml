@@ -1,0 +1,19 @@
+name: lint
+display_name: Knowledge Base Lint
+description: Tiered health check for the knowledge base — raw-coverage, orphans, within-tier contradictions, and cross-tier tensions. Flag-only; never modifies documents.
+version: 0.1.0
+author: markdownkb
+icon: clipboard-check
+category: synthesis
+feature_flag: lint
+requires: []
+
+endpoints:
+  - method: POST
+    path: /api/lint/run
+    description: Run selected lint passes and return findings + report markdown
+  - method: GET
+    path: /api/lint/reports
+    description: List previously generated lint reports
+
+config: {}

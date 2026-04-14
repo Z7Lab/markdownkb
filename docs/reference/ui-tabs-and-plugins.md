@@ -79,6 +79,7 @@ All plugins live in `app/plugins/<name>/` and are toggled via `plugins.<name>.en
 | `buckets` | off | — | Temporary scoped document collections with independent vector storage |
 | `write_api` | off | — | MCP/API write access (save documents, index files) |
 | `wiki_compile` | off | — | Karpathy-style wiki compilation — create named wikis, ingest source files into them, maintain index.md + log.md per wiki |
+| `lint` | off | — | Tiered knowledge-base health check — raw-coverage, orphan detection, within-tier contradictions, cross-tier tensions. Flag-only; works across all configured source tiers regardless of whether wiki_compile is active |
 
 Plugins marked "on" are enabled in the default configuration. Plugins marked "off" need to be explicitly enabled — either in `config/settings.yaml` or via Settings > Plugins in the UI.
 

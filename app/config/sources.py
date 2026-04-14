@@ -12,15 +12,27 @@ class SourcesMixin:
         """Return a source config dict with defaults applied.
 
         Each source entry must be a dict with ``path`` (required),
-        ``writable`` (default True), and ``versioned`` (default:
-        mirror ``writable`` — writable sources are versioned unless
-        explicitly opted out).
+        ``writable`` (default True), ``versioned`` (default: mirror
+        ``writable``), and ``tier`` — the three-tier knowledge model
+        used by the wiki lint:
+          0  = canonical (authoritative, usually read-only)
+          1  = derived   (synthesized summaries, wiki pages)
+         -1  = raw       (source material, not yet synthesized)
+
+        Default inference when tier is omitted: writable → 1 (derived),
+        read-only → 0 (canonical). Users can override explicitly, e.g.
+        set tier=-1 on a raw-material source so the lint's coverage pass
+        picks it up as a synthesis target.
         """
         writable = entry.get("writable", True)
+        tier = entry.get("tier")
+        if tier is None:
+            tier = 1 if writable else 0
         return {
             "path": entry.get("path", ""),
             "writable": writable,
             "versioned": entry.get("versioned", writable),
+            "tier": int(tier),
         }
 
     @property
@@ -116,7 +128,10 @@ class SourcesMixin:
             raw.append(path)
 
     def update_source(
-        self, path: str, *, writable: bool | None = None, versioned: bool | None = None,
+        self, path: str, *,
+        writable: bool | None = None,
+        versioned: bool | None = None,
+        tier: int | None = None,
     ) -> dict | None:
         """Update flags for an existing source. Returns the updated
         entry as a normalized dict, or None when the source is not
@@ -133,8 +148,16 @@ class SourcesMixin:
                 entry["writable"] = bool(writable)
             if versioned is not None:
                 entry["versioned"] = bool(versioned)
+            if tier is not None:
+                if tier not in (-1, 0, 1):
+                    raise ValueError("tier must be -1, 0, or 1")
+                entry["tier"] = int(tier)
             return self._source_entry(entry)
         return None
+
+    def sources_by_tier(self, tier: int) -> list[dict]:
+        """Return source configs whose tier matches."""
+        return [c for c in self.source_configs if c.get("tier") == tier]
 
     def remove_source(self, path: str):
         """Remove a source directory from the list."""
