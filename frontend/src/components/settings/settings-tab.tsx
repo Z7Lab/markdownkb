@@ -46,8 +46,20 @@ const sections = [
 
 type SectionId = (typeof sections)[number]["id"]
 
-export function SettingsTab() {
-  const [activeSection, setActiveSection] = useState<SectionId>("llm")
+export function SettingsTab({ initialSection }: { initialSection?: string } = {}) {
+  const [activeSection, setActiveSection] = useState<SectionId>(
+    () => (initialSection && sections.some((s) => s.id === initialSection)
+      ? (initialSection as SectionId)
+      : "llm"),
+  )
+
+  // If the route changes (e.g. navigating from /settings/sources to /settings/mcp),
+  // update the active section to match.
+  useEffect(() => {
+    if (initialSection && sections.some((s) => s.id === initialSection)) {
+      setActiveSection(initialSection as SectionId)
+    }
+  }, [initialSection])
   const {
     settings,
     providerStatus,

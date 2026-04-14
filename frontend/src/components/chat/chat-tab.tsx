@@ -1,3 +1,5 @@
+import { useCallback, useEffect, useRef } from "react";
+import { useLocation } from "wouter";
 import { useChat } from "@/hooks/use-chat";
 import { useScopes } from "@/hooks/use-scopes";
 import { useTags } from "@/hooks/use-tags";
@@ -9,7 +11,8 @@ import { ChatInput } from "./chat-input";
 import { ChatMessageList } from "./chat-message-list";
 import { ChatSidebar } from "./chat-sidebar";
 
-export function ChatTab() {
+export function ChatTab({ defaultThreadId }: { defaultThreadId?: string }) {
+  const [, setLocation] = useLocation();
   const { scopes } = useScopes();
   const { tags: availableTags } = useTags();
   const { buckets } = useBuckets();
@@ -41,6 +44,46 @@ export function ChatTab() {
   const { settings } = useSettings();
   const showDiagnostics = settings?.core?.diagnostics ?? false;
 
+  // Load thread from URL on mount / when deep-link param changes.
+  // Use a ref so repeated renders with the same ID don't re-fire.
+  const loadedThreadRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (defaultThreadId && defaultThreadId !== loadedThreadRef.current) {
+      loadedThreadRef.current = defaultThreadId;
+      loadThread(defaultThreadId);
+    }
+  }, [defaultThreadId, loadThread]);
+
+  // Navigating to /chat without a thread ID should start a blank chat,
+  // not silently restore the last persisted thread. Fires on mount and on
+  // every navigation transition where the URL no longer pins a thread.
+  useEffect(() => {
+    if (!defaultThreadId && (activeThreadId || messages.length > 0)) {
+      newChat();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultThreadId]);
+
+  // When the server assigns a thread ID mid-stream (onThread callback inside
+  // useChat), push the URL so the thread is bookmarkable.
+  useEffect(() => {
+    if (activeThreadId && activeThreadId !== defaultThreadId) {
+      setLocation(`/chat/${activeThreadId}`, { replace: true });
+    }
+  }, [activeThreadId, defaultThreadId, setLocation]);
+
+  // Keep URL in sync when the active thread changes via sidebar selection or new chat.
+  // Wrap loadThread and newChat so they push the URL as a side-effect.
+  const handleLoadThread = useCallback((id: string) => {
+    loadThread(id);
+    setLocation(`/chat/${id}`, { replace: true });
+  }, [loadThread, setLocation]);
+
+  const handleNewChat = useCallback(() => {
+    newChat();
+    setLocation("/chat", { replace: true });
+  }, [newChat, setLocation]);
+
   return (
     <div className="flex flex-row h-full overflow-hidden">
       <ChatSidebar
@@ -52,8 +95,8 @@ export function ChatTab() {
         availableTags={availableTags}
         selectedTags={selectedTags}
         onTagChange={handleTagChange}
-        onNewChat={newChat}
-        onLoadThread={loadThread}
+        onNewChat={handleNewChat}
+        onLoadThread={handleLoadThread}
         onRenameThread={renameThread}
         onDeleteThread={deleteThread}
         buckets={buckets}

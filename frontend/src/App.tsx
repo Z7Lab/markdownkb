@@ -1,15 +1,16 @@
 import { lazy, Suspense, useEffect } from "react"
-import { useLocation } from "wouter"
+import { useLocation, useRoute } from "wouter"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { ChatTab } from "@/components/chat/chat-tab"
+import { DashboardTab } from "@/components/dashboard/dashboard-tab"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { IndexActivityIndicator } from "@/components/index-activity-indicator"
 import { LLMStatusIndicator } from "@/components/llm-status-indicator"
 import { IndexEventProvider } from "@/hooks/use-index-events"
 import { SettingsProvider, useSettings } from "@/hooks/use-settings"
 import { NavigationProvider } from "@/lib/navigation"
-import { MessageSquare, Globe, FolderOpen, Lightbulb, Network, Share2, Database, BookOpen } from "lucide-react"
+import { MessageSquare, Globe, FolderOpen, Lightbulb, Network, Share2, Database, BookOpen, LayoutDashboard } from "lucide-react"
 import { SetupBanner } from "@/components/setup-banner"
 import { LlmSetupNudge } from "@/components/llm-setup-nudge"
 import { EmbeddingSetupNudge } from "@/components/embedding-setup-nudge"
@@ -26,9 +27,10 @@ function TabFallback() {
   return <div className="flex-1 flex items-center justify-center text-muted-foreground">Loading...</div>
 }
 
-// Map routes to tab values
+// Map routes to tab values (exact, non-parameterised paths only)
 const routeToTab: Record<string, string> = {
-  "/": "chat",
+  "/": "dashboard",
+  "/chat": "chat",
   "/search": "search",
   "/planner": "planner",
   "/docmap": "docmap",
@@ -40,7 +42,8 @@ const routeToTab: Record<string, string> = {
 }
 
 const tabToRoute: Record<string, string> = {
-  chat: "/",
+  dashboard: "/",
+  chat: "/chat",
   search: "/search",
   planner: "/planner",
   docmap: "/docmap",
@@ -97,20 +100,24 @@ function WikiTabTrigger() {
 
 export function App() {
   const [location, setLocation] = useLocation()
-  const activeTab = routeToTab[location] ?? "chat"
+  const [isChatThread, chatParams] = useRoute<{ threadId: string }>("/chat/:threadId")
+  const [isSettingsSection, settingsParams] = useRoute<{ section: string }>("/settings/:section")
 
-  // Redirect unknown routes to chat
+  const activeTab = isChatThread
+    ? "chat"
+    : isSettingsSection
+    ? "settings"
+    : routeToTab[location] ?? "dashboard"
+
+  // Redirect unknown routes to dashboard
   useEffect(() => {
-    if (!(location in routeToTab)) {
-      setLocation("/")
-    }
-  }, [location, setLocation])
+    const known = location in routeToTab || isChatThread || isSettingsSection
+    if (!known) setLocation("/")
+  }, [location, setLocation, isChatThread, isSettingsSection])
 
   const handleTabChange = (tab: string) => {
     const route = tabToRoute[tab]
-    if (route) {
-      setLocation(route)
-    }
+    if (route) setLocation(route)
   }
 
   return (
@@ -124,16 +131,23 @@ export function App() {
             <EmbeddingSetupNudge onNavigateSettings={() => handleTabChange("settings")} />
             <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
             <header className="shrink-0 z-20 bg-background border-b px-6 py-3 flex items-center justify-between">
-              <div>
+              <button
+                className="text-left hover:opacity-70 transition-opacity"
+                onClick={() => setLocation("/")}
+              >
                 <h1 className="text-lg font-bold tracking-tight">MarkdownKB</h1>
                 <p className="text-xs text-muted-foreground">
                   Knowledge base assistant
                 </p>
-              </div>
+              </button>
               <div className="flex items-center gap-4">
                 <IndexActivityIndicator />
                 <LLMStatusIndicator />
                 <TabsList>
+                <TabsTrigger value="dashboard">
+                  <LayoutDashboard className="h-4 w-4" />
+                  Home
+                </TabsTrigger>
                 <TabsTrigger value="chat">
                   <MessageSquare className="h-4 w-4" />
                   Chat
@@ -159,9 +173,14 @@ export function App() {
             </header>
 
             <main className="flex-1 flex flex-col min-h-0" aria-label={`${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} tab content`}>
+              <TabsContent value="dashboard" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
+                <ErrorBoundary fallbackMessage="Dashboard encountered an error">
+                  <DashboardTab />
+                </ErrorBoundary>
+              </TabsContent>
               <TabsContent value="chat" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
                 <ErrorBoundary fallbackMessage="Chat encountered an error">
-                  <ChatTab />
+                  <ChatTab defaultThreadId={chatParams?.threadId} />
                 </ErrorBoundary>
               </TabsContent>
               <TabsContent value="search" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
@@ -216,7 +235,7 @@ export function App() {
               <TabsContent value="settings" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
                 <ErrorBoundary fallbackMessage="Settings encountered an error">
                   <Suspense fallback={<TabFallback />}>
-                    <SettingsTab />
+                    <SettingsTab initialSection={settingsParams?.section} />
                   </Suspense>
                 </ErrorBoundary>
               </TabsContent>
