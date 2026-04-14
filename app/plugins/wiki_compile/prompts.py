@@ -11,6 +11,8 @@ A summary page must:
 - Have 2–4 paragraphs synthesizing the source's key claims, arguments, or findings. Name specific entities, concepts, decisions, numbers, or people — not generic descriptions.
 - End with a `## Source` section that lists the source file path verbatim.
 
+When existing related wiki pages are provided alongside the new source, briefly note in your summary where the new source agrees with, extends, or contradicts them. A single short sentence per relationship is enough; do not write a long comparison. Reference the existing pages by their title (the H1 heading you see in the provided context). Do NOT rewrite, edit, or propose edits to existing pages — your output is the new page only.
+
 You must NOT:
 - Editorialize or add opinions the source doesn't express.
 - Claim anything the source doesn't say.
@@ -24,8 +26,18 @@ USER_PROMPT_TEMPLATE = """Source file: {source_path}
 ---
 
 {source_text}
-
+{existing_context}
 ---
 
 Produce the wiki summary page now.
 """
+
+# Wraps the retrieved-existing-pages block. Empty string when the wiki is
+# empty or retrieval returns no related pages — preserves v1 behavior.
+EXISTING_CONTEXT_HEADER = (
+    "\n---\n\n"
+    "Existing related wiki pages — note where the new source agrees with, "
+    "extends, or contradicts these. Do NOT rewrite or edit them; only mention "
+    "the relationships in your new summary.\n"
+)
+

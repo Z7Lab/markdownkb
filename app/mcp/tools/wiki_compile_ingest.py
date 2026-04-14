@@ -7,6 +7,7 @@ writable source) is enforced inside the service.
 """
 
 from app.config import Settings
+from app.rag.retriever import Retriever
 from app.plugins.wiki_compile.service import WikiCompileError, ingest
 
 TOOL = {
@@ -46,11 +47,13 @@ def handler(
     """
     ctx = _mcp.get_context()
     settings: Settings = ctx.request_context.lifespan_context["settings"]
+    retriever: Retriever = ctx.request_context.lifespan_context["retriever"]
     try:
         return ingest(
             source_path=source_path,
             target_source=target_source,
             settings=settings,
+            retriever=retriever,
             force=force,
         )
     except WikiCompileError as e:

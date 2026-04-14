@@ -21,7 +21,12 @@ from pathlib import Path
 
 from app.config import Settings
 from app.rag.llm import get_completion, strip_thinking
-from app.plugins.wiki_compile.prompts import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
+from app.rag.retriever import Retriever
+from app.plugins.wiki_compile.prompts import (
+    EXISTING_CONTEXT_HEADER,
+    SYSTEM_PROMPT,
+    USER_PROMPT_TEMPLATE,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +34,13 @@ logger = logging.getLogger(__name__)
 # (3000ch) because this is an explicit compilation pass, not an on-click
 # explanation. 8000 ~= ~2000 tokens at typical markdown density.
 MAX_SOURCE_CHARS = 8000
+
+# Retrieval-augmented context budget. Conservative defaults that fit even
+# in 8K-context local models alongside source + system prompt + generation
+# budget (see queue task notes for the math). Bump for larger contexts.
+MAX_EXISTING_PAGES = 5
+MAX_CHARS_PER_EXISTING_PAGE = 2500
+RETRIEVAL_QUERY_CHARS = 1500  # head of source used as embedding query
 
 _SAFE_SLUG_RE = re.compile(r"[^a-z0-9]+")
 
@@ -75,12 +87,87 @@ def load_source_content(source_path: str) -> str:
     return text
 
 
-def compile_summary(source_path: str, source_text: str, settings: Settings) -> str:
-    """Ask the configured LLM to produce the summary page."""
+def fetch_existing_context(
+    target_dir: Path,
+    source_text: str,
+    retriever: Retriever,
+    max_pages: int = MAX_EXISTING_PAGES,
+) -> str:
+    """Retrieve top-K most-related existing wiki pages from ``target_dir``.
+
+    Uses the configured hybrid retriever scoped to the target directory
+    (so we only see pages already in this wiki, not other indexed
+    sources). The head of the new source is the embedding query — first
+    ~1500 chars usually captures the topic. Returns a formatted markdown
+    block ready to drop into the user prompt, or an empty string when
+    the wiki is empty / retrieval offline / no related pages found.
+    Best-effort: never raises, never blocks ingest.
+    """
+    try:
+        if retriever.store.count == 0:
+            return ""
+        query = source_text[:RETRIEVAL_QUERY_CHARS]
+        # Over-fetch chunks since the retriever returns chunks, not pages;
+        # we then dedupe to unique source paths.
+        results = retriever.search(
+            query,
+            top_k=max_pages * 3,
+            folders_filter=[str(target_dir)],
+        )
+    except Exception as e:
+        logger.warning("wiki_compile: existing-context retrieval failed: %s", e)
+        return ""
+
+    if not results:
+        return ""
+
+    skip_names = {str(target_dir / "index.md"), str(target_dir / "log.md")}
+    seen: set[str] = set()
+    unique_paths: list[str] = []
+    for r in results:
+        path = r.metadata.get("source_path", "")
+        if not path or path in seen or path in skip_names:
+            continue
+        seen.add(path)
+        unique_paths.append(path)
+        if len(unique_paths) >= max_pages:
+            break
+
+    if not unique_paths:
+        return ""
+
+    blocks = [EXISTING_CONTEXT_HEADER]
+    for p in unique_paths:
+        try:
+            content = Path(p).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        if len(content) > MAX_CHARS_PER_EXISTING_PAGE:
+            content = content[:MAX_CHARS_PER_EXISTING_PAGE] + "\n[truncated]"
+        blocks.append(f"\n### Existing: {Path(p).name}\n")
+        blocks.append(content)
+    return "\n".join(blocks)
+
+
+def compile_summary(
+    source_path: str,
+    source_text: str,
+    settings: Settings,
+    existing_context: str = "",
+) -> str:
+    """Ask the configured LLM to produce the summary page.
+
+    ``existing_context`` is an optional markdown block of related wiki
+    pages already in the target. When non-empty, the LLM is instructed
+    (via the system prompt) to note overlaps and contradictions in the
+    new summary. Empty string preserves the v1 behavior exactly.
+    """
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": USER_PROMPT_TEMPLATE.format(
-            source_path=source_path, source_text=source_text,
+            source_path=source_path,
+            source_text=source_text,
+            existing_context=existing_context,
         )},
     ]
     raw = get_completion(messages, settings)
@@ -170,9 +257,17 @@ def ingest(
     source_path: str,
     target_source: str,
     settings: Settings,
+    retriever: Retriever | None = None,
     force: bool = False,
 ) -> dict:
-    """Run a single ingest pass. Returns a dict the router serialises directly."""
+    """Run a single ingest pass. Returns a dict the router serialises directly.
+
+    When ``retriever`` is provided, the ingest fetches the most-related
+    existing wiki pages from the target directory and passes them to the
+    LLM as context, asking it to note overlaps/contradictions in the new
+    summary. When ``retriever`` is None or retrieval yields nothing, the
+    LLM call is identical to v1 — fully back-compatible.
+    """
     target_dir = resolve_writable_target(target_source, settings)
     source_text = load_source_content(source_path)
 
@@ -183,7 +278,19 @@ def ingest(
             f"summary page already exists at {summary_rel} — pass force=true to overwrite"
         )
 
-    summary_md = compile_summary(source_path, source_text, settings)
+    existing_context = ""
+    existing_pages_used: list[str] = []
+    if retriever is not None:
+        existing_context = fetch_existing_context(target_dir, source_text, retriever)
+        if existing_context:
+            # Best-effort report of which pages got included, for the response.
+            existing_pages_used = [
+                line.split("Existing: ", 1)[1].strip()
+                for line in existing_context.splitlines()
+                if line.startswith("### Existing: ")
+            ]
+
+    summary_md = compile_summary(source_path, source_text, settings, existing_context)
 
     pages_written: list[str] = []
     pages_written.append(
@@ -197,14 +304,15 @@ def ingest(
     )
 
     logger.info(
-        "wiki_compile: ingested %s -> %s (%d chars summary)",
-        source_path, target_dir, len(summary_md),
+        "wiki_compile: ingested %s -> %s (%d chars summary, %d existing pages used)",
+        source_path, target_dir, len(summary_md), len(existing_pages_used),
     )
     return {
         "status": "ok",
         "source_path": source_path,
         "target_source": str(target_dir),
         "pages_written": pages_written,
+        "existing_pages_used": existing_pages_used,
         "summary_preview": summary_md[:300],
         "summary_chars": len(summary_md),
     }

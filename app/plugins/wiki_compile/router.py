@@ -10,7 +10,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.config import Settings
-from app.deps import get_settings
+from app.deps import get_retriever, get_settings
+from app.rag.retriever import Retriever
 from app.ratelimit import LLM, STANDARD, limiter
 from app.plugins.wiki_compile.service import WikiCompileError, ingest
 
@@ -41,13 +42,22 @@ def ingest_endpoint(
     request: Request,
     req: IngestRequest,
     settings: Settings = Depends(get_settings),
+    retriever: Retriever = Depends(get_retriever),
 ):
-    """Run one ingest pass (read source + LLM summary + index/log update)."""
+    """Run one ingest pass (read source + LLM summary + index/log update).
+
+    The retriever is used to fetch existing related wiki pages from the
+    target directory, which are passed to the LLM as context so the new
+    summary can note overlaps, extensions, or contradictions. When the
+    target wiki is empty or no related pages are found, behavior matches
+    the original v1 (independent summary, no cross-referencing).
+    """
     try:
         return ingest(
             source_path=req.source_path,
             target_source=req.target_source,
             settings=settings,
+            retriever=retriever,
             force=req.force,
         )
     except WikiCompileError as e:
