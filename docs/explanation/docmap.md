@@ -91,7 +91,7 @@ Re-computes the entire doc map from scratch. Use this after indexing new documen
 ## Interaction
 
 - **Click a node** — selects it and highlights its neighborhood. The selected node turns yellow, its connected neighbors keep their cluster colors, and everything else dims. This isolates one document's relationships so you can see exactly what it's similar to without the rest of the graph distracting.
-- **Click an edge** — shows a chunk-level similarity detail panel between the two documents: which specific chunks are most similar, with text previews and similarity scores. This shows you *why* two documents are connected.
+- **Click an edge** — shows a chunk-level similarity detail panel between the two documents: which specific chunks are most similar, with text previews and similarity scores. Works for both intra-scope edges and bucket ↔ scope cross-edges (the panel pulls from the bucket's store when one side is a bucket doc). The panel also exposes a "Why are these connected?" button that calls an LLM to generate a single-sentence explanation of the conceptual overlap; responses are cached per doc-content-hash and invalidated when either doc is reindexed.
 - **Click the background** — clears all selection and highlighting, returns to the full graph view
 - **Click a word cloud term** — highlights all documents that contain that term across their content, tags, and headings
 - **Mouse drag** — rotate the 3D view

@@ -314,14 +314,26 @@ def compute_edge_detail(
     source: str,
     target: str,
     top_k: int = 5,
+    target_store: VectorStore | None = None,
 ) -> dict:
     """Compute chunk-level similarity detail for a single document pair.
 
     Returns the top-K most similar chunk pairs between the two documents,
     with text previews and similarity scores.
+
+    ``target_store`` lets the caller pass a different store for the target
+    side — used for bucket cross-edges where source and target live in
+    separate ChromaDB collections. Defaults to ``store`` (same-store pairs).
     """
+    tgt_store = target_store or store
     src_data = store.get_chunks_for_doc(source)
-    tgt_data = store.get_chunks_for_doc(target)
+    tgt_data = tgt_store.get_chunks_for_doc(target)
+    # For cross-store cases, either endpoint may actually live in the
+    # other store. Try the swap when either side comes back empty.
+    if not src_data.get("documents") and target_store is not None:
+        src_data = tgt_store.get_chunks_for_doc(source)
+    if not tgt_data.get("documents") and target_store is not None:
+        tgt_data = store.get_chunks_for_doc(target)
 
     source_docs = src_data.get("documents")
     target_docs = tgt_data.get("documents")

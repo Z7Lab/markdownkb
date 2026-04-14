@@ -60,7 +60,7 @@ Supports Google-style quoted phrases: `"exact phrase"` requires literal match in
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/files` | List all discovered files (paginated) |
-| GET | `/api/file` | Read file content |
+| GET | `/api/file` | Read file content. Path must be under a configured source root OR tracked by a bucket; other paths return 403. |
 | GET | `/api/file/status` | Get status of a single file |
 | GET | `/api/folders` | List unique folders from indexed documents |
 | PUT | `/api/files/toggle-rag` | Toggle RAG inclusion for a file |
@@ -280,7 +280,8 @@ Requires `plugins.docmap.enabled: true`. Plugin: `app/plugins/docmap/`.
 | GET | `/api/docmap/data` | Compute document similarity map (nodes, edges, clusters, word clouds) |
 | GET | `/api/docmap/stats` | Doc map statistics (doc count, chunk count) |
 | GET | `/api/docmap/status` | Check if cached data is available (no computation) |
-| GET | `/api/docmap/edge-detail` | Chunk-level similarity detail for a document pair |
+| GET | `/api/docmap/edge-detail` | Chunk-level similarity detail for a document pair. Accepts `bucket_id` when either side is a bucket doc. |
+| GET | `/api/docmap/edge-explain` | LLM-generated one-sentence explanation of why two docs are connected. Accepts `bucket_id` (for bucket cross-edges) and `refresh=true` (bypass cache). |
 | GET | `/api/docmap/progress` | Current computation progress |
 
 Accepts optional `scope_ids`, `ad_hoc_tags[]`, `word_clouds`, `min_weight`, `bucket_id`, `bucket_min_weight`, and `client_threshold` query parameters. Supports both scope and tag filtering. Filters out files with `include_rag=false`.

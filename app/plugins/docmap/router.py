@@ -387,12 +387,141 @@ def edge_detail(
     source: str = "",
     target: str = "",
     top_k: int = 5,
+    bucket_id: str | None = None,
     retriever: Retriever = Depends(get_retriever),
 ):
-    """Return chunk-level similarity detail for a single document pair."""
+    """Return chunk-level similarity detail for a single document pair.
+
+    When ``bucket_id`` is provided, the bucket's vector store is used as a
+    second source of chunk data — necessary for cross-collection edges
+    (bucket doc ↔ scope doc), which otherwise return empty because the
+    bucket doc's chunks don't exist in the main store.
+    """
     if not source or not target:
         raise HTTPException(status_code=400, detail="source and target are required")
-    return compute_edge_detail(retriever.store, source, target, top_k)
+    bucket_service = getattr(request.app.state, "bucket_service", None)
+    bucket_store = _bucket_store_for(bucket_service, bucket_id) if bucket_id else None
+    return compute_edge_detail(retriever.store, source, target, top_k, target_store=bucket_store)
+
+
+# In-memory cache for edge explanations. Keyed by (source_path, target_path,
+# source_hash, target_hash). Invalidated on index events (see below) so
+# we don't serve stale explanations for docs that have been reindexed.
+_explain_cache: dict[tuple, dict] = {}
+_explain_cache_lock = threading.Lock()
+
+_EXPLAIN_MAX_CHARS = 3000  # per-doc content budget to keep prompt cost bounded
+_EXPLAIN_SYSTEM_PROMPT = (
+    "You are analyzing two documents flagged as related in a knowledge map. "
+    "Explain in ONE sentence what conceptual overlap connects them. Be concrete, "
+    "not generic — name the specific shared idea, pattern, entity, or problem. "
+    "If the connection looks weak or spurious, say so briefly instead of forcing a link."
+)
+
+
+def _load_doc_for_explain(
+    path: str,
+    retriever: Retriever,
+    bucket_service,
+    bucket_id: str | None,
+) -> tuple[str, str] | None:
+    """Return (text, content_hash) for the doc at ``path`` or None if missing.
+    Tries the main store first, then the selected bucket store. Concatenates
+    chunk documents and truncates to ``_EXPLAIN_MAX_CHARS``.
+    """
+    for store in (retriever.store, _bucket_store_for(bucket_service, bucket_id)):
+        if store is None:
+            continue
+        data = store.get_chunks_for_doc(path)
+        docs = data.get("documents") or []
+        if not docs:
+            continue
+        text = "\n\n".join(d for d in docs if d)
+        if not text:
+            continue
+        if len(text) > _EXPLAIN_MAX_CHARS:
+            text = text[:_EXPLAIN_MAX_CHARS] + "\n\n[truncated]"
+        import hashlib
+        h = hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+        return text, h
+    return None
+
+
+def _bucket_store_for(bucket_service, bucket_id: str | None):
+    if not bucket_service or not bucket_id:
+        return None
+    record = bucket_service.db.resolve(bucket_id)
+    if not record:
+        return None
+    return bucket_service.get_store(record["id"])
+
+
+@router.get("/edge-explain")
+@limiter.limit(STANDARD)
+def edge_explain(
+    request: Request,
+    source: str = "",
+    target: str = "",
+    bucket_id: str | None = None,
+    refresh: bool = False,
+    retriever: Retriever = Depends(get_retriever),
+    settings: Settings = Depends(get_settings),
+):
+    """Generate a one-sentence explanation of why two docs are connected.
+
+    Follows the same LLM-plumbing pattern as ``/search/summarize`` but
+    returns a single non-streaming string. Cached in-memory by
+    (source, target, content-hashes). ``refresh=true`` bypasses cache.
+    """
+    if not source or not target:
+        raise HTTPException(status_code=400, detail="source and target are required")
+
+    bucket_service = getattr(request.app.state, "bucket_service", None)
+
+    src = _load_doc_for_explain(source, retriever, bucket_service, bucket_id)
+    tgt = _load_doc_for_explain(target, retriever, bucket_service, bucket_id)
+    if src is None:
+        raise HTTPException(status_code=404, detail=f"Source doc not found or empty: {source}")
+    if tgt is None:
+        raise HTTPException(status_code=404, detail=f"Target doc not found or empty: {target}")
+
+    src_text, src_hash = src
+    tgt_text, tgt_hash = tgt
+    cache_key = (source, target, src_hash, tgt_hash)
+
+    if not refresh:
+        with _explain_cache_lock:
+            if cache_key in _explain_cache:
+                return {**_explain_cache[cache_key], "cached": True}
+
+    src_name = source.rsplit("/", 1)[-1]
+    tgt_name = target.rsplit("/", 1)[-1]
+    user_prompt = (
+        f"Document A ({src_name}):\n\n{src_text}\n\n"
+        f"---\n\n"
+        f"Document B ({tgt_name}):\n\n{tgt_text}\n\n"
+        f"---\n\n"
+        f"In one sentence, what is the conceptual overlap that makes these documents related?"
+    )
+    messages = [
+        {"role": "system", "content": _EXPLAIN_SYSTEM_PROMPT},
+        {"role": "user", "content": user_prompt},
+    ]
+
+    try:
+        from app.rag.llm import get_completion, strip_thinking
+        raw = get_completion(messages, settings)
+        if not isinstance(raw, str):
+            raise RuntimeError("Expected string completion")
+        explanation = strip_thinking(raw).strip()
+    except RuntimeError as e:
+        logger.error("edge-explain LLM error: %s", e)
+        raise HTTPException(status_code=503, detail="LLM request failed — check server logs")
+
+    payload = {"explanation": explanation, "source": source, "target": target}
+    with _explain_cache_lock:
+        _explain_cache[cache_key] = payload
+    return {**payload, "cached": False}
 
 
 @router.get("/progress")
@@ -415,7 +544,9 @@ def _invalidation_worker():
         if event.type in ("indexed", "deleted", "rag_toggled"):
             with _cache_lock:
                 _graph_cache.clear()
-            logger.debug("Docmap cache cleared due to %s event", event.type)
+            with _explain_cache_lock:
+                _explain_cache.clear()
+            logger.debug("Docmap caches cleared due to %s event", event.type)
 
 
 _invalidation_thread = threading.Thread(

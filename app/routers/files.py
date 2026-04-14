@@ -211,6 +211,19 @@ def read_file(
             break
         except ValueError:
             continue
+    # Paths that aren't under a configured source root may still be legitimate
+    # bucket documents — buckets track their own source paths independently.
+    # Allow reads of any path that a bucket knows about; the bucket plugin
+    # already validated those paths when the bucket was created.
+    if not allowed:
+        bucket_service = getattr(request.app.state, "bucket_service", None)
+        if bucket_service is not None:
+            try:
+                bucketed = bucket_service.db.get_bucketed_paths()
+                if str(p) in bucketed or path in bucketed:
+                    allowed = True
+            except Exception:
+                pass
     if not allowed:
         logger.warning("Access denied: %s is outside configured sources", p)
         raise HTTPException(

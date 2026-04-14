@@ -1,30 +1,40 @@
 import { useEffect, useState } from "react"
 import { api } from "@/lib/api"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Loader2, X, FileText } from "lucide-react"
+import { Loader2, X, FileText, Sparkles } from "lucide-react"
 import type { EdgeDetail } from "@/lib/types"
 
 export function EdgeDetailPanel({
   source,
   target,
   weight,
+  bucketId,
   onClose,
   onDocClick,
 }: {
   source: string
   target: string
   weight: number
+  bucketId: string | null
   onClose: () => void
   onDocClick: (path: string) => void
 }) {
   const [detail, setDetail] = useState<EdgeDetail | null>(null)
   const [loading, setLoading] = useState(true) // starts true; reset via key prop on parent
   const [error, setError] = useState<string | null>(null)
+  const [explanation, setExplanation] = useState<string | null>(null)
+  const [explainLoading, setExplainLoading] = useState(false)
+  const [explainError, setExplainError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
+    // Reset explanation state whenever the selected edge changes.
+    setExplanation(null)
+    setExplainError(null)
+    setExplainLoading(false)
 
     const params = new URLSearchParams({ source, target, top_k: "5" })
+    if (bucketId) params.set("bucket_id", bucketId)
     api.get<EdgeDetail>(`/api/docmap/edge-detail?${params}`)
       .then((data) => {
         if (!cancelled) setDetail(data)
@@ -37,7 +47,24 @@ export function EdgeDetailPanel({
       })
 
     return () => { cancelled = true }
-  }, [source, target])
+  }, [source, target, bucketId])
+
+  const handleExplain = async () => {
+    setExplainLoading(true)
+    setExplainError(null)
+    try {
+      const params = new URLSearchParams({ source, target })
+      if (bucketId) params.set("bucket_id", bucketId)
+      const resp = await api.get<{ explanation: string; cached: boolean }>(
+        `/api/docmap/edge-explain?${params}`,
+      )
+      setExplanation(resp.explanation)
+    } catch (err) {
+      setExplainError((err as Error).message)
+    } finally {
+      setExplainLoading(false)
+    }
+  }
 
   return (
     <div className="absolute bottom-3 right-3 z-20 w-[420px] max-h-[60%] bg-background border rounded-lg shadow-lg flex flex-col overflow-hidden">
@@ -66,6 +93,28 @@ export function EdgeDetailPanel({
             Similarity: {weight.toFixed(4)}
             {detail && <span> · {detail.source_chunks} &times; {detail.target_chunks} chunks</span>}
           </p>
+          <div className="pt-1.5">
+            {explanation ? (
+              <div className="text-[11px] leading-relaxed bg-primary/5 border border-primary/20 rounded px-2 py-1.5 flex gap-1.5">
+                <Sparkles className="h-3 w-3 shrink-0 mt-0.5 text-primary" />
+                <span>{explanation}</span>
+              </div>
+            ) : explainError ? (
+              <p className="text-[10px] text-destructive">Explain failed: {explainError}</p>
+            ) : (
+              <button
+                onClick={handleExplain}
+                disabled={explainLoading}
+                className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded border border-primary/30 text-primary hover:bg-primary/10 disabled:opacity-50 cursor-pointer disabled:cursor-wait"
+              >
+                {explainLoading ? (
+                  <><Loader2 className="h-3 w-3 animate-spin" /> Analyzing…</>
+                ) : (
+                  <><Sparkles className="h-3 w-3" /> Why are these connected?</>
+                )}
+              </button>
+            )}
+          </div>
         </div>
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground ml-2 shrink-0 cursor-pointer">
           <X className="h-4 w-4" />

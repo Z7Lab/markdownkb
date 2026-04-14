@@ -659,6 +659,7 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
             source={selectedEdge.source}
             target={selectedEdge.target}
             weight={selectedEdge.weight}
+            bucketId={firstBucketId}
             onClose={() => setSelectedEdge(null)}
             onDocClick={(path) => setViewingPath(path)}
           />
