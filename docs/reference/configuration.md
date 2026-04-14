@@ -288,14 +288,16 @@ services:
 Every mdkb-authored write (via the Write API or the `wiki_compile` plugin) is automatically committed to a per-source managed git repo. Users can browse history, view diffs, and restore older revisions from the file viewer (History button).
 
 ```yaml
+core:
+  versioning: true    # global kill-switch; when false, no commits are created
+
 versioning:
-  enabled: true     # global kill-switch; when false, all writes are unversioned
-  root: ""          # optional override; defaults to {data_dir}/versioning
+  root: ""            # optional override; defaults to {data_dir}/versioning
 ```
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `versioning.enabled` | `true` | Global kill-switch. When `false`, no commits are created and the `/api/versioning/*` endpoints return 503. |
+| `core.versioning` | `true` | Global kill-switch. Toggle from the Plugins settings tab alongside other core features. When `false`, no commits are created and the `/api/versioning/*` endpoints return 503. |
 | `versioning.root` | `{data_dir}/versioning` | Directory that holds the per-source managed git repos. One `<source-hash>/` subdir per versioned source. |
 
 Per-source opt-in/opt-out is controlled by the `versioned` flag on each source (see [Sources](#sources) above). The default is to version writable sources.

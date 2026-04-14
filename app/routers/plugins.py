@@ -75,6 +75,12 @@ _CORE_FEATURES = {
         "icon": "gauge",
         "category": "advanced",
     },
+    "versioning": {
+        "display_name": "Versioning",
+        "description": "Auto-commit mdkb-authored writes to per-source managed git repos.",
+        "icon": "git-branch",
+        "category": "core",
+    },
 }
 
 

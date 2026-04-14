@@ -414,21 +414,38 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
 
     # --- Core ---
 
+    # Defaults for known core flags. Anything missing from settings.yaml
+    # falls back to the value here when the flag is read. Keys that should
+    # default to True live here; everything else defaults to False.
+    CORE_FEATURE_DEFAULTS: dict[str, bool] = {
+        "versioning": True,
+    }
+
     @property
     def core_features(self) -> dict[str, bool]:
-        """Return the core behaviour flags."""
-        return dict(self._data.get("core", {}))
+        """Return the core behaviour flags (merged with defaults for known keys)."""
+        configured = dict(self._data.get("core", {}))
+        for k, v in self.CORE_FEATURE_DEFAULTS.items():
+            configured.setdefault(k, v)
+        return configured
 
     def core_enabled(self, name: str) -> bool:
         """Check whether a core feature is enabled."""
-        return self._data.get("core", {}).get(name, False)
+        core = self._data.get("core", {})
+        if name in core:
+            return bool(core[name])
+        return self.CORE_FEATURE_DEFAULTS.get(name, False)
 
     # --- Versioning ---
 
     @property
     def versioning_enabled(self) -> bool:
-        """Global kill-switch for git-based versioning of writable sources."""
-        return bool(self._data.get("versioning", {}).get("enabled", True))
+        """Global kill-switch for git-based versioning of writable sources.
+
+        Lives under ``core.versioning`` for consistency with other toggles
+        (file_watcher, rag_chat, etc.). Defaults to True.
+        """
+        return self.core_enabled("versioning")
 
     @property
     def versioning_root(self) -> str:

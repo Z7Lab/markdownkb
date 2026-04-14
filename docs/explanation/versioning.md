@@ -52,7 +52,7 @@ A marker file `MDKB_MANAGED` inside each managed repo dir identifies it as mdkb-
 
 **HTTP API.** [`/api/versioning/history|diff|content`](../reference/api.md#versioning) and `POST /api/versioning/restore`. Returns JSON; used by the UI and by any tool that wants to integrate. Writes return a `version_commit` field so a caller can reference the new commit without re-querying history.
 
-**Configuration.** [`versioning.enabled`](../reference/configuration.md#versioning) as a global kill-switch, and per-source `versioned: true|false`. The repos live at `versioning.root`, which defaults to `{data_dir}/versioning/` but can be relocated.
+**Configuration.** [`core.versioning`](../reference/configuration.md#versioning) as a global kill-switch (toggled from the Plugins settings tab alongside file_watcher, rag_chat, etc.), and per-source `versioned: true|false`. The repos live at `versioning.root`, which defaults to `{data_dir}/versioning/` but can be relocated.
 
 ## Deliberate non-goals for v0.1
 

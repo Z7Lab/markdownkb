@@ -52,8 +52,10 @@ def get_settings_endpoint(request: Request, settings: Settings = Depends(get_set
         },
         "mcp": settings.mcp_config,
         "sources": settings.sources,
+        "source_configs": settings.source_configs,
         "project_roots": settings.project_roots,
         "global_ignore": settings.global_ignore,
+        "versioning_root": settings.versioning_root,
         "active_model": active_cfg.get("model", ""),
         "active_api_base": active_cfg.get("api_base", ""),
         "system_prompt": settings.system_prompt,
@@ -90,6 +92,7 @@ def reload_settings(request: Request, settings: Settings = Depends(get_settings)
 _KNOWN_CORE_FLAGS = frozenset({
     "rag_chat", "file_watcher", "rate_limiting",
     "deep_research", "agent_skills", "diagnostics",
+    "versioning",
 })
 
 _KNOWN_MCP_FLAGS = frozenset({
@@ -109,6 +112,19 @@ def toggle_core(
         raise HTTPException(400, f"Unknown core flag: {req.name}")
     settings.set_core(req.name, req.enabled)
     settings.save()
+    # Side-effect: lazy-init the versioning manager so the toggle takes
+    # effect without a restart. Other flags are runtime-checked and need
+    # no side-effects here.
+    if req.name == "versioning" and req.enabled:
+        if getattr(request.app.state, "versioning_manager", None) is None:
+            try:
+                from pathlib import Path
+                from app.versioning import GitManager
+                request.app.state.versioning_manager = GitManager(
+                    Path(settings.versioning_root)
+                )
+            except Exception:
+                logger.warning("Could not init GitManager on toggle", exc_info=True)
     return {"status": "saved"}
 
 

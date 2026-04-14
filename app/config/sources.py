@@ -115,6 +115,27 @@ class SourcesMixin:
         if path not in raw and path not in self.explicit_sources:
             raw.append(path)
 
+    def update_source(
+        self, path: str, *, writable: bool | None = None, versioned: bool | None = None,
+    ) -> dict | None:
+        """Update flags for an existing source. Returns the updated
+        entry as a normalized dict, or None when the source is not
+        configured.
+        """
+        resolved = self._resolve_path(path)
+        raw = self._data.get("sources", [])
+        for entry in raw:
+            if not isinstance(entry, dict):
+                continue
+            if self._resolve_path(entry.get("path", "")) != resolved:
+                continue
+            if writable is not None:
+                entry["writable"] = bool(writable)
+            if versioned is not None:
+                entry["versioned"] = bool(versioned)
+            return self._source_entry(entry)
+        return None
+
     def remove_source(self, path: str):
         """Remove a source directory from the list."""
         raw = self._data.setdefault("sources", [])

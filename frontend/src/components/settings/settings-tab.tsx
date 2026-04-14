@@ -68,6 +68,7 @@ export function SettingsTab() {
     addSource,
     removeSource,
     addIgnorePattern,
+    reload,
     removeIgnorePattern,
     addProjectRoot,
     removeProjectRoot,
@@ -179,8 +180,11 @@ export function SettingsTab() {
             {activeSection === "sources" && (
               <SourcesPanel
                 sources={settings.sources}
+                sourceConfigs={settings.source_configs}
                 ignorePatterns={settings.global_ignore}
                 projectRoots={settings.project_roots}
+                coreVersioningEnabled={settings.core.versioning ?? true}
+                onReloadSettings={reload}
                 onAdd={addSource}
                 onRemove={removeSource}
                 onAddIgnore={addIgnorePattern}

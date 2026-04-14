@@ -123,6 +123,31 @@ export interface ProjectRoot {
   exclude: string[]
 }
 
+export interface SourceConfig {
+  path: string
+  writable: boolean
+  versioned: boolean
+}
+
+export interface VersioningSourceStatus {
+  path: string
+  writable: boolean
+  versioned: boolean
+  path_accessible: boolean
+  initialised: boolean
+  commit_count: number
+  last_commit_date: string | null
+  size_bytes: number
+}
+
+export interface VersioningStatus {
+  enabled: boolean
+  root: string
+  total_commits: number
+  total_size_bytes: number
+  sources: VersioningSourceStatus[]
+}
+
 export interface AppSettings {
   active_provider: string
   providers: Provider[]
@@ -131,8 +156,10 @@ export interface AppSettings {
   plugins_enabled: Record<string, boolean>
   mcp: Record<string, unknown>
   sources: string[]
+  source_configs: SourceConfig[]
   project_roots: ProjectRoot[]
   global_ignore: string[]
+  versioning_root: string
   active_model: string
   active_api_base: string
   system_prompt: string

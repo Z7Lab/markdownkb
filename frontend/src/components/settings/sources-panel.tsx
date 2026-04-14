@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -7,10 +7,18 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useIndexEvents } from "@/hooks/use-index-events"
 import { usePathCheck } from "@/hooks/use-path-check"
 import { api } from "@/lib/api"
-import type { ProjectRoot } from "@/lib/types"
+import type { ProjectRoot, SourceConfig, VersioningStatus } from "@/lib/types"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { CheckCircle2, AlertCircle, Loader2, Trash2, FileText, Pencil, Plus, X, FolderGit2 } from "lucide-react"
+import { CheckCircle2, AlertCircle, Loader2, Trash2, FileText, Pencil, Plus, X, FolderGit2, GitBranch, HardDrive } from "lucide-react"
 import { toast } from "sonner"
+import { VersioningSourceRow } from "./versioning-source-row"
+
+function formatSize(n: number): string {
+  if (n < 1024) return `${n} B`
+  if (n < 1024 ** 2) return `${(n / 1024).toFixed(1)} KB`
+  if (n < 1024 ** 3) return `${(n / 1024 ** 2).toFixed(1)} MB`
+  return `${(n / 1024 ** 3).toFixed(2)} GB`
+}
 
 function AddDirectoryForm({ onSubmit }: { onSubmit: (path: string) => void }) {
   const [path, setPath] = useState("")
@@ -219,8 +227,10 @@ function ProjectRootForm({
 
 export function SourcesPanel({
   sources,
+  sourceConfigs,
   ignorePatterns,
   projectRoots,
+  coreVersioningEnabled,
   onAdd,
   onRemove,
   onAddIgnore,
@@ -228,10 +238,13 @@ export function SourcesPanel({
   onAddProjectRoot,
   onRemoveProjectRoot,
   onUpdateProjectRoot,
+  onReloadSettings,
 }: {
   sources: string[]
+  sourceConfigs: SourceConfig[]
   ignorePatterns: string[]
   projectRoots: ProjectRoot[]
+  coreVersioningEnabled: boolean
   onAdd: (path: string) => Promise<void>
   onRemove: (path: string, cleanup: boolean) => Promise<void>
   onAddIgnore: (pattern: string) => Promise<void>
@@ -239,6 +252,7 @@ export function SourcesPanel({
   onAddProjectRoot: (path: string, include: string[], exclude: string[]) => Promise<{ docker_restart_required?: boolean; path_not_found?: boolean } | void>
   onRemoveProjectRoot: (path: string, cleanup: boolean) => Promise<void>
   onUpdateProjectRoot: (path: string, include: string[], exclude: string[]) => Promise<void>
+  onReloadSettings: () => Promise<boolean> | void
 }) {
   const [newPattern, setNewPattern] = useState("")
   const [pendingRemove, setPendingRemove] = useState<string | null>(null)
@@ -252,6 +266,13 @@ export function SourcesPanel({
     chunks_indexed: number
   } | null>(null)
   const { isIndexing, lastIndexedAt } = useIndexEvents()
+  const [vstatus, setVStatus] = useState<VersioningStatus | null>(null)
+
+  const reloadVersioningStatus = useCallback(() => {
+    api.get<VersioningStatus>("/api/versioning/status")
+      .then(setVStatus)
+      .catch(() => { /* status is non-critical UI data */ })
+  }, [])
 
   useEffect(() => {
     api.get<{
@@ -261,6 +282,10 @@ export function SourcesPanel({
       chunks_indexed: number
     }>("/api/stats").then(setStats).catch(() => { /* stats are non-critical UI data */ })
   }, [lastIndexedAt])
+
+  useEffect(() => {
+    reloadVersioningStatus()
+  }, [reloadVersioningStatus, sourceConfigs, coreVersioningEnabled])
 
   async function handleAddPattern() {
     if (!newPattern.trim()) return
@@ -409,26 +434,63 @@ export function SourcesPanel({
           <CardDescription>
             Directories that MarkdownKB monitors for documents. Files in these
             directories are scanned, chunked, and embedded into the vector
-            store for RAG search. Changes are detected automatically via
-            file watcher.
+            store for RAG search. Each source can be configured as writable
+            (accepts mdkb-authored writes) and versioned (auto-commits those
+            writes to a managed git repo).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {sources.map((s) => (
-            <div key={s} className="flex items-center gap-2">
+          {vstatus && vstatus.sources.length > 0 && (
+            <div className="rounded-md bg-muted/30 px-3 py-2 flex items-center gap-4 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <GitBranch className="h-3 w-3" />
+                {vstatus.total_commits} commits across {vstatus.sources.filter(s => s.initialised).length} repos
+              </span>
+              <span className="flex items-center gap-1">
+                <HardDrive className="h-3 w-3" />
+                {formatSize(vstatus.total_size_bytes)} on disk
+              </span>
+              {!coreVersioningEnabled && (
+                <span className="text-yellow-600 dark:text-yellow-400">Versioning is globally disabled — toggle on in Plugins settings</span>
+              )}
+            </div>
+          )}
+
+          {sourceConfigs.map((cfg) => {
+            // Prefer richer status from /api/versioning/status; fall back
+            // to local-only info when that endpoint hasn't responded yet.
+            const vs = vstatus?.sources.find((s) => s.path === cfg.path)
+            const status = vs ?? {
+              path: cfg.path,
+              writable: cfg.writable,
+              versioned: cfg.versioned,
+              path_accessible: true,
+              initialised: false,
+              commit_count: 0,
+              last_commit_date: null,
+              size_bytes: 0,
+            }
+            return (
+              <VersioningSourceRow
+                key={cfg.path}
+                status={status}
+                globalVersioningEnabled={coreVersioningEnabled}
+                onRemove={() => setPendingRemove(cfg.path)}
+                onUpdated={() => { reloadVersioningStatus(); onReloadSettings() }}
+              />
+            )
+          })}
+
+          {/* Project-root-expanded sources (read-only, not user-added explicitly) */}
+          {sources.filter((s) => !sourceConfigs.some((c) => c.path === s)).map((s) => (
+            <div key={s} className="rounded-md border border-dashed p-3 flex items-center gap-2">
               <PathBadge path={s} />
               <span className="font-mono text-sm flex-1 truncate">{s}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setPendingRemove(s)}
-                aria-label={`Remove ${s}`}
-              >
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
+              <Badge variant="outline" className="text-[10px]">from project root</Badge>
             </div>
           ))}
-          {sources.length === 0 && (
+
+          {sourceConfigs.length === 0 && sources.length === 0 && (
             <p className="text-sm text-muted-foreground">No watch directories configured.</p>
           )}
           <AddDirectoryForm onSubmit={async (path) => {

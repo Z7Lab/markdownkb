@@ -100,6 +100,14 @@ function useSettingsInternal() {
     [load],
   )
 
+  const updateSource = useCallback(
+    async (path: string, changes: { writable?: boolean; versioned?: boolean }) => {
+      await api.patch("/api/sources", { path, ...changes })
+      await load()
+    },
+    [load],
+  )
+
   const addIgnorePattern = useCallback(
     async (pattern: string) => {
       await api.post("/api/ignore-patterns", { pattern })
@@ -183,6 +191,7 @@ function useSettingsInternal() {
   return {
     settings,
     loadError,
+    reload: load,
     // Provider
     ...provider,
     // Embedding
@@ -190,6 +199,7 @@ function useSettingsInternal() {
     // Sources
     addSource,
     removeSource,
+    updateSource,
     addIgnorePattern,
     removeIgnorePattern,
     // Project Roots

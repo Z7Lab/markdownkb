@@ -16,6 +16,7 @@ from app.schemas import (
     RemoveProjectRootRequest,
     RemoveSourceRequest,
     UpdateProjectRootRequest,
+    UpdateSourceRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -139,6 +140,38 @@ def add_source(
         )
 
     return result
+
+
+@router.patch("/sources")
+@limiter.limit(STANDARD)
+def update_source(
+    request: Request,
+    req: UpdateSourceRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """Update a source's writable/versioned flags.
+
+    When ``versioned`` flips to true on a source that doesn't yet have a
+    managed repo, the next write to that source will initialise it.
+    Toggling writable off does not retroactively delete existing
+    history — only new writes are blocked.
+    """
+    entry = settings.update_source(
+        req.path, writable=req.writable, versioned=req.versioned,
+    )
+    if entry is None:
+        raise HTTPException(404, f"source not found: {req.path}")
+    settings.save()
+    _sync_compose_override(settings)
+    # Best-effort repo init when the user just turned versioning on.
+    if req.versioned:
+        manager = getattr(request.app.state, "versioning_manager", None)
+        if manager is not None:
+            try:
+                manager.ensure_repo(entry["path"])
+            except Exception:
+                logger.debug("Could not init managed repo", exc_info=True)
+    return entry
 
 
 @router.delete("/sources")

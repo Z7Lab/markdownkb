@@ -106,6 +106,14 @@ class RemoveSourceRequest(BaseModel):
     cleanup: bool = False  # Also unindex all files from this source
 
 
+class UpdateSourceRequest(BaseModel):
+    """Request model for updating source flags (writable, versioned)."""
+
+    path: str = Field(..., min_length=1, max_length=4096)
+    writable: bool | None = None
+    versioned: bool | None = None
+
+
 class SourceActionRequest(BaseModel):
     """Request model for bulk source operations (index/unindex all)."""
 
