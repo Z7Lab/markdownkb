@@ -56,7 +56,7 @@ Background and reasoning. Read when you want to understand why, not how.
 | [Knowledge Graph](explanation/knowledge-graph.md) | Entity extraction, typed relationships, document similarity |
 | [Buckets](explanation/buckets.md) | Temporary isolated document collections — built-in docs, comparison workflows |
 | [Planner](explanation/planner.md) | MCTS-based implementation planner with skill reviews |
-| [Wiki Compile](explanation/wiki-compile.md) | Karpathy-style wiki compilation — the Ingest verb, the three-tier model, when to use it |
+| [Wiki Compile](explanation/wiki-compile.md) | Karpathy-style wiki compilation — managed wikis, the three-tier model, retrieval-augmented ingest, when to use it |
 | [Philosophy](explanation/philosophy.md) | The markdown-first paradigm — why tokens are value |
 | [Value Proposition](explanation/value-proposition.md) | What MarkdownKB is, who it's for, what makes it different |
 | [Security](../SECURITY.md) | Threat model, API key auth, feature flags, network exposure |

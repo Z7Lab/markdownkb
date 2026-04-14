@@ -58,6 +58,14 @@ The next time a question comes up about that topic, the compiled page is in the 
 - **No lint.** The Lint verb belongs to a separate plugin (queued, not built). Without it, the compiled wiki can drift — contradictions between pages, stale claims, orphan pages — and there's no automated detection.
 - **No automatic re-compilation on source change.** If the raw source file changes, the compiled page stays stale until you re-ingest with `force=true`. Detecting source drift and flagging it for re-compile is a straightforward extension.
 
+## Managed wikis
+
+A "wiki" in this plugin is a named, persistent target with a managed path. Create one by name (`POST /api/wiki-compile/wikis`), and the plugin handles the rest: directory creation, registration as a writable source, Docker mount auto-update via `compose.override.yml`. Ingest calls reference the wiki by name rather than by raw filesystem path.
+
+By default, wikis live under `{data_directory}/wikis/{name}/` — inside the existing data-dir mount, so no Docker restart is needed. If you'd rather keep a wiki in a git-versioned location elsewhere on disk, pass an explicit `path` on creation and the response will flag `docker_restart_required: true` so you know to run `make docker-down && make docker-up` before the new mount activates.
+
+Multiple wikis are encouraged. Karpathy's pattern is one wiki per topic or domain — research, work, personal, hobby — each with its own directory and (eventually) its own conventions. mdkb tracks all of them in `WikiDB`, surfaces them in the `Compile` dialog, and exposes them over MCP via `wiki_compile_list`, `wiki_compile_create`, `wiki_compile_delete`, and `wiki_compile_ingest`.
+
 ## Plugin reference
 
 Feature flag: `wiki_compile`. API prefix: `/api/wiki-compile`. Full endpoint docs: [api.md](../reference/api.md#wiki-compile). Plugin source and README: `app/plugins/wiki_compile/`.

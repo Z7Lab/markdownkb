@@ -1,6 +1,6 @@
 name: wiki_compile
 display_name: Wiki Compile
-description: Karpathy-style wiki compilation — read a source document, synthesize a summary page into a writable source directory, and maintain index.md and log.md for navigation.
+description: Karpathy-style wiki compilation — create named, managed wikis and ingest source documents into them as LLM-synthesized summary pages with index.md + log.md per wiki.
 version: 0.1.0
 author: markdownkb
 icon: book-open
@@ -9,11 +9,17 @@ feature_flag: wiki_compile
 requires: []
 
 endpoints:
+  - method: GET
+    path: /api/wiki-compile/wikis
+    description: List all managed wikis (name, path, page count, last ingest date)
+  - method: POST
+    path: /api/wiki-compile/wikis
+    description: Create a managed wiki — auto-registers the path as a writable source and auto-mounts in Docker
+  - method: DELETE
+    path: /api/wiki-compile/wikis/{name}
+    description: Deregister a managed wiki (the directory itself is not deleted)
   - method: POST
     path: /api/wiki-compile/ingest
-    description: Ingest a source file into a wiki target directory (writes summary page, updates index.md, appends log.md)
-  - method: GET
-    path: /api/wiki-compile/targets
-    description: List writable sources that are valid ingest targets
+    description: Ingest a source file into a managed wiki by name
 
 config: {}

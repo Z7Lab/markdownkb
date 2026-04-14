@@ -48,7 +48,7 @@ Most tools that address this are build-time — you run them, they produce a sna
 
 5. **Connect.** The MCP server and REST API expose the same capabilities to agents. An AI tool that needs to look something up calls `retrieve` or `chat` over MCP — same pipeline, same results as the web UI.
 
-6. **Compile.** Dense unstructured sources — papers, transcripts, vendor docs — get pointed at the `wiki_compile` plugin, which uses the configured LLM to synthesize a concise summary page into a writable source directory, updates an index, appends to a chronological log. The compiled pages are ordinary markdown and immediately flow through the rest of the pipeline (indexed, searchable, retrievable by chat and the doc map, exposed over MCP). Raw sources stay read-only and untouched. See [wiki-compile.md](../explanation/wiki-compile.md) for the pattern and its relationship to Karpathy's LLM Wiki gist.
+6. **Compile.** Dense unstructured sources — papers, transcripts, vendor docs — get pointed at the `wiki_compile` plugin. Wikis are named, managed targets the plugin creates and tracks (one per topic or domain — research, work, hobby, a specific project). Each ingest reads the source, synthesizes a concise summary page into the chosen wiki, updates that wiki's index, appends to its chronological log, and notes overlaps with related material already in the wiki. Compiled pages are ordinary markdown and immediately flow through the rest of the pipeline (indexed, searchable, retrievable by chat and the doc map, exposed over MCP). Raw sources stay read-only and untouched. See [wiki-compile.md](../explanation/wiki-compile.md) for the pattern and its relationship to Karpathy's LLM Wiki gist.
 
 ---
 

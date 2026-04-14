@@ -338,6 +338,12 @@ async def lifespan(server: FastMCP):
         bucket_service.cleanup_expired()
         logger.info("BucketService initialized for MCP (buckets plugin enabled)")
 
+    wikidb = None
+    if settings.plugin_enabled("wiki_compile"):
+        from app.plugins.wiki_compile.wikidb import WikiDB
+        wikidb = WikiDB(settings.data_directory)
+        logger.info("WikiDB initialized for MCP (wiki_compile plugin enabled)")
+
     # Optional history tracking — record MCP calls to the web UI sidebar DBs
     chatdb = None
     searchdb = None
@@ -371,6 +377,7 @@ async def lifespan(server: FastMCP):
         "chatdb": chatdb,
         "searchdb": searchdb,
         "bucket_service": bucket_service,
+        "wikidb": wikidb,
         "kgdb": kgdb,
     }
 

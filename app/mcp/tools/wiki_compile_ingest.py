@@ -1,9 +1,8 @@
-"""MCP tool: ingest a source document into a wiki target directory.
+"""MCP tool: ingest a source document into a managed wiki.
 
-Thin wrapper over ``app.plugins.wiki_compile.service.ingest`` — the HTTP
-route and this MCP tool both call the same service function so the
-plugin logic stays in one place. Write-protection (target must be a
-writable source) is enforced inside the service.
+Thin wrapper over the same service function the HTTP route calls. The
+``wiki`` argument is a managed-wiki name; resolve via WikiDB to a path
+and delegate to the plugin's ingest service.
 """
 
 from app.config import Settings
@@ -22,39 +21,47 @@ _mcp = None  # Injected by register_tools()
 
 def handler(
     source_path: str,
-    target_source: str,
+    wiki: str,
     force: bool = False,
 ) -> dict:
     """Read a source document, synthesize a summary page via the configured
-    LLM, and write it into a writable source directory. Updates index.md
-    and appends log.md.
+    LLM, and write it into a managed wiki. Updates index.md and log.md.
+    Existing related pages from the target wiki are passed as context so
+    the new summary can note overlaps.
 
     Args:
         source_path: Absolute path to a readable file on disk. Does not
-                     need to be a configured source. Content is
-                     truncated to 8000 characters before the LLM call.
-        target_source: Configured writable source directory (must have
-                       ``writable: true``). Call ``list_wiki_compile_targets``
-                       or the GET /api/wiki-compile/targets endpoint to
-                       get the list of valid targets.
+                     need to be a configured source. Content is truncated
+                     to 8000 characters before the LLM call.
+        wiki: Managed wiki name. Use ``wiki_compile_list`` to see what's
+              available; ``wiki_compile_create`` to make one.
         force: Overwrite an existing summary page for the same source
                (default False).
 
     Returns:
-        Dict with status, source_path, target_source, pages_written
-        (relative paths to the files created/updated), summary_preview
-        (first 300 chars), and summary_chars.
+        Dict with status, source_path, target_source, pages_written,
+        existing_pages_used, summary_preview, summary_chars, wiki.
     """
     ctx = _mcp.get_context()
     settings: Settings = ctx.request_context.lifespan_context["settings"]
     retriever: Retriever = ctx.request_context.lifespan_context["retriever"]
+    wikidb = ctx.request_context.lifespan_context.get("wikidb")
+    if wikidb is None:
+        raise ValueError("wiki_compile plugin is disabled")
+
+    record = wikidb.get_by_name(wiki)
+    if not record:
+        raise ValueError(f"Wiki not found: {wiki}")
+
     try:
-        return ingest(
+        result = ingest(
             source_path=source_path,
-            target_source=target_source,
+            target_source=record["path"],
             settings=settings,
             retriever=retriever,
             force=force,
         )
+        result["wiki"] = wiki
+        return result
     except WikiCompileError as e:
         raise ValueError(str(e)) from e

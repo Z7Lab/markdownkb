@@ -20,6 +20,21 @@ interface IngestResult {
   pages_written: string[]
   summary_preview: string
   summary_chars: number
+  wiki?: string
+  existing_pages_used?: string[]
+}
+
+interface WikiRecord {
+  id: string
+  name: string
+  path: string
+  page_count: number
+  last_ingest_at: string | null
+  created_at: string
+}
+
+interface CreateWikiResponse extends WikiRecord {
+  docker_restart_required: boolean
 }
 
 /**
@@ -36,39 +51,50 @@ export function WikiCompileDialog({
   sourcePath: string | null
   onClose: () => void
 }) {
-  const [targets, setTargets] = useState<string[] | null>(null)
-  const [targetsError, setTargetsError] = useState<string | null>(null)
-  const [selectedTarget, setSelectedTarget] = useState<string>("")
+  const [wikis, setWikis] = useState<WikiRecord[] | null>(null)
+  const [wikisError, setWikisError] = useState<string | null>(null)
+  const [selectedWiki, setSelectedWiki] = useState<string>("")
   const [force, setForce] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<IngestResult | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
+
+  // Inline-create state for when no wikis exist yet.
+  const [newWikiName, setNewWikiName] = useState("")
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+
+  const loadWikis = () => {
+    setWikis(null)
+    setWikisError(null)
+    setSelectedWiki("")
+    api.get<{ wikis: WikiRecord[] }>("/api/wiki-compile/wikis")
+      .then((r) => {
+        setWikis(r.wikis)
+        if (r.wikis.length > 0) setSelectedWiki(r.wikis[0].name)
+      })
+      .catch((err) => setWikisError((err as Error).message))
+  }
 
   // Reset dialog state whenever it opens for a new source.
   useEffect(() => {
     if (!open) return
     setResult(null)
     setSubmitError(null)
+    setCreateError(null)
     setForce(false)
-    setTargets(null)
-    setTargetsError(null)
-    setSelectedTarget("")
-    api.get<{ targets: string[] }>("/api/wiki-compile/targets")
-      .then((r) => {
-        setTargets(r.targets)
-        if (r.targets.length > 0) setSelectedTarget(r.targets[0])
-      })
-      .catch((err) => setTargetsError((err as Error).message))
+    setNewWikiName("")
+    loadWikis()
   }, [open])
 
   const handleSubmit = async () => {
-    if (!sourcePath || !selectedTarget) return
+    if (!sourcePath || !selectedWiki) return
     setSubmitting(true)
     setSubmitError(null)
     try {
       const r = await api.post<IngestResult>("/api/wiki-compile/ingest", {
         source_path: sourcePath,
-        target_source: selectedTarget,
+        wiki: selectedWiki,
         force,
       })
       setResult(r)
@@ -77,6 +103,30 @@ export function WikiCompileDialog({
       setSubmitError((err as Error).message)
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleCreateWiki = async () => {
+    const name = newWikiName.trim()
+    if (!name) return
+    setCreating(true)
+    setCreateError(null)
+    try {
+      const r = await api.post<CreateWikiResponse>("/api/wiki-compile/wikis", { name })
+      if (r.docker_restart_required) {
+        toast.warning("Wiki created — Docker restart required to mount the path before ingest.")
+      } else {
+        toast.success(`Wiki "${r.name}" created.`)
+      }
+      setNewWikiName("")
+      // Refresh the list and pre-select the new wiki.
+      const list = await api.get<{ wikis: WikiRecord[] }>("/api/wiki-compile/wikis")
+      setWikis(list.wikis)
+      setSelectedWiki(r.name)
+    } catch (err) {
+      setCreateError((err as Error).message)
+    } finally {
+      setCreating(false)
     }
   }
 
@@ -98,33 +148,59 @@ export function WikiCompileDialog({
           Reads <span className="font-mono">{sourceName}</span>, asks the configured LLM to synthesize a summary page, and writes it into a writable source directory. Updates <span className="font-mono">index.md</span> and appends <span className="font-mono">log.md</span>.
         </AlertDialogDescription>
 
-        {/* Target selection — only shown pre-submit */}
+        {/* Wiki selection — only shown pre-submit */}
         {!result && (
           <div className="space-y-3 py-2">
             <div className="space-y-1.5">
-              <Label className="text-xs">Target writable source</Label>
-              {targetsError ? (
+              <Label className="text-xs">Target wiki</Label>
+              {wikisError ? (
                 <p className="text-xs text-destructive">
-                  Could not load targets: {targetsError}
+                  Could not load wikis: {wikisError}
                 </p>
-              ) : targets === null ? (
+              ) : wikis === null ? (
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Loader2 className="h-3 w-3 animate-spin" />
                   Loading...
                 </div>
-              ) : targets.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  No writable sources configured. Add one with <span className="font-mono">writable: true</span> in <span className="font-mono">config/settings.yaml</span>.
-                </p>
+              ) : wikis.length === 0 ? (
+                <div className="space-y-2 rounded border border-dashed px-3 py-2.5">
+                  <p className="text-xs text-muted-foreground">
+                    No wikis yet. Create one to compile into:
+                  </p>
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      value={newWikiName}
+                      onChange={(e) => setNewWikiName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter" && newWikiName.trim()) handleCreateWiki() }}
+                      placeholder="research"
+                      className="flex-1 text-xs border rounded px-2 py-1 bg-background"
+                      disabled={creating}
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleCreateWiki}
+                      disabled={creating || !newWikiName.trim()}
+                      className="text-xs px-2.5 py-1 rounded border border-primary/40 text-primary hover:bg-primary/10 disabled:opacity-50 cursor-pointer disabled:cursor-wait"
+                    >
+                      {creating ? "…" : "Create"}
+                    </button>
+                  </div>
+                  {createError && (
+                    <p className="text-xs text-destructive break-words">{createError}</p>
+                  )}
+                </div>
               ) : (
                 <select
-                  value={selectedTarget}
-                  onChange={(e) => setSelectedTarget(e.target.value)}
+                  value={selectedWiki}
+                  onChange={(e) => setSelectedWiki(e.target.value)}
                   className="w-full text-xs border rounded px-2 py-1.5 bg-background"
                   disabled={submitting}
                 >
-                  {targets.map((t) => (
-                    <option key={t} value={t}>{t}</option>
+                  {wikis.map((w) => (
+                    <option key={w.name} value={w.name}>
+                      {w.name} {w.page_count > 0 ? `(${w.page_count} pages)` : ""}
+                    </option>
                   ))}
                 </select>
               )}
@@ -150,13 +226,23 @@ export function WikiCompileDialog({
         {result && (
           <div className="space-y-3 py-2">
             <div className="rounded border bg-muted/40 px-3 py-2 space-y-1.5 text-xs">
-              <p className="font-medium">Wrote {result.pages_written.length} pages into:</p>
+              <p className="font-medium">
+                Wrote {result.pages_written.length} pages
+                {result.wiki && <> into wiki <span className="font-mono">{result.wiki}</span></>}
+                :
+              </p>
               <p className="font-mono text-muted-foreground break-all">{result.target_source}</p>
               <ul className="space-y-0.5 pl-3">
                 {result.pages_written.map((p) => (
                   <li key={p} className="font-mono">· {p}</li>
                 ))}
               </ul>
+              {result.existing_pages_used && result.existing_pages_used.length > 0 && (
+                <p className="text-muted-foreground pt-1">
+                  Cross-referenced {result.existing_pages_used.length} existing page
+                  {result.existing_pages_used.length === 1 ? "" : "s"} in this wiki
+                </p>
+              )}
             </div>
             <div className="rounded border border-primary/20 bg-primary/5 px-3 py-2">
               <p className="text-[11px] font-medium text-primary mb-1 flex items-center gap-1">
@@ -178,7 +264,7 @@ export function WikiCompileDialog({
           {!result && (
             <AlertDialogAction
               onClick={handleSubmit}
-              disabled={submitting || !selectedTarget || targets === null || (targets?.length ?? 0) === 0}
+              disabled={submitting || !selectedWiki || wikis === null || (wikis?.length ?? 0) === 0}
             >
               {submitting ? (
                 <><Loader2 className="h-3 w-3 animate-spin mr-1.5" /> Compiling…</>

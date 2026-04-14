@@ -355,24 +355,34 @@ These endpoints additionally require the `mcp_tag_generator` feature flag (sub-f
 
 Requires `plugins.wiki_compile.enabled: true`. Plugin: `app/plugins/wiki_compile/`.
 
-Karpathy-style wiki compilation — reads a source document, asks the configured LLM to produce a summary page, and writes it into a configured writable source directory while maintaining `index.md` and `log.md` for navigation. See [docmap.md](../explanation/docmap.md) and `app/plugins/wiki_compile/README.md` for the architectural pattern.
+Karpathy-style wiki compilation — reads a source document, asks the configured LLM to produce a summary page, and writes it into a managed wiki directory while maintaining `index.md` and `log.md` for navigation. See [wiki-compile.md](../explanation/wiki-compile.md) and `app/plugins/wiki_compile/README.md` for the architectural pattern.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/wiki-compile/targets` | List writable sources valid as ingest targets |
-| POST | `/api/wiki-compile/ingest` | Ingest one source file (writes summary + updates index.md + appends log.md) |
+| GET | `/api/wiki-compile/wikis` | List managed wikis (name, path, page count, last ingest date) |
+| POST | `/api/wiki-compile/wikis` | Create a managed wiki — auto-registers as a writable source, auto-mounts in Docker |
+| DELETE | `/api/wiki-compile/wikis/{name}` | Deregister a wiki (directory itself is preserved on disk) |
+| POST | `/api/wiki-compile/ingest` | Ingest one source file into a wiki by name |
 
-Request body for `/ingest`:
+Create a wiki:
+
+```json
+{ "name": "research" }
+```
+
+Optionally pass `path` to override the default location (`{data_directory}/wikis/{name}/`). The response includes `docker_restart_required: true` when a custom path outside the project/data directory was added — the new bind mount only takes effect after `make docker-down && make docker-up`.
+
+Ingest into a wiki:
 
 ```json
 {
   "source_path": "/absolute/path/to/source.md",
-  "target_source": "/absolute/path/to/writable/source",
+  "wiki": "research",
   "force": false
 }
 ```
 
-The target must match one of the paths returned by `/targets` — paths that aren't configured `writable: true` sources are rejected with a 400. `force=true` overwrites an existing summary for the same source. Uses `app.rag.llm.get_completion` — same LLM plumbing as search summarize and edge explain.
+`force=true` overwrites an existing summary for the same source. Uses `app.rag.llm.get_completion` — same LLM plumbing as search summarize and edge explain. Response includes `existing_pages_used` listing related pages from the target wiki that were passed as context to the LLM (empty array when the wiki is empty or the indexer hasn't yet picked up new pages).
 
 ## Buckets
 
