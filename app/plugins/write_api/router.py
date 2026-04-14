@@ -148,11 +148,23 @@ def create_document(
         raise HTTPException(500, "Failed to write file")
 
     logger.info("Document written: %s", full_path)
+
+    # Best-effort version commit — never blocks the write.
+    from app.versioning.hooks import try_commit
+    manager = getattr(request.app.state, "versioning_manager", None)
+    verb = "update" if req.overwrite else "create"
+    commit_sha = try_commit(
+        settings, manager, target_dir,
+        paths=[relative],
+        message=f"write_api: {verb} {relative}",
+    )
+
     return {
         "status": "created" if not req.overwrite else "written",
         "path": str(full_path),
         "relative_path": relative,
         "source": str(target_dir),
+        "version_commit": commit_sha,
     }
 
 
@@ -208,4 +220,13 @@ def delete_document(
         raise HTTPException(500, "Failed to delete file")
 
     logger.info("Document deleted: %s", full_path)
-    return {"status": "deleted", "path": str(full_path)}
+
+    # Best-effort version commit — records the deletion.
+    from app.versioning.hooks import try_commit
+    manager = getattr(request.app.state, "versioning_manager", None)
+    commit_sha = try_commit(
+        settings, manager, target_dir,
+        paths=[relative],
+        message=f"write_api: delete {relative}",
+    )
+    return {"status": "deleted", "path": str(full_path), "version_commit": commit_sha}

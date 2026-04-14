@@ -11,10 +11,17 @@ class SourcesMixin:
     def _source_entry(self, entry) -> dict:
         """Return a source config dict with defaults applied.
 
-        Each source entry must be a dict with ``path`` (required) and
-        ``writable`` (default True).
+        Each source entry must be a dict with ``path`` (required),
+        ``writable`` (default True), and ``versioned`` (default:
+        mirror ``writable`` — writable sources are versioned unless
+        explicitly opted out).
         """
-        return {"path": entry.get("path", ""), "writable": entry.get("writable", True)}
+        writable = entry.get("writable", True)
+        return {
+            "path": entry.get("path", ""),
+            "writable": writable,
+            "versioned": entry.get("versioned", writable),
+        }
 
     @property
     def source_configs(self) -> list[dict]:
@@ -76,6 +83,30 @@ class SourcesMixin:
         return [
             path for path in self.sources
             if self.is_source_writable(path)
+        ]
+
+    def is_source_versioned(self, path: str) -> bool:
+        """Check whether a source is configured for versioning.
+
+        Returns the source's ``versioned`` flag, which defaults to the
+        ``writable`` flag (writable sources are versioned by default).
+        Returns False for paths that are not configured as explicit
+        sources — versioning only applies to mdkb-managed writes.
+        """
+        resolved = self._resolve_path(path)
+        for entry in self._data.get("sources", []):
+            cfg = self._source_entry(entry)
+            if self._resolve_path(cfg["path"]) == resolved:
+                return bool(cfg["versioned"])
+        return False
+
+    @property
+    def versioned_sources(self) -> list[str]:
+        """Return resolved paths for sources with versioning enabled."""
+        return [
+            self._resolve_path(self._source_entry(s)["path"])
+            for s in self._data.get("sources", [])
+            if self._source_entry(s)["versioned"]
         ]
 
     def add_source(self, path: str):

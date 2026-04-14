@@ -100,3 +100,7 @@ Re-ingesting a source whose summary already exists returns 400 with a message po
 ## Caching and invalidation
 
 No caching — every ingest runs a fresh LLM call. Adding an in-memory cache keyed by `(source_path, source_content_hash)` is a straightforward extension if call cost becomes painful. Edge-explain uses that pattern already.
+
+## Versioning
+
+A successful ingest creates one auto-commit in the wiki's managed git repo covering all pages written (summary + `index.md` + `log.md`) with message `wiki_compile: ingest <source-filename>`. The ingest response includes `version_commit` with the SHA, or `null` when the target wiki's source has `versioned: false`. See [docs/explanation/versioning.md](../../../docs/explanation/versioning.md) for background and [docs/reference/configuration.md#versioning](../../../docs/reference/configuration.md#versioning) for the config surface.

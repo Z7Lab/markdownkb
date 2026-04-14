@@ -51,6 +51,7 @@ from app.routers import (
     sources,
     threads,
 )
+from app.versioning.router import router as versioning_router
 
 
 def create_app(lifespan=None, settings_override=None) -> FastAPI:
@@ -89,6 +90,7 @@ def create_app(lifespan=None, settings_override=None) -> FastAPI:
         embeddings, scopes, plugins, mcp,
     ):
         app.include_router(router_module.router)
+    app.include_router(versioning_router)
 
     # Auto-discover and register plugins (feature-gated)
     from app.plugins import register_plugins

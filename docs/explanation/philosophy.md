@@ -146,7 +146,7 @@ Human review is the quality gate. Not every document needs line-by-line review, 
 
 **Treat AI-generated docs as drafts until reviewed.** The model produces the first version. A human reads it, corrects it, promotes it. Reviewing is much cheaper than writing from scratch, but the review step is non-negotiable for anything that will influence future work.
 
-**Version history is your safety net.** When a document turns out to be wrong, you need to know when it changed and what it said before. Git gives you this for free.
+**Version history is your safety net.** When a document turns out to be wrong, you need to know when it changed and what it said before. Git gives you this for free. MarkdownKB builds it in — every mdkb-authored write is auto-committed to a per-source managed git repo, so rollback and diff are one click away in the file viewer. See [Versioning](versioning.md) for the full picture.
 
 **Staleness is a form of inaccuracy.** A document that was correct six months ago may be actively harmful today if the system it describes has changed. Regular curation matters more than getting the initial write perfect.
 

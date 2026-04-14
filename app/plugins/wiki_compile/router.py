@@ -220,6 +220,7 @@ def ingest_endpoint(
     if not wiki:
         raise HTTPException(status_code=404, detail=f"Wiki not found: {req.wiki}")
 
+    versioning_manager = getattr(request.app.state, "versioning_manager", None)
     try:
         result = ingest(
             source_path=req.source_path,
@@ -227,6 +228,7 @@ def ingest_endpoint(
             settings=settings,
             retriever=retriever,
             force=req.force,
+            versioning_manager=versioning_manager,
         )
     except WikiCompileError as e:
         raise HTTPException(status_code=400, detail=str(e))

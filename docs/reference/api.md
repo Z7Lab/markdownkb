@@ -257,6 +257,27 @@ Query parameters: `path` (required), `source` (optional, defaults to first sourc
 | **409** | File already exists and `overwrite` is `false` |
 | **422** | Validation error, or the target directory does not exist / is not writable on disk |
 
+Every successful write/delete returns a `version_commit` field: the SHA of the auto-commit created in the per-source managed git repo, or `null` when the source has `versioned: false` or versioning is globally disabled.
+
+## Versioning
+
+Git-backed revision history for writable sources. Enabled by default; controlled by `versioning.enabled` and the per-source `versioned` flag (see [Configuration: Versioning](configuration.md#versioning)).
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/versioning/history?path={abs}&limit={n}` | List commits that touched a file (newest first) |
+| GET | `/api/versioning/diff?path={abs}&commit={sha}` | Unified diff of a file between a commit and its parent |
+| GET | `/api/versioning/content?path={abs}&commit={sha}` | File contents at a specific commit (for side-by-side views) |
+| POST | `/api/versioning/restore` | Write a past revision back to disk as a new commit |
+
+Restore request body:
+
+```json
+{ "path": "/abs/path/to/file.md", "commit": "a1b2c3d4..." }
+```
+
+All endpoints require the file to be under a source with `versioned: true`. Returns **404** for unversioned or unknown paths, **503** when versioning is disabled.
+
 ## Planner
 
 Requires `plugins.planner.enabled: true`. Plugin: `app/plugins/planner/`.

@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Markdown } from "@/components/ui/markdown"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Pencil, Copy, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Search, X, BookOpen } from "lucide-react"
+import { Pencil, Copy, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Search, X, BookOpen, History } from "lucide-react"
 import { useTextSearch } from "@/hooks/use-text-search"
 import { useFileViewer } from "@/hooks/use-file-viewer"
 import { useWikiCompileAvailable } from "@/hooks/use-wiki-compile-available"
@@ -21,6 +21,7 @@ import { TagEditDialog } from "@/components/tags/tag-edit-dialog"
 import { FileActions } from "@/components/browse/file-actions"
 import { ConfirmDialog } from "./confirm-dialog"
 import { WikiCompileDialog } from "@/components/wiki/wiki-compile-dialog"
+import { HistoryDialog } from "@/components/versioning/history-dialog"
 
 export function FileViewerDialog({
   path,
@@ -53,6 +54,7 @@ export function FileViewerDialog({
   const searchInputRef = useRef<HTMLInputElement>(null)
   const wikiCompileAvailable = useWikiCompileAvailable()
   const [compileDialogOpen, setCompileDialogOpen] = useState(false)
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false)
 
   // Focus search input when opened
   useEffect(() => {
@@ -107,6 +109,17 @@ export function FileViewerDialog({
             </div>
             {isMarkdown && (
               <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5"
+                  onClick={() => setHistoryDialogOpen(true)}
+                  disabled={loading}
+                  title="View revision history for this file"
+                >
+                  <History className="h-3.5 w-3.5" />
+                  History
+                </Button>
                 {wikiCompileAvailable && (
                   <Button
                     variant="outline"
@@ -292,6 +305,12 @@ export function FileViewerDialog({
             open={compileDialogOpen}
             sourcePath={path}
             onClose={() => setCompileDialogOpen(false)}
+          />
+          <HistoryDialog
+            open={historyDialogOpen}
+            path={path}
+            onClose={() => setHistoryDialogOpen(false)}
+            onRestored={() => path && fetchPage(path, 1)}
           />
         </>
       )}

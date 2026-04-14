@@ -423,6 +423,21 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
         """Check whether a core feature is enabled."""
         return self._data.get("core", {}).get(name, False)
 
+    # --- Versioning ---
+
+    @property
+    def versioning_enabled(self) -> bool:
+        """Global kill-switch for git-based versioning of writable sources."""
+        return bool(self._data.get("versioning", {}).get("enabled", True))
+
+    @property
+    def versioning_root(self) -> str:
+        """Directory where per-source managed repos live."""
+        override = self._data.get("versioning", {}).get("root", "")
+        if override:
+            return self._resolve_path(override)
+        return str(Path(self.data_directory) / "versioning")
+
     def set_core(self, name: str, enabled: bool) -> None:
         """Set a core feature flag."""
         self._data.setdefault("core", {})[name] = enabled

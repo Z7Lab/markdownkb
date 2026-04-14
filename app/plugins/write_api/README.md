@@ -42,6 +42,11 @@ Query parameters: `path` (required), `source` (optional, defaults to first sourc
 - Unsafe filename characters are rejected
 - Defaults to off (`write_api: false`)
 
+## Versioning
+
+Every successful write or delete is auto-committed to the per-source managed git repo (unless the source has `versioned: false` or `versioning.enabled: false`). The response includes a `version_commit` field with the new commit SHA, or `null` when versioning is not active for the target source. See [docs/explanation/versioning.md](../../../docs/explanation/versioning.md) for background and [docs/reference/configuration.md#versioning](../../../docs/reference/configuration.md#versioning) for the config surface.
+
 ## Dependencies
 
 - `app.config.Settings` — source directory validation
+- `app.versioning.GitManager` (via `app.state.versioning_manager`) — best-effort auto-commit, never blocks the write

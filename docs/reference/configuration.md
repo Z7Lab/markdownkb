@@ -46,18 +46,21 @@ API-driven changes (via the Settings UI) take effect immediately — they update
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `sources` | `[{path: ./docs, writable: false}]` | Directories to scan for markdown files (list of dicts with `path` and optional `writable` flag) |
+| `sources` | `[{path: ./docs, writable: false}]` | Directories to scan for markdown files (list of dicts with `path`, optional `writable`, optional `versioned`) |
 | `project_roots` | `[]` | Auto-discover docs in cloned repos (see below) |
 | `global_ignore` | node_modules, .git, etc. | Glob patterns to skip |
 
-Each source is a dict with `path` (string, required) and `writable` (boolean, optional — defaults to `true`). When `writable: false`, the Write API (`POST/DELETE /api/documents`) and MCP write tools (`save_file`, `delete_file`) return **403 Forbidden** for that source. The bundled `./docs` directory defaults to `writable: false` in the example config to protect project documentation from accidental writes.
+Each source is a dict with `path` (string, required), `writable` (boolean, optional — defaults to `true`), and `versioned` (boolean, optional — defaults to the value of `writable`). When `writable: false`, the Write API (`POST/DELETE /api/documents`) and MCP write tools (`save_file`, `delete_file`) return **403 Forbidden** for that source. When `versioned: true` (the default for writable sources), every mdkb-authored write to that source is automatically committed to a per-source managed git repo — see [Versioning](#versioning) below. The bundled `./docs` directory defaults to `writable: false` in the example config to protect project documentation from accidental writes.
 
 ```yaml
 sources:
   - path: ./docs
     writable: false
   - path: /home/user/docs
+    writable: true         # versioned: true is implicit
+  - path: /home/user/scratch
     writable: true
+    versioned: false       # opt out — e.g. a throwaway scratch dir
 ```
 
 ### Docker Volume Mounts
@@ -279,6 +282,25 @@ services:
     iterations: 3       # MCTS iterations (1-20)
     n_approaches: 3     # Research angles per iteration
 ```
+
+## Versioning
+
+Every mdkb-authored write (via the Write API or the `wiki_compile` plugin) is automatically committed to a per-source managed git repo. Users can browse history, view diffs, and restore older revisions from the file viewer (History button).
+
+```yaml
+versioning:
+  enabled: true     # global kill-switch; when false, all writes are unversioned
+  root: ""          # optional override; defaults to {data_dir}/versioning
+```
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `versioning.enabled` | `true` | Global kill-switch. When `false`, no commits are created and the `/api/versioning/*` endpoints return 503. |
+| `versioning.root` | `{data_dir}/versioning` | Directory that holds the per-source managed git repos. One `<source-hash>/` subdir per versioned source. |
+
+Per-source opt-in/opt-out is controlled by the `versioned` flag on each source (see [Sources](#sources) above). The default is to version writable sources.
+
+The managed repos are mdkb-owned and separate from any user-owned git repo that may already exist at the source path — mdkb writes the gitdir under `versioning.root/<source-hash>/.git` and binds it to the source with `--git-dir` + `--work-tree`, so no `.git` directory appears inside the source itself. Commits are authored as `mdkb <mdkb@localhost>`.
 
 ## UI
 

@@ -109,6 +109,29 @@ sources:
     writable: true
 ```
 
+## Version history
+
+Every write and delete through the Write API or `save_file`/`delete_file` MCP tools is automatically committed to a per-source managed git repo (unless the source has `versioned: false` or `versioning.enabled: false`). The response includes a `version_commit` field with the new commit SHA.
+
+Browse or roll back from the file viewer: open any markdown file, click **History**, select a commit to see the diff, and click **Restore this version** to write it back as a new commit (no history is rewritten).
+
+Or use the API directly:
+
+```bash
+# List commits for a file
+curl "http://localhost:9713/api/versioning/history?path=/home/user/docs/notes/idea.md"
+
+# View the diff for a specific commit
+curl "http://localhost:9713/api/versioning/diff?path=/home/user/docs/notes/idea.md&commit=a1b2c3d4"
+
+# Restore a past revision
+curl -X POST http://localhost:9713/api/versioning/restore \
+  -H "Content-Type: application/json" \
+  -d '{"path":"/home/user/docs/notes/idea.md","commit":"a1b2c3d4"}'
+```
+
+For background on why versioning lives inside MarkdownKB and what it covers, see [Versioning](../explanation/versioning.md). For the config surface, see [Configuration: Versioning](../reference/configuration.md#versioning).
+
 ## Typical workflows
 
 **Agent research capture:** An agent searches the web, summarizes findings, and saves them as markdown. The file is automatically indexed and available for search and chat.

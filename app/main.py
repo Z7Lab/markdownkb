@@ -116,6 +116,27 @@ async def lifespan(app: FastAPI):
     logger.info("Starting background index scan...")
     threading.Thread(target=_run_index_safe, daemon=True).start()
 
+    # Initialise versioning manager (git-backed revision history).
+    # Failure is non-fatal — writers fall back to unversioned behaviour.
+    versioning_manager = None
+    if settings.versioning_enabled:
+        try:
+            from app.versioning import GitManager
+            versioning_manager = GitManager(Path(settings.versioning_root))
+            for cfg in settings.source_configs:
+                if cfg.get("versioned") and Path(cfg["path"]).is_dir():
+                    try:
+                        versioning_manager.ensure_repo(cfg["path"])
+                    except Exception:
+                        logger.warning(
+                            "versioning: could not initialise repo for %s",
+                            cfg["path"], exc_info=True,
+                        )
+            logger.info("Versioning manager initialised at %s", settings.versioning_root)
+        except Exception:
+            logger.warning("Versioning manager failed to initialise", exc_info=True)
+            versioning_manager = None
+
     # Store services on app.state for dependency injection
     from app.services.chat_service import ConversationHistory
     app.state.settings = settings
@@ -130,6 +151,7 @@ async def lifespan(app: FastAPI):
     app.state.presetsdb = presetsdb
     app.state.cancel_event = cancel_event
     app.state.conversation_history = ConversationHistory()
+    app.state.versioning_manager = versioning_manager
 
     # Initialize plugin resources (on_startup hooks)
     from app.plugins import init_plugins

@@ -262,6 +262,7 @@ def ingest(
     settings: Settings,
     retriever: Retriever | None = None,
     force: bool = False,
+    versioning_manager=None,
 ) -> dict:
     """Run a single ingest pass. Returns a dict the router serialises directly.
 
@@ -310,6 +311,17 @@ def ingest(
         "wiki_compile: ingested %s -> %s (%d chars summary, %d existing pages used)",
         source_path, target_dir, len(summary_md), len(existing_pages_used),
     )
+
+    # One version commit covering all pages written by this ingest.
+    version_commit = None
+    if versioning_manager is not None:
+        from app.versioning.hooks import try_commit
+        version_commit = try_commit(
+            settings, versioning_manager, target_dir,
+            paths=pages_written,
+            message=f"wiki_compile: ingest {Path(source_path).name}",
+        )
+
     return {
         "status": "ok",
         "source_path": source_path,
@@ -318,4 +330,5 @@ def ingest(
         "existing_pages_used": existing_pages_used,
         "summary_preview": summary_md[:300],
         "summary_chars": len(summary_md),
+        "version_commit": version_commit,
     }
