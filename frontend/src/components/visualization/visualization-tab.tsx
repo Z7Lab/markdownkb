@@ -128,21 +128,31 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
   const prevBucketThresholdRef = useRef<number | undefined>(undefined)
 
   // Fetch on mount with the user's active scope, and re-fetch when any
-  // filter input changes.
+  // filter input changes. Bucket-threshold-only changes are debounced so
+  // that dragging the slider doesn't fire a storm of concurrent builds —
+  // the backend's RRF compute is ~1s per build and each in-flight request
+  // holds memory for TF-IDF + pairwise sims, so 4 concurrent builds can
+  // quadruple container memory usage.
   useEffect(() => {
     const scopeChanged = prevScopeRef.current !== scopeIdsParam
     const tagsChanged = JSON.stringify(prevTagsRef.current) !== JSON.stringify(adHocTagsParam)
     const wcChanged = prevWordCloudsRef.current !== wordClouds
     const bucketChanged = prevBucketRef.current !== bucketIdsParam
     const bucketThreshChanged = prevBucketThresholdRef.current !== bucketThreshold && !!firstBucketId
-    if (scopeChanged || tagsChanged || wcChanged || bucketChanged || bucketThreshChanged) {
+    if (!scopeChanged && !tagsChanged && !wcChanged && !bucketChanged && !bucketThreshChanged) {
+      return
+    }
+    const onlyThresholdChanged = bucketThreshChanged && !scopeChanged && !tagsChanged && !wcChanged && !bucketChanged
+    const delay = onlyThresholdChanged ? 300 : 0
+    const timer = setTimeout(() => {
       prevScopeRef.current = scopeIdsParam
       prevTagsRef.current = adHocTagsParam
       prevWordCloudsRef.current = wordClouds
       prevBucketRef.current = bucketIdsParam
       prevBucketThresholdRef.current = bucketThreshold
       fetchDocMap(scopeIdsParam, wcChanged || bucketChanged || bucketThreshChanged, wordClouds, adHocTagsParam, firstBucketId, bucketThreshold)
-    }
+    }, delay)
+    return () => clearTimeout(timer)
   }, [fetchDocMap, scopeIdsParam, adHocTagsParam, wordClouds, bucketIdsParam, firstBucketId, bucketThreshold])
 
   // Staleness

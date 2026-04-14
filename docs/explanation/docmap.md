@@ -51,15 +51,17 @@ Controls the spacing between nodes in the force simulation. This is purely visua
 
 Changing spread reheats the physics simulation so nodes reposition smoothly.
 
-### Bucket Connections (slider: 1 – 10, only visible with a bucket selected)
+### Bucket Strength (slider: 0.00 – 1.00, only visible with a bucket selected)
 
-Controls how many of the strongest scope-side connections each bucket document keeps. Default is 3.
+Controls which bucket-to-scope edges are drawn. The scale is a **normalized fused rank** — each bucket document's best scope match is weight 1.00, its worst match is 0.00, everything in between scales linearly. Default is 0.50.
 
-- **Low (1–2)** — each bucket node tethers to only its closest scope match. Cleanest layout, easiest to read.
-- **Default (3)** — each bucket node shows its top 3 connections. Good balance.
-- **High (5–10)** — bucket nodes show many connections. Useful for exploring all related scope docs but can clutter the view.
+- **1.00** — only each bucket doc's single strongest scope match
+- **0.50** (default) — roughly the top half of each bucket doc's scope matches
+- **0.00** — every computed connection, including the weakest ones
 
-This is a server-side filter — adjusting it triggers a fresh fetch with the new cap. Different values produce different cache entries, so flipping back to a previous value is instant on the second visit.
+This is a server-side filter and re-triggers a fused-rank build when you pass a 0.05 step. Slider drags are debounced (~300ms) so quick scrubbing doesn't spawn a storm of parallel compute jobs. Different values produce different cache entries; flipping back to a previous value is instant on the second visit.
+
+The "fused rank" itself is not a cosine similarity — see *Bucket Overlay* below for how it's computed and why it exists.
 
 ### Filter by Term
 
@@ -130,13 +132,28 @@ When a bucket is selected alongside a scope (or "All sources"), the Doc Map visu
 
 The backend computes three sets of edges:
 
-1. **Main-to-main edges** — pairwise similarity between your permanent documents (filtered by scope), using the same top-K chunk matching as normal
-2. **Bucket-to-bucket edges** — pairwise similarity within the bucket's documents
-3. **Cross-collection edges** — similarity between every bucket document and every permanent document. These are computed by comparing chunk embeddings across the two separate ChromaDB collections
+1. **Main-to-main edges** — pairwise similarity between your permanent documents (filtered by scope), using the mean of top-K chunk-pair cosine similarities
+2. **Bucket-to-bucket edges** — pairwise similarity within the bucket's documents (same metric)
+3. **Cross-collection edges** — bucket-to-scope overlap, computed via **Reciprocal Rank Fusion** of four signals (described below)
 
-Cross-collection edges use the **same similarity threshold** as the rest of the graph (controlled by the Similarity slider, default 0.60). To prevent bucket nodes from attracting many weak connections and turning into hairball hubs, the backend caps each bucket document to its **top N strongest** scope-side connections. N defaults to 3 and is controlled by the Bucket Connections slider (1–10), which only appears when a bucket is selected.
+Bucket nodes always render even if they have zero surviving edges — selecting a bucket should never make it invisible.
 
-If a bucket document has no scope connections at the current threshold (or only connections weaker than its top-N peers), it still renders as a floating colored marker — bucket nodes are never silently dropped.
+#### Why cross-collection edges are different
+
+Earlier versions used a single hardcoded similarity floor (0.75) for bucket-to-scope edges. In practice, thematic overlap between a bucket and a scope usually lives in a narrower, lower similarity band (~0.55–0.70) than intra-scope overlap, so the fixed floor was either too strict (bucket nodes floated orphaned) or too permissive (bucket nodes became hairball hubs). Worse, embedding similarity alone has a "plateau problem" — for a tight scope, every scope doc ends up at almost the same similarity to the bucket, making the ranking meaningless.
+
+To address both, cross-collection edges now fuse four independent similarity signals:
+
+1. **Mean top-K chunk-pair cosine** — the baseline embedding-similarity measure, the same one used for main-to-main edges. Captures overall thematic overlap.
+2. **Max chunk-pair cosine** — the single strongest chunk-to-chunk match. Captures "these docs have one very strongly related passage," which the mean smooths away.
+3. **TF-IDF cosine** — document-level bag-of-words cosine. Captures *distinctive-vocabulary overlap*, independent of paraphrase. (MarkdownKB's search already does something similar at the chunk level via BM25 — see [retrieval.md](retrieval.md) for the analogous idea in hybrid retrieval.)
+4. **Relative neighbour rank** — for each scope doc, how highly the bucket doc ranks among its other neighbours. Captures whether the bucket is close to a doc *relative to that doc's own neighbourhood*, which catches isolated scope docs that would otherwise be hidden by the plateau.
+
+These four signals are fused via **Reciprocal Rank Fusion** (RRF, Cormack et al. 2009): each signal independently ranks the scope docs, then `score(doc) = Σ 1/(60 + rank_signal(doc))` across the four signals. Docs that score well in multiple signals rise to the top; docs that score well in only one (e.g. TF-IDF-only matches from shared boilerplate) get moderated.
+
+The fused score is then **normalized per bucket doc to [0, 1]** so each bucket doc's best scope match is always weight 1.00 and its worst is 0.00. This is what the Bucket Strength slider filters — a value of 0.5 keeps the top half of each bucket doc's ranked scope matches; 1.0 keeps only the single best.
+
+An empirical comparison of these four signals against the baseline-only approach, including why RRF was chosen over a weighted blend, is archived under `project_artifacts/mdkb/experiments/docmap-edge-weight-strategies.md` in the internal `dev-resources` repository.
 
 ### Visual Distinction
 

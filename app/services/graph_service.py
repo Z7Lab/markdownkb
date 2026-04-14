@@ -439,6 +439,154 @@ def compute_cross_edges(
     return edges
 
 
+def compute_cross_edges_fused(
+    store_a: "VectorStore",
+    store_b: "VectorStore",
+    top_k: int = 3,
+    min_fused_weight: float = 0.0,
+    allowed_paths_a: set[str] | None = None,
+    excluded_paths_a: set[str] | None = None,
+) -> list[dict]:
+    """Compute bucket-to-scope edges via Reciprocal Rank Fusion over four
+    signals: mean-top-K cosine (baseline), max chunk-pair cosine, TF-IDF
+    cosine at the document level, and relative neighbour rank. Edges are
+    ranked per bucket doc, fused, then normalized to [0, 1] per bucket doc
+    so the slider maps cleanly to "show top X% of fused ranks."
+
+    Falls back to the plain ``compute_cross_edges`` result (as weight 0
+    placeholders on each edge) if sklearn isn't available or doc texts are
+    missing.
+    """
+    raw_a = store_a.get_all_with_embeddings()
+    raw_b = store_b.get_all_with_embeddings()
+    if not raw_a["ids"] or not raw_b["ids"]:
+        return []
+
+    def _group_chunks(raw):
+        chunks: dict[str, list[int]] = defaultdict(list)
+        for i, chunk_id in enumerate(raw["ids"]):
+            path = raw["metadatas"][i].get("source_path", chunk_id)
+            chunks[path].append(i)
+        return dict(chunks)
+
+    chunks_a = _group_chunks(raw_a)
+    chunks_b = _group_chunks(raw_b)
+
+    if allowed_paths_a is not None:
+        chunks_a = {p: idxs for p, idxs in chunks_a.items() if p in allowed_paths_a}
+    if excluded_paths_a:
+        chunks_a = {p: idxs for p, idxs in chunks_a.items() if p not in excluded_paths_a}
+
+    if not chunks_a or not chunks_b:
+        return []
+
+    embs_a = np.array(raw_a["embeddings"], dtype=np.float32)
+    embs_b = np.array(raw_b["embeddings"], dtype=np.float32)
+    texts_a = raw_a.get("documents") or []
+    texts_b = raw_b.get("documents") or []
+
+    paths_a = list(chunks_a.keys())
+    paths_b = list(chunks_b.keys())
+
+    logger.info(
+        "fused cross-edges: starting (%d scope docs, %d bucket docs)",
+        len(paths_a), len(paths_b),
+    )
+
+    # Signal 1 (baseline mean-top-K) and Signal 2 (max chunk-pair) —
+    # both computed in one pass over the bucket × scope chunk matrix.
+    baseline: dict[tuple[str, str], float] = {}
+    max_sig: dict[tuple[str, str], float] = {}
+    for pb in paths_b:
+        bembs = embs_b[chunks_b[pb]]
+        for pa in paths_a:
+            aembs = embs_a[chunks_a[pa]]
+            sim = (aembs @ bembs.T).flatten()
+            k = min(top_k, sim.size)
+            top = np.partition(sim, -k)[-k:]
+            baseline[(pb, pa)] = float(top.mean())
+            max_sig[(pb, pa)] = float(sim.max())
+    logger.info("fused cross-edges: baseline+max done")
+
+    # Signal 3 (TF-IDF cosine) over concatenated per-doc chunk texts.
+    tfidf_sig: dict[tuple[str, str], float] = {}
+    docs_a_text = {p: " ".join(texts_a[i] for i in chunks_a[p]) for p in paths_a} if texts_a else {}
+    docs_b_text = {p: " ".join(texts_b[i] for i in chunks_b[p]) for p in paths_b} if texts_b else {}
+    if TfidfVectorizer is not None and all(docs_a_text.values()) and all(docs_b_text.values()):
+        from sklearn.metrics.pairwise import cosine_similarity
+        corpus = list(docs_a_text.values()) + list(docs_b_text.values())
+        vec = TfidfVectorizer(lowercase=True, stop_words="english", min_df=1, ngram_range=(1, 2))
+        try:
+            X = vec.fit_transform(corpus)
+            n_a = len(docs_a_text)
+            sims = cosine_similarity(X[n_a:], X[:n_a])  # (n_b, n_a)
+            for j, pb in enumerate(paths_b):
+                for i, pa in enumerate(paths_a):
+                    tfidf_sig[(pb, pa)] = float(sims[j, i])
+        except ValueError:
+            # Empty vocabulary after stop-word removal; fall back to zeros.
+            tfidf_sig = {(pb, pa): 0.0 for pb in paths_b for pa in paths_a}
+    else:
+        tfidf_sig = {(pb, pa): 0.0 for pb in paths_b for pa in paths_a}
+    logger.info("fused cross-edges: tfidf done")
+
+    # Signal 4 (relative rank) — for each scope doc, rank the bucket doc
+    # among its own neighbours (other scope docs + this bucket doc),
+    # score = 1 / (1 + rank).
+    main_sim: dict[tuple[str, str], float] = {}
+    for i, pi in enumerate(paths_a):
+        iembs = embs_a[chunks_a[pi]]
+        for j in range(i + 1, len(paths_a)):
+            pj = paths_a[j]
+            jembs = embs_a[chunks_a[pj]]
+            sim = (iembs @ jembs.T).flatten()
+            k = min(top_k, sim.size)
+            s = float(np.partition(sim, -k)[-k:].mean())
+            main_sim[(pi, pj)] = main_sim[(pj, pi)] = s
+
+    rel_rank_sig: dict[tuple[str, str], float] = {}
+    for pb in paths_b:
+        for pa in paths_a:
+            neigh = [(other, main_sim.get((pa, other), 0.0)) for other in paths_a if other != pa]
+            neigh.append(("__bucket__", baseline[(pb, pa)]))
+            neigh.sort(key=lambda x: -x[1])
+            rank = next(idx for idx, (name, _) in enumerate(neigh) if name == "__bucket__")
+            rel_rank_sig[(pb, pa)] = 1.0 / (1.0 + rank)
+    logger.info("fused cross-edges: relative-rank done")
+
+    # Reciprocal Rank Fusion — per bucket doc, rank scope docs by each
+    # signal, sum 1 / (K + rank) across signals.
+    RRF_K = 60
+    signals = (baseline, max_sig, tfidf_sig, rel_rank_sig)
+    fused: dict[tuple[str, str], float] = {}
+    for pb in paths_b:
+        rank_maps = []
+        for sig in signals:
+            pairs = sorted(paths_a, key=lambda pa: -sig[(pb, pa)])
+            rank_maps.append({pa: idx + 1 for idx, pa in enumerate(pairs)})
+        for pa in paths_a:
+            fused[(pb, pa)] = sum(1.0 / (RRF_K + rm[pa]) for rm in rank_maps)
+
+    # Normalize per bucket doc to [0, 1]. This makes the threshold slider's
+    # meaning corpus-independent: 1.0 = best scope match for that bucket
+    # doc, 0.0 = worst. Every bucket doc therefore always has at least one
+    # edge at weight 1.0, preventing orphan bucket nodes.
+    edges: list[dict] = []
+    for pb in paths_b:
+        scores = {pa: fused[(pb, pa)] for pa in paths_a}
+        mn, mx = min(scores.values()), max(scores.values())
+        span = (mx - mn) if mx > mn else 1.0
+        for pa, s in scores.items():
+            w = (s - mn) / span
+            if w >= min_fused_weight:
+                edges.append({
+                    "source": pa,
+                    "target": pb,
+                    "weight": round(float(w), 4),
+                })
+    return edges
+
+
 def _empty_graph() -> dict:
     """Return an empty graph structure."""
     return {

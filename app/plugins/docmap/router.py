@@ -14,7 +14,7 @@ from app.rag.retriever import Retriever
 from app.ratelimit import STANDARD, limiter
 from app.scope_utils import apply_exclude_patterns, parse_scope_ids, resolve_scopes
 from app.tag_utils import resolve_tag_paths
-from app.services.graph_service import compute_cross_edges, compute_edge_detail, compute_graph, graph_progress
+from app.services.graph_service import compute_cross_edges_fused, compute_edge_detail, compute_graph, graph_progress
 from app.storage.scopedb import ScopeDB
 from app.storage.trackingdb import TrackingDB
 
@@ -238,18 +238,19 @@ def graph_data(
         result["nodes"].extend(bucket_graph["nodes"])
         result["edges"].extend(bucket_graph["edges"])
 
-        # Compute cross-collection edges (bucket ↔ main). Use an
-        # independent bucket_min_weight threshold rather than capping
-        # to top-N: cross-edge weights naturally sit in a narrower,
-        # lower band (~0.55–0.70 for thematic overlap), and a top-N
-        # cap hides that reality behind an arbitrary knob. A separate
-        # threshold lets the user control bucket edge density with
-        # the same mental model as the main Similarity slider.
+        # Compute cross-collection edges (bucket ↔ main) via Reciprocal
+        # Rank Fusion of four signals: mean-top-K cosine (baseline), max
+        # chunk-pair cosine, TF-IDF cosine, and relative neighbour rank.
+        # See docs/experiments/docmap-edge-weight-strategies.md for the
+        # empirical evaluation that motivated this approach. Edges are
+        # normalized to [0, 1] per bucket doc, so bucket_min_weight is
+        # effectively "show top X% of fused ranks" — every bucket doc
+        # always has at least one edge at weight 1.0.
         #
-        # compute_cross_edges only post-filters via allowed_paths_a; it
-        # has no concept of scope_folders. So if the scope is folder-only
-        # (tags/excludes already expanded above leave scope_folders set
-        # with allowed=None), we must expand folders into an explicit
+        # compute_cross_edges_fused only post-filters via allowed_paths_a;
+        # it has no concept of scope_folders. So if the scope is folder-
+        # only (tags/excludes already expanded above leave scope_folders
+        # set with allowed=None), we must expand folders into an explicit
         # allowed set here, otherwise cross-edges leak across the scope
         # boundary and the bucket connects to the global-top neighbours
         # instead of scope-top neighbours.
@@ -260,9 +261,9 @@ def graph_data(
                 f["path"] for f in all_tracked
                 if any(f["path"].startswith(d + "/") or f["path"] == d for d in scope_folders)
             }
-        cross_edges = compute_cross_edges(
+        cross_edges = compute_cross_edges_fused(
             retriever.store, bucket_store,
-            top_k=top_k, min_weight=bucket_min_weight,
+            top_k=top_k, min_fused_weight=bucket_min_weight,
             allowed_paths_a=cross_allowed, excluded_paths_a=excluded,
         )
         result["edges"].extend(cross_edges)

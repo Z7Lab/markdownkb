@@ -34,7 +34,7 @@ export function useDocmap() {
   const [fetchedAt, setFetchedAt] = useState<number | null>(null)
   const [threshold, setThreshold] = useState(0.75)
   const [wordClouds, setWordClouds] = useState(true)
-  const [bucketThreshold, setBucketThreshold] = useState(0.55)
+  const [bucketThreshold, setBucketThreshold] = useState(0.5)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [progress, setProgress] = useState<GraphProgress>({ fraction: 0, phase: "idle" })

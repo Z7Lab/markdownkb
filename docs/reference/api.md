@@ -283,9 +283,13 @@ Requires `plugins.docmap.enabled: true`. Plugin: `app/plugins/docmap/`.
 | GET | `/api/docmap/edge-detail` | Chunk-level similarity detail for a document pair |
 | GET | `/api/docmap/progress` | Current computation progress |
 
-Accepts optional `scope_ids`, `ad_hoc_tags[]`, `word_clouds`, `min_weight`, `bucket_id`, and `bucket_top_n` query parameters. Supports both scope and tag filtering. Filters out files with `include_rag=false`.
+Accepts optional `scope_ids`, `ad_hoc_tags[]`, `word_clouds`, `min_weight`, `bucket_id`, `bucket_min_weight`, and `client_threshold` query parameters. Supports both scope and tag filtering. Filters out files with `include_rag=false`.
 
-When `bucket_id` is set, the response includes the bucket's documents merged into the graph with `_bucket: true` markers and the bucket's color. Cross-collection edges (bucket ↔ scope) use the same `min_weight` threshold as intra-scope edges, capped to the strongest `bucket_top_n` connections per bucket document (default 3). Bucket nodes always render even if they have no surviving edges — selecting a bucket should never make it invisible.
+When `bucket_id` is set, the response includes the bucket's documents merged into the graph with `_bucket: true` markers and the bucket's color. Bucket nodes always render even if they have no surviving edges — selecting a bucket should never make it invisible.
+
+**Cross-collection edges** (bucket ↔ scope) are computed via Reciprocal Rank Fusion of four similarity signals — mean top-K chunk-pair cosine, max chunk-pair cosine, document-level TF-IDF cosine, and relative neighbour rank — rather than a single cosine threshold. Fused scores are normalized per bucket doc to [0, 1], and `bucket_min_weight` (default 0.50) filters edges by this normalized score: 1.0 keeps only each bucket doc's single best match, 0.0 keeps every computed connection. See [docmap.md](../explanation/docmap.md#bucket-overlay) for the full explanation.
+
+`client_threshold` is metadata only: the frontend passes its current Similarity-slider value so the backend debug log (`{data_directory}/docmap-debug.log`) can record slider state alongside each build. It does not affect the response.
 
 ## Knowledge Graph
 

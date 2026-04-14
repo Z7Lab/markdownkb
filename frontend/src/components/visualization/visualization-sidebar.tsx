@@ -148,23 +148,23 @@ export function VisualizationSidebar({
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1.5">
                     <label className="text-xs text-muted-foreground">
-                      Bucket similarity: {bucketThreshold.toFixed(2)}
+                      Bucket strength: {bucketThreshold.toFixed(2)}
                     </label>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Info className="h-3 w-3 text-muted-foreground/70 cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent className="max-w-xs">
-                        Minimum similarity for an edge between a bucket document and a scope document. Cross-collection overlap is usually weaker than intra-scope overlap (thematic rather than near-quoted), so this slider is separate from the main Similarity. Lower = more bucket connections, higher = only the strongest.
+                        Minimum fused-rank strength for a bucket-to-scope edge. Cross-collection weights combine four signals (embedding similarity, vocabulary overlap, single-strongest match, and relative neighbour rank) via Reciprocal Rank Fusion, normalized per bucket doc to 0–1. At 1.0 you see only each bucket doc's top match; at 0.0 you see every connection.
                       </TooltipContent>
                     </Tooltip>
                   </div>
                   <Slider
                     value={[bucketThreshold]}
                     onValueChange={([v]) => onBucketThresholdChange(v)}
-                    min={0.5}
-                    max={0.85}
-                    step={0.01}
+                    min={0}
+                    max={1}
+                    step={0.05}
                     className="w-full"
                   />
                 </div>
