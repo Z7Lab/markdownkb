@@ -5,12 +5,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronRight, Brain, Copy, Check } from "lucide-react";
+import { ChevronRight, Brain, Copy, Check, FileUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ChatMessage as ChatMessageType } from "@/lib/types";
 import { cn, copyToClipboard } from "@/lib/utils";
 import { toast } from "sonner";
 import { SourceLegend, SourceList } from "@/components/ui/source-badge";
+import { PromoteDialog } from "@/components/wiki/promote-dialog";
 
 interface ThinkBlock {
   type: "think" | "text" | "thinking";
@@ -94,6 +95,7 @@ export const ChatMessage = memo(function ChatMessage({
 }) {
   const isUser = message.role === "user";
   const [copied, setCopied] = useState(false);
+  const [promoteOpen, setPromoteOpen] = useState(false);
 
   async function handleCopy() {
     const ok = await copyToClipboard(message.content);
@@ -179,6 +181,16 @@ export const ChatMessage = memo(function ChatMessage({
             <Button
               variant="ghost"
               size="icon"
+              aria-label="File as wiki page"
+              title="File as wiki page"
+              className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+              onClick={() => setPromoteOpen(true)}
+            >
+              <FileUp className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               aria-label="Copy message"
               className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
               onClick={handleCopy}
@@ -192,6 +204,16 @@ export const ChatMessage = memo(function ChatMessage({
           </div>
         )}
       </div>
+
+      {!isUser && (
+        <PromoteDialog
+          open={promoteOpen}
+          onClose={() => setPromoteOpen(false)}
+          content={message.content}
+          kind="chat"
+          sources={(sources ?? []).map((p) => ({ path: p }))}
+        />
+      )}
     </div>
   );
 });

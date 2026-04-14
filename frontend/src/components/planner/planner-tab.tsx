@@ -13,9 +13,10 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Markdown } from "@/components/ui/markdown"
 import { SourceList } from "@/components/ui/source-badge"
 import { PlannerSkillReview } from "./planner-skill-review"
-import { Loader2, Lightbulb, Square, Save, Download } from "lucide-react"
+import { Loader2, Lightbulb, Square, Save, Download, FileUp } from "lucide-react"
 import { useEffect, useRef, useState, type KeyboardEvent } from "react"
 import { EmptyHero } from "@/components/ui/empty-hero"
+import { PromoteDialog } from "@/components/wiki/promote-dialog"
 
 export function PlannerTab() {
   const {
@@ -40,6 +41,7 @@ export function PlannerTab() {
   const [inputQuery, setInputQuery] = useState("")
   const [viewingPath, setViewingPath] = useState<string | null>(null)
   const [elapsed, setElapsed] = useState(0)
+  const [promoteOpen, setPromoteOpen] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
@@ -177,6 +179,17 @@ export function PlannerTab() {
                       <span className="text-sm font-semibold text-primary">
                         {isRefined ? "Refined Plan" : "Implementation Plan"}
                       </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 gap-1 ml-auto"
+                        onClick={() => setPromoteOpen(true)}
+                        title="File this plan as a wiki page"
+                        disabled={isPlanning}
+                      >
+                        <FileUp className="h-3 w-3" />
+                        File
+                      </Button>
                     </div>
                     <Markdown className="text-sm">{isRefined && refinedPlan ? refinedPlan : plan}</Markdown>
                   </CardContent>
@@ -224,6 +237,15 @@ export function PlannerTab() {
         <FileViewerDialog
           path={viewingPath}
           onClose={() => setViewingPath(null)}
+        />
+
+        <PromoteDialog
+          open={promoteOpen}
+          onClose={() => setPromoteOpen(false)}
+          content={(isRefined && refinedPlan ? refinedPlan : plan) ?? ""}
+          suggestedTitle={query}
+          kind="planner"
+          sources={sources.map((p) => ({ path: p }))}
         />
       </div>
     </div>

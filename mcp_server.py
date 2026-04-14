@@ -344,6 +344,16 @@ async def lifespan(server: FastMCP):
         wikidb = WikiDB(settings.data_directory)
         logger.info("WikiDB initialized for MCP (wiki_compile plugin enabled)")
 
+    versioning_manager = None
+    if settings.versioning_enabled:
+        try:
+            from pathlib import Path
+            from app.versioning import GitManager
+            versioning_manager = GitManager(Path(settings.versioning_root))
+            logger.info("GitManager initialized for MCP (versioning enabled)")
+        except Exception:
+            logger.warning("GitManager init failed for MCP", exc_info=True)
+
     # Optional history tracking — record MCP calls to the web UI sidebar DBs
     chatdb = None
     searchdb = None
@@ -379,6 +389,7 @@ async def lifespan(server: FastMCP):
         "bucket_service": bucket_service,
         "wikidb": wikidb,
         "kgdb": kgdb,
+        "versioning_manager": versioning_manager,
     }
 
     if kgdb:

@@ -98,9 +98,25 @@ def handler(
         raise ValueError(f"Failed to write file: {exc}") from exc
 
     logger.info("Document saved via MCP: %s", full_path)
+
+    # Best-effort auto-commit — mirrors the write_api hook so MCP-authored
+    # writes get the same version history as HTTP-authored ones.
+    version_commit = None
+    try:
+        from app.versioning.hooks import try_commit
+        manager = ctx.request_context.lifespan_context.get("versioning_manager")
+        version_commit = try_commit(
+            settings, manager, target_dir,
+            paths=[relative],
+            message=f"mcp.save_file: {'update' if overwrite else 'create'} {relative}",
+        )
+    except Exception:
+        logger.debug("MCP save_file: versioning hook failed", exc_info=True)
+
     return {
         "status": "created" if not overwrite else "written",
         "path": str(full_path),
         "relative_path": relative,
         "source": str(target_dir),
+        "version_commit": version_commit,
     }

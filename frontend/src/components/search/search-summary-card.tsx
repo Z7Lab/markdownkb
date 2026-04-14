@@ -1,9 +1,11 @@
+import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Markdown } from "@/components/ui/markdown"
 import { SourceList } from "@/components/ui/source-badge"
 import { Progress } from "@/components/ui/progress"
-import { Loader2, Microscope, Sparkles, Square } from "lucide-react"
+import { Loader2, Microscope, Sparkles, Square, FileUp } from "lucide-react"
+import { PromoteDialog } from "@/components/wiki/promote-dialog"
 
 export function SearchSummaryCard({
   summary,
@@ -32,6 +34,8 @@ export function SearchSummaryCard({
 }) {
   const label = isDeepResearch ? "Deep Research" : "AI Summary"
   const Icon = isDeepResearch ? Microscope : Sparkles
+  const [promoteOpen, setPromoteOpen] = useState(false)
+  const canPromote = !!summary && !isSummarizing
 
   // Progress calculation for deep research: iterations are the main work,
   // then synthesis is the final stretch
@@ -79,6 +83,18 @@ export function SearchSummaryCard({
               {summary ? "Regenerate" : "Generate Summary"}
             </Button>
           )}
+          {canPromote && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`h-6 px-2 gap-1 ${isHistorical ? "" : "ml-auto"}`}
+              onClick={() => setPromoteOpen(true)}
+              title="File this summary as a wiki page"
+            >
+              <FileUp className="h-3 w-3" />
+              File
+            </Button>
+          )}
         </div>
         {showProgress && (
           <Progress value={progressValue} className="h-1.5 mb-3" />
@@ -100,6 +116,16 @@ export function SearchSummaryCard({
           </>
         )}
       </CardContent>
+
+      {canPromote && (
+        <PromoteDialog
+          open={promoteOpen}
+          onClose={() => setPromoteOpen(false)}
+          content={summary ?? ""}
+          kind="search"
+          sources={summarySources.map((p) => ({ path: p }))}
+        />
+      )}
     </Card>
   )
 }
