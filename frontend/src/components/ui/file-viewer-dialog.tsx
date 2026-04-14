@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -11,14 +11,16 @@ import { Input } from "@/components/ui/input"
 import { Markdown } from "@/components/ui/markdown"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Pencil, Copy, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Search, X } from "lucide-react"
+import { Pencil, Copy, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Search, X, BookOpen } from "lucide-react"
 import { useTextSearch } from "@/hooks/use-text-search"
 import { useFileViewer } from "@/hooks/use-file-viewer"
+import { useWikiCompileAvailable } from "@/hooks/use-wiki-compile-available"
 import { toast } from "sonner"
 import { copyToClipboard, parseFrontmatter } from "@/lib/utils"
 import { TagEditDialog } from "@/components/tags/tag-edit-dialog"
 import { FileActions } from "@/components/browse/file-actions"
 import { ConfirmDialog } from "./confirm-dialog"
+import { WikiCompileDialog } from "@/components/wiki/wiki-compile-dialog"
 
 export function FileViewerDialog({
   path,
@@ -49,6 +51,8 @@ export function FileViewerDialog({
     prevMatch: searchPrevMatch,
   } = useTextSearch()
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const wikiCompileAvailable = useWikiCompileAvailable()
+  const [compileDialogOpen, setCompileDialogOpen] = useState(false)
 
   // Focus search input when opened
   useEffect(() => {
@@ -103,6 +107,19 @@ export function FileViewerDialog({
             </div>
             {isMarkdown && (
               <div className="flex items-center gap-2 shrink-0">
+                {wikiCompileAvailable && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1.5"
+                    onClick={() => setCompileDialogOpen(true)}
+                    disabled={loading}
+                    title="Synthesize a summary page into a writable wiki source"
+                  >
+                    <BookOpen className="h-3.5 w-3.5" />
+                    Compile
+                  </Button>
+                )}
                 <FileActions
                   status={fileStatus.status}
                   includeRag={fileStatus.include_rag === 1}
@@ -270,6 +287,11 @@ export function FileViewerDialog({
             confirmLabel="Unindex"
             variant="destructive"
             onConfirm={handleUnindexFile}
+          />
+          <WikiCompileDialog
+            open={compileDialogOpen}
+            sourcePath={path}
+            onClose={() => setCompileDialogOpen(false)}
           />
         </>
       )}
