@@ -35,12 +35,11 @@ logger = logging.getLogger(__name__)
 # explanation. 8000 ~= ~2000 tokens at typical markdown density.
 MAX_SOURCE_CHARS = 8000
 
-# Retrieval-augmented context budget. Conservative defaults that fit even
-# in 8K-context local models alongside source + system prompt + generation
-# budget (see queue task notes for the math). Bump for larger contexts.
-MAX_EXISTING_PAGES = 5
-MAX_CHARS_PER_EXISTING_PAGE = 2500
-RETRIEVAL_QUERY_CHARS = 1500  # head of source used as embedding query
+# Head of the source used as the embedding query. This is about
+# query shape, not budget — most sources put their topic in the first
+# ~1500 chars, and we don't want the whole 8000-char source as a query
+# (signal dilutes, and we'd embed material that's in the source itself).
+RETRIEVAL_QUERY_CHARS = 1500
 
 _SAFE_SLUG_RE = re.compile(r"[^a-z0-9]+")
 
@@ -91,27 +90,35 @@ def fetch_existing_context(
     target_dir: Path,
     source_text: str,
     retriever: Retriever,
-    max_pages: int = MAX_EXISTING_PAGES,
 ) -> str:
-    """Retrieve top-K most-related existing wiki pages from ``target_dir``.
+    """Retrieve related existing wiki pages from ``target_dir``.
 
     Uses the configured hybrid retriever scoped to the target directory
     (so we only see pages already in this wiki, not other indexed
-    sources). The head of the new source is the embedding query — first
-    ~1500 chars usually captures the topic. Returns a formatted markdown
-    block ready to drop into the user prompt, or an empty string when
-    the wiki is empty / retrieval offline / no related pages found.
-    Best-effort: never raises, never blocks ingest.
+    sources). The head of the new source is the embedding query — the
+    first ~1500 chars usually captures the topic, and using the full
+    8000-char source dilutes the signal and duplicates material that
+    already appears below in the prompt.
+
+    Context shape is driven entirely by the retriever's configuration —
+    its ``top_k`` and score thresholds decide how much gets included.
+    This function adds no additional token-budget caps so the behaviour
+    scales correctly across deployment sizes: a small-context model
+    with a low ``top_k`` naturally gets fewer pages; a large-context
+    model with a higher ``top_k`` gets more. The retriever is the one
+    knob.
+
+    Returns a formatted markdown block ready to drop into the user
+    prompt, or an empty string when the wiki is empty, retrieval is
+    offline, or no related pages are found. Best-effort: never raises,
+    never blocks ingest.
     """
     try:
         if retriever.store.count == 0:
             return ""
         query = source_text[:RETRIEVAL_QUERY_CHARS]
-        # Over-fetch chunks since the retriever returns chunks, not pages;
-        # we then dedupe to unique source paths.
         results = retriever.search(
             query,
-            top_k=max_pages * 3,
             folders_filter=[str(target_dir)],
         )
     except Exception as e:
@@ -130,8 +137,6 @@ def fetch_existing_context(
             continue
         seen.add(path)
         unique_paths.append(path)
-        if len(unique_paths) >= max_pages:
-            break
 
     if not unique_paths:
         return ""
@@ -142,8 +147,6 @@ def fetch_existing_context(
             content = Path(p).read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
-        if len(content) > MAX_CHARS_PER_EXISTING_PAGE:
-            content = content[:MAX_CHARS_PER_EXISTING_PAGE] + "\n[truncated]"
         blocks.append(f"\n### Existing: {Path(p).name}\n")
         blocks.append(content)
     return "\n".join(blocks)

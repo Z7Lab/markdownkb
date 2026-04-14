@@ -64,11 +64,13 @@ Before each LLM call, the plugin fetches the most-related existing wiki pages fr
 
 How it works:
 
-- The first ~1500 chars of the new source are used as the embedding query.
+- The first ~1500 chars of the new source are used as the embedding query. Not a budget cap — using the full source as a query dilutes the signal and duplicates material that already appears below in the prompt.
 - The hybrid retriever (vector + BM25) is scoped to the target directory via `folders_filter`, so only this wiki's pages are candidates.
-- The top results are deduped to unique pages (the retriever returns chunks), `index.md` and `log.md` are excluded, and up to 5 pages are kept.
-- Each page's full content is embedded in the user prompt under an `### Existing: <filename>` heading, capped at 2500 chars per page.
-- When the wiki is empty, the retriever offline, or no related pages found, the context block is an empty string and the LLM call is identical to the no-context path. Fully back-compatible.
+- Returned chunks are deduped to unique source pages; `index.md` and `log.md` are excluded.
+- Each surviving page's full content is embedded in the user prompt under an `### Existing: <filename>` heading.
+- When the wiki is empty, the retriever is offline, or no related pages are found, the context block is an empty string and the LLM call is identical to the no-context path. Fully back-compatible.
+
+The context shape is driven entirely by the retriever's configuration. Its `top_k` and score thresholds decide how many pages survive — this plugin adds no additional token-budget caps. A small-context deployment with a low `top_k` naturally gets fewer pages; a large-context one with a higher `top_k` gets more. One knob, the right scope.
 
 The response includes `existing_pages_used: [filenames]` so callers can see which pages got referenced.
 
