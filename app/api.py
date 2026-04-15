@@ -36,13 +36,14 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             )
             raise
         elapsed_ms = (time.perf_counter() - start) * 1000.0
-        _access_logger.info(
-            "%s %s -> %s (%.1fms)",
-            request.method,
-            request.url.path,
-            status,
-            elapsed_ms,
-        )
+        if request.url.path != "/api/v1/settings/logs":
+            _access_logger.info(
+                "%s %s -> %s (%.1fms)",
+                request.method,
+                request.url.path,
+                status,
+                elapsed_ms,
+            )
         return response
 
 

@@ -50,14 +50,16 @@ export function LogViewer({
     }
   }, [logsUrl])
 
-  // Reset and restart polling whenever the URL changes
+  // Reset and restart polling whenever the URL changes; pause when logging is OFF
+  const loggingOff = logLevel === "OFF"
   useEffect(() => {
     setEntries([])
     seqRef.current = 0
+    if (loggingOff) return
     fetchLogs()
     const interval = setInterval(fetchLogs, pollInterval)
     return () => clearInterval(interval)
-  }, [fetchLogs, pollInterval])
+  }, [fetchLogs, pollInterval, loggingOff])
 
   // Auto-scroll to bottom on new entries
   useEffect(() => {
