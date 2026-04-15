@@ -3,7 +3,7 @@
 Extract entities and typed relationships from your indexed documents using LLM, building a queryable knowledge graph. Entities (concepts, tools, technologies, processes, etc.) are connected by typed relationships (uses, is-a, part-of, depends-on, etc.).
 
 **Feature flag:** `knowledge_graph`
-**Prefix:** `/api/knowledge-graph`
+**Prefix:** `/api/v1/knowledge-graph`
 
 ## How It Works
 
@@ -24,16 +24,16 @@ Extraction is decoupled from indexing. Enabling this plugin does not slow down t
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/knowledge-graph/extract` | Start background extraction over all indexed files |
-| POST | `/api/knowledge-graph/extract-file` | Extract entities from a single file (`?path=X`) |
-| GET | `/api/knowledge-graph/extract/status` | Extraction progress |
-| POST | `/api/knowledge-graph/extract/cancel` | Cancel running extraction |
-| GET | `/api/knowledge-graph/data` | All entities and relationships (with optional type filters) |
-| GET | `/api/knowledge-graph/entity` | Single entity with all connections (`?name=X`) |
-| GET | `/api/knowledge-graph/path` | BFS shortest path between two entities (`?source=X&target=Y`) |
-| GET | `/api/knowledge-graph/stats` | Entity and relationship counts |
-| GET | `/api/knowledge-graph/file-entity-counts` | Entity count per file |
-| POST | `/api/knowledge-graph/clear` | Clear all KG data |
+| POST | `/api/v1/knowledge-graph/extract` | Start background extraction over all indexed files |
+| POST | `/api/v1/knowledge-graph/extract-file` | Extract entities from a single file (`?path=X`) |
+| GET | `/api/v1/knowledge-graph/extract/status` | Extraction progress |
+| POST | `/api/v1/knowledge-graph/extract/cancel` | Cancel running extraction |
+| GET | `/api/v1/knowledge-graph/data` | All entities and relationships (with optional type filters) |
+| GET | `/api/v1/knowledge-graph/entity` | Single entity with all connections (`?name=X`) |
+| GET | `/api/v1/knowledge-graph/path` | BFS shortest path between two entities (`?source=X&target=Y`) |
+| GET | `/api/v1/knowledge-graph/stats` | Entity and relationship counts |
+| GET | `/api/v1/knowledge-graph/file-entity-counts` | Entity count per file |
+| POST | `/api/v1/knowledge-graph/clear` | Clear all KG data |
 
 ## Files Tab Integration
 

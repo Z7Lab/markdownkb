@@ -22,7 +22,7 @@ from app.schemas import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api", tags=["settings"])
+router = APIRouter(prefix="/api/v1", tags=["settings"])
 
 
 @router.get("/settings")
@@ -225,6 +225,17 @@ def update_retrieval_settings(
 
 # -- Plugin Settings --
 
+def _known_plugin_names() -> set[str]:
+    """Return the set of plugins known to the registry (builtin + external)."""
+    from app.plugins import discover_plugins
+    return {p["name"] for p in discover_plugins()}
+
+
+def _require_known_plugin(plugin_name: str) -> None:
+    if plugin_name not in _known_plugin_names():
+        raise HTTPException(status_code=404, detail="Unknown plugin")
+
+
 @router.get("/settings/plugins/{plugin_name}")
 @limiter.limit(STANDARD)
 def get_plugin_settings(
@@ -233,6 +244,7 @@ def get_plugin_settings(
     settings: Settings = Depends(get_settings),
 ):
     """Get configuration for a specific plugin."""
+    _require_known_plugin(plugin_name)
     return {"plugin": plugin_name, "config": settings.get_plugin_config(plugin_name)}
 
 
@@ -245,6 +257,7 @@ def update_plugin_settings(
     settings: Settings = Depends(get_settings),
 ):
     """Update configuration for a specific plugin (shallow merge)."""
+    _require_known_plugin(plugin_name)
     settings.set_plugin_config(plugin_name, req.config)
     settings.save()
     return {"status": "saved", "plugin": plugin_name, "config": settings.get_plugin_config(plugin_name)}
@@ -298,7 +311,7 @@ def list_presets(
     return {"presets": presetsdb.list_presets()}
 
 
-@router.post("/settings/presets")
+@router.post("/settings/presets", status_code=201)
 @limiter.limit(STANDARD)
 def create_preset(
     request: Request,

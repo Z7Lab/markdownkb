@@ -70,7 +70,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null, b
 
   const refreshThreads = useCallback(async (silent = false): Promise<boolean> => {
     try {
-      const res = await api.get<PaginatedResponse<Thread>>("/api/threads")
+      const res = await api.get<PaginatedResponse<Thread>>("/api/v1/threads")
       setThreads(res.items)
       return true
     } catch (err) {
@@ -218,7 +218,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null, b
       try {
         const res = await api.get<{
           messages: Array<{ role: string; content: string; sources?: string[] | null; source_map?: Record<string, string> | null; provider?: string | null; model?: string | null }>
-        }>(`/api/threads/${threadId}/messages`)
+        }>(`/api/v1/threads/${threadId}/messages`)
         if (currentLoad !== loadIdRef.current) return
         setMessages(
           res.messages.map((m) => ({
@@ -243,7 +243,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null, b
   const renameThread = useCallback(
     async (threadId: string, title: string) => {
       try {
-        await api.patch(`/api/threads/${threadId}`, { title })
+        await api.patch(`/api/v1/threads/${threadId}`, { title })
         setThreads((prev) =>
           prev.map((t) => (t.id === threadId ? { ...t, title } : t)),
         )
@@ -257,7 +257,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null, b
   const deleteThread = useCallback(
     async (threadId: string) => {
       try {
-        await api.del(`/api/threads/${threadId}`)
+        await api.del(`/api/v1/threads/${threadId}`)
         if (streamingThreadIdRef.current === threadId) {
           stop()
         }
@@ -283,7 +283,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null, b
       // ignore
     }
     try {
-      await api.del("/api/chat/history")
+      await api.del("/api/v1/chat/history")
     } catch {
       /* server-side clear is best-effort; local state is already reset */
     }
@@ -295,7 +295,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null, b
 
   const savePlan = useCallback(async () => {
     try {
-      const res = await api.post<{ message: string }>("/api/chat/save-plan", {
+      const res = await api.post<{ message: string }>("/api/v1/chat/save-plan", {
         history: messages,
       })
       return res.message

@@ -17,8 +17,8 @@ The rest of this document covers how each of those is implemented.
 
 The single source of truth for the running version is `pyproject.toml` (`project.version`). The FastAPI app exposes it as `app.version`, which is read by:
 
-- `GET /api/backups/status` — included in backup manifests and the restart-required marker
-- `GET /api/version` — the update-detection endpoint (see below)
+- `GET /api/v1/backups/status` — included in backup manifests and the restart-required marker
+- `GET /api/v1/version` — the update-detection endpoint (see below)
 - The Settings UI footer
 
 There is no second copy in an `__init__.py` or `VERSION` file — `pyproject.toml` is authoritative.

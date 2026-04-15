@@ -13,7 +13,7 @@ from app.version_check.detector import check_for_update, detect_install_method
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/version", tags=["version"])
+router = APIRouter(prefix="/api/v1/version", tags=["version"])
 
 
 @router.get("")

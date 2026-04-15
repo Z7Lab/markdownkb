@@ -45,7 +45,7 @@ export function RetrievalPresets({ onLoad, getCurrentSettings }: RetrievalPreset
 
   const fetchPresets = useCallback(async () => {
     try {
-      const data = await api.get<{ presets: Preset[] }>("/api/settings/presets")
+      const data = await api.get<{ presets: Preset[] }>("/api/v1/settings/presets")
       setPresets(data.presets)
     } catch (err) {
       // Presets are optional — don't block the settings page, but log so
@@ -60,7 +60,7 @@ export function RetrievalPresets({ onLoad, getCurrentSettings }: RetrievalPreset
     setLoading(true)
     try {
       const data = await api.post<{ status: string; name: string; settings: Preset["settings"] }>(
-        `/api/settings/presets/${presetId}/load`,
+        `/api/v1/settings/presets/${presetId}/load`,
       )
       onLoad(data.settings)
       toast.success(`Loaded preset "${data.name}"`)
@@ -76,7 +76,7 @@ export function RetrievalPresets({ onLoad, getCurrentSettings }: RetrievalPreset
     if (!name) return
     try {
       const settings = getCurrentSettings()
-      await api.post("/api/settings/presets", { name, settings })
+      await api.post("/api/v1/settings/presets", { name, settings })
       toast.success(`Saved preset "${name}"`)
       setNewName("")
       setShowSaveInput(false)
@@ -90,7 +90,7 @@ export function RetrievalPresets({ onLoad, getCurrentSettings }: RetrievalPreset
     const preset = presets.find(p => p.id === presetId)
     if (!preset) return
     try {
-      await api.del(`/api/settings/presets/${presetId}`)
+      await api.del(`/api/v1/settings/presets/${presetId}`)
       toast.success(`Deleted preset "${preset.name}"`)
       fetchPresets()
     } catch (err) {

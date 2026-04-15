@@ -19,7 +19,7 @@ from app.ratelimit import STANDARD, limiter
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api", tags=["plugins"])
+router = APIRouter(prefix="/api/v1", tags=["plugins"])
 
 _EXTERNAL_DIR = Path(_data_dir()) / "plugins"
 

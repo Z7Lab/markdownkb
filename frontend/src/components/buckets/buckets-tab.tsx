@@ -319,7 +319,7 @@ function BucketDetailPanel({
     setLoadingFiles(true)
     try {
       const res = await api.get<{ files: BucketFile[]; indexing?: boolean }>(
-        `/api/buckets/${bucket.id}/files`
+        `/api/v1/buckets/${bucket.id}/files`
       )
       setFiles(res.files)
       setFilesIndexing(res.indexing ?? false)
@@ -339,7 +339,7 @@ function BucketDetailPanel({
     const toastId = toast.loading(`Reindexing "${bucket.name}"...`)
     try {
       const res = await api.post<{ added_files: number; added_chunks: number }>(
-        `/api/buckets/${bucket.id}/reindex`, {}
+        `/api/v1/buckets/${bucket.id}/reindex`, {}
       )
       await refresh()
       toast.success(`Reindexed "${bucket.name}"`, {

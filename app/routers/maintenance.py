@@ -14,7 +14,7 @@ from app.utils import get_path_size
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api", tags=["maintenance"])
+router = APIRouter(prefix="/api/v1", tags=["maintenance"])
 
 
 # -- Database Stats --

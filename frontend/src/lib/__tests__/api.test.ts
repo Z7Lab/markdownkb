@@ -21,16 +21,16 @@ describe("api", () => {
 
   it("sends GET request", async () => {
     mockJsonResponse({ items: [] })
-    const result = await api.get<{ items: unknown[] }>("/api/files")
+    const result = await api.get<{ items: unknown[] }>("/api/v1/files")
     expect(result).toEqual({ items: [] })
-    expect(mockFetch).toHaveBeenCalledWith("/api/files", expect.objectContaining({ method: "GET" }))
+    expect(mockFetch).toHaveBeenCalledWith("/api/v1/files", expect.objectContaining({ method: "GET" }))
   })
 
   it("sends POST request with body", async () => {
     mockJsonResponse({ ok: true })
-    await api.post("/api/files/index", { paths: ["/a.md"] })
+    await api.post("/api/v1/files/index", { paths: ["/a.md"] })
     expect(mockFetch).toHaveBeenCalledWith(
-      "/api/files/index",
+      "/api/v1/files/index",
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ paths: ["/a.md"] }),
@@ -44,13 +44,13 @@ describe("api", () => {
       status: 404,
       text: () => Promise.resolve("Not found"),
     })
-    await expect(api.get("/api/missing")).rejects.toThrow("404: Not found")
+    await expect(api.get("/api/v1/missing")).rejects.toThrow("404: Not found")
   })
 
   describe("auth header", () => {
     it("does not include X-MarkdownKB-Key when no key is set", async () => {
       mockJsonResponse({})
-      await api.get("/api/test")
+      await api.get("/api/v1/test")
       const callArgs = mockFetch.mock.calls[0]
       expect(callArgs[1].headers["X-MarkdownKB-Key"]).toBeUndefined()
     })
@@ -58,7 +58,7 @@ describe("api", () => {
     it("includes X-MarkdownKB-Key when key is set", async () => {
       setApiKey("test-key-123")
       mockJsonResponse({})
-      await api.get("/api/test")
+      await api.get("/api/v1/test")
       const callArgs = mockFetch.mock.calls[0]
       expect(callArgs[1].headers["X-MarkdownKB-Key"]).toBe("test-key-123")
     })
@@ -77,7 +77,7 @@ describe("api", () => {
       mockFetch.mockRejectedValueOnce(new TypeError("Failed to fetch"))
       mockJsonResponse({ ok: true })
 
-      const result = await api.get<{ ok: boolean }>("/api/test")
+      const result = await api.get<{ ok: boolean }>("/api/v1/test")
       expect(result).toEqual({ ok: true })
       expect(mockFetch).toHaveBeenCalledTimes(2)
     })
@@ -85,7 +85,7 @@ describe("api", () => {
     it("throws after max retries", async () => {
       // mockRejectedValue sets the default, so all calls will reject
       mockFetch.mockRejectedValue(new TypeError("Failed to fetch"))
-      await expect(api.get("/api/test")).rejects.toThrow("Failed to fetch")
+      await expect(api.get("/api/v1/test")).rejects.toThrow("Failed to fetch")
       // 1 initial + 3 retries = 4 calls
       expect(mockFetch).toHaveBeenCalledTimes(4)
     })

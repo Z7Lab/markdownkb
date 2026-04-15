@@ -156,7 +156,7 @@ def _truncate(text: str, limit: int = 300) -> str:
 
 
 def cmd_health(base_url: str, api_key: str, as_json: bool) -> int:
-    data = _request("GET", f"{base_url}/api/health", api_key)
+    data = _request("GET", f"{base_url}/api/v1/health", api_key)
 
     def pretty(d):
         print(f"  Status:          {d.get('status', '?')}")
@@ -169,7 +169,7 @@ def cmd_health(base_url: str, api_key: str, as_json: bool) -> int:
 
 
 def cmd_stats(base_url: str, api_key: str, as_json: bool) -> int:
-    data = _request("GET", f"{base_url}/api/stats", api_key)
+    data = _request("GET", f"{base_url}/api/v1/stats", api_key)
 
     def pretty(d):
         print(f"  Files tracked:   {d.get('files_tracked', 0)}")
@@ -190,7 +190,7 @@ def cmd_stats(base_url: str, api_key: str, as_json: bool) -> int:
 
 def cmd_search(base_url: str, api_key: str, query: str, top_k: int, as_json: bool) -> int:
     data = _request(
-        "POST", f"{base_url}/api/search", api_key,
+        "POST", f"{base_url}/api/v1/search", api_key,
         body={"query": query, "top_k": top_k},
     )
 
@@ -217,7 +217,7 @@ def cmd_search(base_url: str, api_key: str, query: str, top_k: int, as_json: boo
 
 def cmd_chat(base_url: str, api_key: str, message: str, as_json: bool) -> int:
     data = _request(
-        "POST", f"{base_url}/api/chat", api_key,
+        "POST", f"{base_url}/api/v1/chat", api_key,
         body={"message": message},
         timeout=180.0,
     )
@@ -235,7 +235,7 @@ def cmd_chat(base_url: str, api_key: str, message: str, as_json: bool) -> int:
 
 
 def cmd_sources_list(base_url: str, api_key: str, as_json: bool) -> int:
-    data = _request("GET", f"{base_url}/api/sources", api_key)
+    data = _request("GET", f"{base_url}/api/v1/sources", api_key)
 
     def pretty(d):
         sources = d.get("sources", [])
@@ -259,7 +259,7 @@ def cmd_sources_list(base_url: str, api_key: str, as_json: bool) -> int:
 
 def cmd_sources_add(base_url: str, api_key: str, path: str, as_json: bool) -> int:
     data = _request(
-        "POST", f"{base_url}/api/sources", api_key,
+        "POST", f"{base_url}/api/v1/sources", api_key,
         body={"path": path},
     )
 
@@ -279,7 +279,7 @@ def cmd_sources_remove(
     base_url: str, api_key: str, path: str, cleanup: bool, as_json: bool,
 ) -> int:
     data = _request(
-        "DELETE", f"{base_url}/api/sources", api_key,
+        "DELETE", f"{base_url}/api/v1/sources", api_key,
         body={"path": path, "cleanup": cleanup},
     )
 
@@ -295,7 +295,7 @@ def cmd_sources_remove(
 
 def cmd_index(base_url: str, api_key: str, force: bool, as_json: bool) -> int:
     data = _request(
-        "POST", f"{base_url}/api/index", api_key,
+        "POST", f"{base_url}/api/v1/index", api_key,
         body={"force": force},
     )
 
@@ -311,7 +311,7 @@ def cmd_index(base_url: str, api_key: str, force: bool, as_json: bool) -> int:
 
 
 def cmd_buckets_list(base_url: str, api_key: str, as_json: bool) -> int:
-    data = _request("GET", f"{base_url}/api/buckets", api_key)
+    data = _request("GET", f"{base_url}/api/v1/buckets", api_key)
 
     def pretty(d):
         buckets = d.get("buckets", [])
@@ -335,7 +335,7 @@ def _resolve_bucket_id(base_url: str, api_key: str, name_or_id: str) -> str:
 
     Checks by exact name match first, then by ID prefix.
     """
-    data = _request("GET", f"{base_url}/api/buckets", api_key)
+    data = _request("GET", f"{base_url}/api/v1/buckets", api_key)
     buckets = data.get("buckets", [])
 
     by_name = [b for b in buckets if b.get("name") == name_or_id]
@@ -365,7 +365,7 @@ def cmd_buckets_create(
         body["expires_in"] = expires_in
 
     data = _request(
-        "POST", f"{base_url}/api/buckets", api_key,
+        "POST", f"{base_url}/api/v1/buckets", api_key,
         body=body, timeout=300.0,
     )
 
@@ -385,7 +385,7 @@ def cmd_buckets_search(
 ) -> int:
     bucket_id = _resolve_bucket_id(base_url, api_key, bucket)
     data = _request(
-        "POST", f"{base_url}/api/buckets/{bucket_id}/search", api_key,
+        "POST", f"{base_url}/api/v1/buckets/{bucket_id}/search", api_key,
         body={"query": query, "top_k": top_k},
     )
 
@@ -410,7 +410,7 @@ def cmd_buckets_delete(
     base_url: str, api_key: str, bucket: str, as_json: bool,
 ) -> int:
     bucket_id = _resolve_bucket_id(base_url, api_key, bucket)
-    data = _request("DELETE", f"{base_url}/api/buckets/{bucket_id}", api_key)
+    data = _request("DELETE", f"{base_url}/api/v1/buckets/{bucket_id}", api_key)
 
     def pretty(d):
         print(f"  Deleted: {d.get('name', bucket)} ({bucket_id[:12]})")

@@ -57,7 +57,7 @@ export function TagEditDialog({
 
   // Fetch tags plugin config to check AI generation enabled
   useEffect(() => {
-    api.get<{ plugin: string; config: Record<string, unknown> }>("/api/settings/plugins/tags")
+    api.get<{ plugin: string; config: Record<string, unknown> }>("/api/v1/settings/plugins/tags")
       .then((res) => setTagGenEnabled(res.config.ai_generation === true))
       .catch(() => setTagGenEnabled(false));
   }, [settings]);
@@ -105,7 +105,7 @@ export function TagEditDialog({
         suggested_tags: string[];
         preview: string;
         message: string;
-      }>("/api/tags/generate", {
+      }>("/api/v1/tags/generate", {
         file_path: filePath,
         use_similar_docs: true,
         auto_apply: false,

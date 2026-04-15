@@ -1,6 +1,6 @@
 """MCP tool: create a managed wiki.
 
-Thin wrapper over the HTTP POST /api/wiki-compile/wikis endpoint — both
+Thin wrapper over the HTTP POST /api/v1/wiki-compile/wikis endpoint — both
 delegate to the same underlying logic via the plugin's WikiDB and
 compose-override machinery.
 """

@@ -1,6 +1,37 @@
 """Pydantic request/response models for the MarkdownKB API."""
 
-from pydantic import BaseModel, Field
+import re
+
+from pydantic import BaseModel, Field, field_validator
+
+# Scope/bucket IDs are user-chosen slugs or hex handles — constrain to
+# characters that are safe in URLs and queries.
+_ID_PATTERN = re.compile(r"^[A-Za-z0-9_\-.:]{1,128}$")
+_MAX_ID_LIST = 50
+
+
+def _normalize_id_list(value):
+    """Validator: accept list[str] or comma-separated str and return list[str].
+
+    Enforces per-ID character/length limits and a maximum list length so
+    pathological inputs can't slip past into downstream services.
+    """
+    if value is None or value == "":
+        return None
+    if isinstance(value, str):
+        items = [p.strip() for p in value.split(",") if p.strip()]
+    elif isinstance(value, list):
+        items = [str(v).strip() for v in value if str(v).strip()]
+    else:
+        raise ValueError("IDs must be a list or comma-separated string")
+    if not items:
+        return None
+    if len(items) > _MAX_ID_LIST:
+        raise ValueError(f"Too many IDs (max {_MAX_ID_LIST})")
+    for item in items:
+        if not _ID_PATTERN.match(item):
+            raise ValueError(f"Invalid ID format: {item[:32]!r}")
+    return items
 
 
 # -- Search --
@@ -11,10 +42,13 @@ class SearchRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=500)
     top_k: int | None = Field(None, ge=1, le=50)
     scope_id: str | None = None
-    scope_ids: str | None = None  # Comma-separated scope IDs (multi-select)
+    scope_ids: list[str] | None = None  # Normalized from list or comma-string
     ad_hoc_tags: list[str] | None = None  # Ad-hoc tag filter (OR logic)
     parent_id: str | None = None  # Link re-queries into a version chain
-    bucket_ids: str | None = None  # Comma-separated bucket IDs (multi-select)
+    bucket_ids: list[str] | None = None
+
+    _normalize_scope_ids = field_validator("scope_ids", mode="before")(_normalize_id_list)
+    _normalize_bucket_ids = field_validator("bucket_ids", mode="before")(_normalize_id_list)
 
 
 class SummarizeRequest(BaseModel):
@@ -23,12 +57,15 @@ class SummarizeRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=500)
     top_k: int | None = Field(None, ge=1, le=50)
     scope_id: str | None = None
-    scope_ids: str | None = None
+    scope_ids: list[str] | None = None
     ad_hoc_tags: list[str] | None = None
     search_id: str | None = None  # Optional: save summary when provided
-    bucket_ids: str | None = None  # Comma-separated bucket IDs (multi-select)
+    bucket_ids: list[str] | None = None
     deep_research: bool = False  # Use MCTS deep research instead of single-pass
     deep_research_iterations: int | None = Field(None, ge=1, le=20)  # Override iteration count
+
+    _normalize_scope_ids = field_validator("scope_ids", mode="before")(_normalize_id_list)
+    _normalize_bucket_ids = field_validator("bucket_ids", mode="before")(_normalize_id_list)
 
 
 # -- Chat --
@@ -46,9 +83,12 @@ class StreamChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=50000)
     thread_id: str | None = None
     scope_id: str | None = None
-    scope_ids: str | None = None
+    scope_ids: list[str] | None = None
     ad_hoc_tags: list[str] | None = None
-    bucket_ids: str | None = None  # Comma-separated bucket IDs (multi-select)
+    bucket_ids: list[str] | None = None
+
+    _normalize_scope_ids = field_validator("scope_ids", mode="before")(_normalize_id_list)
+    _normalize_bucket_ids = field_validator("bucket_ids", mode="before")(_normalize_id_list)
 
 
 class SavePlanRequest(BaseModel):
@@ -274,9 +314,12 @@ class PlanRequest(BaseModel):
     n_approaches: int = Field(3, ge=1, le=10)
     skill_names: list[str] | None = None
     scope_id: str | None = None
-    scope_ids: str | None = None
+    scope_ids: list[str] | None = None
     ad_hoc_tags: list[str] | None = None
-    bucket_ids: str | None = None  # Comma-separated bucket IDs (multi-select)
+    bucket_ids: list[str] | None = None
+
+    _normalize_scope_ids = field_validator("scope_ids", mode="before")(_normalize_id_list)
+    _normalize_bucket_ids = field_validator("bucket_ids", mode="before")(_normalize_id_list)
 
 
 # -- Logging --
@@ -309,14 +352,14 @@ class CreatePresetRequest(BaseModel):
     """Request model for creating a retrieval preset."""
 
     name: str = Field(..., min_length=1, max_length=200)
-    settings: dict | None = None
+    settings: dict[str, str | int | float | bool | None] | None = None
 
 
 class UpdatePresetRequest(BaseModel):
     """Request model for updating a retrieval preset."""
 
     name: str | None = Field(None, min_length=1, max_length=200)
-    settings: dict | None = None
+    settings: dict[str, str | int | float | bool | None] | None = None
 
 
 # -- Search --

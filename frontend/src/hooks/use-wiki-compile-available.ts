@@ -17,7 +17,7 @@ let inflight: Promise<boolean> | null = null
 async function probe(): Promise<boolean> {
   if (cached !== null) return cached
   if (inflight) return inflight
-  inflight = api.get<{ wikis: unknown[] }>("/api/wiki-compile/wikis")
+  inflight = api.get<{ wikis: unknown[] }>("/api/v1/wiki-compile/wikis")
     .then(() => { cached = true; return true })
     .catch(() => { cached = false; return false })
     .finally(() => { inflight = null })

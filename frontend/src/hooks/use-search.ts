@@ -70,7 +70,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
   useEffect(() => {
     const cancelRetry = retryWithBackoff(async () => {
       try {
-        const searchesRes = await api.get<PaginatedResponse<SavedSearch>>("/api/searches?limit=100")
+        const searchesRes = await api.get<PaginatedResponse<SavedSearch>>("/api/v1/searches?limit=100")
         setSearches(searchesRes.items)
         return true
       } catch (err) {
@@ -87,7 +87,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
 
   const refreshSearches = useCallback(async (silent = false): Promise<boolean> => {
     try {
-      const res = await api.get<PaginatedResponse<SavedSearch>>("/api/searches?limit=100")
+      const res = await api.get<PaginatedResponse<SavedSearch>>("/api/v1/searches?limit=100")
       setSearches(res.items)
       return true
     } catch (err) {
@@ -156,7 +156,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
     resetSummary()
 
     try {
-      const res = await api.post<SearchResponse>("/api/search", {
+      const res = await api.post<SearchResponse>("/api/v1/search", {
         query: query.trim(),
         scope_ids: scopeIds || undefined,
         ad_hoc_tags: adHocTags && adHocTags.length > 0 ? adHocTags : undefined,
@@ -187,7 +187,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
 
   const renameSearch = useCallback(async (id: string, query: string) => {
     try {
-      await api.patch(`/api/searches/${id}`, { query })
+      await api.patch(`/api/v1/searches/${id}`, { query })
       setSearches((prev) =>
         prev.map((s) => (s.id === id ? { ...s, query } : s)),
       )
@@ -198,7 +198,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
 
   const deleteSearch = useCallback(async (id: string) => {
     try {
-      await api.del(`/api/searches/${id}`)
+      await api.del(`/api/v1/searches/${id}`)
       setSearches((prev) => prev.filter((s) => s.id !== id))
       if (activeSearchId === id) setActiveSearchId(null)
     } catch (err) {
@@ -219,7 +219,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
     setHistorical(INITIAL_HISTORICAL)
 
     try {
-      const res = await api.get<SearchResponse>(`/api/searches/${saved.id}/load`)
+      const res = await api.get<SearchResponse>(`/api/v1/searches/${saved.id}/load`)
       setResults(res.results)
       setHistorical(prev => ({
         ...prev,
@@ -237,7 +237,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
     }
 
     // Lazy compare: fetch change detection in background
-    api.get<CompareResponse>(`/api/searches/${saved.id}/compare`).then((cmp) => {
+    api.get<CompareResponse>(`/api/v1/searches/${saved.id}/compare`).then((cmp) => {
       setHistorical(prev => ({
         ...prev,
         resultsChanged: cmp.results_changed,
@@ -268,7 +268,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
 
   const fetchVersions = useCallback(async (searchId: string): Promise<SearchVersion[]> => {
     try {
-      const res = await api.get<{ versions: SearchVersion[] }>(`/api/searches/${searchId}/versions`)
+      const res = await api.get<{ versions: SearchVersion[] }>(`/api/v1/searches/${searchId}/versions`)
       return res.versions
     } catch (err) {
       console.warn("Failed to load search versions:", (err as Error).message)

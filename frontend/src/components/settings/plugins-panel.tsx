@@ -272,7 +272,7 @@ export function PluginsPanel({
 
   const loadPlugins = useCallback(async () => {
     try {
-      const res = await api.get<{ plugins: PluginInfo[]; core_features: CoreFeature[] }>("/api/plugins")
+      const res = await api.get<{ plugins: PluginInfo[]; core_features: CoreFeature[] }>("/api/v1/plugins")
       setPlugins(res.plugins)
       setCoreFeatures(res.core_features)
     } catch (err) {
@@ -289,7 +289,7 @@ export function PluginsPanel({
 
   const handleUninstall = async (name: string) => {
     try {
-      await api.del(`/api/plugins/${name}`)
+      await api.del(`/api/v1/plugins/${name}`)
       toast.success(`Plugin '${name}' uninstalled. Restart to complete cleanup.`)
       loadPlugins()
     } catch (err) {

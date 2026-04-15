@@ -172,6 +172,18 @@ class FakeSettings:
     def mcp_config(self):
         return {}
 
+    @property
+    def source_configs(self):
+        return [{"path": s, "writable": False, "versioned": False, "tier": 0} for s in self.sources]
+
+    @property
+    def versioning_root(self):
+        return ""
+
+    @property
+    def dashboard_widgets(self):
+        return {}
+
 
 @dataclass
 class FakeResult:

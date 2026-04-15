@@ -9,7 +9,7 @@ from app.ratelimit import STANDARD, limiter
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/setup", tags=["setup"])
+router = APIRouter(prefix="/api/v1/setup", tags=["setup"])
 
 from app.config import _data_secrets_dir
 

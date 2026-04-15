@@ -19,7 +19,7 @@ from app.storage.vectorstore import VectorStore
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api", tags=["files"])
+router = APIRouter(prefix="/api/v1", tags=["files"])
 
 
 @router.get("/file/status")
@@ -64,7 +64,7 @@ def list_files(
     - sort: field to sort by — "path" (alphabetical) or "indexed_at" (most recent first)
 
     This is a read-only endpoint — pruning of stale records is handled by
-    the indexer (run_index) and the explicit POST /api/files/prune endpoint.
+    the indexer (run_index) and the explicit DELETE /api/v1/files/orphaned endpoint.
     """
     # Build lookup of tracked files
     tracked_map = {f["path"]: f for f in tracking.get_all_files()}
@@ -178,7 +178,7 @@ def search_files_by_content(
     return {"paths": paths, "total": len(paths)}
 
 
-@router.post("/files/prune")
+@router.delete("/files/orphaned")
 @limiter.limit(STANDARD)
 def prune_missing_files(
     request: Request,
@@ -284,7 +284,7 @@ def read_file(
     return {"path": str(p), "content": content}
 
 
-@router.put("/files/toggle-rag")
+@router.put("/files/rag")
 @limiter.limit(STANDARD)
 def toggle_rag(
     request: Request,
@@ -302,7 +302,7 @@ def toggle_rag(
     return {"status": "ok", "include_rag": req.include}
 
 
-@router.post("/files/unindex")
+@router.delete("/files/index")
 @limiter.limit(STANDARD)
 def unindex_file(
     request: Request,
@@ -338,7 +338,7 @@ def index_file(
     return {"status": "ok", "message": result}
 
 
-@router.post("/files/reindex")
+@router.put("/files/index")
 @limiter.limit(STANDARD)
 def reindex_single_file(
     request: Request,
@@ -358,7 +358,7 @@ def reindex_single_file(
     return {"status": "ok", "message": result}
 
 
-@router.post("/files/unindex-source")
+@router.delete("/sources/index")
 @limiter.limit(STANDARD)
 def unindex_source(
     request: Request,

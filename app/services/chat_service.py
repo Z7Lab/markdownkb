@@ -2,14 +2,81 @@
 
 import logging
 import threading
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Generator
+
+from fastapi import HTTPException
 
 from app.config import Settings
 from app.rag.llm import get_completion, get_streaming_completion, strip_thinking
 from app.rag.prompts import build_rag_messages, get_query_rewrite_prompt
 from app.rag.retriever import Retriever
+
+
+@dataclass
+class ChatScope:
+    """Resolved scope + bucket context for a chat turn.
+
+    Computed once by ``resolve_chat_scope`` so the route handler doesn't have
+    to know about scope resolution, tag expansion, or bucket lookup.
+    """
+
+    scope_folders: list[str] | None
+    allowed_paths: set[str] | None
+    exclude_patterns: list
+    bucket_retrievers: list
+    bucket_only: bool
+
+    @property
+    def has_scope(self) -> bool:
+        return bool(self.scope_folders or self.allowed_paths)
+
+
+def resolve_chat_scope(
+    *,
+    app_state,
+    scope_ids: list[str] | None,
+    scope_id: str | None,
+    bucket_ids: list[str] | None,
+    ad_hoc_tags: list[str] | None,
+    settings: Settings,
+    scopedb,
+) -> ChatScope:
+    """Resolve scopes/tags/buckets into a single ``ChatScope`` bundle.
+
+    Extracted from ``chat_stream`` so the orchestration is reusable (and
+    testable) in isolation. Raises ``HTTPException`` on unknown buckets or a
+    missing buckets plugin, matching the previous inline behavior.
+    """
+    from app.scope_utils import parse_scope_ids, resolve_scopes
+    from app.tag_utils import resolve_tag_paths
+
+    ids = parse_scope_ids(scope_ids) or ([scope_id] if scope_id else None)
+    scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
+    allowed = resolve_tag_paths(scope_tags, ad_hoc_tags)
+
+    bucket_retrievers: list = []
+    b_ids = parse_scope_ids(bucket_ids)
+    if b_ids:
+        bucket_service = getattr(app_state, "bucket_service", None)
+        if bucket_service is None:
+            raise HTTPException(status_code=503, detail="Buckets plugin not initialized")
+        for bid in b_ids:
+            record = bucket_service.db.resolve(bid)
+            if not record:
+                raise HTTPException(status_code=404, detail=f"Bucket not found: {bid}")
+            bucket_retrievers.append(bucket_service.get_retriever(record["id"], settings))
+
+    has_scope = bool(scope_folders or allowed)
+    return ChatScope(
+        scope_folders=scope_folders,
+        allowed_paths=allowed,
+        exclude_patterns=exclude_patterns,
+        bucket_retrievers=bucket_retrievers,
+        bucket_only=bool(bucket_retrievers) and not has_scope,
+    )
 
 logger = logging.getLogger(__name__)
 

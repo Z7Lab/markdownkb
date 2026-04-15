@@ -30,7 +30,7 @@ function useSettingsInternal() {
   // optimistic updates (e.g. a plugin toggle that also affects dependent settings).
   const load = useCallback(async (): Promise<boolean> => {
     try {
-      const res = await api.get<AppSettings>("/api/settings")
+      const res = await api.get<AppSettings>("/api/v1/settings")
       setSettings(res)
       setLoadError(null)
       return true
@@ -54,7 +54,7 @@ function useSettingsInternal() {
   // Section-aware toggle actions
   const toggleCore = useCallback(
     async (name: string, enabled: boolean) => {
-      await api.put("/api/settings/core", { name, enabled })
+      await api.put("/api/v1/settings/core", { name, enabled })
       await load()
     },
     [load],
@@ -62,7 +62,7 @@ function useSettingsInternal() {
 
   const toggleMcpFlag = useCallback(
     async (name: string, enabled: boolean) => {
-      await api.put("/api/settings/mcp-flags", { name, enabled })
+      await api.put("/api/v1/settings/mcp-flags", { name, enabled })
       await load()
     },
     [load],
@@ -70,7 +70,7 @@ function useSettingsInternal() {
 
   const togglePlugin = useCallback(
     async (name: string, enabled: boolean) => {
-      await api.put(`/api/settings/plugins/${name}/enabled`, { name, enabled })
+      await api.put(`/api/v1/settings/plugins/${name}/enabled`, { name, enabled })
       await load()
     },
     [load],
@@ -78,7 +78,7 @@ function useSettingsInternal() {
 
   const toggleIntelligentSearch = useCallback(
     async (enabled: boolean) => {
-      await api.put("/api/settings/intelligent-search", { name: "intelligent_search", enabled })
+      await api.put("/api/v1/settings/intelligent-search", { name: "intelligent_search", enabled })
       await load()
     },
     [load],
@@ -86,7 +86,7 @@ function useSettingsInternal() {
 
   const addSource = useCallback(
     async (path: string) => {
-      await api.post("/api/sources", { path })
+      await api.post("/api/v1/sources", { path })
       await load()
     },
     [load],
@@ -94,7 +94,7 @@ function useSettingsInternal() {
 
   const removeSource = useCallback(
     async (path: string, cleanup = false) => {
-      await api.del("/api/sources", { path, cleanup })
+      await api.del("/api/v1/sources", { path, cleanup })
       await load()
     },
     [load],
@@ -102,7 +102,7 @@ function useSettingsInternal() {
 
   const updateSource = useCallback(
     async (path: string, changes: { writable?: boolean; versioned?: boolean }) => {
-      await api.patch("/api/sources", { path, ...changes })
+      await api.patch("/api/v1/sources", { path, ...changes })
       await load()
     },
     [load],
@@ -110,7 +110,7 @@ function useSettingsInternal() {
 
   const addIgnorePattern = useCallback(
     async (pattern: string) => {
-      await api.post("/api/ignore-patterns", { pattern })
+      await api.post("/api/v1/ignore-patterns", { pattern })
       await load()
     },
     [load],
@@ -118,7 +118,7 @@ function useSettingsInternal() {
 
   const removeIgnorePattern = useCallback(
     async (pattern: string) => {
-      await api.del("/api/ignore-patterns", { pattern })
+      await api.del("/api/v1/ignore-patterns", { pattern })
       await load()
     },
     [load],
@@ -127,7 +127,7 @@ function useSettingsInternal() {
   const addProjectRoot = useCallback(
     async (path: string, include: string[], exclude: string[]) => {
       const result = await api.post<{ docker_restart_required?: boolean; path_not_found?: boolean; message?: string }>(
-        "/api/project-roots", { path, include, exclude }
+        "/api/v1/project-roots", { path, include, exclude }
       )
       await load()
       return result
@@ -137,7 +137,7 @@ function useSettingsInternal() {
 
   const removeProjectRoot = useCallback(
     async (path: string, cleanup = false) => {
-      await api.del("/api/project-roots", { path, cleanup })
+      await api.del("/api/v1/project-roots", { path, cleanup })
       await load()
     },
     [load],
@@ -145,7 +145,7 @@ function useSettingsInternal() {
 
   const updateProjectRoot = useCallback(
     async (path: string, include: string[], exclude: string[]) => {
-      await api.put("/api/project-roots", { path, include, exclude })
+      await api.put("/api/v1/project-roots", { path, include, exclude })
       await load()
     },
     [load],
@@ -153,7 +153,7 @@ function useSettingsInternal() {
 
   const saveSystemPrompt = useCallback(
     async (prompt: string) => {
-      await api.put("/api/settings/system-prompt", { prompt })
+      await api.put("/api/v1/settings/system-prompt", { prompt })
       await load()
     },
     [load],
@@ -161,7 +161,7 @@ function useSettingsInternal() {
 
   const saveSearchSummaryPrompt = useCallback(
     async (prompt: string) => {
-      await api.put("/api/settings/search-summary-prompt", { prompt })
+      await api.put("/api/v1/settings/search-summary-prompt", { prompt })
       await load()
     },
     [load],
@@ -174,7 +174,7 @@ function useSettingsInternal() {
       hybrid_search: boolean
       bm25_weight: number
     }) => {
-      await api.put("/api/settings/retrieval", s)
+      await api.put("/api/v1/settings/retrieval", s)
       await load()
     },
     [load],
@@ -182,7 +182,7 @@ function useSettingsInternal() {
 
   const setLogLevel = useCallback(
     async (level: string) => {
-      await api.put("/api/settings/log-level", { level })
+      await api.put("/api/v1/settings/log-level", { level })
       await load()
     },
     [load],

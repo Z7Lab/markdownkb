@@ -13,7 +13,7 @@ from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 from app.utils import sse
 
-router = APIRouter(prefix="/api", tags=["health"])
+router = APIRouter(prefix="/api/v1", tags=["health"])
 
 
 @router.get("/health")

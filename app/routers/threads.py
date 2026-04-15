@@ -7,7 +7,7 @@ from app.ratelimit import STANDARD, limiter
 from app.schemas import RenameThreadRequest
 from app.storage.chatdb import ChatDB
 
-router = APIRouter(prefix="/api", tags=["threads"])
+router = APIRouter(prefix="/api/v1", tags=["threads"])
 
 
 @router.get("/threads")

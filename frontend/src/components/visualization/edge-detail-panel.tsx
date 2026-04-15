@@ -43,7 +43,7 @@ export function EdgeDetailPanel({
 
     const params = new URLSearchParams({ source, target, top_k: "5" })
     if (bucketId) params.set("bucket_id", bucketId)
-    api.get<EdgeDetail>(`/api/docmap/edge-detail?${params}`)
+    api.get<EdgeDetail>(`/api/v1/docmap/edge-detail?${params}`)
       .then((data) => {
         if (!cancelled) setDetail(data)
       })
@@ -64,7 +64,7 @@ export function EdgeDetailPanel({
       const params = new URLSearchParams({ source, target })
       if (bucketId) params.set("bucket_id", bucketId)
       const resp = await api.get<{ explanation: string; cached: boolean }>(
-        `/api/docmap/edge-explain?${params}`,
+        `/api/v1/docmap/edge-explain?${params}`,
       )
       setExplanation(resp.explanation)
     } catch (err) {

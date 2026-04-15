@@ -9,14 +9,14 @@ Semantic search with history, AI summaries, query enhancement, and Google-style 
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/search` | Semantic search with optional query enhancement |
-| GET | `/api/searches` | List search history (paginated) |
-| GET | `/api/searches/{id}/load` | Load historical search with preserved results |
-| GET | `/api/searches/{id}/versions` | Get all versions of a search (original + re-queries) |
-| GET | `/api/searches/{id}/compare` | Compare historical search against current KB state |
-| DELETE | `/api/searches/{id}` | Delete a search from history |
-| POST | `/api/search/summarize` | AI summary of search results (streaming SSE). Pass `deep_research: true` for MCTS multi-angle synthesis. |
-| POST | `/api/search/enhance-query` | LLM query enhancement (keyword extraction, acronym expansion) |
+| POST | `/api/v1/search` | Semantic search with optional query enhancement |
+| GET | `/api/v1/searches` | List search history (paginated) |
+| GET | `/api/v1/searches/{id}/load` | Load historical search with preserved results |
+| GET | `/api/v1/searches/{id}/versions` | Get all versions of a search (original + re-queries) |
+| GET | `/api/v1/searches/{id}/compare` | Compare historical search against current KB state |
+| DELETE | `/api/v1/searches/{id}` | Delete a search from history |
+| POST | `/api/v1/search/summarize` | AI summary of search results (streaming SSE). Pass `deep_research: true` for MCTS multi-angle synthesis. |
+| POST | `/api/v1/search/enhance-query` | LLM query enhancement (keyword extraction, acronym expansion) |
 
 ## Exact Phrase Matching
 

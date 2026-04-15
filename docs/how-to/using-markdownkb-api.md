@@ -9,7 +9,7 @@ MarkdownKB exposes two interfaces: a **REST API** (port 9713) and an **MCP serve
 When an API key is configured, all requests require it:
 
 - **REST:** `X-MarkdownKB-Key: <key>` header
-- **MCP:** `X-MarkdownKB-Key: <key>` header or `?token=<key>` query parameter
+- **MCP:** `Authorization: Bearer <key>` (preferred) or `X-MarkdownKB-Key: <key>` header
 
 When no key is configured (default for localhost), authentication is disabled.
 
@@ -17,20 +17,20 @@ When no key is configured (default for localhost), authentication is disabled.
 
 ```bash
 # Health check
-curl -s http://localhost:9713/api/health | jq
+curl -s http://localhost:9713/api/v1/health | jq
 
 # Search your knowledge base
-curl -s -X POST http://localhost:9713/api/search \
+curl -s -X POST http://localhost:9713/api/v1/search \
   -H "Content-Type: application/json" \
   -d '{"query": "how does authentication work", "top_k": 5}' | jq
 
 # Chat with your docs
-curl -s -X POST http://localhost:9713/api/chat \
+curl -s -X POST http://localhost:9713/api/v1/chat \
   -H "Content-Type: application/json" \
   -d '{"message": "Explain the plugin system"}' | jq
 
 # List indexed files
-curl -s http://localhost:9713/api/files | jq '.files | length'
+curl -s http://localhost:9713/api/v1/files | jq '.files | length'
 ```
 
 ## Quick start (Python)
@@ -50,12 +50,12 @@ def api(method, path, body=None):
     return json.loads(urllib.request.urlopen(req).read())
 
 # Search
-results = api("POST", "/api/search", {"query": "deployment guide", "top_k": 5})
+results = api("POST", "/api/v1/search", {"query": "deployment guide", "top_k": 5})
 for r in results["results"]:
     print(f'{r["score"]:.2f}  {r["source_path"]}')
 
 # Chat
-resp = api("POST", "/api/chat", {"message": "What LLM providers are supported?"})
+resp = api("POST", "/api/v1/chat", {"message": "What LLM providers are supported?"})
 print(resp["response"])
 ```
 
@@ -65,27 +65,27 @@ print(resp["response"])
 
 ```bash
 # Basic search (hybrid vector + BM25)
-POST /api/search
+POST /api/v1/search
 {"query": "kubernetes deployment", "top_k": 5}
 
 # Search within a scope
-POST /api/search
+POST /api/v1/search
 {"query": "auth flow", "scope_ids": "scope-id-1,scope-id-2"}
 
 # Search within a bucket
-POST /api/search
+POST /api/v1/search
 {"query": "vendor API reference", "bucket_id": "abc123"}
 
 # Search with AI summary
-POST /api/search/summarize
+POST /api/v1/search/summarize
 {"query": "how does rate limiting work", "top_k": 10}
 
 # Deep research (MCTS multi-angle synthesis)
-POST /api/search/summarize
+POST /api/v1/search/summarize
 {"query": "compare auth approaches", "deep_research": true, "deep_research_iterations": 5}
 ```
 
-Response shape for `/api/search`:
+Response shape for `/api/v1/search`:
 ```json
 {
   "results": [
@@ -101,19 +101,19 @@ Response shape for `/api/search`:
 
 ```bash
 # Single-turn chat (returns complete response)
-POST /api/chat
+POST /api/v1/chat
 {"message": "Explain the plugin system"}
 
 # Streaming chat (SSE — returns token-by-token)
-POST /api/chat/stream
+POST /api/v1/chat/stream
 {"message": "How do scopes work?", "thread_id": "optional-thread-id"}
 
 # Chat within a scope or bucket
-POST /api/chat/stream
+POST /api/v1/chat/stream
 {"message": "Summarize the API docs", "scope_ids": "docs-scope", "bucket_id": "vendor-docs"}
 ```
 
-Response for `/api/chat`:
+Response for `/api/v1/chat`:
 ```json
 {
   "response": "The plugin system works by...",
@@ -122,26 +122,26 @@ Response for `/api/chat`:
 }
 ```
 
-Streaming `/api/chat/stream` returns SSE events: `thread`, `sources`, `token` (repeated), `done`.
+Streaming `/api/v1/chat/stream` returns SSE events: `thread`, `sources`, `token` (repeated), `done`.
 
 ### Files
 
 ```bash
 # List all indexed files
-GET /api/files
+GET /api/v1/files
 
 # Get file content and metadata
-GET /api/file?path=/path/to/doc.md
+GET /api/v1/file?path=/path/to/doc.md
 
 # Check indexing status for a file
-GET /api/file/status?path=/path/to/doc.md
+GET /api/v1/file/status?path=/path/to/doc.md
 
 # Re-index a single file
-POST /api/files/reindex
+PUT /api/v1/files/index
 {"path": "/path/to/doc.md"}
 
 # Content search (find files by content, lightweight)
-POST /api/files/search
+POST /api/v1/files/search
 {"query": "kubernetes", "top_k": 50}
 ```
 
@@ -149,14 +149,14 @@ POST /api/files/search
 
 ```bash
 # List configured source directories
-GET /api/sources
+GET /api/v1/sources
 
 # Add a source directory (starts watching + indexing immediately)
-POST /api/sources
+POST /api/v1/sources
 {"path": "/home/user/docs"}
 
 # Remove a source directory
-DELETE /api/sources
+DELETE /api/v1/sources
 {"path": "/home/user/docs", "cleanup": true}
 ```
 
@@ -164,10 +164,10 @@ DELETE /api/sources
 
 ```bash
 # List scopes
-GET /api/scopes
+GET /api/v1/scopes
 
 # Create a scope (filter searches to specific directories/tags)
-POST /api/scopes
+POST /api/v1/scopes
 {"name": "Project Docs", "source_roots": ["/home/user/project/docs"]}
 ```
 
@@ -177,41 +177,41 @@ Buckets are temporary document collections — isolated from the main knowledge 
 
 ```bash
 # List buckets
-GET /api/buckets
+GET /api/v1/buckets
 
 # Create a bucket from a directory (sources is optional — omit for an empty bucket)
-POST /api/buckets
+POST /api/v1/buckets
 {"name": "vendor-api-docs", "sources": [{"path": "/tmp/vendor-docs", "glob": "**/*.md"}]}
 # Response includes docker_restart_required: true if the path wasn't mounted — restart Docker to index
 
 # Search within a bucket
-POST /api/buckets/{id}/search
+POST /api/v1/buckets/{id}/search
 {"query": "rate limiting", "top_k": 5}
 
 # Chat with a bucket
-POST /api/buckets/{id}/chat
+POST /api/v1/buckets/{id}/chat
 {"message": "Summarize the authentication section"}
 
 # Add more files to an existing bucket
-POST /api/buckets/{id}/add
+POST /api/v1/buckets/{id}/add
 {"sources": [{"path": "/tmp/more-docs", "glob": "**/*.md"}]}
 
 # Push documents by content (no filesystem access needed)
-POST /api/buckets/{id}/documents
+POST /api/v1/buckets/{id}/documents
 {"documents": [{"name": "file.md", "content": "# Markdown content..."}]}
 
 # List files in a bucket
-GET /api/buckets/{id}/files
+GET /api/v1/buckets/{id}/files
 
 # Read full content of a bucket file (reconstructed from chunks)
-GET /api/buckets/{id}/file?path=bucket://bucket-name/file.md
+GET /api/v1/buckets/{id}/file?path=bucket://bucket-name/file.md
 
 # Set expiration (seconds from now, or null for permanent)
-PATCH /api/buckets/{id}
+PATCH /api/v1/buckets/{id}
 {"expires_in": 86400}
 
 # Delete a bucket
-DELETE /api/buckets/{id}
+DELETE /api/v1/buckets/{id}
 ```
 
 ## Writing documents
@@ -220,7 +220,7 @@ Requires `plugins.write_api.enabled: true` in settings.
 
 ```bash
 # Create a new document
-POST /api/documents
+POST /api/v1/documents
 {
   "path": "notes/meeting-2026-04-09.md",
   "content": "# Meeting Notes\n\nKey decisions...",
@@ -228,7 +228,7 @@ POST /api/documents
 }
 
 # Delete a document
-DELETE /api/documents?path=notes/meeting-2026-04-09.md
+DELETE /api/v1/documents?path=notes/meeting-2026-04-09.md
 ```
 
 When multiple source directories are configured, the `source` field is required — the API will return an error listing available sources. With a single source, it defaults to that source. The file watcher picks up new files and indexes automatically.
@@ -309,11 +309,11 @@ Files are indexed automatically when the file watcher detects changes. To force 
 
 ```bash
 # Re-index everything
-POST /api/index
+POST /api/v1/index
 {"force": true}
 
 # Re-index a single file
-POST /api/files/reindex
+PUT /api/v1/files/index
 {"path": "/path/to/changed.md"}
 ```
 
@@ -321,10 +321,10 @@ POST /api/files/reindex
 
 ```bash
 # Stats overview
-GET /api/stats
+GET /api/v1/stats
 
 # Database sizes and counts
-GET /api/settings/database-stats
+GET /api/v1/settings/database-stats
 ```
 
 ## Integrating with external LLM workflows
@@ -354,7 +354,7 @@ You can call any of these from a script and pipe the result into your own LLM ca
 
 ```bash
 # Retrieve relevant chunks from MarkdownKB
-CONTEXT=$(curl -s -X POST http://localhost:9713/api/search \
+CONTEXT=$(curl -s -X POST http://localhost:9713/api/v1/search \
   -H "Content-Type: application/json" \
   -d '{"query": "deployment checklist", "top_k": 5}' \
   | jq -r '.results[].document' | head -c 4000)
@@ -374,7 +374,7 @@ curl http://localhost:8080/v1/chat/completions \
 To scope the search to a specific project:
 
 ```bash
-CONTEXT=$(curl -s -X POST http://localhost:9713/api/search \
+CONTEXT=$(curl -s -X POST http://localhost:9713/api/v1/search \
   -H "Content-Type: application/json" \
   -d '{"query": "auth flow", "scope_ids": "your-scope-id", "top_k": 5}' \
   | jq -r '.results[].document' | head -c 4000)
@@ -385,7 +385,7 @@ CONTEXT=$(curl -s -X POST http://localhost:9713/api/search \
 For complex questions, let MarkdownKB run Deep Research (MCTS synthesis) and inject the result as context rather than raw chunks:
 
 ```bash
-RESEARCH=$(curl -s -X POST http://localhost:9713/api/search/summarize \
+RESEARCH=$(curl -s -X POST http://localhost:9713/api/v1/search/summarize \
   -H "Content-Type: application/json" \
   -d '{"query": "compare auth approaches", "deep_research": true, "deep_research_iterations": 3}' \
   | jq -r '.summary')
@@ -411,7 +411,7 @@ LLAMA = "http://localhost:8080"
 
 def ask(question: str) -> str:
     # Retrieve context from MarkdownKB
-    r = httpx.post(f"{MKDB}/api/search", json={"query": question, "top_k": 5})
+    r = httpx.post(f"{MKDB}/api/v1/search", json={"query": question, "top_k": 5})
     chunks = [c["document"] for c in r.json()["results"]]
     context = "\n\n".join(chunks)
 
@@ -430,7 +430,7 @@ print(ask("How do I configure rate limiting?"))
 
 ### Multi-turn RAG from a script
 
-MarkdownKB's `/api/chat` endpoint is single-turn — each call is independent. If you need a persistent multi-turn conversation that is also RAG-grounded, maintain history yourself and re-retrieve context on each turn:
+MarkdownKB's `/api/v1/chat` endpoint is single-turn — each call is independent. If you need a persistent multi-turn conversation that is also RAG-grounded, maintain history yourself and re-retrieve context on each turn:
 
 ```python
 import httpx
@@ -442,7 +442,7 @@ history = []
 
 def chat_turn(user_message: str) -> str:
     # Retrieve fresh context for this turn
-    r = httpx.post(f"{MKDB}/api/search", json={"query": user_message, "top_k": 5})
+    r = httpx.post(f"{MKDB}/api/v1/search", json={"query": user_message, "top_k": 5})
     context = "\n\n".join(c["document"] for c in r.json()["results"])
 
     # Build messages: system context + history + current user message

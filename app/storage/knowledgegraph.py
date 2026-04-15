@@ -11,15 +11,16 @@ import threading
 from collections import deque
 from pathlib import Path
 
+from app.storage.migrations import run_migrations
+
 logger = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 1
+# Migration list is empty for now — the schema has only ever had one
+# version. Future schema changes append here and the canonical runner
+# advances PRAGMA user_version.
+_MIGRATIONS: list = []
 
 _CREATE_SQL = """
-CREATE TABLE IF NOT EXISTS schema_version (
-    version INTEGER NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS kg_entities (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     name        TEXT NOT NULL,
@@ -81,15 +82,14 @@ class KnowledgeGraphDB:
     def _init_schema(self):
         with self._lock:
             self._conn.executescript(_CREATE_SQL)
-            row = self._conn.execute(
-                "SELECT version FROM schema_version LIMIT 1"
+            # One-time upgrade from the legacy schema_version table.
+            legacy = self._conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='schema_version'"
             ).fetchone()
-            if row is None:
-                self._conn.execute(
-                    "INSERT INTO schema_version (version) VALUES (?)",
-                    (SCHEMA_VERSION,),
-                )
+            if legacy is not None:
+                self._conn.execute("DROP TABLE schema_version")
                 self._conn.commit()
+            run_migrations(self._conn, _MIGRATIONS, db_label="KnowledgeGraphDB")
 
     def close(self):
         self._conn.close()

@@ -1,24 +1,24 @@
 # API Reference
 
-All endpoints under `http://localhost:9713/api/`. Interactive docs (Swagger UI) at `http://localhost:9713/docs`.
+All endpoints under `http://localhost:9713/api/v1/`. Interactive docs (Swagger UI) at `http://localhost:9713/docs`.
 
 ## Authentication
 
-When an API key is configured (via Docker secret `markdownkb_api_key` or `MARKDOWNKB_API_KEY` env var), all `/api/*` endpoints require the header:
+When an API key is configured (via Docker secret `markdownkb_api_key` or `MARKDOWNKB_API_KEY` env var), all `/api/v1/*` endpoints require the header:
 
 ```
 X-MarkdownKB-Key: <your-key>
 ```
 
-Missing or invalid keys return **401 Unauthorized**. `/api/health` is always public (no key required). When no key is configured, authentication is disabled.
+Missing or invalid keys return **401 Unauthorized**. `/api/v1/health` is always public (no key required). When no key is configured, authentication is disabled.
 
 ## Health & Stats
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/health` | Health check |
-| GET | `/api/health/llm` | Lightweight LLM health check (for status polling) |
-| GET | `/api/stats` | Index statistics (files, chunks, embedding model, provider) |
+| GET | `/api/v1/health` | Health check |
+| GET | `/api/v1/health/llm` | Lightweight LLM health check (for status polling) |
+| GET | `/api/v1/stats` | Index statistics (files, chunks, embedding model, provider) |
 
 ## Search
 
@@ -28,85 +28,86 @@ Supports Google-style quoted phrases: `"exact phrase"` requires literal match in
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/search` | Semantic search with optional query enhancement. Pass `bucket_id` to search within a specific bucket. |
-| GET | `/api/searches` | List search history (paginated) |
-| GET | `/api/searches/{id}/load` | Load historical search version with preserved results |
-| GET | `/api/searches/{id}/versions` | Get all versions of a search (original + re-queries) |
-| GET | `/api/searches/{id}/compare` | Compare historical search against current KB state |
-| DELETE | `/api/searches/{id}` | Delete a search from history |
-| POST | `/api/search/summarize` | AI summary of search results (streaming). Pass `deep_research: true` for MCTS-powered multi-angle synthesis (requires `deep_research` feature flag). |
-| POST | `/api/search/enhance-query` | LLM query enhancement (keywords, acronyms) |
+| POST | `/api/v1/search` | Semantic search with optional query enhancement. Pass `bucket_id` to search within a specific bucket. |
+| GET | `/api/v1/searches` | List search history (paginated) |
+| GET | `/api/v1/searches/{id}/load` | Load historical search version with preserved results |
+| GET | `/api/v1/searches/{id}/versions` | Get all versions of a search (original + re-queries) |
+| GET | `/api/v1/searches/{id}/compare` | Compare historical search against current KB state |
+| DELETE | `/api/v1/searches/{id}` | Delete a search from history |
+| POST | `/api/v1/search/summarize` | AI summary of search results (streaming). Pass `deep_research: true` for MCTS-powered multi-angle synthesis (requires `deep_research` feature flag). |
+| POST | `/api/v1/search/enhance-query` | LLM query enhancement (keywords, acronyms) |
 
 ## Chat
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/chat` | RAG chat (non-streaming) |
-| POST | `/api/chat/stream` | SSE streaming chat. Pass `bucket_id` to chat within a specific bucket. |
-| DELETE | `/api/chat/history` | Clear conversation |
-| POST | `/api/chat/save-plan` | Save response as markdown |
+| POST | `/api/v1/chat` | RAG chat (non-streaming) |
+| POST | `/api/v1/chat/stream` | SSE streaming chat. Pass `bucket_id` to chat within a specific bucket. |
+| DELETE | `/api/v1/chat/history` | Clear conversation |
+| POST | `/api/v1/chat/save-plan` | Save response as markdown |
 
 ## Threads
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/threads` | List chat threads (paginated) |
-| GET | `/api/threads/{id}/messages` | Get messages for a thread |
-| DELETE | `/api/threads/{id}` | Delete a thread |
-| PATCH | `/api/threads/{id}` | Rename a thread |
+| GET | `/api/v1/threads` | List chat threads (paginated) |
+| GET | `/api/v1/threads/{id}/messages` | Get messages for a thread |
+| DELETE | `/api/v1/threads/{id}` | Delete a thread |
+| PATCH | `/api/v1/threads/{id}` | Rename a thread |
 
 ## Files
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/files` | List all discovered files (paginated) |
-| GET | `/api/file` | Read file content. Path must be under a configured source root OR tracked by a bucket; other paths return 403. |
-| GET | `/api/file/status` | Get status of a single file |
-| GET | `/api/folders` | List unique folders from indexed documents |
-| PUT | `/api/files/toggle-rag` | Toggle RAG inclusion for a file |
-| POST | `/api/files/search` | Content-based file search (returns file paths). Supports quoted exact phrases. |
-| POST | `/api/files/unindex` | Remove file chunks from index |
-| POST | `/api/files/index` | Index a single file |
-| POST | `/api/files/reindex` | Re-embed a file's chunks |
-| POST | `/api/files/unindex-source` | Unindex all files under a source directory |
+| GET | `/api/v1/files` | List all discovered files (paginated) |
+| GET | `/api/v1/file` | Read file content. Path must be under a configured source root OR tracked by a bucket; other paths return 403. |
+| GET | `/api/v1/file/status` | Get status of a single file |
+| GET | `/api/v1/folders` | List unique folders from indexed documents |
+| PUT | `/api/v1/files/rag` | Toggle RAG inclusion for a file |
+| POST | `/api/v1/files/search` | Content-based file search (returns file paths). Supports quoted exact phrases. |
+| DELETE | `/api/v1/files/index` | Remove file chunks from index |
+| POST | `/api/v1/files/index` | Index a single file |
+| PUT | `/api/v1/files/index` | Re-embed a file's chunks |
+| DELETE | `/api/v1/sources/index` | Unindex all files under a source directory |
+| DELETE | `/api/v1/files/orphaned` | Prune tracker rows for files no longer on disk |
 
 ## Settings
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/settings` | Get full settings |
-| GET | `/api/sources` | List source directories |
-| POST | `/api/sources` | Add source directory (immediately starts watching + indexing) |
-| DELETE | `/api/sources` | Remove source directory (with optional `cleanup` to unindex files) |
-| POST | `/api/ignore-patterns` | Add ignore pattern |
-| DELETE | `/api/ignore-patterns` | Remove ignore pattern |
-| GET | `/api/project-roots` | List project root configurations |
-| POST | `/api/project-roots` | Add project root (path + include/exclude patterns) |
-| PUT | `/api/project-roots` | Update project root patterns |
-| DELETE | `/api/project-roots` | Remove project root (with optional `cleanup` to unindex) |
-| PUT | `/api/settings/provider` | Save LLM provider config (name, model, api_base, api_key) |
-| PUT | `/api/settings/llm-params` | Save generation parameters (temperature, max_tokens, num_ctx) |
-| POST | `/api/settings/test-connection` | Test LLM connectivity |
-| POST | `/api/settings/ping-model` | Ping a specific model |
-| POST | `/api/settings/refresh-models` | Fetch model list from provider |
-| POST | `/api/settings/test-prompt` | Test a prompt with the LLM (streaming) |
-| POST | `/api/settings/model-info` | Get model details |
-| PUT | `/api/settings/features` | Toggle feature flag |
-| PUT | `/api/settings/system-prompt` | Update system prompt |
-| PUT | `/api/settings/intelligent-search` | Toggle intelligent search |
-| PUT | `/api/settings/search-summary-prompt` | Update search summary prompt |
-| PUT | `/api/settings/retrieval` | Update retrieval settings |
-| GET | `/api/settings/plugins/{name}` | Get plugin configuration |
-| PUT | `/api/settings/plugins/{name}` | Update plugin configuration (shallow merge) |
-| GET | `/api/settings/log-level` | Get current log level |
-| PUT | `/api/settings/log-level` | Set log level (`INFO`, `DEBUG`, or `OFF`) |
-| GET | `/api/settings/logs` | Get log entries (incremental via `?since=`) |
-| DELETE | `/api/settings/logs` | Clear log buffer |
-| GET | `/api/settings/presets` | List retrieval presets |
-| POST | `/api/settings/presets` | Create preset (name + settings, or snapshot current) |
-| PUT | `/api/settings/presets/{id}` | Update preset name/settings |
-| DELETE | `/api/settings/presets/{id}` | Delete preset |
-| POST | `/api/settings/presets/{id}/load` | Apply preset to active retrieval config |
+| GET | `/api/v1/settings` | Get full settings |
+| GET | `/api/v1/sources` | List source directories |
+| POST | `/api/v1/sources` | Add source directory (immediately starts watching + indexing) |
+| DELETE | `/api/v1/sources` | Remove source directory (with optional `cleanup` to unindex files) |
+| POST | `/api/v1/ignore-patterns` | Add ignore pattern |
+| DELETE | `/api/v1/ignore-patterns` | Remove ignore pattern |
+| GET | `/api/v1/project-roots` | List project root configurations |
+| POST | `/api/v1/project-roots` | Add project root (path + include/exclude patterns) |
+| PUT | `/api/v1/project-roots` | Update project root patterns |
+| DELETE | `/api/v1/project-roots` | Remove project root (with optional `cleanup` to unindex) |
+| PUT | `/api/v1/settings/provider` | Save LLM provider config (name, model, api_base, api_key) |
+| PUT | `/api/v1/settings/llm-params` | Save generation parameters (temperature, max_tokens, num_ctx) |
+| POST | `/api/v1/settings/test-connection` | Test LLM connectivity |
+| POST | `/api/v1/settings/ping-model` | Ping a specific model |
+| POST | `/api/v1/settings/refresh-models` | Fetch model list from provider |
+| POST | `/api/v1/settings/test-prompt` | Test a prompt with the LLM (streaming) |
+| POST | `/api/v1/settings/model-info` | Get model details |
+| PUT | `/api/v1/settings/features` | Toggle feature flag |
+| PUT | `/api/v1/settings/system-prompt` | Update system prompt |
+| PUT | `/api/v1/settings/intelligent-search` | Toggle intelligent search |
+| PUT | `/api/v1/settings/search-summary-prompt` | Update search summary prompt |
+| PUT | `/api/v1/settings/retrieval` | Update retrieval settings |
+| GET | `/api/v1/settings/plugins/{name}` | Get plugin configuration |
+| PUT | `/api/v1/settings/plugins/{name}` | Update plugin configuration (shallow merge) |
+| GET | `/api/v1/settings/log-level` | Get current log level |
+| PUT | `/api/v1/settings/log-level` | Set log level (`INFO`, `DEBUG`, or `OFF`) |
+| GET | `/api/v1/settings/logs` | Get log entries (incremental via `?since=`) |
+| DELETE | `/api/v1/settings/logs` | Clear log buffer |
+| GET | `/api/v1/settings/presets` | List retrieval presets |
+| POST | `/api/v1/settings/presets` | Create preset (name + settings, or snapshot current) |
+| PUT | `/api/v1/settings/presets/{id}` | Update preset name/settings |
+| DELETE | `/api/v1/settings/presets/{id}` | Delete preset |
+| POST | `/api/v1/settings/presets/{id}/load` | Apply preset to active retrieval config |
 
 ## Plugin Management
 
@@ -114,12 +115,12 @@ Core router (always registered). Manages plugin discovery, installation, and rem
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/plugins` | List all plugins (builtin + external) with manifests, plus core feature flags |
-| GET | `/api/plugins/{name}` | Get details for a specific plugin |
-| POST | `/api/plugins/install` | Install plugin from GitHub URL (`{ url }`) |
-| DELETE | `/api/plugins/{name}` | Uninstall an external plugin (builtin plugins cannot be removed) |
+| GET | `/api/v1/plugins` | List all plugins (builtin + external) with manifests, plus core feature flags |
+| GET | `/api/v1/plugins/{name}` | Get details for a specific plugin |
+| POST | `/api/v1/plugins/install` | Install plugin from GitHub URL (`{ url }`) |
+| DELETE | `/api/v1/plugins/{name}` | Uninstall an external plugin (builtin plugins cannot be removed) |
 
-### GET /api/plugins response
+### GET /api/v1/plugins response
 
 ```json
 {
@@ -152,7 +153,7 @@ Core router (always registered). Manages plugin discovery, installation, and rem
 }
 ```
 
-### POST /api/plugins/install
+### POST /api/v1/plugins/install
 
 Accepts GitHub URLs in several formats:
 - `https://github.com/user/repo`
@@ -165,20 +166,20 @@ The plugin must contain `__init__.py` with `FEATURE_FLAG` and `router` exports. 
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/settings/mcp` | Get all MCP tool configurations |
-| GET | `/api/settings/mcp/{tool}` | Get config for a specific MCP tool |
-| PATCH | `/api/settings/mcp` | Update MCP tool configuration |
+| GET | `/api/v1/settings/mcp` | Get all MCP tool configurations |
+| GET | `/api/v1/settings/mcp/{tool}` | Get config for a specific MCP tool |
+| PATCH | `/api/v1/settings/mcp` | Update MCP tool configuration |
 
 ## Database Maintenance
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/settings/database-stats` | Stats for all databases |
-| POST | `/api/settings/database/clear-chats` | Clear chat history |
-| POST | `/api/settings/database/clear-searches` | Clear search history |
-| POST | `/api/settings/database/clear-vectors` | Clear vector DB and file tracking |
-| POST | `/api/settings/database/compact-chats` | Compact chat database |
-| POST | `/api/settings/database/compact-searches` | Compact search database |
+| GET | `/api/v1/settings/database-stats` | Stats for all databases |
+| POST | `/api/v1/settings/database/clear-chats` | Clear chat history |
+| POST | `/api/v1/settings/database/clear-searches` | Clear search history |
+| POST | `/api/v1/settings/database/clear-vectors` | Clear vector DB and file tracking |
+| POST | `/api/v1/settings/database/compact-chats` | Compact chat database |
+| POST | `/api/v1/settings/database/compact-searches` | Compact search database |
 
 ## Scopes
 
@@ -186,11 +187,11 @@ Named subsets of your knowledge base. Scopes can filter by folders, tags, or bot
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/scopes` | List all scopes |
-| POST | `/api/scopes` | Create a scope (`{ name, folders[], tags[] }`) |
-| GET | `/api/scopes/{id}` | Get a scope by ID |
-| PUT | `/api/scopes/{id}` | Update a scope (`{ name, folders[], tags[] }`) |
-| DELETE | `/api/scopes/{id}` | Delete a scope |
+| GET | `/api/v1/scopes` | List all scopes |
+| POST | `/api/v1/scopes` | Create a scope (`{ name, folders[], tags[] }`) |
+| GET | `/api/v1/scopes/{id}` | Get a scope by ID |
+| PUT | `/api/v1/scopes/{id}` | Update a scope (`{ name, folders[], tags[] }`) |
+| DELETE | `/api/v1/scopes/{id}` | Delete a scope |
 
 A scope requires at least one folder or tag. When resolved, folder filtering restricts by source path prefix; tag filtering uses OR logic (documents matching any listed tag are included). Both can be combined.
 
@@ -202,13 +203,13 @@ MCP tools (`search`, `search_documents`, `chat`, `plan`, `deep_research`) also a
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/settings/embedding-models` | List embedding models + install status |
-| GET | `/api/settings/embedding-models/status` | Poll background reindex progress |
-| POST | `/api/settings/embedding-models/install` | Download an embedding model |
-| PUT | `/api/settings/embedding-models/switch` | Switch model + background reindex |
-| POST | `/api/index` | Trigger indexing |
-| POST | `/api/index/cancel` | Cancel running index |
-| GET | `/api/index/events` | SSE stream of real-time index events (file indexed/deleted/error) |
+| GET | `/api/v1/settings/embedding-models` | List embedding models + install status |
+| GET | `/api/v1/settings/embedding-models/status` | Poll background reindex progress |
+| POST | `/api/v1/settings/embedding-models/install` | Download an embedding model |
+| PUT | `/api/v1/settings/embedding-models/switch` | Switch model + background reindex |
+| POST | `/api/v1/index` | Trigger indexing |
+| POST | `/api/v1/index/cancel` | Cancel running index |
+| GET | `/api/v1/index/events` | SSE stream of real-time index events (file indexed/deleted/error) |
 
 ## Export
 
@@ -216,7 +217,7 @@ Requires the `export` feature flag. Plugin: `app/plugins/export/`.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/export` | Export conversations as markdown or JSON |
+| POST | `/api/v1/export` | Export conversations as markdown or JSON |
 
 ## Documents (Write API)
 
@@ -224,10 +225,10 @@ Requires the `write_api` feature flag. Plugin: `app/plugins/write_api/`.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/documents` | Create or update a markdown file in a watched source directory |
-| DELETE | `/api/documents` | Delete a markdown file from a watched source directory |
+| POST | `/api/v1/documents` | Create or update a markdown file in a watched source directory |
+| DELETE | `/api/v1/documents` | Delete a markdown file from a watched source directory |
 
-### POST /api/documents
+### POST /api/v1/documents
 
 ```json
 {
@@ -245,7 +246,7 @@ Requires the `write_api` feature flag. Plugin: `app/plugins/write_api/`.
 | `source` | first configured source | Target source directory (must be a configured source) |
 | `overwrite` | `false` | Allow overwriting existing files (409 if file exists and `false`) |
 
-### DELETE /api/documents
+### DELETE /api/v1/documents
 
 Query parameters: `path` (required), `source` (optional, defaults to first source).
 
@@ -265,10 +266,10 @@ Git-backed revision history for writable sources. Enabled by default; controlled
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/versioning/history?path={abs}&limit={n}` | List commits that touched a file (newest first) |
-| GET | `/api/versioning/diff?path={abs}&commit={sha}` | Unified diff of a file between a commit and its parent |
-| GET | `/api/versioning/content?path={abs}&commit={sha}` | File contents at a specific commit (for side-by-side views) |
-| POST | `/api/versioning/restore` | Write a past revision back to disk as a new commit |
+| GET | `/api/v1/versioning/history?path={abs}&limit={n}` | List commits that touched a file (newest first) |
+| GET | `/api/v1/versioning/diff?path={abs}&commit={sha}` | Unified diff of a file between a commit and its parent |
+| GET | `/api/v1/versioning/content?path={abs}&commit={sha}` | File contents at a specific commit (for side-by-side views) |
+| POST | `/api/v1/versioning/restore` | Write a past revision back to disk as a new commit |
 
 Restore request body:
 
@@ -284,13 +285,13 @@ Requires `plugins.planner.enabled: true`. Plugin: `app/plugins/planner/`.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/planner/plan` | Generate an implementation plan using MCTS |
-| POST | `/api/planner/plan/stream` | Stream plan generation progress as SSE |
-| GET | `/api/planner/plans` | List saved plans |
-| POST | `/api/planner/plans` | Save a plan |
-| GET | `/api/planner/plans/{id}` | Load a saved plan |
-| DELETE | `/api/planner/plans/{id}` | Delete a saved plan |
-| GET | `/api/planner/skills` | List available agent skills |
+| POST | `/api/v1/planner/plan` | Generate an implementation plan using MCTS |
+| POST | `/api/v1/planner/plan/stream` | Stream plan generation progress as SSE |
+| GET | `/api/v1/planner/plans` | List saved plans |
+| POST | `/api/v1/planner/plans` | Save a plan |
+| GET | `/api/v1/planner/plans/{id}` | Load a saved plan |
+| DELETE | `/api/v1/planner/plans/{id}` | Delete a saved plan |
+| GET | `/api/v1/planner/skills` | List available agent skills |
 
 ## Doc Map
 
@@ -298,12 +299,12 @@ Requires `plugins.docmap.enabled: true`. Plugin: `app/plugins/docmap/`.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/docmap/data` | Compute document similarity map (nodes, edges, clusters, word clouds) |
-| GET | `/api/docmap/stats` | Doc map statistics (doc count, chunk count) |
-| GET | `/api/docmap/status` | Check if cached data is available (no computation) |
-| GET | `/api/docmap/edge-detail` | Chunk-level similarity detail for a document pair. Accepts `bucket_id` when either side is a bucket doc. |
-| GET | `/api/docmap/edge-explain` | LLM-generated one-sentence explanation of why two docs are connected. Accepts `bucket_id` (for bucket cross-edges) and `refresh=true` (bypass cache). |
-| GET | `/api/docmap/progress` | Current computation progress |
+| GET | `/api/v1/docmap/data` | Compute document similarity map (nodes, edges, clusters, word clouds) |
+| GET | `/api/v1/docmap/stats` | Doc map statistics (doc count, chunk count) |
+| GET | `/api/v1/docmap/status` | Check if cached data is available (no computation) |
+| GET | `/api/v1/docmap/edge-detail` | Chunk-level similarity detail for a document pair. Accepts `bucket_id` when either side is a bucket doc. |
+| GET | `/api/v1/docmap/edge-explain` | LLM-generated one-sentence explanation of why two docs are connected. Accepts `bucket_id` (for bucket cross-edges) and `refresh=true` (bypass cache). |
+| GET | `/api/v1/docmap/progress` | Current computation progress |
 
 Accepts optional `scope_ids`, `ad_hoc_tags[]`, `word_clouds`, `min_weight`, `bucket_id`, `bucket_min_weight`, and `client_threshold` query parameters. Supports both scope and tag filtering. Filters out files with `include_rag=false`.
 
@@ -319,23 +320,23 @@ Requires `plugins.knowledge_graph.enabled: true`. Plugin: `app/plugins/knowledge
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/knowledge-graph/data` | All entities and relationships (accepts `entity_types`, `rel_types` filters) |
-| GET | `/api/knowledge-graph/entity` | Single entity with all connections (`?name=X`) |
-| GET | `/api/knowledge-graph/path` | BFS shortest path (`?source=X&target=Y&max_hops=6`) |
-| GET | `/api/knowledge-graph/stats` | Entity/relationship counts |
-| GET | `/api/knowledge-graph/file-entity-counts` | Entity count per file |
-| POST | `/api/knowledge-graph/extract` | Start background entity extraction |
-| GET | `/api/knowledge-graph/extract/status` | Extraction progress |
-| POST | `/api/knowledge-graph/extract/cancel` | Cancel running extraction |
-| POST | `/api/knowledge-graph/extract-file` | Extract entities from a single file (`?path=X`) |
-| POST | `/api/knowledge-graph/clear` | Clear all KG data |
+| GET | `/api/v1/knowledge-graph/data` | All entities and relationships (accepts `entity_types`, `rel_types` filters) |
+| GET | `/api/v1/knowledge-graph/entity` | Single entity with all connections (`?name=X`) |
+| GET | `/api/v1/knowledge-graph/path` | BFS shortest path (`?source=X&target=Y&max_hops=6`) |
+| GET | `/api/v1/knowledge-graph/stats` | Entity/relationship counts |
+| GET | `/api/v1/knowledge-graph/file-entity-counts` | Entity count per file |
+| POST | `/api/v1/knowledge-graph/extract` | Start background entity extraction |
+| GET | `/api/v1/knowledge-graph/extract/status` | Extraction progress |
+| POST | `/api/v1/knowledge-graph/extract/cancel` | Cancel running extraction |
+| POST | `/api/v1/knowledge-graph/extract-file` | Extract entities from a single file (`?path=X`) |
+| POST | `/api/v1/knowledge-graph/clear` | Clear all KG data |
 
 ### Ollama Model Management
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/settings/ollama/status` | Check Ollama reachability and get starter model suggestions |
-| POST | `/api/settings/ollama/pull` | Pull a model from Ollama (SSE progress streaming) |
+| GET | `/api/v1/settings/ollama/status` | Check Ollama reachability and get starter model suggestions |
+| POST | `/api/v1/settings/ollama/pull` | Pull a model from Ollama (SSE progress streaming) |
 
 ## File Converter
 
@@ -343,10 +344,10 @@ Requires `plugins.converter.enabled: true`. Plugin: `app/plugins/converter/`. Re
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/converter/formats` | List supported formats and check tool availability |
-| POST | `/api/converter/convert` | Start batch conversion (source_dir, dest_dir, optional format filter) |
-| GET | `/api/converter/status` | Conversion progress (running, files done/total, errors) |
-| POST | `/api/converter/cancel` | Cancel running conversion |
+| GET | `/api/v1/converter/formats` | List supported formats and check tool availability |
+| POST | `/api/v1/converter/convert` | Start batch conversion (source_dir, dest_dir, optional format filter) |
+| GET | `/api/v1/converter/status` | Conversion progress (running, files done/total, errors) |
+| POST | `/api/v1/converter/cancel` | Cancel running conversion |
 
 ## Tags
 
@@ -356,11 +357,11 @@ Tag CRUD, folder-based auto-tagging, and optional AI generation. Tags are stored
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/tags` | List unique tags (paginated) |
-| PUT | `/api/files/tags` | Update tags on a file (`{ path, tags[] }`) |
-| PUT | `/api/files/bulk-tags` | Bulk update tags on multiple files (add/remove/replace) |
-| POST | `/api/files/auto-tag-preview` | Preview auto-tag assignments by folder pattern (dry run) |
-| POST | `/api/files/auto-tag-apply` | Apply auto-tag assignments from preview |
+| GET | `/api/v1/tags` | List unique tags (paginated) |
+| PUT | `/api/v1/files/tags` | Update tags on a file (`{ path, tags[] }`) |
+| PUT | `/api/v1/files/bulk-tags` | Bulk update tags on multiple files (add/remove/replace) |
+| POST | `/api/v1/files/auto-tag-preview` | Preview auto-tag assignments by folder pattern (dry run) |
+| POST | `/api/v1/files/auto-tag-apply` | Apply auto-tag assignments from preview |
 
 ### AI Tag Generation
 
@@ -368,9 +369,9 @@ These endpoints additionally require the `mcp_tag_generator` feature flag (sub-f
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/tags/generate` | Generate AI tags for a markdown file |
-| POST | `/api/tags/apply` | Apply tags to a file's frontmatter |
-| POST | `/api/tags/bulk` | Bulk-tag files in a directory |
+| POST | `/api/v1/tags/generate` | Generate AI tags for a markdown file |
+| POST | `/api/v1/tags/apply` | Apply tags to a file's frontmatter |
+| POST | `/api/v1/tags/bulk` | Bulk-tag files in a directory |
 
 ## Wiki Compile
 
@@ -380,10 +381,10 @@ Karpathy-style wiki compilation — reads a source document, asks the configured
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/wiki-compile/wikis` | List managed wikis (name, path, page count, last ingest date) |
-| POST | `/api/wiki-compile/wikis` | Create a managed wiki — auto-registers as a writable source, auto-mounts in Docker |
-| DELETE | `/api/wiki-compile/wikis/{name}` | Deregister a wiki (directory itself is preserved on disk) |
-| POST | `/api/wiki-compile/ingest` | Ingest one source file into a wiki by name |
+| GET | `/api/v1/wiki-compile/wikis` | List managed wikis (name, path, page count, last ingest date) |
+| POST | `/api/v1/wiki-compile/wikis` | Create a managed wiki — auto-registers as a writable source, auto-mounts in Docker |
+| DELETE | `/api/v1/wiki-compile/wikis/{name}` | Deregister a wiki (directory itself is preserved on disk) |
+| POST | `/api/v1/wiki-compile/ingest` | Ingest one source file into a wiki by name |
 
 Create a wiki:
 
@@ -413,17 +414,17 @@ Temporary scoped document collections with independent vector storage. Each buck
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/buckets` | List all buckets with metadata |
-| POST | `/api/buckets` | Create a new bucket from source paths |
-| GET | `/api/buckets/{id}` | Get bucket details |
-| DELETE | `/api/buckets/{id}` | Delete a bucket and its vector data |
-| POST | `/api/buckets/{id}/search` | Search within a bucket |
-| POST | `/api/buckets/{id}/chat` | RAG chat scoped to a bucket |
-| POST | `/api/buckets/{id}/add` | Add documents to an existing bucket (skips duplicates) |
-| POST | `/api/buckets/{id}/documents` | Push documents by content (no filesystem access needed) |
-| GET | `/api/buckets/{id}/file` | Read full content of a bucket file (reconstructed from chunks). Query param: `path`. |
+| GET | `/api/v1/buckets` | List all buckets with metadata |
+| POST | `/api/v1/buckets` | Create a new bucket from source paths |
+| GET | `/api/v1/buckets/{id}` | Get bucket details |
+| DELETE | `/api/v1/buckets/{id}` | Delete a bucket and its vector data |
+| POST | `/api/v1/buckets/{id}/search` | Search within a bucket |
+| POST | `/api/v1/buckets/{id}/chat` | RAG chat scoped to a bucket |
+| POST | `/api/v1/buckets/{id}/add` | Add documents to an existing bucket (skips duplicates) |
+| POST | `/api/v1/buckets/{id}/documents` | Push documents by content (no filesystem access needed) |
+| GET | `/api/v1/buckets/{id}/file` | Read full content of a bucket file (reconstructed from chunks). Query param: `path`. |
 
-### POST /api/buckets
+### POST /api/v1/buckets
 
 ```json
 {
@@ -449,10 +450,10 @@ Tiered knowledge-base health check modelled on Karpathy's Lint verb. Runs four p
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/lint/run` | Run selected passes, persist report, return findings |
-| GET | `/api/lint/reports` | List previously generated lint reports sorted newest-first |
+| POST | `/api/v1/lint/run` | Run selected passes, persist report, return findings |
+| GET | `/api/v1/lint/reports` | List previously generated lint reports sorted newest-first |
 
-### POST /api/lint/run
+### POST /api/v1/lint/run
 
 ```json
 {

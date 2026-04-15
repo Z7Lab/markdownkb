@@ -38,7 +38,7 @@ export function AboutPanel({ onEnableUpdateCheck }: { onEnableUpdateCheck: () =>
 
   const loadVersion = useCallback(async () => {
     try {
-      const res = await api.get<VersionResponse>("/api/version")
+      const res = await api.get<VersionResponse>("/api/v1/version")
       setVersion(res)
     } catch (err) {
       void err
@@ -48,7 +48,7 @@ export function AboutPanel({ onEnableUpdateCheck }: { onEnableUpdateCheck: () =>
   const runCheck = useCallback(async () => {
     setChecking(true)
     try {
-      const res = await api.get<UpdateCheckResponse>("/api/version/check")
+      const res = await api.get<UpdateCheckResponse>("/api/v1/version/check")
       setCheck(res)
     } catch (err) {
       toast.error(`Update check failed: ${(err as Error).message}`)

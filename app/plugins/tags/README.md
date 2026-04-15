@@ -3,7 +3,7 @@
 Tag storage, CRUD, folder-based auto-tagging, and optional AI-powered tag generation for markdown files.
 
 **Feature flag:** `tags`
-**Prefix:** `/api` (endpoints under `/api/tags` and `/api/files/tags`)
+**Prefix:** `/api` (endpoints under `/api/v1/tags` and `/api/v1/files/tags`)
 **Database:** `data/tags.db` (plugin-owned SQLite)
 
 ## Overview
@@ -22,24 +22,24 @@ When disabled, tag filtering becomes a no-op — chat, search, graph, and planne
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/tags` | List unique tags (paginated) |
-| PUT | `/api/files/tags` | Update tags on a file |
-| PUT | `/api/files/bulk-tags` | Bulk update tags (add/remove/replace) |
+| GET | `/api/v1/tags` | List unique tags (paginated) |
+| PUT | `/api/v1/files/tags` | Update tags on a file |
+| PUT | `/api/v1/files/bulk-tags` | Bulk update tags (add/remove/replace) |
 
 ### Auto-Tag (folder-structure based)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/files/auto-tag-preview` | Preview auto-tag assignments by folder pattern (dry run) |
-| POST | `/api/files/auto-tag-apply` | Apply auto-tag assignments from preview |
+| POST | `/api/v1/files/auto-tag-preview` | Preview auto-tag assignments by folder pattern (dry run) |
+| POST | `/api/v1/files/auto-tag-apply` | Apply auto-tag assignments from preview |
 
 ### AI Tag Generation (requires `plugins.tags.ai_generation`)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/tags/generate` | Generate AI tags for a markdown file |
-| POST | `/api/tags/apply` | Apply tags to a file's frontmatter |
-| POST | `/api/tags/bulk` | Bulk-tag files in a directory |
+| POST | `/api/v1/tags/generate` | Generate AI tags for a markdown file |
+| POST | `/api/v1/tags/apply` | Apply tags to a file's frontmatter |
+| POST | `/api/v1/tags/bulk` | Bulk-tag files in a directory |
 
 AI endpoints require `plugins.tags.ai_generation: true` in settings. This allows basic tagging to work without enabling AI generation.
 

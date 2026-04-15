@@ -17,7 +17,7 @@ from .bucket_service import BucketService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api", tags=["buckets"])
+router = APIRouter(prefix="/api/v1", tags=["buckets"])
 
 # Palette for auto-assigning colors to new buckets (rotates through by index)
 _BUCKET_COLORS = [
@@ -143,7 +143,7 @@ def list_buckets(
     return {"buckets": buckets}
 
 
-@router.post("/buckets")
+@router.post("/buckets", status_code=201)
 @limiter.limit(STANDARD)
 def create_bucket(
     request: Request,
@@ -179,7 +179,8 @@ def create_bucket(
 
         return {**record, "docker_restart_required": docker_restart_required}
     except ValueError as e:
-        raise HTTPException(status_code=409, detail=str(e))
+        logger.warning("Bucket creation rejected: %s", e)
+        raise HTTPException(status_code=409, detail="Bucket name conflict or invalid source")
     except Exception as e:
         logger.error("Bucket creation failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Bucket creation failed")
@@ -365,7 +366,8 @@ def delete_bucket(
             _sync_bucket_compose(settings, svc)
         return result
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        logger.warning("Bucket delete: %s", e)
+        raise HTTPException(status_code=404, detail="Bucket not found")
 
 
 @router.post("/buckets/{bucket_id}/search")
@@ -381,7 +383,8 @@ def search_bucket(
     try:
         return svc.search(bucket_id, req.query, req.top_k, settings)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        logger.warning("Bucket search: %s", e)
+        raise HTTPException(status_code=404, detail="Bucket not found")
 
 
 @router.post("/buckets/{bucket_id}/chat")
@@ -397,7 +400,8 @@ def chat_bucket(
     try:
         return svc.chat(bucket_id, req.message, settings)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        logger.warning("Bucket chat: %s", e)
+        raise HTTPException(status_code=404, detail="Bucket not found")
 
 
 @router.post("/buckets/{bucket_id}/reindex")
@@ -438,7 +442,8 @@ def add_to_bucket(
         sources = [s.model_dump() for s in req.sources]
         return svc.add_documents(bucket_id, sources)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        logger.warning("Bucket add: %s", e)
+        raise HTTPException(status_code=404, detail="Bucket not found")
     except Exception as e:
         logger.error("Bucket add failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Bucket add failed")
@@ -462,7 +467,8 @@ def push_documents(
         docs = [d.model_dump() for d in req.documents]
         return svc.push_documents(bucket_id, docs)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        logger.warning("Bucket push: %s", e)
+        raise HTTPException(status_code=404, detail="Bucket not found")
     except Exception as e:
         logger.error("Bucket push failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Bucket push failed")

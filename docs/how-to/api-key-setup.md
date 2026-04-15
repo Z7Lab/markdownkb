@@ -1,6 +1,6 @@
 # API Key Setup
 
-MarkdownKB can require an API key on all `/api/*` endpoints. This guide explains when you need one, what it protects, and how to set it up.
+MarkdownKB can require an API key on all `/api/v1/*` endpoints. This guide explains when you need one, what it protects, and how to set it up.
 
 ## When Do You Need an API Key?
 
@@ -12,7 +12,7 @@ The MarkdownKB UI shows a banner when no API key is configured and the server is
 
 ## What Does It Protect?
 
-The API key protects all `/api/*` endpoints except `/api/health`. This includes:
+The API key protects all `/api/v1/*` endpoints except `/api/v1/health`. This includes:
 
 - **Reading:** search, chat, file content, knowledge graph queries
 - **Writing:** index files, create buckets, update tags, save documents
@@ -62,7 +62,7 @@ The MarkdownKB web UI stores the key in localStorage after you set it. No manual
 Include the key in the `X-MarkdownKB-Key` header:
 
 ```bash
-curl -H "X-MarkdownKB-Key: your-key" http://localhost:9713/api/search \
+curl -H "X-MarkdownKB-Key: your-key" http://localhost:9713/api/v1/search \
   -d '{"query": "authentication"}'
 ```
 
@@ -70,11 +70,9 @@ curl -H "X-MarkdownKB-Key: your-key" http://localhost:9713/api/search \
 
 Two options:
 
-**Header:** `X-MarkdownKB-Key: your-key`
+**Bearer token:** `Authorization: Bearer your-key` (preferred — not written to access logs)
 
-**Query parameter:** `http://localhost:9715/mcp?token=your-key`
-
-The query parameter method works with MCP clients that don't support custom headers.
+**Custom header:** `X-MarkdownKB-Key: your-key`
 
 ### MCP (stdio transport)
 

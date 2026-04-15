@@ -13,7 +13,7 @@ async def test_chat_returns_response(client):
         yield "Test answer"
 
     with patch("app.routers.chat.chat_respond", side_effect=fake_respond):
-        resp = await client.post("/api/chat", json={
+        resp = await client.post("/api/v1/chat", json={
             "message": "What is this about?",
         })
     assert resp.status_code == 200
@@ -24,13 +24,13 @@ async def test_chat_returns_response(client):
 
 @pytest.mark.asyncio
 async def test_chat_empty_message_rejected(client):
-    resp = await client.post("/api/chat", json={"message": ""})
+    resp = await client.post("/api/v1/chat", json={"message": ""})
     assert resp.status_code == 422
 
 
 @pytest.mark.asyncio
 async def test_clear_history(client):
-    resp = await client.delete("/api/chat/history")
+    resp = await client.delete("/api/v1/chat/history")
     assert resp.status_code == 200
     assert resp.json()["status"] == "cleared"
 
@@ -38,7 +38,7 @@ async def test_clear_history(client):
 @pytest.mark.asyncio
 async def test_save_plan(client):
     with patch("app.routers.chat.save_last_response_as_plan", return_value="Plan saved"):
-        resp = await client.post("/api/chat/save-plan", json={
+        resp = await client.post("/api/v1/chat/save-plan", json={
             "history": [{"role": "user", "content": "test"}],
         })
     assert resp.status_code == 200
@@ -53,7 +53,7 @@ async def test_chat_stream_returns_sse(client):
         yield "Hello world"
 
     with patch("app.routers.chat.chat_respond", side_effect=fake_respond):
-        resp = await client.post("/api/chat/stream", json={
+        resp = await client.post("/api/v1/chat/stream", json={
             "message": "Hello",
         })
     assert resp.status_code == 200

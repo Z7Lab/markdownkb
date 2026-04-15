@@ -17,7 +17,7 @@ from app.plugins.lint.service import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/lint", tags=["lint"])
+router = APIRouter(prefix="/api/v1/lint", tags=["lint"])
 
 
 class RunLintRequest(BaseModel):

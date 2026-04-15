@@ -9,15 +9,11 @@ import sqlite3
 import threading
 from pathlib import Path
 
+from app.storage.migrations import run_migrations
+
 logger = logging.getLogger(__name__)
 
-SCHEMA_VERSION = 5
-
 _CREATE_SQL = """
-CREATE TABLE IF NOT EXISTS schema_version (
-    version INTEGER NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS indexed_files (
     path        TEXT PRIMARY KEY,
     source_root TEXT NOT NULL,
@@ -120,6 +116,14 @@ def _migrate_v4_to_v5(conn: sqlite3.Connection):
         )
 
 
+_MIGRATIONS = [
+    (1, "add include_rag column + reset excluded", _migrate_v1_to_v2),
+    (2, "add tags column", _migrate_v2_to_v3),
+    (3, "create file_metadata table", _migrate_v3_to_v4),
+    (4, "backfill indexed_at", _migrate_v4_to_v5),
+]
+
+
 class TrackingDB:
     """Tracks indexed file states in SQLite."""
 
@@ -136,33 +140,30 @@ class TrackingDB:
         logger.info("TrackingDB opened: %s", db_path)
 
     def _init_schema(self):
-        """Create tables if they don't exist, then run migrations."""
+        """Create tables if they don't exist, then run migrations.
+
+        Also supports a one-time upgrade from the legacy bespoke
+        ``schema_version`` table: its version is copied into
+        ``PRAGMA user_version`` (after normalizing — the old scheme counted
+        schema v1 as "created," the canonical runner counts migrations
+        applied, so we subtract one) and the table is dropped.
+        """
         self._conn.executescript(_CREATE_SQL)
-        row = self._conn.execute(
-            "SELECT version FROM schema_version LIMIT 1"
+
+        legacy = self._conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='schema_version'"
         ).fetchone()
-        if row is None:
-            self._conn.execute(
-                "INSERT INTO schema_version (version) VALUES (?)",
-                (SCHEMA_VERSION,),
-            )
+        if legacy is not None:
+            row = self._conn.execute(
+                "SELECT version FROM schema_version LIMIT 1"
+            ).fetchone()
+            legacy_version = row["version"] if row else 1
+            applied = max(0, int(legacy_version) - 1)
+            self._conn.execute(f"PRAGMA user_version = {applied}")
+            self._conn.execute("DROP TABLE schema_version")
             self._conn.commit()
-        else:
-            current = row["version"]
-            if current < 2:
-                _migrate_v1_to_v2(self._conn)
-            if current < 3:
-                _migrate_v2_to_v3(self._conn)
-            if current < 4:
-                _migrate_v3_to_v4(self._conn)
-            if current < 5:
-                _migrate_v4_to_v5(self._conn)
-            if current < SCHEMA_VERSION:
-                self._conn.execute(
-                    "UPDATE schema_version SET version = ?",
-                    (SCHEMA_VERSION,),
-                )
-                self._conn.commit()
+
+        run_migrations(self._conn, _MIGRATIONS, db_label="TrackingDB")
 
     def close(self):
         """Close the database connection."""

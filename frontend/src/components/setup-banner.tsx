@@ -20,7 +20,7 @@ export function SetupBanner({ forceShow = false }: { forceShow?: boolean }) {
   )
 
   useEffect(() => {
-    api.get<HealthResponse>("/api/health")
+    api.get<HealthResponse>("/api/v1/health")
       .then((data) => {
         if (!data.auth_enabled && data.network_exposed) {
           setNeedsSetup(true)
@@ -32,7 +32,7 @@ export function SetupBanner({ forceShow = false }: { forceShow?: boolean }) {
   const handleGenerate = useCallback(async () => {
     setGenerating(true)
     try {
-      const data = await api.post<{ api_key: string }>("/api/setup/generate-key")
+      const data = await api.post<{ api_key: string }>("/api/v1/setup/generate-key")
       setGeneratedKey(data.api_key)
       setApiKey(data.api_key)
       // Store in localStorage so the key survives page refresh.

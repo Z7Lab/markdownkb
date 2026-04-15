@@ -58,7 +58,7 @@ export function BackupPanel() {
 
   const loadStatus = useCallback(async () => {
     try {
-      const res = await api.get<BackupStatus>("/api/backups/status")
+      const res = await api.get<BackupStatus>("/api/v1/backups/status")
       setStatus(res)
     } catch (err) {
       void err
@@ -72,7 +72,7 @@ export function BackupPanel() {
   const handleDownload = async () => {
     setDownloading(true)
     try {
-      const res = await fetch("/api/backups/create", {
+      const res = await fetch("/api/v1/backups/create", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({
@@ -110,7 +110,7 @@ export function BackupPanel() {
     try {
       const fd = new FormData()
       fd.append("file", file)
-      const res = await fetch("/api/backups/preview", {
+      const res = await fetch("/api/v1/backups/preview", {
         method: "POST",
         body: fd,
         headers: authHeaders(),
@@ -136,7 +136,7 @@ export function BackupPanel() {
       fd.append("file", pendingRestore.file)
       fd.append("apply_config", String(applyConfig))
       fd.append("apply_sources", String(applySources))
-      const res = await fetch("/api/backups/restore", {
+      const res = await fetch("/api/v1/backups/restore", {
         method: "POST",
         body: fd,
         headers: authHeaders(),
@@ -156,7 +156,7 @@ export function BackupPanel() {
 
   const handleClearMarker = async () => {
     try {
-      await api.del("/api/backups/restart-marker")
+      await api.del("/api/v1/backups/restart-marker")
       await loadStatus()
     } catch (err) {
       toast.error(`Failed: ${(err as Error).message}`)

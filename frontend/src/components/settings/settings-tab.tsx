@@ -110,7 +110,7 @@ export function SettingsTab({ initialSection }: { initialSection?: string } = {}
 
   useEffect(() => {
     if (activeSection === "scopes") {
-      api.get<{ items: string[] }>("/api/tags").then((r) => setAvailableTags(r.items)).catch(() => { /* tags list is supplementary */ })
+      api.get<{ items: string[] }>("/api/v1/tags").then((r) => setAvailableTags(r.items)).catch(() => { /* tags list is supplementary */ })
     }
   }, [activeSection])
 

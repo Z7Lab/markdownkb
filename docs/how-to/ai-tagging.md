@@ -31,7 +31,7 @@ Tags from similar documents are included in the prompt so the LLM produces consi
 Preview suggested tags without modifying the file:
 
 ```bash
-curl -X POST http://localhost:9713/api/tags/generate \
+curl -X POST http://localhost:9713/api/v1/tags/generate \
   -H "Content-Type: application/json" \
   -d '{
     "file_path": "/path/to/your/document.md",
@@ -57,7 +57,7 @@ Response:
 Apply tags directly (creates a backup first):
 
 ```bash
-curl -X POST http://localhost:9713/api/tags/generate \
+curl -X POST http://localhost:9713/api/v1/tags/generate \
   -H "Content-Type: application/json" \
   -d '{
     "file_path": "/path/to/your/document.md",
@@ -76,7 +76,7 @@ document.20260206_153045.backup.md   # Backup of original
 Skip AI generation and apply tags you've already decided on:
 
 ```bash
-curl -X POST http://localhost:9713/api/tags/apply \
+curl -X POST http://localhost:9713/api/v1/tags/apply \
   -H "Content-Type: application/json" \
   -d '{
     "file_path": "/path/to/your/document.md",
@@ -90,7 +90,7 @@ curl -X POST http://localhost:9713/api/tags/apply \
 Tag multiple files at once:
 
 ```bash
-curl -X POST http://localhost:9713/api/tags/bulk \
+curl -X POST http://localhost:9713/api/v1/tags/bulk \
   -H "Content-Type: application/json" \
   -d '{
     "directory": "/path/to/docs",
@@ -119,7 +119,7 @@ tags:
 
 Tags are extracted from frontmatter during indexing and stored in the TagDB for filtering.
 
-- **From the API:** `PUT /api/files/tags` with `{"path": "...", "tags": ["tag1", "tag2"]}`
+- **From the API:** `PUT /api/v1/files/tags` with `{"path": "...", "tags": ["tag1", "tag2"]}`
 
 ## Troubleshooting
 

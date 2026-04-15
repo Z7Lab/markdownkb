@@ -13,7 +13,7 @@ API_PORT        ?= 9713
 FRONTEND_PORT   ?= 9714
 
 .DEFAULT_GOAL := help
-.PHONY: help install dev stop docker-build docker-rebuild docker-up docker-down docker-restart docker-logs docker-ps docker-shell docker-clean docker-clean-all backend prod test lint status check-ports mcp
+.PHONY: help install dev stop docker-build docker-rebuild docker-up docker-down docker-restart docker-logs docker-ps docker-shell docker-clean docker-clean-all backend prod test lint status check-ports mcp audit typecheck
 
 # ── Quick Start ──────────────────────────────────
 
@@ -123,11 +123,17 @@ mcp: ## Start MCP server locally (Streamable HTTP on port 9715)
 prod: ## Production mode (build frontend + serve)
 	@./run.sh --prod
 
-test: ## Run pytest suite
+test: ## Run pytest suite (with coverage)
 	@.venv/bin/pytest tests/
 
 lint: ## Run pylint
 	@.venv/bin/pylint app/
+
+typecheck: ## Run mypy static type checker
+	@.venv/bin/mypy app/
+
+audit: ## Scan locked runtime deps for known CVEs (pip-audit)
+	@.venv/bin/pip-audit -r requirements.lock --strict
 
 # ── Utilities ────────────────────────────────────
 

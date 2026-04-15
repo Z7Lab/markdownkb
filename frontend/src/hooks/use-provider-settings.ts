@@ -31,7 +31,7 @@ export function useProviderSettings(reload: () => Promise<boolean>) {
     async (name: string, model: string, apiBase: string, apiKey: string = "") => {
       const body: Record<string, string> = { name, model, api_base: apiBase }
       if (apiKey) body.api_key = apiKey
-      await api.put("/api/settings/provider", body)
+      await api.put("/api/v1/settings/provider", body)
       setModelStatus("")
       toast.success(`Provider saved: ${name}`, {
         description: model + (apiKey ? " (API key updated)" : ""),
@@ -44,7 +44,7 @@ export function useProviderSettings(reload: () => Promise<boolean>) {
   const testConnection = useCallback(
     async (name: string, model: string, apiBase: string, apiKey: string = "") => {
       setProviderStatus("Testing...")
-      const res = await api.post<{ result: string }>("/api/settings/test-connection", {
+      const res = await api.post<{ result: string }>("/api/v1/settings/test-connection", {
         name,
         model,
         api_base: apiBase,
@@ -57,7 +57,7 @@ export function useProviderSettings(reload: () => Promise<boolean>) {
 
   const refreshModels = useCallback(async (name: string, apiBase: string) => {
     const res = await api.post<{ models: ModelEntry[]; status: string }>(
-      "/api/settings/refresh-models",
+      "/api/v1/settings/refresh-models",
       { name, api_base: apiBase },
     )
     return res
@@ -67,7 +67,7 @@ export function useProviderSettings(reload: () => Promise<boolean>) {
     async (name: string, model: string, apiBase: string, apiKey: string = "", signal?: AbortSignal) => {
       setModelStatus("Pinging model...")
       try {
-        const res = await api.post<{ result: string }>("/api/settings/ping-model", {
+        const res = await api.post<{ result: string }>("/api/v1/settings/ping-model", {
           name,
           model,
           api_base: apiBase,
@@ -87,7 +87,7 @@ export function useProviderSettings(reload: () => Promise<boolean>) {
 
   const saveLlmParams = useCallback(
     async (temperature: number, maxTokens: number, numCtx: number | null) => {
-      await api.put("/api/settings/llm-params", {
+      await api.put("/api/v1/settings/llm-params", {
         temperature,
         max_tokens: maxTokens,
         num_ctx: numCtx,
@@ -100,7 +100,7 @@ export function useProviderSettings(reload: () => Promise<boolean>) {
 
   const fetchModelInfo = useCallback(
     async (model: string, apiBase: string) => {
-      const res = await api.post<ModelInfo>("/api/settings/model-info", {
+      const res = await api.post<ModelInfo>("/api/v1/settings/model-info", {
         model,
         api_base: apiBase,
       })
@@ -110,7 +110,7 @@ export function useProviderSettings(reload: () => Promise<boolean>) {
   )
 
   const fetchOllamaStatus = useCallback(async () => {
-    return api.get<OllamaStatus>("/api/settings/ollama/status")
+    return api.get<OllamaStatus>("/api/v1/settings/ollama/status")
   }, [])
 
   const pullOllamaModel = useCallback(
@@ -126,7 +126,7 @@ export function useProviderSettings(reload: () => Promise<boolean>) {
         const key = getApiKey()
         if (key) headers["X-MarkdownKB-Key"] = key
 
-        const res = await fetch("/api/settings/ollama/pull", {
+        const res = await fetch("/api/v1/settings/ollama/pull", {
           method: "POST",
           headers,
           body: JSON.stringify({ model_name: modelName, api_base: apiBase }),

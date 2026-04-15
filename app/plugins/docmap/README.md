@@ -3,21 +3,21 @@
 3D document similarity graph visualization with clustering, word clouds, and scope/tag filtering.
 
 **Feature flag:** `graph`
-**Prefix:** `/api/graph`
+**Prefix:** `/api/v1/graph`
 
 ## Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/graph/data` | Compute similarity graph (nodes, edges, clusters, word clouds) |
-| GET | `/api/graph/stats` | Lightweight stats (doc count, chunk count) without full computation |
-| GET | `/api/graph/status` | Check if cached graph data is available (no computation) |
-| GET | `/api/graph/edge-detail` | Chunk-level similarity detail for a document pair |
-| GET | `/api/graph/progress` | Current graph computation progress |
+| GET | `/api/v1/graph/data` | Compute similarity graph (nodes, edges, clusters, word clouds) |
+| GET | `/api/v1/graph/stats` | Lightweight stats (doc count, chunk count) without full computation |
+| GET | `/api/v1/graph/status` | Check if cached graph data is available (no computation) |
+| GET | `/api/v1/graph/edge-detail` | Chunk-level similarity detail for a document pair |
+| GET | `/api/v1/graph/progress` | Current graph computation progress |
 
 ## Query Parameters
 
-`/api/graph/data` accepts:
+`/api/v1/graph/data` accepts:
 - `scope_id` / `scope_ids` — restrict to a named scope
 - `ad_hoc_tags[]` — filter by tags
 - `top_k` (default: 3) — edges per node

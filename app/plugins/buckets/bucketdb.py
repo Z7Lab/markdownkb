@@ -106,15 +106,29 @@ class BucketDB:
             self._conn.commit()
         return cursor.rowcount > 0
 
+    _UPDATABLE_COLUMNS = frozenset({
+        "name", "sources", "file_count", "chunk_count",
+        "expires_at", "expired", "color",
+    })
+
     def update(self, bucket_id: str, **fields) -> bool:
-        """Update arbitrary fields on a bucket. Field names must be valid column names."""
+        """Update allowed columns on a bucket.
+
+        Only keys in :attr:`_UPDATABLE_COLUMNS` are accepted; an unknown key
+        raises ``ValueError`` so SQL cannot be composed from user-controlled
+        names. ``id`` and ``created_at`` are intentionally immutable.
+        """
         if not fields:
             return False
-        set_clause = ", ".join(f"{k} = ?" for k in fields)
-        values = list(fields.values()) + [bucket_id]
+        bad = set(fields) - self._UPDATABLE_COLUMNS
+        if bad:
+            raise ValueError(f"Unknown bucket columns: {sorted(bad)}")
+        cols = list(fields)
+        set_clause = ", ".join(f"{c} = ?" for c in cols)
+        values = [fields[c] for c in cols] + [bucket_id]
         with self._lock:
             cursor = self._conn.execute(
-                f"UPDATE buckets SET {set_clause} WHERE id = ?", values  # noqa: S608
+                f"UPDATE buckets SET {set_clause} WHERE id = ?", values
             )
             self._conn.commit()
         return cursor.rowcount > 0

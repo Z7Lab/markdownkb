@@ -18,26 +18,13 @@ from app.storage.trackingdb import TrackingDB
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/docmap", tags=["docmap"])
+router = APIRouter(prefix="/api/v1/docmap", tags=["docmap"])
 
 # In-memory cache: key = (frozenset(folders), frozenset(tags), top_k, ...) -> graph data
 _graph_cache: dict[tuple, dict] = {}
 _cache_lock = threading.Lock()
 
-def _cache_key(
-    source_roots: list[str] | None,
-    scope_tags: list[str] | None,
-    ad_hoc_tags: list[str] | None,
-    top_k: int,
-    word_clouds: bool = True,
-    min_weight: float = 0.0,
-    exclude_patterns: list[str] | None = None,
-) -> tuple:
-    roots = frozenset(source_roots) if source_roots else frozenset()
-    tags = frozenset(scope_tags) if scope_tags else frozenset()
-    adhoc = frozenset(ad_hoc_tags) if ad_hoc_tags else frozenset()
-    excludes = frozenset(exclude_patterns) if exclude_patterns else frozenset()
-    return (roots, tags, adhoc, top_k, word_clouds, min_weight, excludes)
+from app.plugins.docmap.service import cache_key as _cache_key
 
 
 @router.get("/data")
@@ -417,10 +404,9 @@ def get_graph_progress(request: Request):
 
 
 # Cache invalidation via IndexEventBus
-def _invalidation_worker():
-    q = event_bus.subscribe()
+def _invalidation_worker(subscription):
     while True:
-        event = q.get()
+        event = subscription.get()
         if event is None:
             break
         if event.type in ("indexed", "deleted", "rag_toggled"):
@@ -431,9 +417,39 @@ def _invalidation_worker():
             logger.debug("Docmap caches cleared due to %s event", event.type)
 
 
-_invalidation_thread = threading.Thread(
-    target=_invalidation_worker, daemon=True, name="graph-cache-invalidation",
-)
-_invalidation_thread.start()
+_invalidation_thread: threading.Thread | None = None
+_invalidation_subscription = None
+
+
+def start_invalidation_thread() -> None:
+    """Start the cache-invalidation worker.
+
+    Called from the docmap plugin's ``on_startup`` hook so the thread is
+    only spawned when the plugin is enabled and app state is ready. Must
+    not be called from module import — tests that import the router would
+    otherwise leak a background thread.
+    """
+    global _invalidation_thread, _invalidation_subscription
+    if _invalidation_thread is not None:
+        return
+    _invalidation_subscription = event_bus.subscribe()
+    _invalidation_thread = threading.Thread(
+        target=_invalidation_worker,
+        args=(_invalidation_subscription,),
+        daemon=True,
+        name="graph-cache-invalidation",
+    )
+    _invalidation_thread.start()
+
+
+def stop_invalidation_thread() -> None:
+    """Signal the cache-invalidation worker to exit and join it briefly."""
+    global _invalidation_thread, _invalidation_subscription
+    if _invalidation_subscription is not None:
+        _invalidation_subscription.put(None)
+    if _invalidation_thread is not None:
+        _invalidation_thread.join(timeout=2.0)
+    _invalidation_thread = None
+    _invalidation_subscription = None
 
 

@@ -31,7 +31,7 @@ from app.plugins.wiki_compile.wikidb import WikiDB
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/wiki-compile", tags=["wiki_compile"])
+router = APIRouter(prefix="/api/v1/wiki-compile", tags=["wiki_compile"])
 
 
 # -- Request models ---------------------------------------------------------
@@ -231,9 +231,11 @@ def ingest_endpoint(
             versioning_manager=versioning_manager,
         )
     except WikiCompileError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.warning("wiki_compile rejected: %s", e)
+        raise HTTPException(status_code=400, detail="Wiki compile failed — check server logs")
     except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        logger.warning("wiki_compile source missing: %s", e)
+        raise HTTPException(status_code=404, detail="Source path not found")
     except RuntimeError as e:
         logger.error("wiki_compile ingest LLM error: %s", e)
         raise HTTPException(status_code=503, detail="LLM request failed — check server logs")

@@ -269,7 +269,7 @@ export function SourcesPanel({
   const [vstatus, setVStatus] = useState<VersioningStatus | null>(null)
 
   const reloadVersioningStatus = useCallback(() => {
-    api.get<VersioningStatus>("/api/versioning/status")
+    api.get<VersioningStatus>("/api/v1/versioning/status")
       .then(setVStatus)
       .catch(() => { /* status is non-critical UI data */ })
   }, [])
@@ -280,7 +280,7 @@ export function SourcesPanel({
       files_complete: number
       files_error: number
       chunks_indexed: number
-    }>("/api/stats").then(setStats).catch(() => { /* stats are non-critical UI data */ })
+    }>("/api/v1/stats").then(setStats).catch(() => { /* stats are non-critical UI data */ })
   }, [lastIndexedAt])
 
   useEffect(() => {

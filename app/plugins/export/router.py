@@ -8,7 +8,7 @@ from app.deps import get_conversation_history
 from app.ratelimit import STANDARD, limiter
 from app.schemas import ExportRequest
 
-router = APIRouter(prefix="/api", tags=["export"])
+router = APIRouter(prefix="/api/v1", tags=["export"])
 
 
 @router.post("/export")

@@ -44,7 +44,7 @@ export function TestPrompt({
     setMeta(null)
 
     try {
-      const res = await fetch("/api/settings/test-prompt", {
+      const res = await fetch("/api/v1/settings/test-prompt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

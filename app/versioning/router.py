@@ -17,7 +17,7 @@ from app.versioning.git_manager import GitManager, GitManagerError
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/versioning", tags=["versioning"])
+router = APIRouter(prefix="/api/v1/versioning", tags=["versioning"])
 
 
 def _get_manager(request: Request) -> GitManager | None:
@@ -237,7 +237,7 @@ def get_status(request: Request, settings: Settings = Depends(get_settings)):
 
 # -- Per-source actions ------------------------------------------------------
 
-# Note: the global on/off toggle lives at PUT /api/settings/core with
+# Note: the global on/off toggle lives at PUT /api/v1/settings/core with
 # name="versioning", so it sits alongside file_watcher, rag_chat, etc.
 # No dedicated endpoint here.
 

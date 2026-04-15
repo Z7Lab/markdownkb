@@ -107,12 +107,12 @@ export function useDocmap() {
     setProgress({ fraction: 0, phase: "Starting..." })
 
     try {
-      const dataPromise = api.get<DocMapData>(`/api/docmap/data${buildDocmapQs(scopeIds, wc, adHocTags, bucketId, bucketThresh)}`, controller.signal)
+      const dataPromise = api.get<DocMapData>(`/api/v1/docmap/data${buildDocmapQs(scopeIds, wc, adHocTags, bucketId, bucketThresh)}`, controller.signal)
       await new Promise(r => setTimeout(r, 50))
       if (isCurrent()) {
         pollRef.current = setInterval(async () => {
           try {
-            const p = await api.get<GraphProgress>("/api/docmap/progress")
+            const p = await api.get<GraphProgress>("/api/v1/docmap/progress")
             if (p.phase !== "idle" && isCurrent()) {
               setProgress(p)
             }

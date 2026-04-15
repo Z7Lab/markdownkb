@@ -53,7 +53,7 @@ export function usePlanner() {
 
   const loadSkills = useCallback(async () => {
     try {
-      const res = await api.get<{ skills: SkillInfo[] }>("/api/planner/skills")
+      const res = await api.get<{ skills: SkillInfo[] }>("/api/v1/planner/skills")
       setSkills(res.skills)
     } catch {
       // Skills endpoint may not be available if feature is disabled
@@ -62,7 +62,7 @@ export function usePlanner() {
 
   const refreshPlans = useCallback(async () => {
     try {
-      const res = await api.get<{ plans: SavedPlan[] }>("/api/planner/plans")
+      const res = await api.get<{ plans: SavedPlan[] }>("/api/v1/planner/plans")
       setSavedPlans(res.plans)
     } catch {
       // Plans endpoint may fail on first load
@@ -137,7 +137,7 @@ export function usePlanner() {
     }
     const title = query ? `Plan: ${query.slice(0, 80)}` : "Untitled Plan"
     try {
-      const res = await api.post<{ id: string }>("/api/planner/plans", {
+      const res = await api.post<{ id: string }>("/api/v1/planner/plans", {
         title,
         content,
         query,
@@ -153,7 +153,7 @@ export function usePlanner() {
   const loadPlan = useCallback(async (planId: string) => {
     try {
       const res = await api.get<{ id: string; title: string; content: string; query: string }>(
-        `/api/planner/plans/${planId}`,
+        `/api/v1/planner/plans/${planId}`,
       )
       // Clear generation state, show saved plan
       resetGeneration()
@@ -167,7 +167,7 @@ export function usePlanner() {
 
   const renamePlan = useCallback(async (planId: string, title: string) => {
     try {
-      await api.patch(`/api/planner/plans/${planId}`, { title })
+      await api.patch(`/api/v1/planner/plans/${planId}`, { title })
       await refreshPlans()
     } catch (err) {
       toast.error(`Failed to rename plan: ${(err as Error).message}`)
@@ -176,7 +176,7 @@ export function usePlanner() {
 
   const deletePlan = useCallback(async (planId: string) => {
     try {
-      await api.del(`/api/planner/plans/${planId}`)
+      await api.del(`/api/v1/planner/plans/${planId}`)
       if (activePlanId === planId) {
         clear()
       }

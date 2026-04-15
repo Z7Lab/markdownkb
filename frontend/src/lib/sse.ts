@@ -141,7 +141,7 @@ export function streamChat(
   if (bucketIds) body.bucket_ids = bucketIds
 
   return streamSSE(
-    "/api/chat/stream",
+    "/api/v1/chat/stream",
     body,
     (event, data) => {
       if (event === "thread") {
@@ -185,7 +185,7 @@ export function streamPlan(
   if (options?.bucket_ids) body.bucket_ids = options.bucket_ids
 
   return streamSSE(
-    "/api/planner/plan/stream",
+    "/api/v1/planner/plan/stream",
     body,
     (event, data) => {
       if (event === "status") {
@@ -226,7 +226,7 @@ export function streamSearchSummary(
   if (options?.deep_research_iterations) body.deep_research_iterations = options.deep_research_iterations
 
   return streamSSE(
-    "/api/search/summarize",
+    "/api/v1/search/summarize",
     body,
     (event, data) => {
       if (event === "token") {

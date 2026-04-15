@@ -1,19 +1,16 @@
 """API key authentication middleware for the MCP server.
 
-Accepts auth via any of:
+Accepts auth via:
   1. ``Authorization: Bearer <key>`` header (preferred — key not logged)
   2. ``X-MarkdownKB-Key: <key>`` header (same as REST API)
-  3. ``?token=`` query parameter (legacy fallback — key appears in server
-     access logs and browser history; avoid for new integrations)
 
 When an API key is configured, every request must include a valid
-credential via one of these methods.  If no key is configured,
+credential via one of these methods. If no key is configured,
 the middleware is not added and all requests are allowed.
 """
 
 import hmac
 import logging
-from urllib.parse import parse_qs
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -48,11 +45,6 @@ class McpApiKeyMiddleware:
         # 2. X-MarkdownKB-Key header
         if not provided:
             provided = request.headers.get(_HEADER, "")
-
-        # 3. ?token= query parameter (legacy fallback)
-        if not provided:
-            qs = parse_qs(scope.get("query_string", b"").decode())
-            provided = qs.get("token", [""])[0]
 
         if not hmac.compare_digest(provided, self._api_key):
             response = JSONResponse(

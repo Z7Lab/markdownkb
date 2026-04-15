@@ -47,7 +47,7 @@ from fastapi import APIRouter, Depends, Request
 from app.config import Settings
 from app.deps import get_settings
 
-router = APIRouter(prefix="/api", tags=["my-plugin"])
+router = APIRouter(prefix="/api/v1", tags=["my-plugin"])
 
 @router.get("/my-plugin/status")
 def status(request: Request, settings: Settings = Depends(get_settings)):
@@ -71,7 +71,7 @@ requires: []                  # other feature flags this plugin depends on
 
 endpoints:
   - method: GET
-    path: /api/my-plugin/status
+    path: /api/v1/my-plugin/status
     description: Check plugin status
 
 config:
@@ -144,8 +144,8 @@ def status(request: Request, settings: Settings = Depends(get_settings)):
 ```
 
 Config is also readable/writable via the generic API:
-- `GET /api/settings/plugins/my_plugin`
-- `PUT /api/settings/plugins/my_plugin` (shallow merge)
+- `GET /api/v1/settings/plugins/my_plugin`
+- `PUT /api/v1/settings/plugins/my_plugin` (shallow merge)
 
 ## Installation
 
@@ -164,7 +164,7 @@ plugins:
 Users install external plugins through the Settings UI or the API:
 
 ```bash
-curl -X POST http://localhost:9713/api/plugins/install \
+curl -X POST http://localhost:9713/api/v1/plugins/install \
   -H "Content-Type: application/json" \
   -d '{"url": "https://github.com/user/repo"}'
 ```
@@ -184,7 +184,7 @@ The install process:
 
 External plugins persist across container rebuilds via the Docker named volume (or bind mount).
 
-To uninstall: `DELETE /api/plugins/{name}` (only works for external plugins).
+To uninstall: `DELETE /api/v1/plugins/{name}` (only works for external plugins).
 
 ## Validation Rules
 

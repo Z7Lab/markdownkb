@@ -7,7 +7,7 @@ export function useTags() {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await api.get<PaginatedResponse<string>>("/api/tags")
+      const res = await api.get<PaginatedResponse<string>>("/api/v1/tags")
       setTags(res.items)
     } catch (err) {
       console.warn("Failed to load tags:", (err as Error).message)

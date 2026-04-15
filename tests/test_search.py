@@ -5,7 +5,7 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_search_returns_results(client):
-    resp = await client.post("/api/search", json={"query": "test query"})
+    resp = await client.post("/api/v1/search", json={"query": "test query"})
     assert resp.status_code == 200
     data = resp.json()
     assert "results" in data
@@ -17,25 +17,25 @@ async def test_search_returns_results(client):
 
 @pytest.mark.asyncio
 async def test_search_empty_query_rejected(client):
-    resp = await client.post("/api/search", json={"query": ""})
+    resp = await client.post("/api/v1/search", json={"query": ""})
     assert resp.status_code == 422
 
 
 @pytest.mark.asyncio
 async def test_search_with_top_k(client):
-    resp = await client.post("/api/search", json={"query": "test", "top_k": 3})
+    resp = await client.post("/api/v1/search", json={"query": "test", "top_k": 3})
     assert resp.status_code == 200
 
 
 @pytest.mark.asyncio
 async def test_search_top_k_out_of_range(client):
-    resp = await client.post("/api/search", json={"query": "test", "top_k": 100})
+    resp = await client.post("/api/v1/search", json={"query": "test", "top_k": 100})
     assert resp.status_code == 422
 
 
 @pytest.mark.asyncio
 async def test_folders_paginated(client):
-    resp = await client.get("/api/folders")
+    resp = await client.get("/api/v1/folders")
     assert resp.status_code == 200
     data = resp.json()
     assert "items" in data
@@ -46,7 +46,7 @@ async def test_folders_paginated(client):
 
 @pytest.mark.asyncio
 async def test_folders_with_limit(client):
-    resp = await client.get("/api/folders?limit=2&offset=0")
+    resp = await client.get("/api/v1/folders?limit=2&offset=0")
     assert resp.status_code == 200
     data = resp.json()
     assert len(data["items"]) == 2
@@ -57,7 +57,7 @@ async def test_folders_with_limit(client):
 
 @pytest.mark.asyncio
 async def test_tags_paginated(client):
-    resp = await client.get("/api/tags")
+    resp = await client.get("/api/v1/tags")
     assert resp.status_code == 200
     data = resp.json()
     assert "items" in data
@@ -66,7 +66,7 @@ async def test_tags_paginated(client):
 
 @pytest.mark.asyncio
 async def test_list_searches(client):
-    resp = await client.get("/api/searches")
+    resp = await client.get("/api/v1/searches")
     assert resp.status_code == 200
     data = resp.json()
     assert "items" in data
@@ -77,7 +77,7 @@ async def test_list_searches(client):
 
 @pytest.mark.asyncio
 async def test_delete_search(client):
-    resp = await client.delete("/api/searches/srch001")
+    resp = await client.delete("/api/v1/searches/srch001")
     assert resp.status_code == 200
     assert resp.json()["status"] == "deleted"
 
@@ -85,7 +85,7 @@ async def test_delete_search(client):
 @pytest.mark.asyncio
 async def test_search_saves_result_metadata(client, app):
     """Test that search saves result paths, count, scores, and full result data."""
-    resp = await client.post("/api/search", json={"query": "test query"})
+    resp = await client.post("/api/v1/search", json={"query": "test query"})
     assert resp.status_code == 200
 
     # Verify save_search was called with result metadata
@@ -133,7 +133,7 @@ async def test_load_historical_search(client, app):
         "created_at": "2024-01-01 00:00:00",
     }
 
-    resp = await client.get("/api/searches/srch001/load")
+    resp = await client.get("/api/v1/searches/srch001/load")
     assert resp.status_code == 200
     data = resp.json()
 
@@ -177,7 +177,7 @@ async def test_compare_historical_search_detects_changes(client, app):
     # Current search returns different results
     # (retriever mock in conftest returns ["/tmp/test-source/doc.md"])
 
-    resp = await client.get("/api/searches/srch001/compare")
+    resp = await client.get("/api/v1/searches/srch001/compare")
     assert resp.status_code == 200
     data = resp.json()
 
@@ -198,7 +198,7 @@ async def test_compare_historical_search_detects_changes(client, app):
 async def test_load_historical_search_not_found(client, app):
     """Test loading a non-existent search returns 404."""
     app.state.searchdb.get_search.return_value = None
-    resp = await client.get("/api/searches/nonexistent/load")
+    resp = await client.get("/api/v1/searches/nonexistent/load")
     assert resp.status_code == 404
     data = resp.json()
     assert data["detail"] == "Search not found"
@@ -207,7 +207,7 @@ async def test_load_historical_search_not_found(client, app):
 @pytest.mark.asyncio
 async def test_search_response_is_not_historical(client):
     """Test that new search responses have is_historical=False."""
-    resp = await client.post("/api/search", json={"query": "test query"})
+    resp = await client.post("/api/v1/search", json={"query": "test query"})
     assert resp.status_code == 200
     data = resp.json()
     assert data["is_historical"] is False
@@ -232,7 +232,7 @@ async def test_compare_historical_search_detects_score_changes(client, app):
     # Current search returns same file with different score (0.9)
     # (retriever mock in conftest returns score: 0.9)
 
-    resp = await client.get("/api/searches/srch001/compare")
+    resp = await client.get("/api/v1/searches/srch001/compare")
     assert resp.status_code == 200
     data = resp.json()
 
@@ -257,7 +257,7 @@ async def test_get_search_versions(client, app):
         {"id": "srch002", "query": "test query", "result_count": 5, "summary": "v2", "created_at": "2024-01-02", "parent_id": "srch001"},
     ]
 
-    resp = await client.get("/api/searches/srch001/versions")
+    resp = await client.get("/api/v1/searches/srch001/versions")
     assert resp.status_code == 200
     data = resp.json()
 
@@ -272,7 +272,7 @@ async def test_get_search_versions(client, app):
 async def test_get_search_versions_not_found(client, app):
     """Test versions endpoint returns 404 for non-existent search."""
     app.state.searchdb.get_search_versions.return_value = []
-    resp = await client.get("/api/searches/nonexistent/versions")
+    resp = await client.get("/api/v1/searches/nonexistent/versions")
     assert resp.status_code == 404
 
 
@@ -293,7 +293,7 @@ async def test_requery_links_parent_id(client, app):
         "created_at": "2024-01-01 00:00:00",
     }
 
-    resp = await client.post("/api/search", json={
+    resp = await client.post("/api/v1/search", json={
         "query": "test query",
         "parent_id": "srch001",
     })
@@ -321,7 +321,7 @@ async def test_requery_resolves_chain_root(client, app):
         "created_at": "2024-01-02 00:00:00",
     }
 
-    resp = await client.post("/api/search", json={
+    resp = await client.post("/api/v1/search", json={
         "query": "test query",
         "parent_id": "srch002",  # Re-query from child
     })

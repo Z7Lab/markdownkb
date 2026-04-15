@@ -35,22 +35,22 @@ Every entity and relationship links back to its `source_path`. When a document i
 
 The knowledge graph uses its own SQLite database (`{data_directory}/markdownkb_kg.db`), separate from the main tracking database. This means:
 - **Embedding model switches** do not affect KG data (they only clear ChromaDB and the tracking table)
-- **KG clear** (`POST /api/knowledge-graph/clear`) wipes the KG; run extraction to rebuild
+- **KG clear** (`POST /api/v1/knowledge-graph/clear`) wipes the KG; run extraction to rebuild
 
 ### API Endpoints
 
 | Endpoint | Description |
 |---|---|
-| `GET /api/knowledge-graph/data` | All entities and relationships, with optional type filters |
-| `GET /api/knowledge-graph/entity?name=X` | Single entity with all incoming/outgoing relationships |
-| `GET /api/knowledge-graph/path?source=X&target=Y` | BFS shortest path between two entities |
-| `GET /api/knowledge-graph/stats` | Entity and relationship counts |
-| `GET /api/knowledge-graph/file-entity-counts` | Entity count per file |
-| `POST /api/knowledge-graph/extract` | Start background extraction over all indexed files |
-| `POST /api/knowledge-graph/extract-file?path=X` | Extract entities from a single file |
-| `GET /api/knowledge-graph/extract/status` | Extraction progress |
-| `POST /api/knowledge-graph/extract/cancel` | Cancel running extraction |
-| `POST /api/knowledge-graph/clear` | Clear all KG data |
+| `GET /api/v1/knowledge-graph/data` | All entities and relationships, with optional type filters |
+| `GET /api/v1/knowledge-graph/entity?name=X` | Single entity with all incoming/outgoing relationships |
+| `GET /api/v1/knowledge-graph/path?source=X&target=Y` | BFS shortest path between two entities |
+| `GET /api/v1/knowledge-graph/stats` | Entity and relationship counts |
+| `GET /api/v1/knowledge-graph/file-entity-counts` | Entity count per file |
+| `POST /api/v1/knowledge-graph/extract` | Start background extraction over all indexed files |
+| `POST /api/v1/knowledge-graph/extract-file?path=X` | Extract entities from a single file |
+| `GET /api/v1/knowledge-graph/extract/status` | Extraction progress |
+| `POST /api/v1/knowledge-graph/extract/cancel` | Cancel running extraction |
+| `POST /api/v1/knowledge-graph/clear` | Clear all KG data |
 
 ### MCP Tools
 

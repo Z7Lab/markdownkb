@@ -35,7 +35,7 @@ export function useBuckets() {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await api.get<{ buckets: Bucket[] }>("/api/buckets")
+      const res = await api.get<{ buckets: Bucket[] }>("/api/v1/buckets")
       // SQLite returns expired as 0/1 integer; coerce to boolean at the boundary
       setBuckets(res.buckets.map(b => ({ ...b, expired: Boolean(b.expired) })))
     } catch {
@@ -53,7 +53,7 @@ export function useBuckets() {
         description: "Scanning, chunking, and embedding documents",
       })
       try {
-        const res = await api.post<Bucket & { docker_restart_required?: boolean }>("/api/buckets", params)
+        const res = await api.post<Bucket & { docker_restart_required?: boolean }>("/api/v1/buckets", params)
         await refresh()
         if (res.docker_restart_required) {
           toast.warning(`Bucket "${res.name}" created — restart required`, {
@@ -82,7 +82,7 @@ export function useBuckets() {
   const updateBucket = useCallback(
     async (id: string, params: UpdateBucketParams) => {
       try {
-        await api.patch(`/api/buckets/${id}`, params)
+        await api.patch(`/api/v1/buckets/${id}`, params)
         await refresh()
         toast.success("Bucket updated", { duration: 2000 })
       } catch (err) {
@@ -96,7 +96,7 @@ export function useBuckets() {
     async (id: string) => {
       const name = buckets.find((b) => b.id === id)?.name
       try {
-        await api.del(`/api/buckets/${id}`)
+        await api.del(`/api/v1/buckets/${id}`)
         if (selectedBucketId === id) setSelectedBucketId(null)
         await refresh()
         toast.success(`Bucket "${name ?? id}" deleted`, { duration: 3000 })

@@ -42,7 +42,7 @@ Restart the MCP server to activate.
 ### Create a document
 
 ```bash
-curl -X POST http://localhost:9713/api/documents \
+curl -X POST http://localhost:9713/api/v1/documents \
   -H "Content-Type: application/json" \
   -d '{
     "path": "notes/meeting-2026-04-09.md",
@@ -60,7 +60,7 @@ curl -X POST http://localhost:9713/api/documents \
 ### Delete a document
 
 ```bash
-curl -X DELETE "http://localhost:9713/api/documents?path=notes/meeting-2026-04-09.md"
+curl -X DELETE "http://localhost:9713/api/v1/documents?path=notes/meeting-2026-04-09.md"
 ```
 
 The `source` query parameter is also required for `DELETE` when multiple source directories are configured.
@@ -119,13 +119,13 @@ Or use the API directly:
 
 ```bash
 # List commits for a file
-curl "http://localhost:9713/api/versioning/history?path=/home/user/docs/notes/idea.md"
+curl "http://localhost:9713/api/v1/versioning/history?path=/home/user/docs/notes/idea.md"
 
 # View the diff for a specific commit
-curl "http://localhost:9713/api/versioning/diff?path=/home/user/docs/notes/idea.md&commit=a1b2c3d4"
+curl "http://localhost:9713/api/v1/versioning/diff?path=/home/user/docs/notes/idea.md&commit=a1b2c3d4"
 
 # Restore a past revision
-curl -X POST http://localhost:9713/api/versioning/restore \
+curl -X POST http://localhost:9713/api/v1/versioning/restore \
   -H "Content-Type: application/json" \
   -d '{"path":"/home/user/docs/notes/idea.md","commit":"a1b2c3d4"}'
 ```
@@ -147,7 +147,7 @@ Buckets can also be populated by **content push** — sending document content d
 ### REST API
 
 ```bash
-curl -X POST http://localhost:9713/api/buckets/{id}/documents \
+curl -X POST http://localhost:9713/api/v1/buckets/{id}/documents \
   -H "Content-Type: application/json" \
   -d '{
     "documents": [
@@ -167,4 +167,4 @@ bucket_push(bucket: "vendor-docs", documents: [{"name": "api.md", "content": "# 
 
 This is particularly useful for agents that download or generate content and want to make it searchable without needing filesystem access to the MarkdownKB host.
 
-To read pushed documents back, use `GET /api/buckets/{id}/file?path=...` or the `bucket_read_file` MCP tool. Content is reconstructed from stored chunks.
+To read pushed documents back, use `GET /api/v1/buckets/{id}/file?path=...` or the `bucket_read_file` MCP tool. Content is reconstructed from stored chunks.

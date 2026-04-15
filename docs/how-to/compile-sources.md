@@ -27,7 +27,7 @@ Restart the container: `make docker-down && make docker-up`. Plugin enablement i
 A *wiki* is a named, persistent target the plugin manages for you. The plugin creates the directory, registers it as a writable source, and (in Docker) updates `compose.override.yml` automatically.
 
 ```bash
-curl -X POST http://localhost:9713/api/wiki-compile/wikis \
+curl -X POST http://localhost:9713/api/v1/wiki-compile/wikis \
   -H "Content-Type: application/json" \
   -d '{ "name": "research" }'
 ```
@@ -51,7 +51,7 @@ By default the wiki lands at `{data_directory}/wikis/{name}/` — inside the exi
 If you'd rather keep the wiki in a git-versioned location elsewhere, pass an explicit `path`:
 
 ```bash
-curl -X POST http://localhost:9713/api/wiki-compile/wikis \
+curl -X POST http://localhost:9713/api/v1/wiki-compile/wikis \
   -H "Content-Type: application/json" \
   -d '{ "name": "research", "path": "/home/user/wikis/research" }'
 ```
@@ -63,7 +63,7 @@ The response will then flag `docker_restart_required: true` — run `make docker
 Reference the wiki by name:
 
 ```bash
-curl -X POST http://localhost:9713/api/wiki-compile/ingest \
+curl -X POST http://localhost:9713/api/v1/wiki-compile/ingest \
   -H "Content-Type: application/json" \
   -d '{
     "source_path": "/home/user/downloads/some-paper.md",
@@ -130,9 +130,9 @@ Same flow as the curl examples above, just driven from the UI.
 Karpathy's pattern is one wiki per topic or domain — research, work, personal, hobby, a specific book, a specific project. Create as many as you want, each gets its own directory:
 
 ```bash
-curl -X POST http://localhost:9713/api/wiki-compile/wikis -d '{"name":"research"}'
-curl -X POST http://localhost:9713/api/wiki-compile/wikis -d '{"name":"work"}'
-curl -X POST http://localhost:9713/api/wiki-compile/wikis -d '{"name":"personal"}'
+curl -X POST http://localhost:9713/api/v1/wiki-compile/wikis -d '{"name":"research"}'
+curl -X POST http://localhost:9713/api/v1/wiki-compile/wikis -d '{"name":"work"}'
+curl -X POST http://localhost:9713/api/v1/wiki-compile/wikis -d '{"name":"personal"}'
 ```
 
 Each ingest call picks one. Cross-referencing only fires within a single wiki — the retriever is scoped to the wiki's directory, so a "research" ingest won't pull in "work" pages as context.
@@ -141,10 +141,10 @@ Each ingest call picks one. Cross-referencing only fires within a single wiki �
 
 ```bash
 # List
-curl http://localhost:9713/api/wiki-compile/wikis
+curl http://localhost:9713/api/v1/wiki-compile/wikis
 
 # Deregister (directory + files preserved on disk)
-curl -X DELETE http://localhost:9713/api/wiki-compile/wikis/research
+curl -X DELETE http://localhost:9713/api/v1/wiki-compile/wikis/research
 ```
 
 Deregistering removes the wiki from MarkdownKB's tracking (drops the WikiDB row and the writable-source entry) but leaves the directory intact. To truly delete, remove the directory yourself with your filesystem tools.
@@ -154,7 +154,7 @@ Deregistering removes the wiki from MarkdownKB's tracking (drops the WikiDB row 
 Ingesting the same source twice without `force=true` returns a 400 error pointing at the existing summary. To overwrite:
 
 ```bash
-curl -X POST http://localhost:9713/api/wiki-compile/ingest \
+curl -X POST http://localhost:9713/api/v1/wiki-compile/ingest \
   -d '{"source_path":"/home/user/downloads/some-paper.md","wiki":"research","force":true}'
 ```
 
@@ -166,7 +166,7 @@ There's no batch verb, but a shell loop works fine:
 
 ```bash
 for src in /home/user/downloads/papers/*.md; do
-  curl -s -X POST http://localhost:9713/api/wiki-compile/ingest \
+  curl -s -X POST http://localhost:9713/api/v1/wiki-compile/ingest \
     -H "Content-Type: application/json" \
     -d "$(jq -n --arg src "$src" --arg w research \
            '{source_path: $src, wiki: $w, force: false}')"

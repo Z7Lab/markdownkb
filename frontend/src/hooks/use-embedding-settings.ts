@@ -3,7 +3,7 @@ import { api } from "@/lib/api"
 import { startPolling, type PollingStatus } from "@/lib/polling"
 import type { EmbeddingModel } from "@/lib/types"
 
-const EMBEDDING_STATUS_ENDPOINT = "/api/settings/embedding-models/status"
+const EMBEDDING_STATUS_ENDPOINT = "/api/v1/settings/embedding-models/status"
 
 /** Start polling the embedding-models/status endpoint */
 function pollEmbeddingStatus(
@@ -29,7 +29,7 @@ export function useEmbeddingSettings(reload: () => Promise<boolean>) {
   const loadEmbeddingModels = useCallback(async () => {
     try {
       const res = await api.get<{ models: EmbeddingModel[]; active_model: string }>(
-        "/api/settings/embedding-models",
+        "/api/v1/settings/embedding-models",
       )
       setEmbeddingModels(res.models)
     } catch (err) {
@@ -81,7 +81,7 @@ export function useEmbeddingSettings(reload: () => Promise<boolean>) {
     if (!force) {
       setIndexStatus("Indexing...")
       try {
-        const res = await api.post<{ message: string }>("/api/index")
+        const res = await api.post<{ message: string }>("/api/v1/index")
         setIndexStatus(res.message)
       } catch (e) {
         setIndexStatus(`Error: ${e}`)
@@ -92,7 +92,7 @@ export function useEmbeddingSettings(reload: () => Promise<boolean>) {
     setEmbeddingStatus("Force reindexing all files...")
     setEmbeddingSwitching(true)
     try {
-      await api.post("/api/index", { force: true })
+      await api.post("/api/v1/index", { force: true })
       pollEmbeddingStatus(pollCleanupRef, makeEmbeddingPollCallbacks(() => {
         reload()
       }, "Reindex complete"))
@@ -103,7 +103,7 @@ export function useEmbeddingSettings(reload: () => Promise<boolean>) {
   }, [reload, makeEmbeddingPollCallbacks])
 
   const cancelIndex = useCallback(async () => {
-    await api.post("/api/index/cancel")
+    await api.post("/api/v1/index/cancel")
     pollCleanupRef.current?.()
     pollCleanupRef.current = null
     setEmbeddingSwitching(false)
@@ -117,7 +117,7 @@ export function useEmbeddingSettings(reload: () => Promise<boolean>) {
       setEmbeddingSwitching(true)
       try {
         const res = await api.post<{ status: string }>(
-          "/api/settings/embedding-models/install",
+          "/api/v1/settings/embedding-models/install",
           { model_id: modelId },
         )
         if (res.status === "already_installed") {
@@ -140,7 +140,7 @@ export function useEmbeddingSettings(reload: () => Promise<boolean>) {
   const uninstallEmbeddingModel = useCallback(
     async (modelId: string) => {
       try {
-        await api.post("/api/settings/embedding-models/uninstall", { model_id: modelId })
+        await api.post("/api/v1/settings/embedding-models/uninstall", { model_id: modelId })
         setEmbeddingStatus(`Removed ${modelId}`)
         await loadEmbeddingModels()
       } catch (e) {
@@ -156,7 +156,7 @@ export function useEmbeddingSettings(reload: () => Promise<boolean>) {
       setEmbeddingSwitching(true)
       try {
         await api.put<{ status: string }>(
-          "/api/settings/embedding-models/switch",
+          "/api/v1/settings/embedding-models/switch",
           { model_id: modelId },
         )
         await loadEmbeddingModels()

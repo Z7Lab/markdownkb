@@ -7,11 +7,21 @@ from fastapi import HTTPException
 from app.storage.scopedb import ScopeDB
 
 
-def parse_scope_ids(scope_ids: str | None) -> list[str] | None:
-    """Parse comma-separated scope_ids string into a list."""
+def parse_scope_ids(scope_ids) -> list[str] | None:
+    """Normalize a scope/bucket ID input to a list.
+
+    Accepts ``None``, a list (returned as-is if non-empty), or a
+    comma-separated string. The request models in :mod:`app.schemas`
+    already normalize to ``list[str]`` via a ``field_validator``; this
+    helper remains so query-parameter code paths (e.g. docmap router) that
+    still receive raw strings continue to work.
+    """
     if not scope_ids:
         return None
-    ids = [s.strip() for s in scope_ids.split(",") if s.strip()]
+    if isinstance(scope_ids, list):
+        ids = [str(s).strip() for s in scope_ids if str(s).strip()]
+        return ids or None
+    ids = [s.strip() for s in str(scope_ids).split(",") if s.strip()]
     return ids or None
 
 

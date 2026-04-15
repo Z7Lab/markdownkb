@@ -76,7 +76,7 @@ export function WikiCompileDialog({
   const loadWikis = () => {
     setWikis(null)
     setWikisError(null)
-    api.get<{ wikis: WikiRecord[] }>("/api/wiki-compile/wikis")
+    api.get<{ wikis: WikiRecord[] }>("/api/v1/wiki-compile/wikis")
       .then((r) => {
         setWikis(r.wikis)
         const preferred = defaultWiki && r.wikis.some((w) => w.name === defaultWiki)
@@ -105,7 +105,7 @@ export function WikiCompileDialog({
     setSubmitting(true)
     setSubmitError(null)
     try {
-      const r = await api.post<IngestResult>("/api/wiki-compile/ingest", {
+      const r = await api.post<IngestResult>("/api/v1/wiki-compile/ingest", {
         source_path: effectiveSourcePath,
         wiki: selectedWiki,
         force,
@@ -125,7 +125,7 @@ export function WikiCompileDialog({
     setCreating(true)
     setCreateError(null)
     try {
-      const r = await api.post<CreateWikiResponse>("/api/wiki-compile/wikis", { name })
+      const r = await api.post<CreateWikiResponse>("/api/v1/wiki-compile/wikis", { name })
       if (r.docker_restart_required) {
         toast.warning("Wiki created — Docker restart required to mount the path before ingest.")
       } else {
@@ -133,7 +133,7 @@ export function WikiCompileDialog({
       }
       setNewWikiName("")
       // Refresh the list and pre-select the new wiki.
-      const list = await api.get<{ wikis: WikiRecord[] }>("/api/wiki-compile/wikis")
+      const list = await api.get<{ wikis: WikiRecord[] }>("/api/v1/wiki-compile/wikis")
       setWikis(list.wikis)
       setSelectedWiki(r.name)
     } catch (err) {

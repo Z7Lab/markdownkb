@@ -35,14 +35,14 @@ Unlike the previous pandoc-based converter, markitdown is a pure Python library.
 
 2. Convert files via API:
    ```bash
-   curl -X POST http://localhost:9713/api/converter/convert \
+   curl -X POST http://localhost:9713/api/v1/converter/convert \
      -H "Content-Type: application/json" \
      -d '{"source_dir": "/path/to/docs", "dest_dir": "/path/to/output"}'
    ```
 
 3. Check progress:
    ```bash
-   curl http://localhost:9713/api/converter/status
+   curl http://localhost:9713/api/v1/converter/status
    ```
 
 ## How it works

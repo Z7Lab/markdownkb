@@ -5,7 +5,7 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_health(client):
-    resp = await client.get("/api/health")
+    resp = await client.get("/api/v1/health")
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "ok"
@@ -14,7 +14,7 @@ async def test_health(client):
 
 @pytest.mark.asyncio
 async def test_stats(client):
-    resp = await client.get("/api/stats")
+    resp = await client.get("/api/v1/stats")
     assert resp.status_code == 200
     data = resp.json()
     assert data["files_tracked"] == 5

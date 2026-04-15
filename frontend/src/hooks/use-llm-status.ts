@@ -41,7 +41,7 @@ export function useLLMStatus() {
   /** Lightweight poll — checks /api/health/llm (no provider API calls) */
   const pollStatus = useCallback(async () => {
     try {
-      const health = await api.get<LLMHealth>("/api/health/llm")
+      const health = await api.get<LLMHealth>("/api/v1/health/llm")
       setProvider(health.provider)
       if (!health.configured) {
         setStatus("offline")
@@ -56,7 +56,7 @@ export function useLLMStatus() {
   /** Full status check — calls test-connection (heavy, used once on mount + explicit refresh) */
   const checkStatus = useCallback(async () => {
     try {
-      const settings = await api.get<LLMSettings>("/api/settings")
+      const settings = await api.get<LLMSettings>("/api/v1/settings")
       setProvider(settings.active_provider)
 
       if (!settings.active_model) {
@@ -66,7 +66,7 @@ export function useLLMStatus() {
         return
       }
 
-      const result = await api.post<{ result: string }>("/api/settings/test-connection", {
+      const result = await api.post<{ result: string }>("/api/v1/settings/test-connection", {
         name: settings.active_provider,
         model: settings.active_model,
         api_base: settings.active_api_base,

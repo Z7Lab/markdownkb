@@ -354,7 +354,7 @@ llama.cpp uses the OpenAI API format, which differs from Ollama's native API:
 | Feature | Ollama | llama.cpp |
 |---------|--------|-----------|
 | API format | Custom | OpenAI-compatible |
-| Endpoint | `/api/generate` | `/v1/chat/completions` |
+| Endpoint | `/api/v1/generate` | `/v1/chat/completions` |
 | Message format | `{"prompt": "..."}` | `{"messages": [...]}` |
 | Model management | `ollama pull/list/rm` | Manual GGUF files |
 | Streaming | `stream: true` | `stream: true` (SSE format) |

@@ -563,17 +563,16 @@ To add a new MCP tool, create a new `.py` file in `app/mcp/tools/` following the
 
 ### Scope Support
 
-The `search`, `search_documents`, `chat`, `plan`, and `deep_research` tools accept an optional `scope_id` parameter. Scopes are named filter presets (folder paths + tags) managed via `POST /api/scopes`. Use the `list_scopes` tool to discover available scopes.
+The `search`, `search_documents`, `chat`, `plan`, and `deep_research` tools accept an optional `scope_id` parameter. Scopes are named filter presets (folder paths + tags) managed via `POST /api/v1/scopes`. Use the `list_scopes` tool to discover available scopes.
 
 Scope resolution is handled by `app/mcp/scope.py`, which resolves the scope ID to `folders_filter` and `allowed_paths` parameters for the Retriever. Tag resolution calls `TagDB.get_paths_for_tags()` directly (not through the `tag_utils` callback which is only registered in the FastAPI process).
 
 ## Authentication
 
-When an API key is configured (via `secrets/markdownkb_api_key` or `MARKDOWNKB_API_KEY` env var), the MCP Streamable HTTP server requires authentication. Three methods are accepted (checked in order):
+When an API key is configured (via `secrets/markdownkb_api_key` or `MARKDOWNKB_API_KEY` env var), the MCP Streamable HTTP server requires authentication. Two methods are accepted (checked in order):
 
 1. **`Authorization: Bearer <key>`** header (preferred — key not visible in access logs)
 2. **`X-MarkdownKB-Key: <key>`** header (same as the REST API)
-3. **`?token=<key>`** query parameter (legacy fallback — key appears in server logs, avoid for new integrations)
 
 If no API key is configured, all connections are allowed. The stdio transport is never authenticated.
 
@@ -582,8 +581,8 @@ Connect with auth:
 # Preferred (Bearer)
 Authorization: Bearer YOUR_KEY
 
-# Legacy (query parameter)
-http://localhost:9715/mcp?token=YOUR_KEY
+# Alternate (custom header)
+X-MarkdownKB-Key: YOUR_KEY
 ```
 
 > **Note**: The MCP server and FastAPI app can run simultaneously — SQLite uses WAL mode for safe concurrent reads. However, only one process should write to the vector store at a time to avoid conflicts.

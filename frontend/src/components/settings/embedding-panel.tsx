@@ -78,7 +78,7 @@ export function EmbeddingPanel({
   const handleSaveProvider = useCallback(async () => {
     setSaving(true)
     try {
-      await api.put("/api/settings/embedding-provider", {
+      await api.put("/api/v1/settings/embedding-provider", {
         provider: isRemote ? "remote" : "local",
         remote_model: remoteModel,
         api_base: remoteApiBase,
@@ -96,7 +96,7 @@ export function EmbeddingPanel({
   const handleTestRemote = useCallback(async () => {
     setTestStatus("Testing...")
     try {
-      const res = await api.post<{ ok: boolean; message: string; dimensions?: number }>("/api/settings/embedding-models/test-remote", {
+      const res = await api.post<{ ok: boolean; message: string; dimensions?: number }>("/api/v1/settings/embedding-models/test-remote", {
         model: remoteModel,
         api_base: remoteApiBase,
         api_type: apiType,

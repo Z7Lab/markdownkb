@@ -10,7 +10,7 @@ is active — orphan detection, cross-tier classification, and raw-coverage
 checks operate on source tiers directly, not on wiki internals.
 
 **Feature flag:** `lint`
-**Prefix:** `/api/lint`
+**Prefix:** `/api/v1/lint`
 
 ## Passes
 
@@ -46,8 +46,8 @@ findings become retrievable context for future queries.
 
 | Method | Path                      | Description                     |
 |--------|---------------------------|---------------------------------|
-| POST   | `/api/lint/run`      | Run selected passes, write report |
-| GET    | `/api/lint/reports`  | List previously-generated reports |
+| POST   | `/api/v1/lint/run`      | Run selected passes, write report |
+| GET    | `/api/v1/lint/reports`  | List previously-generated reports |
 
 Both are gated on `plugins.lint.enabled: true`.
 

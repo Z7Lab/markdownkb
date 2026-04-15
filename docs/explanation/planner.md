@@ -104,9 +104,9 @@ Add a directory under `app/skills/builtin/` (or a custom directory) containing a
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/planner/plan` | Generate a plan (blocking) |
-| POST | `/api/planner/plan/stream` | Stream plan generation as SSE |
-| GET | `/api/planner/skills` | List available skills |
+| POST | `/api/v1/planner/plan` | Generate a plan (blocking) |
+| POST | `/api/v1/planner/plan/stream` | Stream plan generation as SSE |
+| GET | `/api/v1/planner/skills` | List available skills |
 
 ### Request Parameters
 

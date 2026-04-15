@@ -9,7 +9,7 @@ export function useScopes() {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await api.get<{ scopes: Scope[] }>("/api/scopes")
+      const res = await api.get<{ scopes: Scope[] }>("/api/v1/scopes")
       setScopes(res.scopes)
     } catch (err) {
       console.warn("Failed to load scopes:", (err as Error).message)
@@ -22,7 +22,7 @@ export function useScopes() {
 
   const createScope = useCallback(async (name: string, folders: string[], tags: string[] = [], excludePatterns: string[] = []) => {
     try {
-      const res = await api.post<{ id: string }>("/api/scopes", { name, folders, tags, exclude_patterns: excludePatterns })
+      const res = await api.post<{ id: string }>("/api/v1/scopes", { name, folders, tags, exclude_patterns: excludePatterns })
       await refresh()
       return res.id
     } catch (err) {
@@ -33,7 +33,7 @@ export function useScopes() {
 
   const updateScope = useCallback(async (id: string, name: string, folders: string[], tags: string[] = [], excludePatterns: string[] = []) => {
     try {
-      await api.put(`/api/scopes/${id}`, { name, folders, tags, exclude_patterns: excludePatterns })
+      await api.put(`/api/v1/scopes/${id}`, { name, folders, tags, exclude_patterns: excludePatterns })
       await refresh()
       return true
     } catch (err) {
@@ -44,7 +44,7 @@ export function useScopes() {
 
   const deleteScope = useCallback(async (id: string) => {
     try {
-      await api.del(`/api/scopes/${id}`)
+      await api.del(`/api/v1/scopes/${id}`)
       if (selectedScopeId === id) setSelectedScopeId(null)
       await refresh()
       return true

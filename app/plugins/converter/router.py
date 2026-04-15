@@ -13,7 +13,7 @@ from app.ratelimit import HEAVY, STANDARD, limiter
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/converter", tags=["converter"])
+router = APIRouter(prefix="/api/v1/converter", tags=["converter"])
 
 # Supported input formats and their file extensions
 SUPPORTED_FORMATS = {

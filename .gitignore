@@ -23,6 +23,11 @@ secrets/
 # Pip artifacts
 =*
 
+# Coverage artifacts
+.coverage
+coverage.xml
+htmlcov/
+
 # Config (contains private paths and API keys)
 config/settings.yaml
 

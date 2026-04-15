@@ -24,7 +24,7 @@ from app.ratelimit import HEAVY, STANDARD, limiter
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/backups", tags=["backups"])
+router = APIRouter(prefix="/api/v1/backups", tags=["backups"])
 
 # Read app version from FastAPI app instance (set in api.create_app).
 def _manager(request: Request, settings: Settings) -> BackupManager:

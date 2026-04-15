@@ -41,7 +41,7 @@ export function McpSettingsDialog({
   const handleSave = async () => {
     setSaving(true)
     try {
-      await api.patch("/api/settings/mcp", {
+      await api.patch("/api/v1/settings/mcp", {
         tool_name: toolName,
         config,
       })

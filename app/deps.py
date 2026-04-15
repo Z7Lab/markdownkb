@@ -83,6 +83,6 @@ def require_auth(request: Request) -> None:
             status_code=403,
             detail=(
                 "This endpoint requires API key authentication. "
-                "Generate a key first via POST /api/setup/generate-key."
+                "Generate a key first via POST /api/v1/setup/generate-key."
             ),
         )

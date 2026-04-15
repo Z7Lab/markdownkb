@@ -5,7 +5,7 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_get_settings(client):
-    resp = await client.get("/api/settings")
+    resp = await client.get("/api/v1/settings")
     assert resp.status_code == 200
     data = resp.json()
     assert data["active_provider"] == "test"
@@ -20,7 +20,7 @@ async def test_get_settings(client):
 
 @pytest.mark.asyncio
 async def test_save_provider(client):
-    resp = await client.put("/api/settings/provider", json={
+    resp = await client.put("/api/v1/settings/provider", json={
         "name": "test",
         "model": "test/new-model",
         "api_base": "",
@@ -31,7 +31,7 @@ async def test_save_provider(client):
 
 @pytest.mark.asyncio
 async def test_toggle_core(client):
-    resp = await client.put("/api/settings/core", json={
+    resp = await client.put("/api/v1/settings/core", json={
         "name": "rate_limiting",
         "enabled": True,
     })
@@ -41,7 +41,7 @@ async def test_toggle_core(client):
 
 @pytest.mark.asyncio
 async def test_toggle_mcp_flag(client):
-    resp = await client.put("/api/settings/mcp-flags", json={
+    resp = await client.put("/api/v1/settings/mcp-flags", json={
         "name": "read_only",
         "enabled": True,
     })
@@ -51,7 +51,7 @@ async def test_toggle_mcp_flag(client):
 
 @pytest.mark.asyncio
 async def test_toggle_plugin(client):
-    resp = await client.put("/api/settings/plugins/search/enabled", json={
+    resp = await client.put("/api/v1/settings/plugins/search/enabled", json={
         "name": "search",
         "enabled": False,
     })
@@ -61,7 +61,7 @@ async def test_toggle_plugin(client):
 
 @pytest.mark.asyncio
 async def test_update_system_prompt(client):
-    resp = await client.put("/api/settings/system-prompt", json={
+    resp = await client.put("/api/v1/settings/system-prompt", json={
         "prompt": "New system prompt",
     })
     assert resp.status_code == 200
@@ -72,19 +72,19 @@ async def test_update_system_prompt(client):
 
 @pytest.mark.asyncio
 async def test_get_sources(client):
-    resp = await client.get("/api/sources")
+    resp = await client.get("/api/v1/sources")
     assert resp.status_code == 200
     assert "/tmp/test-source" in resp.json()["sources"]
 
 
 @pytest.mark.asyncio
 async def test_add_source(client):
-    resp = await client.post("/api/sources", json={"path": "/tmp/new-source"})
-    assert resp.status_code == 200
+    resp = await client.post("/api/v1/sources", json={"path": "/tmp/new-source"})
+    assert resp.status_code == 201
     assert "/tmp/new-source" in resp.json()["sources"]
 
 
 @pytest.mark.asyncio
 async def test_remove_source(client):
-    resp = await client.request("DELETE", "/api/sources", json={"path": "/tmp/test-source"})
+    resp = await client.request("DELETE", "/api/v1/sources", json={"path": "/tmp/test-source"})
     assert resp.status_code == 200

@@ -16,7 +16,7 @@ export function LoggingPanel({ logLevel, onSetLogLevel }: LoggingPanelProps) {
       </div>
 
       <LogViewer
-        logsUrl="/api/settings/logs"
+        logsUrl="/api/v1/settings/logs"
         title="Log Output"
         description="Application server logs"
         logLevel={logLevel}

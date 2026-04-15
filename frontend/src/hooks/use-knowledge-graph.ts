@@ -19,7 +19,7 @@ export function useKnowledgeGraph(mode: GraphMode) {
       if (entityTypes) params.set("entity_types", entityTypes)
       if (relTypes) params.set("rel_types", relTypes)
       const qs = params.toString()
-      const data = await api.get<KGData>(`/api/knowledge-graph/data${qs ? `?${qs}` : ""}`)
+      const data = await api.get<KGData>(`/api/v1/knowledge-graph/data${qs ? `?${qs}` : ""}`)
       setKgData(data)
     } catch (err) {
       toast.error(`Failed to load knowledge graph: ${(err as Error).message}`)
@@ -39,7 +39,7 @@ export function useKnowledgeGraph(mode: GraphMode) {
     if (extractionPollRef.current) clearInterval(extractionPollRef.current)
     extractionPollRef.current = setInterval(async () => {
       try {
-        const s = await api.get<ExtractionStatus>("/api/knowledge-graph/extract/status")
+        const s = await api.get<ExtractionStatus>("/api/v1/knowledge-graph/extract/status")
         setExtraction(s)
         if (!s.running) {
           if (extractionPollRef.current) clearInterval(extractionPollRef.current)
@@ -62,7 +62,7 @@ export function useKnowledgeGraph(mode: GraphMode) {
   // Check extraction status on mode switch
   useEffect(() => {
     if (mode === "knowledge") {
-      api.get<ExtractionStatus>("/api/knowledge-graph/extract/status")
+      api.get<ExtractionStatus>("/api/v1/knowledge-graph/extract/status")
         .then((s) => {
           setExtraction(s)
           if (s.running) pollExtraction()
@@ -73,7 +73,7 @@ export function useKnowledgeGraph(mode: GraphMode) {
 
   const startExtraction = useCallback(async () => {
     try {
-      await api.post("/api/knowledge-graph/extract")
+      await api.post("/api/v1/knowledge-graph/extract")
       setExtraction((e) => ({ ...e, running: true, progress: 0, message: "Starting...", result: "" }))
       pollExtraction()
     } catch (err) {
@@ -83,7 +83,7 @@ export function useKnowledgeGraph(mode: GraphMode) {
 
   const cancelExtraction = useCallback(async () => {
     try {
-      await api.post("/api/knowledge-graph/extract/cancel")
+      await api.post("/api/v1/knowledge-graph/extract/cancel")
     } catch {
       // ignore
     }

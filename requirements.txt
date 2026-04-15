@@ -1,3 +1,11 @@
+# Runtime dependencies for the MarkdownKB server and MCP process.
+#
+# This file is kept as a convenience for ``pip install -r requirements.txt``
+# in Docker builds; the canonical source of truth is ``[project.dependencies]``
+# in ``pyproject.toml``. Dev/test dependencies live in
+# ``[project.optional-dependencies].dev`` and are installed with
+# ``pip install '.[dev]'`` or via ``requirements-dev.txt``.
+
 # Core
 chromadb>=0.4.22,<2
 onnxruntime>=1.17.0,<2
@@ -31,7 +39,3 @@ markitdown>=0.1.0,<1
 
 # Knowledge graph plugin
 scikit-learn>=1.4.0,<2
-
-# Testing
-pytest>=8.0.0,<10
-pytest-asyncio>=0.23.0,<2

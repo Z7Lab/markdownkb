@@ -32,7 +32,7 @@ export function InstallPluginDialog({
     setInstalling(true)
     setError(null)
     try {
-      const res = await api.post<{ name: string; message: string }>("/api/plugins/install", { url: url.trim() })
+      const res = await api.post<{ name: string; message: string }>("/api/v1/plugins/install", { url: url.trim() })
       toast.success(res.message || `Plugin '${res.name}' installed`)
       setUrl("")
       onInstalled()

@@ -117,7 +117,6 @@ function genericConfig(endpoint: string, authEnabled: boolean): string {
     lines.push("# Authentication (send one of these):")
     lines.push("Authorization: Bearer YOUR_API_KEY")
     lines.push("X-MarkdownKB-Key: YOUR_API_KEY")
-    lines.push("?token=YOUR_API_KEY  (query param, legacy)")
   } else {
     lines.push("# No authentication (localhost only)")
   }
@@ -225,8 +224,8 @@ export function McpPanel({
   const load = useCallback(async () => {
     try {
       const [infoRes, toolsRes] = await Promise.all([
-        api.get<McpInfo>("/api/mcp/info"),
-        api.get<McpToolsResponse>("/api/mcp/tools"),
+        api.get<McpInfo>("/api/v1/mcp/info"),
+        api.get<McpToolsResponse>("/api/v1/mcp/tools"),
       ])
       setInfo(infoRes)
       setToolsResp(toolsRes)
@@ -240,14 +239,14 @@ export function McpPanel({
 
   useEffect(() => {
     load()
-    api.get<{ level: string }>("/api/mcp/log-level")
+    api.get<{ level: string }>("/api/v1/mcp/log-level")
       .then((r) => setMcpLogLevel(r.level))
       .catch(() => {})
   }, [load])
 
   const handleMcpLogLevel = useCallback(async (level: string) => {
     try {
-      await api.put("/api/mcp/log-level", { level })
+      await api.put("/api/v1/mcp/log-level", { level })
       setMcpLogLevel(level)
     } catch (err) {
       toast.error(`Failed to change MCP log level: ${(err as Error).message}`)
@@ -266,7 +265,7 @@ export function McpPanel({
     setTesting(true)
     setTestResult(null)
     try {
-      const res = await api.get<McpToolsResponse>("/api/mcp/tools")
+      const res = await api.get<McpToolsResponse>("/api/v1/mcp/tools")
       setTestResult("ok")
       toast.success(`MCP ready — ${res.enabled} of ${res.total} tools active`)
     } catch (err) {
@@ -282,7 +281,7 @@ export function McpPanel({
     const next = [...info.allowed_hosts, newHost.trim()]
     setSavingHosts(true)
     try {
-      await api.put("/api/mcp/allowed-hosts", { allowed_hosts: next })
+      await api.put("/api/v1/mcp/allowed-hosts", { allowed_hosts: next })
       setNewHost("")
       await load()
       toast.success("Allowed hosts updated. Restart MCP server to apply.")
@@ -299,7 +298,7 @@ export function McpPanel({
       const next = info.allowed_hosts.filter((h) => h !== host)
       setSavingHosts(true)
       try {
-        await api.put("/api/mcp/allowed-hosts", { allowed_hosts: next })
+        await api.put("/api/v1/mcp/allowed-hosts", { allowed_hosts: next })
         await load()
       } catch (err) {
         toast.error(`Failed to save: ${(err as Error).message}`)
@@ -315,7 +314,7 @@ export function McpPanel({
     const next = [...info.allowed_origins, newOrigin.trim()]
     setSavingOrigins(true)
     try {
-      await api.put("/api/mcp/allowed-origins", { allowed_origins: next })
+      await api.put("/api/v1/mcp/allowed-origins", { allowed_origins: next })
       setNewOrigin("")
       await load()
       toast.success("Allowed origins updated. Restart MCP server to apply.")
@@ -332,7 +331,7 @@ export function McpPanel({
       const next = info.allowed_origins.filter((o) => o !== origin)
       setSavingOrigins(true)
       try {
-        await api.put("/api/mcp/allowed-origins", { allowed_origins: next })
+        await api.put("/api/v1/mcp/allowed-origins", { allowed_origins: next })
         await load()
       } catch (err) {
         toast.error(`Failed to save: ${(err as Error).message}`)
@@ -351,7 +350,7 @@ export function McpPanel({
     }
     setSavingRateLimit(true)
     try {
-      await api.put("/api/mcp/rate-limit", { per_minute: parsed })
+      await api.put("/api/v1/mcp/rate-limit", { per_minute: parsed })
       await load()
       toast.success(
         parsed === 0
@@ -641,7 +640,7 @@ export function McpPanel({
 
       {/* MCP server logs */}
       <LogViewer
-        logsUrl="/api/mcp/logs"
+        logsUrl="/api/v1/mcp/logs"
         title="MCP Server Logs"
         description="Live log output from the MCP server process. Restart MCP server to reconnect."
         logLevel={mcpLogLevel}

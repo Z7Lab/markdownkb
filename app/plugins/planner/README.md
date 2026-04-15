@@ -3,19 +3,19 @@
 MCTS (Monte Carlo Tree Search) based implementation plan generation with agent skills and scope filtering.
 
 **Feature flag:** `planner`
-**Prefix:** `/api/planner`
+**Prefix:** `/api/v1/planner`
 
 ## Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/planner/plan` | Generate an implementation plan using MCTS |
-| POST | `/api/planner/plan/stream` | Stream plan generation progress as SSE |
-| GET | `/api/planner/plans` | List saved plans |
-| POST | `/api/planner/plans` | Save a plan |
-| GET | `/api/planner/plans/{id}` | Load a saved plan |
-| DELETE | `/api/planner/plans/{id}` | Delete a saved plan |
-| GET | `/api/planner/skills` | List available agent skills |
+| POST | `/api/v1/planner/plan` | Generate an implementation plan using MCTS |
+| POST | `/api/v1/planner/plan/stream` | Stream plan generation progress as SSE |
+| GET | `/api/v1/planner/plans` | List saved plans |
+| POST | `/api/v1/planner/plans` | Save a plan |
+| GET | `/api/v1/planner/plans/{id}` | Load a saved plan |
+| DELETE | `/api/v1/planner/plans/{id}` | Delete a saved plan |
+| GET | `/api/v1/planner/skills` | List available agent skills |
 
 ## Plan Request
 

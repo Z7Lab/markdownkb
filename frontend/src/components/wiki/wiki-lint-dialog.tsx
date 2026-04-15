@@ -72,7 +72,7 @@ export function WikiLintDialog({
     setRunning(true)
     setError(null)
     try {
-      const r = await api.post<RunResponse>("/api/lint/run", {
+      const r = await api.post<RunResponse>("/api/v1/lint/run", {
         passes: Array.from(selectedPasses),
         target_wiki: targetWiki,
       })

@@ -63,7 +63,7 @@ export function AutoTagDialog({
     setLoading(true)
     setPreview(null)
     try {
-      const res = await api.post<PreviewResult>("/api/files/auto-tag-preview", {
+      const res = await api.post<PreviewResult>("/api/v1/files/auto-tag-preview", {
         base_path: basePath,
         strategy,
         depth,
@@ -86,7 +86,7 @@ export function AutoTagDialog({
       for (const rule of preview.rules) {
         plan[rule.tag] = rule.paths
       }
-      const res = await api.post<{ updated: number }>("/api/files/auto-tag-apply", { plan })
+      const res = await api.post<{ updated: number }>("/api/v1/files/auto-tag-apply", { plan })
       toast.success(`Tagged ${res.updated} files across ${preview.total_tags} tags`)
       onApplied()
       onOpenChange(false)

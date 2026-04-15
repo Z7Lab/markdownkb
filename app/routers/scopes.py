@@ -11,7 +11,7 @@ from app.storage.scopedb import ScopeDB
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/scopes", tags=["scopes"])
+router = APIRouter(prefix="/api/v1/scopes", tags=["scopes"])
 
 
 class ScopeCreate(BaseModel):
@@ -38,7 +38,7 @@ def list_scopes(
     return {"scopes": scopedb.list_scopes()}
 
 
-@router.post("")
+@router.post("", status_code=201)
 @limiter.limit(STANDARD)
 def create_scope(
     request: Request,

@@ -33,7 +33,7 @@ from app.utils import sse
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api", tags=["llm"])
+router = APIRouter(prefix="/api/v1", tags=["llm"])
 
 
 @router.put("/settings/provider")

@@ -62,7 +62,7 @@ export function useFileViewer(path: string | null): UseFileViewerReturn {
     setLoading(true)
     try {
       const res = await api.get<FileReadResponse>(
-        `/api/file?path=${encodeURIComponent(filePath)}&page=${pageNum}&page_size=${PAGE_SIZE}`,
+        `/api/v1/file?path=${encodeURIComponent(filePath)}&page=${pageNum}&page_size=${PAGE_SIZE}`,
         signal,
       )
       if (signal?.aborted) return
@@ -99,7 +99,7 @@ export function useFileViewer(path: string | null): UseFileViewerReturn {
 
     api
       .get<{ path: string; status: string; include_rag: number; chunk_count: number }>(
-        `/api/file/status?path=${encodeURIComponent(path)}`,
+        `/api/v1/file/status?path=${encodeURIComponent(path)}`,
         controller.signal,
       )
       .then((res) => {
@@ -117,7 +117,7 @@ export function useFileViewer(path: string | null): UseFileViewerReturn {
   const refreshFileStatus = async () => {
     if (!path) return
     const statusRes = await api.get<{ status: string; include_rag: number; chunk_count: number }>(
-      `/api/file/status?path=${encodeURIComponent(path)}`
+      `/api/v1/file/status?path=${encodeURIComponent(path)}`
     )
     setFileStatus({ status: statusRes.status, include_rag: statusRes.include_rag, chunk_count: statusRes.chunk_count })
   }
@@ -136,12 +136,12 @@ export function useFileViewer(path: string | null): UseFileViewerReturn {
   const handleSaveTags = async (newTags: string[], createBackup: boolean, shouldReindex: boolean) => {
     if (!path) return
     try {
-      await api.put("/api/files/tags", { path, tags: newTags })
+      await api.put("/api/v1/files/tags", { path, tags: newTags })
       await fetchPage(path, 1)
       toast.success(createBackup ? "Tags updated! Backup created." : "Tags updated successfully!")
       if (shouldReindex) {
         try {
-          await api.post("/api/files/reindex", { path })
+          await api.put("/api/v1/files/index", { path })
           toast.success("File reindexed successfully!")
           await refreshFileStatus()
         } catch (err) {
@@ -156,26 +156,26 @@ export function useFileViewer(path: string | null): UseFileViewerReturn {
 
   const handleToggleRag = async (checked: boolean) => {
     await withAction(async () => {
-      await api.put("/api/files/toggle-rag", { path, include: checked })
+      await api.put("/api/v1/files/rag", { path, include: checked })
       setFileStatus((prev) => ({ ...prev, include_rag: checked ? 1 : 0 }))
       toast.success(checked ? "File included in RAG" : "File excluded from RAG")
     })
   }
 
   const handleIndexFile = () => withAction(async () => {
-    await api.post("/api/files/index", { path })
+    await api.post("/api/v1/files/index", { path })
     toast.success("File indexed successfully!")
   })
 
   const handleReindexFile = () => withAction(async () => {
-    await api.post("/api/files/reindex", { path })
+    await api.post("/api/v1/files/reindex", { path })
     toast.success("File reindexed successfully!")
   })
 
   const handleUnindexFile = async () => {
     setPendingUnindex(false)
     await withAction(async () => {
-      await api.post("/api/files/unindex", { path })
+      await api.del("/api/v1/files/index", { path })
       toast.success("File removed from index")
     })
   }
@@ -184,7 +184,7 @@ export function useFileViewer(path: string | null): UseFileViewerReturn {
     if (!path) return
     setCopyingAll(true)
     try {
-      const res = await api.get<FileReadResponse>(`/api/file?path=${encodeURIComponent(path)}`)
+      const res = await api.get<FileReadResponse>(`/api/v1/file?path=${encodeURIComponent(path)}`)
       const fullContent = isMarkdown ? parseFrontmatter(res.content).content : res.content
       const ok = await copyToClipboard(fullContent)
       if (ok) {

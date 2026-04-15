@@ -39,7 +39,7 @@ The discovery/registration flow:
 3. In `router.py`, define your FastAPI router:
    ```python
    from fastapi import APIRouter
-   router = APIRouter(prefix="/api/my-feature", tags=["my-feature"])
+   router = APIRouter(prefix="/api/v1/my-feature", tags=["my-feature"])
 
    @router.get("/example")
    def example():
@@ -59,7 +59,7 @@ The discovery/registration flow:
    requires: []
    endpoints:
      - method: GET
-       path: /api/my-feature/example
+       path: /api/v1/my-feature/example
        description: Example endpoint
    config: {}
    ```
@@ -118,8 +118,8 @@ def _cfg(settings: Settings) -> dict:
 ```
 
 A generic API is available for reading/writing any plugin's config:
-- `GET /api/settings/plugins/{name}` — read config
-- `PUT /api/settings/plugins/{name}` — update config (shallow merge)
+- `GET /api/v1/settings/plugins/{name}` — read config
+- `PUT /api/v1/settings/plugins/{name}` — update config (shallow merge)
 
 ## Available Plugins
 

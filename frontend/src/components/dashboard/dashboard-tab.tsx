@@ -118,25 +118,25 @@ export function DashboardTab() {
 
   useEffect(() => {
     // Load stats
-    api.get<{ total: number }>("/api/files?limit=1")
+    api.get<{ total: number }>("/api/v1/files?limit=1")
       .then((r) => setFileCount(r.total))
       .catch(() => {})
-    api.get<{ total: number }>("/api/threads?limit=1")
+    api.get<{ total: number }>("/api/v1/threads?limit=1")
       .then((r) => setThreadCount(r.total))
       .catch(() => {})
 
     // Load recent threads
-    api.get<{ items: Array<{ id: string; title: string; created_at: string }> }>("/api/threads?limit=5")
+    api.get<{ items: Array<{ id: string; title: string; created_at: string }> }>("/api/v1/threads?limit=5")
       .then((r) => setRecentThreads(r.items))
       .catch(() => {})
 
     // Load recently indexed files
-    api.get<{ items: Array<{ path: string; indexed_at: string }> }>("/api/files?limit=5&sort=indexed_at")
+    api.get<{ items: Array<{ path: string; indexed_at: string }> }>("/api/v1/files?limit=5&sort=indexed_at")
       .then((r) => setRecentFiles(r.items))
       .catch(() => {})
 
     // Load recent searches (only if search plugin is enabled)
-    api.get<{ items: Array<{ id: string; query: string; created_at: string }> }>("/api/searches?limit=5")
+    api.get<{ items: Array<{ id: string; query: string; created_at: string }> }>("/api/v1/searches?limit=5")
       .then((r) => setRecentSearches(r.items))
       .catch(() => {})
   }, [])

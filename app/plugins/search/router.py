@@ -21,83 +21,17 @@ from app.storage.scopedb import ScopeDB
 from app.storage.trackingdb import TrackingDB
 from app.storage.searchdb import SearchDB
 from app.utils import sse
+from app.plugins.search.service import get_search_config, group_results_by_file
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api", tags=["search"])
-
-# Plugin config defaults — overridable via plugins.search in settings.yaml
-_DEFAULTS = {
-    "chunk_multiplier": 10,
-    "exact_phrase_multiplier": 20,
-    "exact_phrase_matching": True,
-}
+router = APIRouter(prefix="/api/v1", tags=["search"])
 
 
-def _cfg(settings: Settings) -> dict:
-    """Return search plugin config with defaults applied."""
-    return {**_DEFAULTS, **settings.get_plugin_config("search")}
-
-
-def _group_results_by_file(results: list) -> list[dict]:
-    """Group search results by source file, merging chunks into file-level results.
-
-    For each file:
-    - Use max score across all chunks as file relevance
-    - Collect all chunk texts as snippets
-    - Track chunk count and score statistics
-
-    Returns list of file-level results sorted by max score (descending).
-    """
-    from collections import defaultdict
-
-    # Group chunks by source_path
-    file_groups = defaultdict(list)
-    for r in results:
-        path = r.metadata.get("source_path", "")
-        if path:
-            file_groups[path].append(r)
-
-    # Build file-level results
-    grouped = []
-    for path, chunks in file_groups.items():
-        # Calculate file-level score (max across chunks)
-        scores = [c.score for c in chunks]
-        max_score = max(scores)
-        avg_score = sum(scores) / len(scores)
-        min_score = min(scores)
-
-        # Collect snippets with their metadata
-        snippets = [
-            {
-                "text": c.document,
-                "score": c.score,
-                "heading": c.metadata.get("heading", ""),
-            }
-            for c in chunks
-        ]
-
-        # Sort snippets by score (best first)
-        snippets.sort(key=lambda s: s["score"], reverse=True)
-
-        # Use primary chunk's metadata (highest scoring chunk)
-        primary_chunk = max(chunks, key=lambda c: c.score)
-
-        grouped.append({
-            "document": primary_chunk.document,  # Best matching chunk
-            "snippets": snippets,
-            "metadata": primary_chunk.metadata,
-            "score": max_score,
-            "chunk_count": len(chunks),
-            "score_min": min_score,
-            "score_max": max_score,
-            "score_avg": avg_score,
-        })
-
-    # Sort by max score (descending)
-    grouped.sort(key=lambda x: x["score"], reverse=True)
-
-    return grouped
+# Backwards-compatible aliases for the service helpers; any call site may
+# migrate to the ``app.plugins.search.service`` module directly.
+_cfg = get_search_config
+_group_results_by_file = group_results_by_file
 
 
 @router.post("/search")

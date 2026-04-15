@@ -25,7 +25,7 @@ from app.storage.vectorstore import VectorStore
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api", tags=["embeddings"])
+router = APIRouter(prefix="/api/v1", tags=["embeddings"])
 
 # Background reindex state — module-level because only one reindex can
 # run at a time across the process.  Guarded by _switch_lock.

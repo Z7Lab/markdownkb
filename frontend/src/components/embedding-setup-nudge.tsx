@@ -11,7 +11,7 @@ export function EmbeddingSetupNudge({ onNavigateSettings }: { onNavigateSettings
   )
 
   useEffect(() => {
-    fetch("/api/health")
+    fetch("/api/v1/health")
       .then((r) => r.json())
       .then((data) => {
         if (data.embedding_model_missing) setMissing(true)

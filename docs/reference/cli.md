@@ -86,7 +86,7 @@ markdownkb chat "Summarize the deployment process" --json
 |------|-------------|
 | `message` | Question to ask (required, positional) |
 
-Uses the non-streaming `/api/chat` endpoint. For streaming use the web UI or MCP.
+Uses the non-streaming `/api/v1/chat` endpoint. For streaming use the web UI or MCP.
 
 ### index
 

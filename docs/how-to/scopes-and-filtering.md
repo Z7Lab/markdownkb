@@ -72,11 +72,11 @@ Tags are extracted automatically during indexing. If you add tags to a document'
 
 ## API
 
-Scopes are managed via the `/api/scopes` endpoints:
+Scopes are managed via the `/api/v1/scopes` endpoints:
 
-- `GET /api/scopes` — list all scopes
-- `POST /api/scopes` — create a scope (`name`, `folders`, `tags`, `exclude_patterns`)
-- `PUT /api/scopes/{id}` — update a scope
-- `DELETE /api/scopes/{id}` — delete a scope
+- `GET /api/v1/scopes` — list all scopes
+- `POST /api/v1/scopes` — create a scope (`name`, `folders`, `tags`, `exclude_patterns`)
+- `PUT /api/v1/scopes/{id}` — update a scope
+- `DELETE /api/v1/scopes/{id}` — delete a scope
 
 When making search, chat, or planner requests, pass `scope_ids` (comma-separated) to filter by scope. Pass `ad_hoc_tags` to filter by markdown tags.

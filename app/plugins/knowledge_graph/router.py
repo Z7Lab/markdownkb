@@ -11,7 +11,7 @@ from app.ratelimit import STANDARD, limiter
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/knowledge-graph", tags=["knowledge_graph"])
+router = APIRouter(prefix="/api/v1/knowledge-graph", tags=["knowledge_graph"])
 
 
 def _get_kgdb(request: Request):

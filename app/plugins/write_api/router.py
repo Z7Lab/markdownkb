@@ -14,7 +14,7 @@ from app.ratelimit import STANDARD, limiter
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/documents", tags=["documents"])
+router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
 
 # Characters not allowed in filenames (beyond what the OS rejects)
 _UNSAFE_CHARS = re.compile(r'[<>:"|?*\x00-\x1f]')

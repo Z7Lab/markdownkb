@@ -69,7 +69,7 @@ export function HistoryDialog({
     setSelected(null)
     setDiff("")
     api.get<HistoryResponse>(
-      `/api/versioning/history?path=${encodeURIComponent(path)}`,
+      `/api/v1/versioning/history?path=${encodeURIComponent(path)}`,
     ).then((r) => {
       setCommits(r.commits)
       if (r.commits.length > 0) setSelected(r.commits[0].sha)
@@ -86,7 +86,7 @@ export function HistoryDialog({
     }
     setDiffLoading(true)
     api.get<DiffResponse>(
-      `/api/versioning/diff?path=${encodeURIComponent(path)}&commit=${encodeURIComponent(selected)}`,
+      `/api/v1/versioning/diff?path=${encodeURIComponent(path)}&commit=${encodeURIComponent(selected)}`,
     ).then((r) => setDiff(r.diff || "(no diff)"))
       .catch((err) => setDiff(`Error loading diff: ${(err as Error).message}`))
       .finally(() => setDiffLoading(false))
@@ -96,7 +96,7 @@ export function HistoryDialog({
     if (!path) return
     setRestoring(true)
     try {
-      const r = await api.post<RestoreResponse>("/api/versioning/restore", {
+      const r = await api.post<RestoreResponse>("/api/v1/versioning/restore", {
         path,
         commit: sha,
       })
@@ -105,7 +105,7 @@ export function HistoryDialog({
       onRestored?.()
       // Refresh history to include the new commit.
       const refreshed = await api.get<HistoryResponse>(
-        `/api/versioning/history?path=${encodeURIComponent(path)}`,
+        `/api/v1/versioning/history?path=${encodeURIComponent(path)}`,
       )
       setCommits(refreshed.commits)
       if (refreshed.commits.length > 0) setSelected(refreshed.commits[0].sha)

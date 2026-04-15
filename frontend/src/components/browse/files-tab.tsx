@@ -206,7 +206,7 @@ export function FilesTab() {
 
   // Fetch sources for auto-tag dialog
   useEffect(() => {
-    api.get<{ sources: string[] }>("/api/sources").then((res) => setSources(res.sources)).catch(() => { /* sources list for auto-tag is non-critical */ })
+    api.get<{ sources: string[] }>("/api/v1/sources").then((res) => setSources(res.sources)).catch(() => { /* sources list for auto-tag is non-critical */ })
   }, [])
 
   const toggleSelect = useCallback((path: string) => {

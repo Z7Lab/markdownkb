@@ -35,7 +35,7 @@ Settings changed via the **Settings** tab in the UI are saved back to `settings.
 If you edit `settings.yaml` on the host (e.g. via another tool or agent), the running container does not pick up changes automatically. Call the reload endpoint to re-read from disk without restarting:
 
 ```bash
-curl -X POST http://localhost:9713/api/settings/reload
+curl -X POST http://localhost:9713/api/v1/settings/reload
 ```
 
 API-driven changes (via the Settings UI) take effect immediately — they update the live config and save to disk in one step. The reload endpoint is only needed for host-side file edits.
@@ -50,7 +50,7 @@ API-driven changes (via the Settings UI) take effect immediately — they update
 | `project_roots` | `[]` | Auto-discover docs in cloned repos (see below) |
 | `global_ignore` | node_modules, .git, etc. | Glob patterns to skip |
 
-Each source is a dict with `path` (string, required), `writable` (boolean, optional — defaults to `true`), and `versioned` (boolean, optional — defaults to the value of `writable`). When `writable: false`, the Write API (`POST/DELETE /api/documents`) and MCP write tools (`save_file`, `delete_file`) return **403 Forbidden** for that source. When `versioned: true` (the default for writable sources), every mdkb-authored write to that source is automatically committed to a per-source managed git repo — see [Versioning](#versioning) below. The bundled `./docs` directory defaults to `writable: false` in the example config to protect project documentation from accidental writes.
+Each source is a dict with `path` (string, required), `writable` (boolean, optional — defaults to `true`), and `versioned` (boolean, optional — defaults to the value of `writable`). When `writable: false`, the Write API (`POST/DELETE /api/v1/documents`) and MCP write tools (`save_file`, `delete_file`) return **403 Forbidden** for that source. When `versioned: true` (the default for writable sources), every mdkb-authored write to that source is automatically committed to a per-source managed git repo — see [Versioning](#versioning) below. The bundled `./docs` directory defaults to `writable: false` in the example config to protect project documentation from accidental writes.
 
 ```yaml
 sources:
@@ -170,7 +170,7 @@ In Docker, compose.yml mounts a named volume to `/data` and the Dockerfile sets 
 
 ## Authentication
 
-API key authentication protects all `/api/*` endpoints (except `/api/health` and `/api/setup/generate-key`). When a key is configured, requests must include the `X-MarkdownKB-Key: <key>` header.
+API key authentication protects all `/api/v1/*` endpoints (except `/api/v1/health` and `/api/v1/setup/generate-key`). When a key is configured, requests must include the `X-MarkdownKB-Key: <key>` header.
 
 ### Setup options
 
@@ -265,8 +265,8 @@ plugins:
 ```
 
 Plugin config (excluding `enabled`) is read/written via the generic API:
-- `GET /api/settings/plugins/{name}` — read config
-- `PUT /api/settings/plugins/{name}` — update config (shallow merge)
+- `GET /api/v1/settings/plugins/{name}` — read config
+- `PUT /api/v1/settings/plugins/{name}` — update config (shallow merge)
 
 ### Migration from legacy format
 
@@ -297,7 +297,7 @@ versioning:
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `core.versioning` | `true` | Global kill-switch. Toggle from the Plugins settings tab alongside other core features. When `false`, no commits are created and the `/api/versioning/*` endpoints return 503. |
+| `core.versioning` | `true` | Global kill-switch. Toggle from the Plugins settings tab alongside other core features. When `false`, no commits are created and the `/api/v1/versioning/*` endpoints return 503. |
 | `versioning.root` | `{data_dir}/versioning` | Directory that holds the per-source managed git repos. One `<source-hash>/` subdir per versioned source. |
 
 Per-source opt-in/opt-out is controlled by the `versioned` flag on each source (see [Sources](#sources) above). The default is to version writable sources.

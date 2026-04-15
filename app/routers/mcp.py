@@ -3,7 +3,7 @@
 Drives the Settings > MCP panel — exposes connection info, the tool
 browser (auto-discovered from app/mcp/tools/), and the allowed_hosts
 editor.  Feature flag toggles live in ``app/routers/settings.py``
-(``PUT /api/settings/mcp-flags``).
+(``PUT /api/v1/settings/mcp-flags``).
 """
 
 import inspect
@@ -22,7 +22,7 @@ from app.ratelimit import STANDARD, limiter
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/mcp", tags=["mcp"])
+router = APIRouter(prefix="/api/v1/mcp", tags=["mcp"])
 
 # Shared client — reuses TCP connections across log-proxy calls instead of
 # opening a new connection per request (which causes FD exhaustion under polling).

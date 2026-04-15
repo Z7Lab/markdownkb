@@ -25,7 +25,7 @@ mkdir -p ~/research/grpc-eval
 # ... copy/download gRPC guides, migration docs, performance benchmarks ...
 
 # Create the bucket
-curl -X POST http://localhost:9713/api/buckets \
+curl -X POST http://localhost:9713/api/v1/buckets \
   -H "Content-Type: application/json" \
   -d '{
     "name": "grpc-evaluation",
@@ -45,7 +45,7 @@ Then in the UI:
 Pull together incident-related docs for a focused review:
 
 ```bash
-curl -X POST http://localhost:9713/api/buckets \
+curl -X POST http://localhost:9713/api/v1/buckets \
   -H "Content-Type: application/json" \
   -d '{
     "name": "march-outage",
@@ -70,18 +70,18 @@ Then in the **Chat** tab, select the bucket and ask: "What were the common root 
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/buckets` | List all buckets with metadata |
-| POST | `/api/buckets` | Create a new bucket from source paths |
-| GET | `/api/buckets/{id}` | Get bucket details |
-| DELETE | `/api/buckets/{id}` | Delete a bucket and its vector data |
-| POST | `/api/buckets/{id}/search` | Search within a bucket |
-| POST | `/api/buckets/{id}/chat` | RAG chat scoped to a bucket |
-| POST | `/api/buckets/{id}/add` | Add documents to an existing bucket (skips duplicates) |
+| GET | `/api/v1/buckets` | List all buckets with metadata |
+| POST | `/api/v1/buckets` | Create a new bucket from source paths |
+| GET | `/api/v1/buckets/{id}` | Get bucket details |
+| DELETE | `/api/v1/buckets/{id}` | Delete a bucket and its vector data |
+| POST | `/api/v1/buckets/{id}/search` | Search within a bucket |
+| POST | `/api/v1/buckets/{id}/chat` | RAG chat scoped to a bucket |
+| POST | `/api/v1/buckets/{id}/add` | Add documents to an existing bucket (skips duplicates) |
 
 ## Creating a Bucket
 
 ```json
-POST /api/buckets
+POST /api/v1/buckets
 {
   "name": "project-docs",
   "sources": [
@@ -104,13 +104,13 @@ Sources are scanned, parsed, chunked, and embedded into a bucket-specific Chroma
 Buckets integrate with search, chat, and planner endpoints. Pass `bucket_id` in the request body:
 
 ```json
-POST /api/search
+POST /api/v1/search
 {"query": "authentication flow", "bucket_id": "a1b2c3d4e5f6"}
 
-POST /api/chat/stream
+POST /api/v1/chat/stream
 {"message": "How does auth work?", "bucket_id": "a1b2c3d4e5f6"}
 
-POST /api/planner/plan/stream
+POST /api/v1/planner/plan/stream
 {"request": "Plan a migration to the new auth system", "bucket_id": "a1b2c3d4e5f6"}
 ```
 
@@ -123,7 +123,7 @@ In the web UI, select a bucket from the sidebar dropdown in the Chat, Search, or
 Expired buckets are automatically cleaned up in two places:
 
 1. **On server startup** — all expired buckets are deleted before the app begins serving requests.
-2. **On list** — the `GET /api/buckets` endpoint cleans up any expired buckets before returning results, so the UI never shows stale buckets.
+2. **On list** — the `GET /api/v1/buckets` endpoint cleans up any expired buckets before returning results, so the UI never shows stale buckets.
 
 Cleanup deletes both the SQLite metadata row and the bucket's ChromaDB collection.
 

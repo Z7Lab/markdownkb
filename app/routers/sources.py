@@ -21,7 +21,7 @@ from app.schemas import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api", tags=["sources"])
+router = APIRouter(prefix="/api/v1", tags=["sources"])
 
 
 def _watch_and_index(watcher, path: str):
@@ -102,7 +102,7 @@ def get_sources(request: Request, settings: Settings = Depends(get_settings)):
     return result
 
 
-@router.post("/sources")
+@router.post("/sources", status_code=201)
 @limiter.limit(STANDARD)
 def add_source(
     request: Request,

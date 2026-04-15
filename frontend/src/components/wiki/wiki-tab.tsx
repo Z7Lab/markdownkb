@@ -56,13 +56,13 @@ export function WikiTab() {
   const [lintEnabled, setLintEnabled] = useState<boolean | null>(null)
 
   useEffect(() => {
-    api.get<{ plugins_enabled?: Record<string, boolean> }>("/api/settings")
+    api.get<{ plugins_enabled?: Record<string, boolean> }>("/api/v1/settings")
       .then((r) => setLintEnabled(!!r.plugins_enabled?.lint))
       .catch(() => setLintEnabled(false))
   }, [])
 
   const loadWikis = useCallback(() => {
-    api.get<{ wikis: WikiRecord[] }>("/api/wiki-compile/wikis")
+    api.get<{ wikis: WikiRecord[] }>("/api/v1/wiki-compile/wikis")
       .then((r) => {
         setWikis(r.wikis)
         setError(null)
@@ -85,7 +85,7 @@ export function WikiTab() {
     if (!name) return
     setCreating(true)
     try {
-      const r = await api.post<CreateWikiResponse>("/api/wiki-compile/wikis", { name })
+      const r = await api.post<CreateWikiResponse>("/api/v1/wiki-compile/wikis", { name })
       if (r.docker_restart_required) {
         toast.warning("Wiki created — Docker restart required to mount the path before ingest.")
       } else {
@@ -104,7 +104,7 @@ export function WikiTab() {
 
   async function handleDelete(wiki: WikiRecord) {
     try {
-      await api.del(`/api/wiki-compile/wikis/${encodeURIComponent(wiki.name)}`)
+      await api.del(`/api/v1/wiki-compile/wikis/${encodeURIComponent(wiki.name)}`)
       toast.success(`Wiki "${wiki.name}" deregistered (files kept on disk)`)
       setPendingDelete(null)
       if (selected === wiki.name) setSelected(null)
@@ -429,7 +429,7 @@ function MarkdownView({
   useEffect(() => {
     setContent(null)
     setMissing(false)
-    api.get<{ content: string }>(`/api/file?path=${encodeURIComponent(path)}`)
+    api.get<{ content: string }>(`/api/v1/file?path=${encodeURIComponent(path)}`)
       .then((r) => setContent(r.content))
       .catch(() => setMissing(true))
   }, [path])
@@ -472,7 +472,7 @@ function PagesView({ wiki, onOpenFile }: { wiki: WikiRecord; onOpenFile: (p: str
 
   useEffect(() => {
     setFiles(null)
-    api.get<{ files: FileEntry[] }>("/api/files")
+    api.get<{ files: FileEntry[] }>("/api/v1/files")
       .then((r) => {
         const matches = r.files
           .filter((f) => f.path.startsWith(prefix))

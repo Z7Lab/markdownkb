@@ -26,7 +26,7 @@ describe("startPolling", () => {
 
     mockFetchResponse({ running: true, progress: 50, message: "Halfway", result: "" })
 
-    startPolling("/api/status", 1000, { onProgress, onComplete, onError })
+    startPolling("/api/v1/status", 1000, { onProgress, onComplete, onError })
 
     vi.advanceTimersByTime(1000)
     await vi.runAllTimersAsync()
@@ -44,7 +44,7 @@ describe("startPolling", () => {
 
     mockFetchResponse({ running: false, progress: 100, message: "Done", result: "Success" })
 
-    startPolling("/api/status", 1000, { onProgress, onComplete, onError })
+    startPolling("/api/v1/status", 1000, { onProgress, onComplete, onError })
 
     vi.advanceTimersByTime(1000)
     await vi.runAllTimersAsync()
@@ -59,7 +59,7 @@ describe("startPolling", () => {
 
     vi.mocked(fetch).mockRejectedValueOnce(new Error("Network error"))
 
-    startPolling("/api/status", 1000, { onProgress, onComplete, onError })
+    startPolling("/api/v1/status", 1000, { onProgress, onComplete, onError })
 
     vi.advanceTimersByTime(1000)
     await vi.runAllTimersAsync()
@@ -70,7 +70,7 @@ describe("startPolling", () => {
   it("returns cleanup function that stops polling", () => {
     mockFetchResponse({ running: true, progress: 0, message: "", result: "" })
 
-    const cleanup = startPolling("/api/status", 1000, {
+    const cleanup = startPolling("/api/v1/status", 1000, {
       onProgress: vi.fn(),
       onComplete: vi.fn(),
       onError: vi.fn(),

@@ -14,30 +14,30 @@ class TestPathTraversal:
 
     @pytest.mark.asyncio
     async def test_absolute_path_outside_sources(self, client):
-        resp = await client.get("/api/file", params={"path": "/etc/passwd"})
+        resp = await client.get("/api/v1/file", params={"path": "/etc/passwd"})
         assert resp.status_code == 403
 
     @pytest.mark.asyncio
     async def test_dotdot_traversal(self, client):
         resp = await client.get(
-            "/api/file",
+            "/api/v1/file",
             params={"path": "/tmp/test-source/../../../etc/shadow"},
         )
         assert resp.status_code == 403
 
     @pytest.mark.asyncio
     async def test_home_directory(self, client):
-        resp = await client.get("/api/file", params={"path": "~/.ssh/id_rsa"})
+        resp = await client.get("/api/v1/file", params={"path": "~/.ssh/id_rsa"})
         assert resp.status_code == 403
 
     @pytest.mark.asyncio
     async def test_dev_null(self, client):
-        resp = await client.get("/api/file", params={"path": "/dev/null"})
+        resp = await client.get("/api/v1/file", params={"path": "/dev/null"})
         assert resp.status_code == 403
 
     @pytest.mark.asyncio
     async def test_proc_self(self, client):
-        resp = await client.get("/api/file", params={"path": "/proc/self/environ"})
+        resp = await client.get("/api/v1/file", params={"path": "/proc/self/environ"})
         assert resp.status_code == 403
 
 
@@ -46,32 +46,32 @@ class TestInputValidation:
 
     @pytest.mark.asyncio
     async def test_search_empty_query(self, client):
-        resp = await client.post("/api/search", json={"query": ""})
+        resp = await client.post("/api/v1/search", json={"query": ""})
         assert resp.status_code == 422
 
     @pytest.mark.asyncio
     async def test_chat_empty_message(self, client):
-        resp = await client.post("/api/chat", json={"message": ""})
+        resp = await client.post("/api/v1/chat", json={"message": ""})
         assert resp.status_code == 422
 
     @pytest.mark.asyncio
     async def test_search_top_k_too_high(self, client):
-        resp = await client.post("/api/search", json={"query": "test", "top_k": 999})
+        resp = await client.post("/api/v1/search", json={"query": "test", "top_k": 999})
         assert resp.status_code == 422
 
     @pytest.mark.asyncio
     async def test_search_top_k_zero(self, client):
-        resp = await client.post("/api/search", json={"query": "test", "top_k": 0})
+        resp = await client.post("/api/v1/search", json={"query": "test", "top_k": 0})
         assert resp.status_code == 422
 
     @pytest.mark.asyncio
     async def test_pagination_negative_offset(self, client):
-        resp = await client.get("/api/files?offset=-1")
+        resp = await client.get("/api/v1/files?offset=-1")
         assert resp.status_code == 422
 
     @pytest.mark.asyncio
     async def test_pagination_limit_too_high(self, client):
-        resp = await client.get("/api/files?limit=100001")
+        resp = await client.get("/api/v1/files?limit=100001")
         assert resp.status_code == 422
 
 
@@ -105,17 +105,17 @@ class TestApiKeyAuth:
 
     @pytest.mark.asyncio
     async def test_missing_key_returns_401(self, auth_client):
-        resp = await auth_client.get("/api/health")
+        resp = await auth_client.get("/api/v1/health")
         # /api/health is public
         assert resp.status_code == 200
 
-        resp = await auth_client.post("/api/search", json={"query": "test"})
+        resp = await auth_client.post("/api/v1/search", json={"query": "test"})
         assert resp.status_code == 401
 
     @pytest.mark.asyncio
     async def test_wrong_key_returns_401(self, auth_client):
         resp = await auth_client.post(
-            "/api/search",
+            "/api/v1/search",
             json={"query": "test"},
             headers={"X-MarkdownKB-Key": "wrong-key"},
         )
@@ -124,7 +124,7 @@ class TestApiKeyAuth:
     @pytest.mark.asyncio
     async def test_correct_key_allowed(self, auth_client):
         resp = await auth_client.get(
-            "/api/health",
+            "/api/v1/health",
             headers={"X-MarkdownKB-Key": "test-secret-key"},
         )
         assert resp.status_code == 200

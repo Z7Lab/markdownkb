@@ -63,7 +63,7 @@ The **Buckets tab** is the primary UI for managing buckets. It has a left sideba
 ### From the API
 
 ```json
-POST /api/buckets
+POST /api/v1/buckets
 {
   "name": "grpc-evaluation",
   "sources": [
@@ -90,7 +90,7 @@ Changes take effect immediately.
 
 Via the API:
 ```json
-PATCH /api/buckets/{id}
+PATCH /api/v1/buckets/{id}
 {
   "name": "new-name",
   "expires_in": 604800,
@@ -147,7 +147,7 @@ This is the most powerful mode. Use cases:
 You can add documents to an existing bucket without recreating it:
 
 ```json
-POST /api/buckets/{id}/add
+POST /api/v1/buckets/{id}/add
 {
   "sources": [{"path": "/home/user/more-docs", "glob": "**/*.md"}]
 }
@@ -157,14 +157,14 @@ Duplicate files (same path) are skipped.
 
 ### Reading files back
 
-You can read the full content of any bucket file (filesystem-sourced or pushed) via `GET /api/buckets/{id}/file?path=...` or the `bucket_read_file` MCP tool. Content is reconstructed from stored chunks.
+You can read the full content of any bucket file (filesystem-sourced or pushed) via `GET /api/v1/buckets/{id}/file?path=...` or the `bucket_read_file` MCP tool. Content is reconstructed from stored chunks.
 
 ### Content push (no filesystem access)
 
 Buckets can also be populated by pushing document content directly over the API, without any files on disk:
 
 ```json
-POST /api/buckets/{id}/documents
+POST /api/v1/buckets/{id}/documents
 {
   "documents": [
     {"name": "api-reference.md", "content": "# API Reference\n\n..."}

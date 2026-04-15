@@ -32,7 +32,7 @@ A source is versioned when its configuration has `versioned: true`. The default 
 
 Three types of writes trigger auto-commits today:
 
-- **Write API** — every `POST /api/documents` and `DELETE /api/documents` commits the written (or removed) file.
+- **Write API** — every `POST /api/v1/documents` and `DELETE /api/v1/documents` commits the written (or removed) file.
 - **MCP `save_file` / `delete_file`** — same path, different interface. Agents that write through MCP get the same version trail.
 - **wiki_compile ingest** — each ingest produces one commit covering the summary, `index.md`, and `log.md` with a message like `wiki_compile: ingest <source-filename>`.
 
@@ -50,7 +50,7 @@ A marker file `MDKB_MANAGED` inside each managed repo dir identifies it as mdkb-
 
 **File viewer.** Open any markdown file, click **History**. You get a list of commits with dates and subjects (newest first, tagged `current`), a unified diff view for the selected commit, and a **Restore this version** button for older revisions. Restoring writes the old contents back as a new commit — never a history rewrite. See [Write History in writing-documents.md](../how-to/writing-documents.md#version-history) for the workflow.
 
-**HTTP API.** [`/api/versioning/history|diff|content`](../reference/api.md#versioning) and `POST /api/versioning/restore`. Returns JSON; used by the UI and by any tool that wants to integrate. Writes return a `version_commit` field so a caller can reference the new commit without re-querying history.
+**HTTP API.** [`/api/v1/versioning/history|diff|content`](../reference/api.md#versioning) and `POST /api/v1/versioning/restore`. Returns JSON; used by the UI and by any tool that wants to integrate. Writes return a `version_commit` field so a caller can reference the new commit without re-querying history.
 
 **Configuration.** [`core.versioning`](../reference/configuration.md#versioning) as a global kill-switch (toggled from the Plugins settings tab alongside file_watcher, rag_chat, etc.), and per-source `versioned: true|false`. The repos live at `versioning.root`, which defaults to `{data_dir}/versioning/` but can be relocated.
 

@@ -100,9 +100,9 @@ export function PromoteDialog({
 
     // Load wikis + writable sources in parallel.
     Promise.all([
-      api.get<{ wikis: WikiRecord[] }>("/api/wiki-compile/wikis").catch(() => ({ wikis: [] })),
-      api.get<{ sources: string[] }>("/api/sources"),
-      api.get<{ source_configs?: { path: string; writable: boolean }[] }>("/api/settings"),
+      api.get<{ wikis: WikiRecord[] }>("/api/v1/wiki-compile/wikis").catch(() => ({ wikis: [] })),
+      api.get<{ sources: string[] }>("/api/v1/sources"),
+      api.get<{ source_configs?: { path: string; writable: boolean }[] }>("/api/v1/settings"),
     ]).then(([wikisResp, , settingsResp]) => {
       const writable = (settingsResp.source_configs ?? [])
         .filter((s) => s.writable)
@@ -167,7 +167,7 @@ export function PromoteDialog({
         source: target,
         overwrite: false,
       }
-      const resp = await api.post<WriteResponse>("/api/documents", body)
+      const resp = await api.post<WriteResponse>("/api/v1/documents", body)
       toast.success(`Filed to ${resp.source}`)
       onPromoted?.(resp)
       onClose()

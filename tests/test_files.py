@@ -5,7 +5,7 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_list_files_paginated(client):
-    resp = await client.get("/api/files")
+    resp = await client.get("/api/v1/files")
     assert resp.status_code == 200
     data = resp.json()
     assert "items" in data
@@ -15,7 +15,7 @@ async def test_list_files_paginated(client):
 
 @pytest.mark.asyncio
 async def test_list_files_with_pagination(client):
-    resp = await client.get("/api/files?offset=0&limit=10")
+    resp = await client.get("/api/v1/files?offset=0&limit=10")
     assert resp.status_code == 200
     data = resp.json()
     assert data["offset"] == 0
@@ -25,7 +25,7 @@ async def test_list_files_with_pagination(client):
 @pytest.mark.asyncio
 async def test_read_file_outside_sources(client):
     """Path traversal: reading files outside configured sources must be denied."""
-    resp = await client.get("/api/file", params={"path": "/etc/passwd"})
+    resp = await client.get("/api/v1/file", params={"path": "/etc/passwd"})
     assert resp.status_code == 403
 
 
@@ -33,7 +33,7 @@ async def test_read_file_outside_sources(client):
 async def test_read_file_traversal_dotdot(client):
     """Path traversal via ../ must be denied."""
     resp = await client.get(
-        "/api/file",
+        "/api/v1/file",
         params={"path": "/tmp/test-source/../../etc/passwd"},
     )
     assert resp.status_code == 403
@@ -42,7 +42,7 @@ async def test_read_file_traversal_dotdot(client):
 @pytest.mark.asyncio
 async def test_toggle_rag_on(client):
     resp = await client.put(
-        "/api/files/toggle-rag",
+        "/api/v1/files/rag",
         json={"path": "/tmp/test-source/doc.md", "include": True},
     )
     assert resp.status_code == 200
@@ -52,7 +52,7 @@ async def test_toggle_rag_on(client):
 @pytest.mark.asyncio
 async def test_toggle_rag_off(client):
     resp = await client.put(
-        "/api/files/toggle-rag",
+        "/api/v1/files/rag",
         json={"path": "/tmp/test-source/doc.md", "include": False},
     )
     assert resp.status_code == 200
@@ -63,7 +63,7 @@ async def test_toggle_rag_off(client):
 async def test_toggle_rag_not_tracked(client, app):
     app.state.tracking.get_file.return_value = None
     resp = await client.put(
-        "/api/files/toggle-rag",
+        "/api/v1/files/rag",
         json={"path": "/nonexistent", "include": True},
     )
     assert resp.status_code == 404
@@ -71,8 +71,9 @@ async def test_toggle_rag_not_tracked(client, app):
 
 @pytest.mark.asyncio
 async def test_unindex_file(client):
-    resp = await client.post(
-        "/api/files/unindex",
+    resp = await client.request(
+        "DELETE",
+        "/api/v1/files/index",
         json={"path": "/tmp/test-source/doc.md"},
     )
     assert resp.status_code == 200
@@ -82,8 +83,9 @@ async def test_unindex_file(client):
 @pytest.mark.asyncio
 async def test_unindex_file_not_tracked(client, app):
     app.state.tracking.get_file.return_value = None
-    resp = await client.post(
-        "/api/files/unindex",
+    resp = await client.request(
+        "DELETE",
+        "/api/v1/files/index",
         json={"path": "/nonexistent"},
     )
     assert resp.status_code == 404

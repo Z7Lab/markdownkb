@@ -98,7 +98,7 @@ export function IndexEventProvider({ children }: { children: ReactNode }) {
       controller = new AbortController()
 
       try {
-        const res = await fetch("/api/index/events", {
+        const res = await fetch("/api/v1/index/events", {
           signal: controller.signal,
         })
         if (!res.ok || !res.body) return

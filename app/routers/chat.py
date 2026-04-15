@@ -14,6 +14,7 @@ from app.scope_utils import parse_scope_ids, resolve_scopes
 from app.tag_utils import resolve_tag_paths
 from app.services.chat_service import (
     chat_respond,
+    resolve_chat_scope,
     save_last_response_as_plan,
 )
 from app.storage.chatdb import ChatDB
@@ -23,7 +24,7 @@ from app.utils import short_title, sse
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api", tags=["chat"])
+router = APIRouter(prefix="/api/v1", tags=["chat"])
 
 
 @router.post("/chat")
@@ -71,23 +72,19 @@ def chat_stream(
     tracking: TrackingDB = Depends(get_tracking),
     conv_history=Depends(get_conversation_history),
 ):
-    # Multi-scope: prefer scope_ids, fall back to single scope_id
-    ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
-    scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
-    allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
-
-    # Bucket-scoped chat: resolve one or more bucket retrievers
-    bucket_retrievers: list = []
-    bucket_ids = parse_scope_ids(req.bucket_ids)
-    if bucket_ids:
-        bucket_service = getattr(request.app.state, "bucket_service", None)
-        if bucket_service is None:
-            raise HTTPException(status_code=503, detail="Buckets plugin not initialized")
-        for bid in bucket_ids:
-            record = bucket_service.db.resolve(bid)
-            if not record:
-                raise HTTPException(status_code=404, detail=f"Bucket not found: {bid}")
-            bucket_retrievers.append(bucket_service.get_retriever(record["id"], settings))
+    chat_scope = resolve_chat_scope(
+        app_state=request.app.state,
+        scope_ids=req.scope_ids,
+        scope_id=req.scope_id,
+        bucket_ids=req.bucket_ids,
+        ad_hoc_tags=req.ad_hoc_tags,
+        settings=settings,
+        scopedb=scopedb,
+    )
+    scope_folders = chat_scope.scope_folders
+    allowed = chat_scope.allowed_paths
+    exclude_patterns = chat_scope.exclude_patterns
+    bucket_retrievers = chat_scope.bucket_retrievers
 
     if req.thread_id:
         thread_id = req.thread_id
@@ -102,42 +99,59 @@ def chat_stream(
         sources: list[str] = []
         source_map: dict[str, str] = {}
         last_yielded = ""
+        # Retrieval mode (computed once by resolve_chat_scope):
+        # - bucket only (no scope): use bucket retriever, no filters
+        # - scope only (no bucket): use main retriever with scope filters
+        # - both: use main retriever with scope filters + bucket retrievers merged
+        bucket_only = chat_scope.bucket_only
+
+        inner = chat_respond(
+            req.message,
+            bucket_retrievers[0] if bucket_only else retriever,
+            settings,
+            chatdb=chatdb,
+            thread_id=thread_id,
+            folders_filter=scope_folders if not bucket_only else None,
+            allowed_paths=allowed if not bucket_only else None,
+            exclude_patterns=exclude_patterns if not bucket_only else None,
+            bucket_retrievers=(bucket_retrievers[1:] if bucket_only else bucket_retrievers) or None,
+            sources_out=sources,
+            source_map_out=source_map,
+            conversation_history=conv_history,
+        )
         try:
-            # Determine retrieval mode:
-            # - bucket only (no scope): use bucket retriever, no filters
-            # - scope only (no bucket): use main retriever with scope filters
-            # - both: use main retriever with scope filters + bucket retriever merged
-            has_scope = bool(scope_folders or allowed)
-            bucket_only = bool(bucket_retrievers) and not has_scope
+            try:
+                for partial in inner:
+                    new_text = partial[len(last_yielded):]
+                    if new_text:
+                        yield sse("token", {"content": new_text})
+                        last_yielded = partial
 
-            for partial in chat_respond(
-                req.message,
-                bucket_retrievers[0] if bucket_only else retriever,
-                settings,
-                chatdb=chatdb,
-                thread_id=thread_id,
-                folders_filter=scope_folders if not bucket_only else None,
-                allowed_paths=allowed if not bucket_only else None,
-                exclude_patterns=exclude_patterns if not bucket_only else None,
-                bucket_retrievers=(bucket_retrievers[1:] if bucket_only else bucket_retrievers) or None,
-                sources_out=sources,
-                source_map_out=source_map,
-                conversation_history=conv_history,
-            ):
-                new_text = partial[len(last_yielded):]
-                if new_text:
-                    yield sse("token", {"content": new_text})
-                    last_yielded = partial
-
-            if sources:
-                chatdb.set_sources(thread_id, "assistant", sources, source_map or None)
-                yield sse("sources", {"sources": sources, "source_map": source_map})
-        except (RuntimeError, OSError, ValueError) as e:
-            logger.error("LLM/retrieval error during chat stream: %s", e)
-            yield sse("error", {"message": "LLM request failed. Check server logs for details."})
-        except Exception:
-            logger.exception("Unexpected error during chat stream")
-            yield sse("error", {"message": "An unexpected error occurred. Check server logs for details."})
+                if sources:
+                    chatdb.set_sources(thread_id, "assistant", sources, source_map or None)
+                    yield sse("sources", {"sources": sources, "source_map": source_map})
+            except GeneratorExit:
+                # Client disconnected mid-stream — close the inner generator so
+                # the LLM call stops producing tokens the caller can no longer
+                # see. Without this, generation continues and wastes quota.
+                logger.info("Client disconnected from chat stream %s", thread_id)
+                try:
+                    inner.close()
+                except Exception:
+                    logger.debug("Inner generator close raised", exc_info=True)
+                raise
+            except (RuntimeError, OSError, ValueError) as e:
+                logger.error("LLM/retrieval error during chat stream: %s", e)
+                yield sse("error", {"message": "LLM request failed. Check server logs for details."})
+            except Exception:
+                logger.exception("Unexpected error during chat stream")
+                yield sse("error", {"message": "An unexpected error occurred. Check server logs for details."})
+        finally:
+            # Make sure the inner generator is closed even on normal exit.
+            try:
+                inner.close()
+            except Exception:
+                pass
 
         active_cfg = settings.get_active_llm_config()
         yield sse("done", {

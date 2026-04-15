@@ -1,6 +1,6 @@
 """MCP tool: run the tiered knowledge-base lint.
 
-Mirrors the HTTP POST /api/lint/run endpoint.
+Mirrors the HTTP POST /api/v1/lint/run endpoint.
 """
 
 from __future__ import annotations

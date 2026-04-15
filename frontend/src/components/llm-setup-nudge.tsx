@@ -21,7 +21,7 @@ export function LlmSetupNudge({ onNavigateSettings }: { onNavigateSettings: () =
   const [showGuide, setShowGuide] = useState(false)
 
   useEffect(() => {
-    fetch("/api/health/llm")
+    fetch("/api/v1/health/llm")
       .then((r) => r.json())
       .then((data: LlmHealth) => setHealth(data))
       .catch(() => {})

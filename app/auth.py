@@ -11,7 +11,7 @@ If no key is configured, authentication is silently disabled.
 
 The middleware reads the active key from ``app.state.api_key`` on each
 request so the key can be set or changed at runtime (e.g. after calling
-``/api/setup/generate-key``) without rebuilding the middleware stack.
+``/api/v1/setup/generate-key``) without rebuilding the middleware stack.
 """
 
 import hmac
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 _HEADER = "X-MarkdownKB-Key"
 
 # Paths that bypass authentication (health check, CORS preflight)
-_PUBLIC_PATHS = frozenset({"/api/health", "/api/setup/generate-key"})
+_PUBLIC_PATHS = frozenset({"/api/v1/health", "/api/v1/setup/generate-key"})
 
 
 class ApiKeyMiddleware(BaseHTTPMiddleware):
@@ -42,7 +42,7 @@ class ApiKeyMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Non-API paths (frontend static files) are allowed
-        if not request.url.path.startswith("/api/"):
+        if not request.url.path.startswith("/api/v1/"):
             return await call_next(request)
 
         # Read current key from app state — allows runtime key changes

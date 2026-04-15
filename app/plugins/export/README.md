@@ -9,7 +9,7 @@ Conversation export in markdown or JSON format.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/export` | Export conversations as markdown or JSON |
+| POST | `/api/v1/export` | Export conversations as markdown or JSON |
 
 ## Request Body
 

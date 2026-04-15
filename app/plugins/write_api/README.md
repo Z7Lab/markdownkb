@@ -3,14 +3,14 @@
 HTTP endpoint for creating, updating, and deleting markdown documents in watched source directories. Files are automatically picked up by the file watcher for indexing.
 
 **Feature flag:** `write_api`
-**Prefix:** `/api/documents`
+**Prefix:** `/api/v1/documents`
 
 ## Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/documents` | Create or update a markdown document |
-| DELETE | `/api/documents` | Delete a markdown document |
+| POST | `/api/v1/documents` | Create or update a markdown document |
+| DELETE | `/api/v1/documents` | Delete a markdown document |
 
 ## Create/Update
 

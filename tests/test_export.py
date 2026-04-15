@@ -9,7 +9,7 @@ async def test_export_json(app, client):
     conv.add("user", "Hello")
     conv.add("assistant", "Hi there")
 
-    resp = await client.post("/api/export", json={"format": "json"})
+    resp = await client.post("/api/v1/export", json={"format": "json"})
     assert resp.status_code == 200
     data = resp.json()
     assert data["format"] == "json"
@@ -23,7 +23,7 @@ async def test_export_markdown(app, client):
     conv.clear()
     conv.add("user", "Hello")
 
-    resp = await client.post("/api/export", json={"format": "markdown"})
+    resp = await client.post("/api/v1/export", json={"format": "markdown"})
     assert resp.status_code == 200
     data = resp.json()
     assert data["format"] == "markdown"

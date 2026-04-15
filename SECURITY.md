@@ -11,7 +11,7 @@ MarkdownKB handles API keys, accesses the file system, and optionally executes t
 MarkdownKB supports optional API key authentication via the `X-MarkdownKB-Key` header:
 
 - Set via Docker secret (`secrets/markdownkb_api_key`) or the `MARKDOWNKB_API_KEY` environment variable.
-- When configured, all `/api/*` endpoints (except `/api/health`) require the header. Missing or invalid keys return **401 Unauthorized**.
+- When configured, all `/api/v1/*` endpoints (except `/api/v1/health`) require the header. Missing or invalid keys return **401 Unauthorized**.
 - When empty (default), authentication is disabled — suitable for local/single-user use.
 - **If exposing MarkdownKB to a network, always set an API key.** Without it, destructive endpoints (clear databases, change LLM provider, rewrite system prompt) are fully open.
 
@@ -21,17 +21,16 @@ The standalone MCP server uses the same API key. When `MARKDOWNKB_API_KEY` is co
 
 1. **`Authorization: Bearer <key>`** (preferred — key not in access logs)
 2. **`X-MarkdownKB-Key: <key>`** header (same as REST API)
-3. **`?token=<key>`** query parameter (legacy — key visible in logs)
 
 The stdio transport is never authenticated (stdio is process-local and not network-accessible). When no API key is configured, MCP connections are unauthenticated — suitable only for localhost-bound deployments.
 
 ### Key Generation
 
-`POST /api/setup/generate-key` is restricted to localhost (`127.0.0.1` / `::1`). This prevents a LAN attacker from racing the legitimate owner to set the key first on a network-exposed instance.
+`POST /api/v1/setup/generate-key` is restricted to localhost (`127.0.0.1` / `::1`). This prevents a LAN attacker from racing the legitimate owner to set the key first on a network-exposed instance.
 
 ### Plugin Installation
 
-Plugin install and uninstall (`POST /api/plugins/install`, `DELETE /api/plugins/{name}`) require API key authentication to be configured. These endpoints execute code (git clone, pip install) and are blocked with **403** when no API key is set, even on localhost.
+Plugin install and uninstall (`POST /api/v1/plugins/install`, `DELETE /api/v1/plugins/{name}`) require API key authentication to be configured. These endpoints execute code (git clone, pip install) and are blocked with **403** when no API key is set, even on localhost.
 
 ### Security Headers
 

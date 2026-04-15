@@ -30,7 +30,7 @@ export function usePathCheck(path: string, debounceMs = 400): PathCheckState {
     const timer = setTimeout(async () => {
       try {
         const result = await api.get<PathCheckResult>(
-          `/api/check-path?path=${encodeURIComponent(trimmed)}`
+          `/api/v1/check-path?path=${encodeURIComponent(trimmed)}`
         )
         if (result.accessible) {
           setState({ status: "ok" })

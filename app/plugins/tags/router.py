@@ -14,7 +14,7 @@ from app.storage.trackingdb import TrackingDB
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api", tags=["tags"])
+router = APIRouter(prefix="/api/v1", tags=["tags"])
 
 
 # -- Request schemas (plugin-local, not in core schemas.py) ------------------
@@ -252,7 +252,8 @@ def generate_tags(
                 db.update_tags(req.file_path, ", ".join(applied))
         return result
     except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        logger.warning("Tag generation file missing: %s", e)
+        raise HTTPException(status_code=404, detail="File not found")
     except Exception as e:
         logger.error("Tag generation error: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Tag generation failed.")
@@ -286,7 +287,8 @@ def apply_tags(
             db.update_tags(req.file_path, tags_str)
         return result
     except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        logger.warning("Tag apply file missing: %s", e)
+        raise HTTPException(status_code=404, detail="File not found")
     except Exception as e:
         logger.error("Tag application error: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to apply tags.")

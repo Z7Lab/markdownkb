@@ -73,7 +73,7 @@ export function VersioningSourceRow({
   async function toggleWritable(v: boolean) {
     setBusy(true)
     try {
-      await api.patch("/api/sources", { path: status.path, writable: v })
+      await api.patch("/api/v1/sources", { path: status.path, writable: v })
       toast.success(`${v ? "Enabled" : "Disabled"} writes for ${status.path}`)
       onUpdated()
     } catch (err) {
@@ -86,7 +86,7 @@ export function VersioningSourceRow({
   async function toggleVersioned(v: boolean) {
     setBusy(true)
     try {
-      await api.patch("/api/sources", { path: status.path, versioned: v })
+      await api.patch("/api/v1/sources", { path: status.path, versioned: v })
       toast.success(`${v ? "Enabled" : "Disabled"} versioning for ${status.path}`)
       onUpdated()
     } catch (err) {
@@ -99,7 +99,7 @@ export function VersioningSourceRow({
   async function handleInitRepo() {
     setBusy(true)
     try {
-      await api.post("/api/versioning/init-repo", { path: status.path })
+      await api.post("/api/v1/versioning/init-repo", { path: status.path })
       toast.success("Managed repo initialised")
       onUpdated()
     } catch (err) {
@@ -110,7 +110,7 @@ export function VersioningSourceRow({
   }
 
   function handleExport() {
-    const url = `/api/versioning/export?path=${encodeURIComponent(status.path)}`
+    const url = `/api/v1/versioning/export?path=${encodeURIComponent(status.path)}`
     window.open(url, "_blank", "noopener")
   }
 
@@ -247,7 +247,7 @@ function IgnoreDialog({
     if (!open) return
     setLoading(true)
     api.get<{ path: string; contents: string }>(
-      `/api/versioning/ignore?path=${encodeURIComponent(path)}`,
+      `/api/v1/versioning/ignore?path=${encodeURIComponent(path)}`,
     ).then((r) => setContents(r.contents))
       .catch((err) => toast.error(`Failed to load: ${(err as Error).message}`))
       .finally(() => setLoading(false))
@@ -256,7 +256,7 @@ function IgnoreDialog({
   async function handleSave() {
     setSaving(true)
     try {
-      await api.put("/api/versioning/ignore", { path, contents })
+      await api.put("/api/v1/versioning/ignore", { path, contents })
       toast.success("Ignore rules saved")
       onClose()
     } catch (err) {
@@ -322,7 +322,7 @@ function PruneDialog({
       const r = await api.post<{
         commits_before: number
         commits_after: number
-      }>("/api/versioning/prune", body)
+      }>("/api/v1/versioning/prune", body)
       toast.success(`Pruned ${r.commits_before - r.commits_after} commits`)
       onDone()
     } catch (err) {

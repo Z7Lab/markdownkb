@@ -20,7 +20,7 @@ In the UI: **Settings → Backup & Restore → Create Backup**. Choose whether t
 Behind the scenes:
 
 ```
-POST /api/backups/create
+POST /api/v1/backups/create
 { "include_config": true, "include_sources": false }
 ```
 

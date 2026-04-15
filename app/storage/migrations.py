@@ -10,11 +10,15 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+from typing import Callable, Union
 
 logger = logging.getLogger(__name__)
 
-# (version, description, sql) — version numbers start at 1 and are sequential.
-Migration = tuple[int, str, str]
+# A migration is (version, description, body). ``body`` may be a SQL string
+# (applied with a single ``execute``) or a callable that receives the
+# connection and performs multi-statement or data-transform work.
+MigrationBody = Union[str, Callable[[sqlite3.Connection], None]]
+Migration = tuple[int, str, MigrationBody]
 
 
 def run_migrations(
@@ -24,25 +28,33 @@ def run_migrations(
 ) -> None:
     """Apply any migrations whose version > current PRAGMA user_version.
 
-    Each ``ALTER`` is wrapped in a try/except for ``sqlite3.OperationalError``
-    so reapplying a migration on a fresh database (where the column already
-    exists in ``CREATE TABLE``) is a no-op.
+    SQL-string bodies are applied with a single ``execute`` — ``ALTER``
+    statements that would fail on a freshly created table (because the
+    column already exists in ``CREATE TABLE``) are swallowed.
+
+    Callable bodies receive the connection and are expected to be
+    idempotent; any existing ``PRAGMA table_info`` / ``sqlite_master``
+    guards inside them continue to work.
     """
     current = conn.execute("PRAGMA user_version").fetchone()[0]
     target = len(migrations)
     if current >= target:
         return
-    for version, description, sql in migrations:
+    for version, description, body in migrations:
         if version <= current:
             continue
-        try:
-            conn.execute(sql)
+        if callable(body):
+            body(conn)
             logger.info("%s migration %d applied: %s", db_label or "DB", version, description)
-        except sqlite3.OperationalError:
-            logger.debug(
-                "%s migration %d skipped (already present): %s",
-                db_label or "DB", version, description,
-            )
+        else:
+            try:
+                conn.execute(body)
+                logger.info("%s migration %d applied: %s", db_label or "DB", version, description)
+            except sqlite3.OperationalError:
+                logger.debug(
+                    "%s migration %d skipped (already present): %s",
+                    db_label or "DB", version, description,
+                )
     # PRAGMA can't be parameterised; target is len(migrations), code-controlled.
     conn.execute(f"PRAGMA user_version = {int(target)}")
     conn.commit()

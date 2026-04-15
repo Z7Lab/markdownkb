@@ -589,7 +589,7 @@ def _run_http_with_auth(mcp: FastMCP, host: str, port: int):
             from app.mcp.auth import McpApiKeyMiddleware
             combined_app = McpApiKeyMiddleware(combined_app, api_key)
             logger.info(
-                "MCP auth enabled (accepts Authorization: Bearer, X-MarkdownKB-Key, or ?token=)"
+                "MCP auth enabled (accepts Authorization: Bearer or X-MarkdownKB-Key)"
             )
         else:
             logger.info("MCP auth disabled (no API key configured)")

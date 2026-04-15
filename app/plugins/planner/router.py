@@ -19,7 +19,7 @@ from app.storage.trackingdb import TrackingDB
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/planner", tags=["planner"])
+router = APIRouter(prefix="/api/v1/planner", tags=["planner"])
 
 
 @router.post("/plan")
@@ -89,7 +89,7 @@ def plan_stream(
 
     # Bucket-scoped planning: resolve one or more bucket retrievers
     bucket_retrievers_s: list = []
-    bucket_ids_s = parse_scope_ids(req.bucket_ids) or ([req.bucket_id] if req.bucket_id else None)
+    bucket_ids_s = parse_scope_ids(req.bucket_ids)
     if bucket_ids_s:
         bucket_service = getattr(request.app.state, "bucket_service", None)
         if bucket_service:
@@ -134,7 +134,7 @@ def list_plans(
     return {"plans": plandb.list_plans()}
 
 
-@router.post("/plans")
+@router.post("/plans", status_code=201)
 @limiter.limit(STANDARD)
 def save_plan(
     request: Request,

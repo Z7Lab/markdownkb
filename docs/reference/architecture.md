@@ -70,7 +70,7 @@ MarkdownKB is a chat-with-your-docs tool with a Python backend and React fronten
 │    bucket_list_files │ bucket_search │ bucket_chat      │
 │    bucket_delete                                        │
 │  Transports: stdio │ Streamable HTTP  │  read_only mode │
-│  Auth: X-MarkdownKB-Key header │ ?token= query param         │
+│  Auth: Authorization: Bearer │ X-MarkdownKB-Key header       │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -173,9 +173,9 @@ All files are relative to the data directory (see [Storage](#storage) below).
 
 ## Request Lifecycle
 
-1. **Frontend** makes HTTP requests to `/api/*`. Streaming responses (chat, summaries) use POST-based SSE via `fetch` + `ReadableStream`.
+1. **Frontend** makes HTTP requests to `/api/v1/*`. Streaming responses (chat, summaries) use POST-based SSE via `fetch` + `ReadableStream`.
 2. **Routers** handle request validation and call into services. Core routers (health, chat, threads, files, settings, embeddings, scopes, plugins) are always registered. **Plugins** (`app/plugins/` and `{data_directory}/plugins/`) are auto-discovered at startup — each plugin exposes a feature flag and a router; only enabled plugins are registered.
-3. **Auth middleware** (`app/auth.py`) checks the `X-MarkdownKB-Key` header on all `/api/*` paths (except `/api/health`) when an API key is configured via Docker secret or env var. Uses `hmac.compare_digest()` for timing-safe comparison. Disabled when no key is set.
+3. **Auth middleware** (`app/auth.py`) checks the `X-MarkdownKB-Key` header on all `/api/v1/*` paths (except `/api/v1/health`) when an API key is configured via Docker secret or env var. Uses `hmac.compare_digest()` for timing-safe comparison. Disabled when no key is set.
 4. **Dependency injection** (`app/deps.py`) provides services via FastAPI's `Depends()`. All shared state lives on `app.state`, initialized in the async lifespan context manager (`app/main.py`).
 5. **Services** contain business logic — conversation management, LLM health checks, query enhancement.
 6. **Storage layer** persists data across seven stores (see below).
@@ -212,7 +212,7 @@ SQLite databases use `PRAGMA user_version` for schema migrations. Each database 
 3. **Embedder** (`app/embeddings/embedder.py`) generates vector embeddings using ONNX models (runs on CPU, no PyTorch). Three models are available — see [embedding-models.md](../how-to/embedding-models.md).
 4. **Indexer** (`app/ingestion/indexer.py`) orchestrates the pipeline: scan → parse → embed → store in ChromaDB + track in TrackingDB.
 5. **Watcher** (`app/ingestion/watcher.py`) uses `watchdog` to detect file changes and re-index incrementally. Runs in a background thread. The `FileWatcher` class supports adding directories at runtime — when a new source is added via the API, it starts watching immediately without a restart. The observer is cleanly stopped during application shutdown.
-6. **Event Bus** (`app/events.py`) — the watcher publishes `IndexEvent` objects (indexed, deleted, error) to an `IndexEventBus`. SSE clients subscribe via `GET /api/index/events` to receive real-time notifications as files are processed.
+6. **Event Bus** (`app/events.py`) — the watcher publishes `IndexEvent` objects (indexed, deleted, error) to an `IndexEventBus`. SSE clients subscribe via `GET /api/v1/index/events` to receive real-time notifications as files are processed.
 
 ## Retrieval & RAG
 
@@ -273,7 +273,7 @@ requires: []
 
 endpoints:
   - method: POST
-    path: /api/search
+    path: /api/v1/search
     description: Semantic search
 
 config:
@@ -290,7 +290,7 @@ Config schema types: `boolean` (toggle), `integer` (number input with optional m
 
 ### Plugin Installation & Removal
 
-External plugins can be installed from GitHub via `POST /api/plugins/install`. The flow:
+External plugins can be installed from GitHub via `POST /api/v1/plugins/install`. The flow:
 
 1. Clone the repo (shallow, `--depth 1`) to a temp directory
 2. If the URL includes a subdirectory (e.g. `/tree/main/plugins/my-plugin`), extract that directory
@@ -300,7 +300,7 @@ External plugins can be installed from GitHub via `POST /api/plugins/install`. T
 6. Add `plugins.<name>.enabled: false` to settings
 7. Requires a container restart to activate
 
-Builtin plugins cannot be uninstalled — only disabled via `plugins.<name>.enabled`. External plugins can be fully removed via `DELETE /api/plugins/{name}`.
+Builtin plugins cannot be uninstalled — only disabled via `plugins.<name>.enabled`. External plugins can be fully removed via `DELETE /api/v1/plugins/{name}`.
 
 URL formats accepted: `https://github.com/user/repo`, `https://github.com/user/repo/tree/main/path/to/plugin`, `user/repo`.
 
@@ -318,7 +318,7 @@ plugins:
     enabled: true
 ```
 
-Plugins read their config via `Settings.get_plugin_config("name")` (which filters out the `enabled` key) and define their own defaults internally. A generic API (`GET/PUT /api/settings/plugins/{name}`) allows reading and updating any plugin's config without changes to core code.
+Plugins read their config via `Settings.get_plugin_config("name")` (which filters out the `enabled` key) and define their own defaults internally. A generic API (`GET/PUT /api/v1/settings/plugins/{name}`) allows reading and updating any plugin's config without changes to core code.
 
 Current builtin plugins: `search` (search with history and AI summaries), `export` (conversation export), `docmap` (document similarity visualization), `knowledge_graph` (entity extraction and typed relationships), `planner` (MCTS plan generation), `tags` (tag storage, CRUD, auto-tagging, and optional AI generation), `write_api` (document creation via HTTP), `buckets` (temporary scoped document collections with independent vector storage, search, and chat), `converter` (batch file-to-markdown conversion via Pandoc), `wiki_compile` (Karpathy-style ingest/synthesis into managed wiki directories), `lint` (tiered knowledge-base health check — raw coverage, orphans, within-tier contradictions, cross-tier tensions; flag-only, operates across all source tiers).
 
@@ -347,7 +347,7 @@ Legacy `features:` layouts are auto-migrated on first startup and saved to disk.
 
 ## Frontend
 
-The React SPA (`frontend/`) communicates with the backend exclusively through the `/api/*` endpoints. Key patterns:
+The React SPA (`frontend/`) communicates with the backend exclusively through the `/api/v1/*` endpoints. Key patterns:
 
 - **Hooks** (`frontend/src/hooks/`) encapsulate all API interaction and state management — one hook per domain (chat, search, files, settings, scopes, planner, graph).
 - **SSE streaming** uses POST-based fetch with `ReadableStream`, not `EventSource` (which only supports GET).

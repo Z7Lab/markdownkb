@@ -3,7 +3,7 @@
 Karpathy-style wiki compilation — read a source document, synthesize a summary page into a managed wiki, and maintain `index.md` and `log.md` for navigation.
 
 **Feature flag:** `wiki_compile`
-**Prefix:** `/api/wiki-compile`
+**Prefix:** `/api/v1/wiki-compile`
 
 ## The pattern
 
@@ -21,10 +21,10 @@ A *wiki* is a named, persistent target with a managed path. Create one by name; 
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/wiki-compile/wikis` | List managed wikis |
-| POST | `/api/wiki-compile/wikis` | Create a managed wiki |
-| DELETE | `/api/wiki-compile/wikis/{name}` | Deregister a wiki (directory preserved on disk) |
-| POST | `/api/wiki-compile/ingest` | Ingest a source into a wiki by name |
+| GET | `/api/v1/wiki-compile/wikis` | List managed wikis |
+| POST | `/api/v1/wiki-compile/wikis` | Create a managed wiki |
+| DELETE | `/api/v1/wiki-compile/wikis/{name}` | Deregister a wiki (directory preserved on disk) |
+| POST | `/api/v1/wiki-compile/ingest` | Ingest a source into a wiki by name |
 
 ## POST /wikis request body
 

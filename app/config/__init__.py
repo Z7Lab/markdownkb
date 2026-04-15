@@ -28,180 +28,42 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from platformdirs import user_data_dir
 
 from app.config.llm import LLMMixin
 from app.config.mcp import MCPMixin
 from app.config.prompts import PromptsMixin
 from app.config.retrieval import RetrievalMixin
 from app.config.sources import SourcesMixin
+from app.config._migrations import migrate_num_ctx, migrate_settings
+from app.config._paths import (
+    DEFAULT_CONFIG_PATH as _DEFAULT_CONFIG_PATH,
+    SECRETS_DIR as _SECRETS_DIR,
+    data_secrets_dir as _data_secrets_dir,
+    default_data_dir,
+    read_secret as _read_secret,
+    resolve_env as _resolve_env,
+    resolve_env_recursive as _resolve_env_recursive,
+)
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Settings migration: old flat ``features:`` → new structured layout
-# ---------------------------------------------------------------------------
 
-_CORE_FLAGS = frozenset({
-    "rag_chat", "file_watcher", "rate_limiting",
-    "deep_research", "agent_skills", "diagnostics",
-    "update_check",
-})
-
-_MCP_FLAGS: dict[str, str] = {}
-
-# Old feature-flag name → plugin directory name
-_PLUGIN_FLAG_MAP = {
-    "search": "search",
-    "export": "export",
-    "tags": "tags",
-    "docmap": "docmap",
-    "knowledge_graph": "knowledge_graph",
-    "mcts_planner": "planner",
-    "write_api": "write_api",
-}
-
-def _migrate_settings(data: dict) -> bool:
-    """Migrate legacy ``features:``/``plugins:`` layout to the new structure.
-
-    Returns True if migration was performed (caller should save).
-    """
-    if "features" not in data or "core" in data:
-        return False  # already migrated or fresh install
-
-    old_features = data.pop("features")
-    old_plugins = data.pop("plugins", {})
-
-    # --- core ---
-    core: dict[str, bool] = {}
-    for flag in sorted(_CORE_FLAGS):
-        if flag in old_features:
-            core[flag] = old_features[flag]
-    data["core"] = core
-
-    # --- mcp ---
-    mcp: dict[str, bool] = {}
-    for old_key, new_key in _MCP_FLAGS.items():
-        if old_key in old_features:
-            mcp[new_key] = old_features[old_key]
-    data["mcp"] = mcp
-
-    # --- plugins (merge enabled flag into existing plugin config) ---
-    plugins: dict[str, dict] = {}
-    for old_flag, plugin_name in _PLUGIN_FLAG_MAP.items():
-        cfg = dict(old_plugins.pop(plugin_name, {}))
-        if old_flag in old_features:
-            cfg["enabled"] = old_features[old_flag]
-        plugins[plugin_name] = cfg
-    # Handle mcp_tag_generator → plugins.tags.ai_generation
-    if "mcp_tag_generator" in old_features:
-        plugins.setdefault("tags", {})["ai_generation"] = old_features["mcp_tag_generator"]
-    # Carry over any remaining old plugin configs (external plugins, etc.)
-    for name, cfg in old_plugins.items():
-        if name == "deep_research":
-            continue  # handled below as a service
-        plugins.setdefault(name, {}).update(cfg)
-    data["plugins"] = plugins
-
-    # --- services (deep_research config) ---
-    services: dict[str, dict] = {}
-    if "deep_research" in old_plugins:
-        services["deep_research"] = dict(old_plugins["deep_research"])
-    data["services"] = services
-
-    logger.info("Migrated settings from legacy features: layout to core/mcp/plugins/services")
-    return True
-
-def _migrate_num_ctx(data: dict) -> bool:
-    """Move legacy top-level ``num_ctx`` into each provider's ``extra_body``.
-
-    Older configs stored ``num_ctx`` directly on the provider dict.  The new
-    location is ``provider.extra_body.num_ctx``.  This migration runs once on
-    startup and saves the config so the legacy path is never needed again.
-
-    Returns True if any migration was performed (caller should save).
-    """
-    migrated = False
-    for provider in data.get("llm", {}).get("providers", []):
-        if "num_ctx" in provider:
-            provider.setdefault("extra_body", {})["num_ctx"] = provider.pop("num_ctx")
-            migrated = True
-    if migrated:
-        logger.info("Migrated legacy provider num_ctx to extra_body.num_ctx")
-    return migrated
-
-
-_DEFAULT_CONFIG_PATH = (
-    Path(__file__).resolve().parent.parent.parent / "config" / "settings.yaml"
-)
-
-
-_SECRETS_DIR = Path(os.environ.get("MARKDOWNKB_SECRETS_DIR", "/run/secrets"))
-
-
-def default_data_dir() -> str:
-    """Resolve the data directory.
-
-    Priority: MARKDOWNKB_DATA_DIR env var → platformdirs user_data_dir.
-    Docker sets MARKDOWNKB_DATA_DIR=/data so the app never needs to know
-    whether it's containerized.
-    """
-    return os.environ.get("MARKDOWNKB_DATA_DIR") or user_data_dir("markdownkb")
-
-
-def _data_secrets_dir() -> Path:
-    """Writable secrets directory inside the data directory."""
-    return Path(default_data_dir()) / "secrets"
-
-
-def _read_secret(name: str) -> str:
-    """Read a secret by name.
-
-    Checks data/secrets/ (writable, for generated keys) first, then
-    Docker's read-only secrets mount (/run/secrets/).  Returns the
-    file content (stripped) or empty string if not found or empty.
-    """
-    for directory in (_data_secrets_dir(), _SECRETS_DIR):
-        path = directory / name
-        try:
-            if path.is_file():
-                value = path.read_text().strip()
-                if value:
-                    return value
-        except OSError as e:
-            logger.warning("Failed to read secret '%s' from %s: %s", name, directory, e)
-    return ""
-
-
-def _resolve_env(value: str) -> str:
-    """Replace ${VAR} placeholders with environment variable values."""
-    if isinstance(value, str) and value.startswith("${") and value.endswith("}"):
-        env_var = value[2:-1]
-        resolved = os.environ.get(env_var)
-        if resolved is None:
-            logger.warning(
-                "Environment variable %s is not set (referenced in settings.yaml) — "
-                "using empty string, which may disable dependent features",
-                env_var,
-            )
-            return ""
-        return resolved
-    return value
-
-
-def _resolve_env_recursive(obj: Any) -> Any:
-    """Recursively resolve environment variable placeholders."""
-    if isinstance(obj, str):
-        return _resolve_env(obj)
-    if isinstance(obj, dict):
-        return {k: _resolve_env_recursive(v) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [_resolve_env_recursive(v) for v in obj]
-    return obj
+# Migration helpers retained as private names for callers that imported them
+# from this module before they were extracted.
+_migrate_settings = migrate_settings
+_migrate_num_ctx = migrate_num_ctx
 
 
 class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
-    """Singleton settings manager backed by YAML config file."""
+    """Singleton settings manager backed by YAML config file.
+
+    Environment variable substitution (``${VAR}`` in ``settings.yaml``) is
+    performed at ``__init__`` and ``reload()`` time only — see
+    :func:`_resolve_env_recursive` for details. A small number of properties
+    (``cors_origins``, ``server_host``) read ``os.environ`` directly and
+    therefore do reflect changes per request; everything else requires
+    ``reload()`` to pick up env-var mutations.
+    """
 
     _instance: "Settings | None" = None
     _class_lock = threading.Lock()

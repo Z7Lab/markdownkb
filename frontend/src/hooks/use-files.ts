@@ -28,8 +28,8 @@ export function useFiles() {
     try {
       setError(null)
       const [res, entityRes] = await Promise.all([
-        api.get<PaginatedResponse<TrackedFile>>("/api/files"),
-        api.get<{ counts: Record<string, number> }>("/api/knowledge-graph/file-entity-counts").catch(() => null),
+        api.get<PaginatedResponse<TrackedFile>>("/api/v1/files"),
+        api.get<{ counts: Record<string, number> }>("/api/v1/knowledge-graph/file-entity-counts").catch(() => null),
       ])
       const counts = entityRes?.counts ?? {}
       const items = res.items.map((f) => ({
@@ -85,7 +85,7 @@ export function useFiles() {
   const toggleRag = useCallback(async (path: string, include: boolean) => {
     addBusy(path)
     try {
-      await api.put("/api/files/toggle-rag", { path, include })
+      await api.put("/api/v1/files/rag", { path, include })
       await refresh()
     } catch (err) {
       toast.error(`Failed to toggle RAG: ${(err as Error).message}`)
@@ -97,7 +97,7 @@ export function useFiles() {
   const unindexFile = useCallback(async (path: string) => {
     addBusy(path)
     try {
-      await api.post("/api/files/unindex", { path })
+      await api.del("/api/v1/files/index", { path })
       await refresh()
     } catch (err) {
       toast.error(`Failed to unindex: ${(err as Error).message}`)
@@ -110,7 +110,7 @@ export function useFiles() {
     addBusy(path)
     setFiles((prev) => prev.map((f) => f.path === path ? { ...f, status: "indexing" } : f))
     try {
-      await api.post("/api/files/index", { path })
+      await api.post("/api/v1/files/index", { path })
       await refresh()
     } catch (err) {
       toast.error(`Failed to index: ${(err as Error).message}`)
@@ -124,7 +124,7 @@ export function useFiles() {
     addBusy(path)
     setFiles((prev) => prev.map((f) => f.path === path ? { ...f, status: "indexing" } : f))
     try {
-      await api.post("/api/files/reindex", { path })
+      await api.put("/api/v1/files/index", { path })
       await refresh()
     } catch (err) {
       toast.error(`Failed to reindex: ${(err as Error).message}`)
@@ -136,7 +136,7 @@ export function useFiles() {
 
   const indexAll = useCallback(async () => {
     try {
-      const res = await api.post<{ message: string }>("/api/index")
+      const res = await api.post<{ message: string }>("/api/v1/index")
       toast.success(res.message)
       await refresh()
     } catch (err) {
@@ -146,7 +146,7 @@ export function useFiles() {
 
   const unindexSource = useCallback(async (source: string) => {
     try {
-      const res = await api.post<{ unindexed: number }>("/api/files/unindex-source", { source })
+      const res = await api.del<{ unindexed: number }>("/api/v1/sources/index", { source })
       toast.success(`Unindexed ${res.unindexed} files`)
       await refresh()
     } catch (err) {
@@ -156,7 +156,7 @@ export function useFiles() {
 
   const updateTags = useCallback(async (path: string, tags: string[]) => {
     try {
-      await api.put("/api/files/tags", { path, tags })
+      await api.put("/api/v1/files/tags", { path, tags })
       await refresh()
     } catch (err) {
       toast.error(`Failed to update tags: ${(err as Error).message}`)
@@ -165,7 +165,7 @@ export function useFiles() {
 
   const bulkUpdateTags = useCallback(async (paths: string[], tags: string[], mode: "add" | "remove" | "replace" = "add") => {
     try {
-      const res = await api.put<{ updated: number }>("/api/files/bulk-tags", { paths, tags, mode })
+      const res = await api.put<{ updated: number }>("/api/v1/files/bulk-tags", { paths, tags, mode })
       toast.success(`Updated tags on ${res.updated} files`)
       await refresh()
     } catch (err) {
@@ -176,7 +176,7 @@ export function useFiles() {
   const extractEntities = useCallback(async (path: string) => {
     addBusy(path)
     try {
-      const res = await api.post<{ entities: number }>(`/api/knowledge-graph/extract-file?path=${encodeURIComponent(path)}`)
+      const res = await api.post<{ entities: number }>(`/api/v1/knowledge-graph/extract-file?path=${encodeURIComponent(path)}`)
       toast.success(`Extracted ${res.entities} entities from ${path.split("/").pop()}`)
       await refresh()
     } catch (err) {

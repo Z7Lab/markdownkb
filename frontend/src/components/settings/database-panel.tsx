@@ -41,7 +41,7 @@ export function DatabasePanel() {
 
   const loadStats = useCallback(async () => {
     try {
-      const res = await api.get<DatabaseStats>("/api/settings/database-stats")
+      const res = await api.get<DatabaseStats>("/api/v1/settings/database-stats")
       setStats(res)
     } catch (err) {
       /* stats load is best-effort; panel will show empty state */
@@ -56,7 +56,7 @@ export function DatabasePanel() {
   const handleClearChats = async () => {
     setLoading(true)
     try {
-      await api.post("/api/settings/database/clear-chats", {})
+      await api.post("/api/v1/settings/database/clear-chats", {})
       toast.success("Chat history cleared")
       await loadStats()
     } catch (err) {
@@ -70,7 +70,7 @@ export function DatabasePanel() {
   const handleClearSearches = async () => {
     setLoading(true)
     try {
-      await api.post("/api/settings/database/clear-searches", {})
+      await api.post("/api/v1/settings/database/clear-searches", {})
       toast.success("Search history cleared")
       await loadStats()
     } catch (err) {
@@ -84,7 +84,7 @@ export function DatabasePanel() {
   const handleClearVectors = async () => {
     setLoading(true)
     try {
-      await api.post("/api/settings/database/clear-vectors", {})
+      await api.post("/api/v1/settings/database/clear-vectors", {})
       toast.success("Vector database cleared. You may want to reindex your files.")
       await loadStats()
     } catch (err) {
@@ -98,7 +98,7 @@ export function DatabasePanel() {
   const handleCompactChats = async () => {
     setLoading(true)
     try {
-      await api.post("/api/settings/database/compact-chats", {})
+      await api.post("/api/v1/settings/database/compact-chats", {})
       toast.success("Chat database compacted")
       await loadStats()
     } catch (err) {
@@ -111,7 +111,7 @@ export function DatabasePanel() {
   const handleCompactSearches = async () => {
     setLoading(true)
     try {
-      await api.post("/api/settings/database/compact-searches", {})
+      await api.post("/api/v1/settings/database/compact-searches", {})
       toast.success("Search database compacted")
       await loadStats()
     } catch (err) {

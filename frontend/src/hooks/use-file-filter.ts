@@ -24,7 +24,7 @@ function useContentSearch(filterText: string, searchMode: "path" | "content") {
     setContentSearching(true)
     contentDebounce.current = setTimeout(async () => {
       try {
-        const res = await api.post<{ paths: string[] }>("/api/files/search", {
+        const res = await api.post<{ paths: string[] }>("/api/v1/files/search", {
           query: filterText,
           top_k: 50,
         })
