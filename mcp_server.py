@@ -410,31 +410,86 @@ async def lifespan(server: FastMCP):
 
 # -- Entry point -----------------------------------------------------------
 
-def _create_mcp() -> FastMCP:
+def _default_allowed_hosts(bind_host: str, port: int) -> list[str]:
+    """Reachable-by-default hostnames to seed the Host allowlist.
+
+    DNS rebinding protection rejects any Host header not on the allowlist,
+    which is a common cause of "Invalid Host header" 400s from legitimate
+    LAN or Docker-bridge clients. We seed the list with:
+      - localhost / 127.0.0.1 (always)
+      - host.docker.internal (common Docker-agent bridge name)
+      - the machine's hostname and ``<hostname>.local`` (mDNS)
+      - the machine's LAN IPs (best-effort via socket lookup)
+      - the explicit bind host when it's a specific IP
+
+    The user can tighten this by setting ``mcp.allowed_hosts`` in
+    settings.yaml, or loosen it further with ``*``.  Each entry is expanded
+    to both ``name:*`` (wildcard port) and ``name:<bind-port>`` so clients
+    hitting either the default MCP port or a remapped one both work.
+    """
+    import socket
+
+    names: list[str] = ["localhost", "127.0.0.1", "host.docker.internal"]
+    try:
+        hostname = socket.gethostname()
+        if hostname:
+            names.append(hostname)
+            names.append(f"{hostname}.local")
+    except OSError:
+        pass
+    try:
+        _, _, lan_ips = socket.gethostbyname_ex(socket.gethostname())
+        names.extend(lan_ips)
+    except OSError:
+        pass
+    if bind_host not in ("0.0.0.0", "::", "127.0.0.1", "::1", "localhost"):
+        names.append(bind_host)
+
+    entries: list[str] = []
+    seen: set[str] = set()
+    for name in names:
+        for pattern in (f"{name}:*", f"{name}:{port}"):
+            if pattern not in seen:
+                seen.add(pattern)
+                entries.append(pattern)
+    return entries
+
+
+def _create_mcp(bind_host: str = "127.0.0.1", bind_port: int = 9715) -> FastMCP:
     """Create the FastMCP instance.
 
     Deferred from module level so that Settings.get() is not called as a side
     effect of importing this module (e.g. during tests or tool introspection).
+
+    DNS rebinding protection is on by default. Its Host allowlist is seeded
+    with every hostname this server is likely to be reached by (localhost,
+    host.docker.internal, the machine's hostname + LAN IPs, and the explicit
+    bind host if specific). Users can override via ``mcp.allowed_hosts`` —
+    including ``*`` to turn the check off entirely.
     """
     settings = Settings.get()
-    allowed_hosts = settings.mcp_features.get("allowed_hosts", [])
-    if not isinstance(allowed_hosts, list):
-        allowed_hosts = []
-    allowed_origins = settings.mcp_features.get("allowed_origins", [])
-    if not isinstance(allowed_origins, list):
-        allowed_origins = []
+    configured_hosts = settings.mcp_features.get("allowed_hosts", [])
+    if not isinstance(configured_hosts, list):
+        configured_hosts = []
+    configured_origins = settings.mcp_features.get("allowed_origins", [])
+    if not isinstance(configured_origins, list):
+        configured_origins = []
 
-    # '*' in either list means "allow all" — disable DNS rebinding protection entirely.
-    # This covers both Host and Origin checks with a single wildcard.
-    if "*" in allowed_hosts or "*" in allowed_origins:
+    if "*" in configured_hosts or "*" in configured_origins:
         transport_security = TransportSecuritySettings(
             enable_dns_rebinding_protection=False,
         )
     else:
+        # Merge user-configured entries with the default reachable-host set.
+        # User entries come first (take precedence in log/debug output).
+        merged = [str(h) for h in configured_hosts]
+        for h in _default_allowed_hosts(bind_host, bind_port):
+            if h not in merged:
+                merged.append(h)
         transport_security = TransportSecuritySettings(
             enable_dns_rebinding_protection=True,
-            allowed_hosts=[str(h) for h in allowed_hosts],
-            allowed_origins=[str(o) for o in allowed_origins],
+            allowed_hosts=merged,
+            allowed_origins=[str(o) for o in configured_origins],
         )
 
     mcp = FastMCP(
@@ -584,7 +639,7 @@ def main():
     )
     args = parser.parse_args()
 
-    mcp = _create_mcp()
+    mcp = _create_mcp(bind_host=args.host, bind_port=args.port)
 
     if args.http:
         logger.info("Starting MCP server (Streamable HTTP) on %s:%d", args.host, args.port)

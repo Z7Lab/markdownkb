@@ -442,19 +442,41 @@ The server reads JSON-RPC messages from stdin and writes responses to stdout. Lo
 | `--host` | `127.0.0.1` | Bind address |
 | `--port` | `9715` | Listen port |
 
-### DNS Rebinding Protection and Allowed Hosts
+### Binding and DNS Rebinding Protection
 
-When the Streamable HTTP transport is active, all requests are validated against the `mcp.allowed_hosts` list in `config/settings.yaml`. The **Host** header must match one of the configured patterns:
+Two independent layers control who can reach the MCP server.
 
-| Pattern | Meaning |
-|---------|---------|
-| `*` | Disable DNS rebinding protection entirely — allow any host |
-| `nuc.local:*` | Allow `nuc.local` on any port (wildcard port match) |
-| `nuc.local:9715` | Exact match only |
+**Layer 1 — host-side port mapping** (Docker) or `--host` (native): controls which *network interface* the port is exposed on. This is the primary reachability control.
 
-Plain `*` is the recommended setting for LAN access when you trust your network. Edit via **Settings → MCP → Allowed hosts** in the web UI. **Restart the MCP server to apply changes.**
+| Value                  | Reachable from                               |
+|------------------------|----------------------------------------------|
+| `127.0.0.1` (default)  | this machine only                            |
+| `0.0.0.0`              | any machine on your LAN                      |
+| `192.168.x.x`          | only that specific interface — tightest LAN binding |
 
-> Note: `*` in the list disables DNS rebinding protection at the transport level. API key authentication (if configured) still applies to every request regardless of this setting.
+For Docker, set `MARKDOWNKB_MCP_HOST` in `.env` (see `.env.example`). For a native run, use `python mcp_server.py --http --host <ip>`.
+
+**Layer 2 — Host header allowlist** (`mcp.allowed_hosts` in `config/settings.yaml`): DNS rebinding protection. Defends a localhost-bound server from browser-based attackers that spoof a hostname resolving to 127.0.0.1.
+
+By default the allowlist is seeded automatically with every hostname this server is likely to be reached by:
+
+- `localhost`, `127.0.0.1`
+- `host.docker.internal` (Docker-agent bridge name)
+- the machine's hostname and `<hostname>.local` (mDNS)
+- the machine's LAN IPs
+- the explicit `--host` value if it was a specific IP
+
+Most users don't need to touch `mcp.allowed_hosts`. If a client still gets `400 Invalid Host header`, add the exact hostname they're using:
+
+| Pattern          | Meaning                                       |
+|------------------|-----------------------------------------------|
+| `*`              | Disable the allowlist entirely — any Host OK |
+| `nuc.local:*`    | Allow `nuc.local` on any port                |
+| `nuc.local:9715` | Exact match only                              |
+
+Edit via **Settings → MCP → Allowed hosts** in the web UI. **Restart the MCP server to apply changes.**
+
+> Note: API key authentication (if configured) applies to every request regardless of the Host allowlist. For any deployment beyond localhost, the API key is the right layer of defence.
 
 ## Claude Desktop Configuration
 
