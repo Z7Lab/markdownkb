@@ -47,6 +47,7 @@ def list_files(
     request: Request,
     offset: int = Query(0, ge=0),
     limit: int | None = Query(None, ge=1, le=100000),
+    sort: str = Query("path", regex="^(path|indexed_at)$"),
     settings: Settings = Depends(get_settings),
     tracking: TrackingDB = Depends(get_tracking),
     tagdb=Depends(get_tagdb),
@@ -56,6 +57,11 @@ def list_files(
     Files assigned to a bucket are excluded — they appear in the Buckets tab.
     Each file includes a ``bucket_ids`` list (always empty here, kept for
     forward-compatibility if the filter is ever relaxed).
+
+    Query parameters:
+    - offset: pagination offset (default 0)
+    - limit: results per page (default from settings.file_list_limit, max 100000)
+    - sort: field to sort by — "path" (alphabetical) or "indexed_at" (most recent first)
 
     This is a read-only endpoint — pruning of stale records is handled by
     the indexer (run_index) and the explicit POST /api/files/prune endpoint.
@@ -120,7 +126,14 @@ def list_files(
             leftover["status"] = "missing"
         merged.append(leftover)
 
-    merged.sort(key=lambda f: f["path"])
+    # Sort by requested field
+    if sort == "indexed_at":
+        # Most recently indexed first (nulls last)
+        merged.sort(key=lambda f: (f.get("indexed_at") is None, f.get("indexed_at")), reverse=True)
+    else:
+        # Default: alphabetical by path
+        merged.sort(key=lambda f: f["path"])
+
     total = len(merged)
     effective_limit = limit if limit is not None else settings.file_list_limit
     items = merged[offset:offset + effective_limit]

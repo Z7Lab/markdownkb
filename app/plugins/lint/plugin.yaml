@@ -16,4 +16,11 @@ endpoints:
     path: /api/lint/reports
     description: List previously generated lint reports
 
+dashboard_widget:
+  enabled: true
+  widget_type: status
+  endpoint: /api/lint/reports
+  label: Lint Report
+  empty_message: No lint reports yet
+
 config: {}

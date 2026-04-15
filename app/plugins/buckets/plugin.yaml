@@ -34,4 +34,11 @@ endpoints:
     path: /api/buckets/{bucket_id}/files
     description: List files and chunk counts in a bucket
 
+dashboard_widget:
+  enabled: true
+  widget_type: summary
+  endpoint: /api/buckets
+  label: Active Buckets
+  empty_message: No active buckets
+
 config: {}

@@ -34,6 +34,13 @@ endpoints:
     path: /api/search/enhance-query
     description: LLM query enhancement (keywords, acronyms)
 
+dashboard_widget:
+  enabled: true
+  widget_type: recent_activity
+  endpoint: /api/searches
+  label: Recent Searches
+  empty_message: No searches yet
+
 config:
   chunk_multiplier:
     type: integer

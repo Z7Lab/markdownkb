@@ -4,6 +4,7 @@ import { useFiles } from "@/hooks/use-files"
 import { useSettings } from "@/hooks/use-settings"
 import { useTableSort } from "@/hooks/use-table-sort"
 import { useFileFilter, getValue } from "@/hooks/use-file-filter"
+import { useUrlSearchParam } from "@/hooks/use-url-search-param"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -186,7 +187,7 @@ export function FilesTab() {
     if (lastIndexedAt) refresh(true)
   }, [lastIndexedAt, refresh])
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
-  const [viewingPath, setViewingPath] = useState<string | null>(null)
+  const [viewingPath, setViewingPath] = useUrlSearchParam("file")
   const [pendingUnindex, setPendingUnindex] = useState<string | null>(null)
   const [confirmUnindexAll, setConfirmUnindexAll] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())

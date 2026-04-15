@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from app.config import Settings
 from app.deps import get_presetsdb, get_settings
 from app.storage.presetsdb import PresetsDB
+from app.plugins import get_registry
 from app.ratelimit import STANDARD, limiter
 from app.schemas import (
     CreatePresetRequest,
@@ -78,6 +79,16 @@ def get_settings_endpoint(request: Request, settings: Settings = Depends(get_set
         "temperature": settings.llm_temperature,
         "max_tokens": settings.llm_max_tokens,
         "num_ctx": settings.llm_num_ctx,
+        "plugin_manifests": {
+            entry["name"]: {
+                "name": entry["name"],
+                "feature_flag": entry.get("feature_flag"),
+                "manifest": entry.get("manifest") or {},
+                "enabled": entry.get("enabled", False),
+            }
+            for entry in get_registry()
+        },
+        "dashboard_widgets": settings.dashboard_widgets,
     }
 
 
@@ -237,6 +248,22 @@ def update_plugin_settings(
     settings.set_plugin_config(plugin_name, req.config)
     settings.save()
     return {"status": "saved", "plugin": plugin_name, "config": settings.get_plugin_config(plugin_name)}
+
+
+# -- Dashboard Widget Settings --
+
+@router.put("/settings/dashboard-widgets/{widget_name}")
+@limiter.limit(STANDARD)
+def toggle_dashboard_widget(
+    request: Request,
+    widget_name: str,
+    req: FeatureToggleRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """Toggle dashboard widget visibility."""
+    settings.set_dashboard_widget_enabled(widget_name, req.enabled)
+    settings.save()
+    return {"status": "saved", "widget": widget_name, "enabled": req.enabled}
 
 
 # -- MCP Settings --

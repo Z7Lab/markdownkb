@@ -148,6 +148,17 @@ export interface VersioningStatus {
   sources: VersioningSourceStatus[]
 }
 
+export interface PluginManifest {
+  [key: string]: unknown
+}
+
+export interface PluginManifestEntry {
+  name: string
+  feature_flag: string | null
+  manifest: PluginManifest
+  enabled: boolean
+}
+
 export interface AppSettings {
   active_provider: string
   providers: Provider[]
@@ -182,6 +193,8 @@ export interface AppSettings {
   temperature: number
   max_tokens: number
   num_ctx: number | null
+  plugin_manifests?: Record<string, PluginManifestEntry>
+  dashboard_widgets?: Record<string, boolean>
 }
 
 export interface LogEntry {

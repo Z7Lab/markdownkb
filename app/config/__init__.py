@@ -621,6 +621,20 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
         """Set the log level."""
         self._data.setdefault("logging", {})["level"] = value
 
+    # --- Dashboard Widgets ---
+    @property
+    def dashboard_widgets(self) -> dict[str, bool]:
+        """Return the dashboard widget visibility preferences."""
+        return dict(self._data.get("dashboard_widgets", {}))
+
+    def set_dashboard_widget_enabled(self, widget_name: str, enabled: bool) -> None:
+        """Set the visibility of a dashboard widget."""
+        self._data.setdefault("dashboard_widgets", {})[widget_name] = enabled
+
+    def widget_visible(self, widget_name: str) -> bool:
+        """Check whether a dashboard widget is visible to the user."""
+        return self._data.get("dashboard_widgets", {}).get(widget_name, True)
+
     # --- Raw access ---
     @property
     def raw(self) -> dict:

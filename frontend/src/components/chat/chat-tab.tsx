@@ -12,7 +12,7 @@ import { ChatMessageList } from "./chat-message-list";
 import { ChatSidebar } from "./chat-sidebar";
 
 export function ChatTab({ defaultThreadId }: { defaultThreadId?: string }) {
-  const [, setLocation] = useLocation();
+  const [currentLocation, setLocation] = useLocation();
   const { scopes } = useScopes();
   const { tags: availableTags } = useTags();
   const { buckets } = useBuckets();
@@ -65,12 +65,15 @@ export function ChatTab({ defaultThreadId }: { defaultThreadId?: string }) {
   }, [defaultThreadId]);
 
   // When the server assigns a thread ID mid-stream (onThread callback inside
-  // useChat), push the URL so the thread is bookmarkable.
+  // useChat), push the URL so the thread is bookmarkable. Only fires when the
+  // user is currently on a chat route — otherwise navigating away (e.g. Home)
+  // would redirect back into the chat tab.
   useEffect(() => {
+    if (!currentLocation.startsWith("/chat")) return;
     if (activeThreadId && activeThreadId !== defaultThreadId) {
       setLocation(`/chat/${activeThreadId}`, { replace: true });
     }
-  }, [activeThreadId, defaultThreadId, setLocation]);
+  }, [activeThreadId, defaultThreadId, setLocation, currentLocation]);
 
   // Keep URL in sync when the active thread changes via sidebar selection or new chat.
   // Wrap loadThread and newChat so they push the URL as a side-effect.

@@ -22,4 +22,11 @@ endpoints:
     path: /api/wiki-compile/ingest
     description: Ingest a source file into a managed wiki by name
 
+dashboard_widget:
+  enabled: true
+  widget_type: recent_activity
+  endpoint: /api/wiki-compile/wikis
+  label: Wiki Activity
+  empty_message: No wikis yet
+
 config: {}

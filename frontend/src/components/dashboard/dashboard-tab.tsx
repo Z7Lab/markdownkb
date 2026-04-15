@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react"
 import { useLocation } from "wouter"
 import { useSettings } from "@/hooks/use-settings"
+import { useUrlSearchParam } from "@/hooks/use-url-search-param"
 import { api } from "@/lib/api"
+import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
+import {
+  RecentActivityWidget,
+  WidgetSection,
+} from "@/components/dashboard/dashboard-widgets"
 import {
   MessageSquare,
   Globe,
@@ -13,6 +19,23 @@ import {
   HardDriveDownload,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+
+// Helper: format relative time (e.g. "2 hours ago")
+function getRelativeTime(dateString: string | null): string {
+  if (!dateString) return ""
+  const date = new Date(dateString)
+  const now = new Date()
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+
+  if (seconds < 60) return "just now"
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}d ago`
+  return date.toLocaleDateString()
+}
 
 interface Stat {
   label: string
@@ -86,13 +109,35 @@ export function DashboardTab() {
   const { settings } = useSettings()
   const [fileCount, setFileCount] = useState<number | null>(null)
   const [threadCount, setThreadCount] = useState<number | null>(null)
+  const [viewingFile, setViewingFile] = useUrlSearchParam("file")
+
+  // Activity data
+  const [recentThreads, setRecentThreads] = useState<Array<{ id: string; title: string; created_at: string }>>([])
+  const [recentFiles, setRecentFiles] = useState<Array<{ path: string; indexed_at: string }>>([])
+  const [recentSearches, setRecentSearches] = useState<Array<{ id: string; query: string; created_at: string }>>([])
 
   useEffect(() => {
+    // Load stats
     api.get<{ total: number }>("/api/files?limit=1")
       .then((r) => setFileCount(r.total))
       .catch(() => {})
     api.get<{ total: number }>("/api/threads?limit=1")
       .then((r) => setThreadCount(r.total))
+      .catch(() => {})
+
+    // Load recent threads
+    api.get<{ items: Array<{ id: string; title: string; created_at: string }> }>("/api/threads?limit=5")
+      .then((r) => setRecentThreads(r.items))
+      .catch(() => {})
+
+    // Load recently indexed files
+    api.get<{ items: Array<{ path: string; indexed_at: string }> }>("/api/files?limit=5&sort=indexed_at")
+      .then((r) => setRecentFiles(r.items))
+      .catch(() => {})
+
+    // Load recent searches (only if search plugin is enabled)
+    api.get<{ items: Array<{ id: string; query: string; created_at: string }> }>("/api/searches?limit=5")
+      .then((r) => setRecentSearches(r.items))
       .catch(() => {})
   }, [])
 
@@ -159,6 +204,55 @@ export function DashboardTab() {
           })}
         </div>
 
+        {/* Activity Section */}
+        {(recentThreads.length > 0 || recentFiles.length > 0 || recentSearches.length > 0) && (
+          <WidgetSection title="Activity">
+            <div className="space-y-8">
+              {/* Recent Threads */}
+              {settings?.core?.rag_chat !== false && recentThreads.length > 0 && (
+                <RecentActivityWidget
+                  items={recentThreads.map((t) => ({
+                    id: t.id,
+                    label: t.title || "(Untitled thread)",
+                    timestamp: getRelativeTime(t.created_at),
+                    onClick: () => setLocation(`/chat/${t.id}`),
+                  }))}
+                  label="Recent Threads"
+                  emptyMessage="No threads yet"
+                />
+              )}
+
+              {/* Recently Indexed Files */}
+              {recentFiles.length > 0 && (
+                <RecentActivityWidget
+                  items={recentFiles.map((f) => ({
+                    id: f.path,
+                    label: f.path.split("/").pop() || f.path,
+                    timestamp: getRelativeTime(f.indexed_at),
+                    onClick: () => setViewingFile(f.path),
+                  }))}
+                  label="Recently Indexed Files"
+                  emptyMessage="No files indexed yet"
+                />
+              )}
+
+              {/* Recent Searches */}
+              {settings?.plugins_enabled?.search && recentSearches.length > 0 && (
+                <RecentActivityWidget
+                  items={recentSearches.map((s) => ({
+                    id: s.id,
+                    label: s.query,
+                    timestamp: getRelativeTime(s.created_at),
+                    onClick: () => setLocation(`/search`), // TODO: deep-link to search with history
+                  }))}
+                  label="Recent Searches"
+                  emptyMessage="No searches yet"
+                />
+              )}
+            </div>
+          </WidgetSection>
+        )}
+
         {/* Quick-start hint when no sources */}
         {sourceCount === 0 && (
           <div className="rounded-lg border border-dashed p-5 flex items-start gap-3">
@@ -180,6 +274,8 @@ export function DashboardTab() {
         )}
 
       </div>
+
+      <FileViewerDialog path={viewingFile} onClose={() => setViewingFile(null)} />
     </div>
   )
 }
