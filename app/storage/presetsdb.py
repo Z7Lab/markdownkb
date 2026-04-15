@@ -7,6 +7,8 @@ import threading
 import uuid
 from pathlib import Path
 
+from app.storage.migrations import run_migrations
+
 logger = logging.getLogger(__name__)
 
 _CREATE_SQL = """
@@ -29,6 +31,9 @@ _DEFAULTS = {
 
 _VALID_KEYS = frozenset(_DEFAULTS.keys())
 
+# Append (version, description, sql) tuples here for any future schema changes.
+_MIGRATIONS: list[tuple[int, str, str]] = []
+
 
 class PresetsDB:
     """Persists named retrieval presets in SQLite."""
@@ -41,6 +46,7 @@ class PresetsDB:
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.executescript(_CREATE_SQL)
         self._lock = threading.Lock()
+        run_migrations(self._conn, _MIGRATIONS, db_label="PresetsDB")
         self._conn.commit()
         logger.info("PresetsDB opened: %s", db_path)
 

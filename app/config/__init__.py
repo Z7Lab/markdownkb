@@ -45,6 +45,7 @@ logger = logging.getLogger(__name__)
 _CORE_FLAGS = frozenset({
     "rag_chat", "file_watcher", "rate_limiting",
     "deep_research", "agent_skills", "diagnostics",
+    "update_check",
 })
 
 _MCP_FLAGS: dict[str, str] = {}

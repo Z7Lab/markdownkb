@@ -24,12 +24,13 @@ import { EmbeddingPanel } from "./embedding-panel"
 import { SearchPanel } from "./retrieval-panel"
 import { DatabasePanel } from "./database-panel"
 import { BackupPanel } from "./backup-panel"
+import { AboutPanel } from "./about-panel"
 import { LoggingPanel } from "./logging-panel"
 import { ScopesPanel } from "./scopes-panel"
 import { BucketsPanel } from "./buckets-panel"
 import { McpPanel } from "./mcp-panel"
 import { SetupBanner } from "@/components/setup-banner"
-import { Library, Archive, HardDriveDownload } from "lucide-react"
+import { Library, Archive, HardDriveDownload, Info } from "lucide-react"
 
 const sections = [
   { id: "llm", label: "Chat Model", icon: Cpu },
@@ -44,6 +45,7 @@ const sections = [
   { id: "database", label: "Database", icon: Database },
   { id: "backup", label: "Backup & Restore", icon: HardDriveDownload },
   { id: "logging", label: "Logging", icon: ScrollText },
+  { id: "about", label: "About", icon: Info },
 ] as const
 
 type SectionId = (typeof sections)[number]["id"]
@@ -258,6 +260,9 @@ export function SettingsTab({ initialSection }: { initialSection?: string } = {}
                 logLevel={settings.log_level}
                 onSetLogLevel={setLogLevel}
               />
+            )}
+            {activeSection === "about" && (
+              <AboutPanel onEnableUpdateCheck={async () => { await toggleCore("update_check", true) }} />
             )}
           </div>
         </ScrollArea>

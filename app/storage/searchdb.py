@@ -7,6 +7,8 @@ import threading
 import uuid
 from pathlib import Path
 
+from app.storage.migrations import run_migrations
+
 logger = logging.getLogger(__name__)
 
 _CREATE_SQL = """
@@ -51,24 +53,7 @@ class SearchDB:
         logger.info("SearchDB opened: %s", db_path)
 
     def _run_migrations(self):
-        """Apply any pending schema migrations using PRAGMA user_version."""
-        current = self._conn.execute("PRAGMA user_version").fetchone()[0]
-        target = len(_MIGRATIONS)
-        if current >= target:
-            return
-        for version, description, sql in _MIGRATIONS:
-            if version <= current:
-                continue
-            try:
-                self._conn.execute(sql)
-                logger.info("Migration %d applied: %s", version, description)
-            except sqlite3.OperationalError:
-                # Column/table already exists (fresh DB created with latest schema)
-                logger.debug("Migration %d skipped (already applied): %s", version, description)
-        # PRAGMA statements don't support parameterized queries in SQLite;
-        # target is derived from len(_MIGRATIONS) (code-controlled int), not user input.
-        self._conn.execute(f"PRAGMA user_version = {int(target)}")
-        self._conn.commit()
+        run_migrations(self._conn, _MIGRATIONS, db_label="SearchDB")
 
     def close(self):
         with self._lock:

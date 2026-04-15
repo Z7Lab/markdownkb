@@ -6,6 +6,8 @@ import threading
 import uuid
 from pathlib import Path
 
+from app.storage.migrations import run_migrations
+
 logger = logging.getLogger(__name__)
 
 _CREATE_SQL = """
@@ -17,6 +19,9 @@ CREATE TABLE IF NOT EXISTS plans (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 """
+
+# Append (version, description, sql) tuples here for any future schema changes.
+_MIGRATIONS: list[tuple[int, str, str]] = []
 
 
 class PlanDB:
@@ -30,6 +35,7 @@ class PlanDB:
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.executescript(_CREATE_SQL)
         self._lock = threading.Lock()
+        run_migrations(self._conn, _MIGRATIONS, db_label="PlanDB")
         self._conn.commit()
         logger.info("PlanDB opened: %s", db_path)
 

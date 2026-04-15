@@ -81,6 +81,12 @@ _CORE_FEATURES = {
         "icon": "git-branch",
         "category": "core",
     },
+    "update_check": {
+        "display_name": "Update Check",
+        "description": "Check the public release source (PyPI / GitHub) for newer versions when you open Settings. Off by default; runs only on demand, never in the background.",
+        "icon": "download-cloud",
+        "category": "advanced",
+    },
 }
 
 

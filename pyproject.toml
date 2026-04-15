@@ -1,6 +1,6 @@
 [project]
 name = "markdownkb"
-version = "1.0.0"
+version = "0.5.0"
 description = "Chat with your docs — knowledge base with RAG"
 requires-python = ">=3.11"
 

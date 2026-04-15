@@ -53,6 +53,7 @@ from app.routers import (
 )
 from app.versioning.router import router as versioning_router
 from app.backups.router import router as backups_router
+from app.version_check.router import router as version_check_router
 
 
 def create_app(lifespan=None, settings_override=None) -> FastAPI:
@@ -64,7 +65,8 @@ def create_app(lifespan=None, settings_override=None) -> FastAPI:
             provided, plugin registration uses this instead of the global
             singleton.
     """
-    app = FastAPI(title="MarkdownKB API", version="1.0.0", lifespan=lifespan)
+    from app.version import APP_VERSION
+    app = FastAPI(title="MarkdownKB API", version=APP_VERSION, lifespan=lifespan)
 
     # Rate limiting
     app.state.limiter = limiter
@@ -93,6 +95,7 @@ def create_app(lifespan=None, settings_override=None) -> FastAPI:
         app.include_router(router_module.router)
     app.include_router(versioning_router)
     app.include_router(backups_router)
+    app.include_router(version_check_router)
 
     # Auto-discover and register plugins (feature-gated)
     from app.plugins import register_plugins

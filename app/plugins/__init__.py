@@ -118,6 +118,37 @@ def discover_plugins() -> list[dict[str, Any]]:
     return plugins
 
 
+def _check_plugin_compat(info: dict[str, Any]) -> str | None:
+    """Compare manifest mdkb_min/mdkb_max against APP_VERSION.
+
+    Returns an error message if incompatible, or None if compatible.
+    Plugins without a manifest or without version constraints are always
+    considered compatible.
+    """
+    manifest = info.get("manifest") or {}
+    mdkb_min = manifest.get("mdkb_min")
+    mdkb_max = manifest.get("mdkb_max")
+    if not (mdkb_min or mdkb_max):
+        return None
+    from app.version import APP_VERSION
+
+    def _parts(v: str) -> tuple[int, ...]:
+        out = []
+        for chunk in v.lstrip("v").split("."):
+            try:
+                out.append(int(chunk))
+            except ValueError:
+                break
+        return tuple(out) or (0,)
+
+    current = _parts(APP_VERSION)
+    if mdkb_min and current < _parts(str(mdkb_min)):
+        return f"requires mdkb >= {mdkb_min} (running {APP_VERSION})"
+    if mdkb_max and current > _parts(str(mdkb_max)):
+        return f"requires mdkb <= {mdkb_max} (running {APP_VERSION})"
+    return None
+
+
 def register_plugins(app: FastAPI, settings: Settings) -> list[str]:
     """Import enabled plugins and include their routers on *app*.
 
@@ -155,6 +186,17 @@ def register_plugins(app: FastAPI, settings: Settings) -> list[str]:
         if not feature_flag and info.get("manifest"):
             feature_flag = info["manifest"].get("feature_flag")
             entry["feature_flag"] = feature_flag
+
+        # Plugin contract version — refuse to load if incompatible.
+        compat_error = _check_plugin_compat(info)
+        if compat_error:
+            entry["error"] = compat_error
+            logger.warning(
+                "Plugin '%s' incompatible with this mdkb version — disabled: %s",
+                info["name"], compat_error,
+            )
+            registry.append(entry)
+            continue
 
         if router is None:
             logger.debug("Plugin '%s' has no router — skipping", info["name"])

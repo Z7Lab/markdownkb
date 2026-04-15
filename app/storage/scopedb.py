@@ -7,17 +7,27 @@ import threading
 import uuid
 from pathlib import Path
 
+from app.storage.migrations import run_migrations
+
 logger = logging.getLogger(__name__)
 
 _CREATE_SQL = """
 CREATE TABLE IF NOT EXISTS scopes (
-    id         TEXT PRIMARY KEY,
-    name       TEXT NOT NULL,
-    folders    TEXT NOT NULL DEFAULT '[]',
-    tags       TEXT NOT NULL DEFAULT '[]',
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    id               TEXT PRIMARY KEY,
+    name             TEXT NOT NULL,
+    folders          TEXT NOT NULL DEFAULT '[]',
+    tags             TEXT NOT NULL DEFAULT '[]',
+    exclude_patterns TEXT NOT NULL DEFAULT '[]',
+    created_at       TEXT NOT NULL DEFAULT (datetime('now'))
 );
 """
+
+_MIGRATIONS: list[tuple[int, str, str]] = [
+    (1, "add tags column to scopes",
+     "ALTER TABLE scopes ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'"),
+    (2, "add exclude_patterns column to scopes",
+     "ALTER TABLE scopes ADD COLUMN exclude_patterns TEXT NOT NULL DEFAULT '[]'"),
+]
 
 
 class ScopeDB:
@@ -31,23 +41,9 @@ class ScopeDB:
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.executescript(_CREATE_SQL)
         self._lock = threading.Lock()
-        self._migrate()
+        run_migrations(self._conn, _MIGRATIONS, db_label="ScopeDB")
         self._conn.commit()
         logger.info("ScopeDB opened: %s", db_path)
-
-    def _migrate(self):
-        """Add columns missing from older schema versions."""
-        cols = [r[1] for r in self._conn.execute("PRAGMA table_info(scopes)")]
-        if "tags" not in cols:
-            self._conn.execute(
-                "ALTER TABLE scopes ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'"
-            )
-            logger.info("ScopeDB: migrated — added tags column")
-        if "exclude_patterns" not in cols:
-            self._conn.execute(
-                "ALTER TABLE scopes ADD COLUMN exclude_patterns TEXT NOT NULL DEFAULT '[]'"
-            )
-            logger.info("ScopeDB: migrated — added exclude_patterns column")
 
     def create(
         self, name: str, folders: list[str],

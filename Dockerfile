@@ -43,6 +43,7 @@ RUN pip install --no-cache-dir /tmp/wheels/*.whl && rm -rf /tmp/wheels
 
 # Copy application code
 COPY app/ ./app/
+COPY pyproject.toml ./pyproject.toml
 COPY mcp_server.py ./mcp_server.py
 COPY config/settings.yaml.example ./config/settings.yaml.example
 COPY config/prompts/ ./config/prompts/

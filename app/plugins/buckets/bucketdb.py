@@ -7,6 +7,8 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+from app.storage.migrations import run_migrations
+
 logger = logging.getLogger(__name__)
 
 _CREATE_SQL = """
@@ -29,22 +31,19 @@ CREATE TABLE IF NOT EXISTS file_memberships (
 );
 """
 
-
-def _migrate(conn: sqlite3.Connection) -> None:
-    """Add columns and tables introduced after the initial schema."""
-    existing_cols = {row[1] for row in conn.execute("PRAGMA table_info(buckets)").fetchall()}
-    if "expired" not in existing_cols:
-        conn.execute("ALTER TABLE buckets ADD COLUMN expired INTEGER NOT NULL DEFAULT 0")
-    if "color" not in existing_cols:
-        conn.execute("ALTER TABLE buckets ADD COLUMN color TEXT")
-    conn.execute("""
+_MIGRATIONS: list[tuple[int, str, str]] = [
+    (1, "add expired column to buckets",
+     "ALTER TABLE buckets ADD COLUMN expired INTEGER NOT NULL DEFAULT 0"),
+    (2, "add color column to buckets",
+     "ALTER TABLE buckets ADD COLUMN color TEXT"),
+    (3, "create file_memberships table", """
         CREATE TABLE IF NOT EXISTS file_memberships (
             file_path TEXT NOT NULL,
             bucket_id TEXT NOT NULL,
             PRIMARY KEY (file_path, bucket_id)
         )
-    """)
-    conn.commit()
+     """),
+]
 
 
 class BucketDB:
@@ -57,7 +56,7 @@ class BucketDB:
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.executescript(_CREATE_SQL)
-        _migrate(self._conn)
+        run_migrations(self._conn, _MIGRATIONS, db_label="BucketDB")
         self._lock = threading.Lock()
         self._conn.commit()
         logger.info("BucketDB opened: %s", db_path)
