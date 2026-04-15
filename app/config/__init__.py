@@ -483,6 +483,10 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
         """Replace the mcp.allowed_origins list (cross-origin request protection)."""
         self._data.setdefault("mcp", {})["allowed_origins"] = [str(o) for o in origins]
 
+    def set_mcp_rate_limit(self, per_minute: int) -> None:
+        """Set the per-key request rate cap. 0 disables rate limiting."""
+        self._data.setdefault("mcp", {})["rate_limit_per_minute"] = max(0, int(per_minute))
+
     # --- Plugin Configuration ---
 
     def plugin_enabled(self, name: str) -> bool:

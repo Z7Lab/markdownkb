@@ -35,6 +35,7 @@ type McpInfo = {
   flags: Record<string, boolean>
   allowed_hosts: string[]
   allowed_origins: string[]
+  rate_limit_per_minute: number
 }
 
 type McpToolParam = {
@@ -217,6 +218,8 @@ export function McpPanel({
   const [savingHosts, setSavingHosts] = useState(false)
   const [newOrigin, setNewOrigin] = useState("")
   const [savingOrigins, setSavingOrigins] = useState(false)
+  const [rateLimit, setRateLimit] = useState<string>("0")
+  const [savingRateLimit, setSavingRateLimit] = useState(false)
   const [mcpLogLevel, setMcpLogLevel] = useState("INFO")
 
   const load = useCallback(async () => {
@@ -227,6 +230,7 @@ export function McpPanel({
       ])
       setInfo(infoRes)
       setToolsResp(toolsRes)
+      setRateLimit(String(infoRes.rate_limit_per_minute ?? 0))
     } catch (err) {
       toast.error(`Failed to load MCP info: ${(err as Error).message}`)
     } finally {
@@ -338,6 +342,28 @@ export function McpPanel({
     },
     [info, load],
   )
+
+  const handleSaveRateLimit = useCallback(async () => {
+    const parsed = parseInt(rateLimit, 10)
+    if (isNaN(parsed) || parsed < 0) {
+      toast.error("Rate limit must be 0 or a positive integer")
+      return
+    }
+    setSavingRateLimit(true)
+    try {
+      await api.put("/api/mcp/rate-limit", { per_minute: parsed })
+      await load()
+      toast.success(
+        parsed === 0
+          ? "Rate limit disabled. Restart MCP server to apply."
+          : `Rate limit set to ${parsed}/min. Restart MCP server to apply.`,
+      )
+    } catch (err) {
+      toast.error(`Failed to save: ${(err as Error).message}`)
+    } finally {
+      setSavingRateLimit(false)
+    }
+  }, [rateLimit, load])
 
   const toolsByCategory = useMemo(() => {
     if (!toolsResp) return { enabled: [], disabled: [] }
@@ -575,6 +601,39 @@ export function McpPanel({
             >
               <Plus className="h-3 w-3 mr-1" />
               Add
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Rate limit */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Rate limit</CardTitle>
+          <CardDescription>
+            Cap requests per minute per API key (or per remote IP if no key is configured).
+            Protects against runaway clients and LLM-cost abuse. <code>0</code> disables it.
+            Restart the MCP server to apply changes.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2 items-center">
+            <Input
+              type="number"
+              min={0}
+              max={100000}
+              value={rateLimit}
+              onChange={(e) => setRateLimit(e.target.value)}
+              className="h-8 text-xs w-32"
+            />
+            <span className="text-xs text-muted-foreground">requests / minute</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSaveRateLimit}
+              disabled={savingRateLimit || rateLimit === String(info.rate_limit_per_minute ?? 0)}
+            >
+              {savingRateLimit ? "Saving…" : "Save"}
             </Button>
           </div>
         </CardContent>

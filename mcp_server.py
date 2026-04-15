@@ -594,6 +594,21 @@ def _run_http_with_auth(mcp: FastMCP, host: str, port: int):
         else:
             logger.info("MCP auth disabled (no API key configured)")
 
+        # Rate limit — outside auth so 429s don't require a valid key, but
+        # inside CORS so OPTIONS preflight isn't counted.
+        per_minute = settings.mcp_features.get("rate_limit_per_minute", 0) or 0
+        try:
+            per_minute = int(per_minute)
+        except (TypeError, ValueError):
+            per_minute = 0
+        if per_minute > 0:
+            from app.mcp.ratelimit import McpRateLimitMiddleware
+            rate_limiter = McpRateLimitMiddleware(combined_app, per_minute=per_minute)
+            combined_app = rate_limiter
+            logger.info("MCP rate limit enabled: %d requests per minute per key/IP", per_minute)
+        else:
+            logger.info("MCP rate limit disabled (mcp.rate_limit_per_minute is 0)")
+
         # CORS — outermost so OPTIONS preflight is answered before auth.
         # Derive allowed origins from settings: '*' → allow all.
         allowed_origins_setting = settings.mcp_features.get("allowed_origins", []) or []

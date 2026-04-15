@@ -478,6 +478,20 @@ Edit via **Settings → MCP → Allowed hosts** in the web UI. **Restart the MCP
 
 > Note: API key authentication (if configured) applies to every request regardless of the Host allowlist. For any deployment beyond localhost, the API key is the right layer of defence.
 
+### Rate Limiting
+
+Off by default. Set `mcp.rate_limit_per_minute` in `config/settings.yaml` (or via **Settings → MCP → Rate limit**) to a positive integer to cap requests per minute per API key — or per remote IP if no key is configured. `0` disables the limit.
+
+Recommended values:
+
+| Deployment                    | Recommended cap         |
+|-------------------------------|-------------------------|
+| Personal localhost only       | `0` (off)               |
+| LAN with trusted clients      | `120/min` per key       |
+| Internet-exposed (rare)       | `30/min` per key + always require an API key |
+
+Exceeded requests get `429 Too Many Requests` with a `Retry-After` header. The limiter is in-process and uses a sliding 60-second window. Restart the MCP server after changing the value.
+
 ## Claude Desktop Configuration
 
 Add to `~/.config/claude/claude_desktop_config.json`:

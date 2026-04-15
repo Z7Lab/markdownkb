@@ -122,6 +122,12 @@ def get_mcp_info(request: Request, settings: Settings = Depends(get_settings)):
     if not isinstance(allowed_origins, list):
         allowed_origins = []
 
+    rate_limit_per_minute = mcp_features.get("rate_limit_per_minute", 0) or 0
+    try:
+        rate_limit_per_minute = int(rate_limit_per_minute)
+    except (TypeError, ValueError):
+        rate_limit_per_minute = 0
+
     return {
         "endpoint": endpoint,
         "transport": "streamable_http",
@@ -133,6 +139,7 @@ def get_mcp_info(request: Request, settings: Settings = Depends(get_settings)):
         "flags": flags,
         "allowed_hosts": [str(h) for h in allowed_hosts],
         "allowed_origins": [str(o) for o in allowed_origins],
+        "rate_limit_per_minute": rate_limit_per_minute,
     }
 
 
@@ -233,6 +240,28 @@ def update_allowed_origins(
     settings.set_mcp_allowed_origins(cleaned)
     settings.save()
     return {"status": "saved", "allowed_origins": cleaned}
+
+
+class RateLimitRequest(BaseModel):
+    """Request model for updating the MCP per-key rate cap."""
+
+    per_minute: int = Field(0, ge=0, le=100000)
+
+
+@router.put("/rate-limit")
+@limiter.limit(STANDARD)
+def update_rate_limit(
+    request: Request,
+    req: RateLimitRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """Set the MCP rate cap (requests per minute per API key / IP).
+
+    0 disables rate limiting. Takes effect after the MCP server restarts.
+    """
+    settings.set_mcp_rate_limit(req.per_minute)
+    settings.save()
+    return {"status": "saved", "rate_limit_per_minute": req.per_minute}
 
 
 # -- MCP server log proxy -------------------------------------------------------
