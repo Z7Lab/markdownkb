@@ -26,14 +26,3 @@ Every release MUST include a "Breaking changes" section. Write **none** if there
 
 ### Breaking changes
 - none.
-
----
-
-## Release checklist (template — copy into release commit)
-
-1. Bump `project.version` in `pyproject.toml`.
-2. Move items from `[Unreleased]` into a new section: `## [X.Y.Z] - YYYY-MM-DD`.
-3. Confirm every new schema column ships with a `_MIGRATIONS` entry.
-4. Confirm any plugin manifest changes still satisfy `mdkb_min` / `mdkb_max`.
-5. Run the upgrade test: boot the previous version, perform realistic operations, upgrade to this version, assert all data intact.
-6. Tag and push; CI builds the Docker image and pushes to the registry as `latest`.

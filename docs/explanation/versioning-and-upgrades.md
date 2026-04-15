@@ -21,9 +21,9 @@ The single source of truth for the running version is `pyproject.toml` (`project
 - `GET /api/version` — the update-detection endpoint (see below)
 - The Settings UI footer
 
-There is no second copy in `__init__.py` or a `VERSION` file. When you release, bump `project.version` in `pyproject.toml`.
+There is no second copy in an `__init__.py` or `VERSION` file — `pyproject.toml` is authoritative.
 
-The frontend's `package.json` version is held at `0.0.0` deliberately. The frontend is not separately versioned; it ships as part of the backend build and inherits its version.
+The frontend's `package.json` version is held at `0.0.0` deliberately. The frontend is not separately versioned; it ships as part of the backend build and inherits the backend's version.
 
 ## Update detection
 
@@ -135,16 +135,6 @@ mdkb_max = "1.99.0"
 At startup, the plugin loader checks compatibility. An incompatible plugin is loaded but disabled with a clear message in the Plugins panel: "requires mdkb ≥ X, you have Y".
 
 This shifts the upgrade pain to the plugin (the plugin author bumps their declared range when they've tested) rather than silently breaking the host.
-
-## Release checklist
-
-Every release should:
-
-1. Bump `project.version` in `pyproject.toml`.
-2. Add a `CHANGELOG.md` entry. **Breaking changes** section is mandatory — write "none" if there are none.
-3. Confirm every new schema column in this release ships with a `_MIGRATIONS` entry.
-4. Run the upgrade test: boot the previous version, perform realistic operations, upgrade to this version, assert all data intact.
-5. Tag and push; CI builds the Docker image and pushes to the registry as `latest`.
 
 ## What's out of scope
 
