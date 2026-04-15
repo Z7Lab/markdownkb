@@ -114,4 +114,5 @@ See [MCP Server](../reference/mcp-server.md) for the full tool reference and set
 - **[Plugins](plugin-development.md)** — enable features and build your own
 - **[API Reference](../reference/api.md)** — full endpoint listing
 - **[Backup and Restore](backup-and-restore.md)** — export and re-import your full KB state
+- **[Docker Deployment](docker-deployment.md)** — production-grade compose setup, secrets, network exposure, image variants
 - **[Security](../../SECURITY.md)** — API key setup, network exposure, feature flags

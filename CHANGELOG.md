@@ -13,6 +13,13 @@ Every release MUST include a "Breaking changes" section. Write **none** if there
 - Update detection via PyPI / GitHub releases (Settings → About). Off by default; user opts in via the `update_check` core flag. No background polling. See [Versioning and Upgrades](docs/explanation/versioning-and-upgrades.md).
 - Canonical schema-migration runner at `app/storage/migrations.py` (`PRAGMA user_version` + ordered migration list). Retrofitted scopedb, bucketdb, plandb, presetsdb to use it.
 - Single source of truth for the running version (`app/version.py`, read from `pyproject.toml` / installed metadata).
+- Per-key MCP rate limiting (`mcp.rate_limit_per_minute` in settings; Settings → MCP → Rate limit). Sliding-window in-process limiter, off by default.
+- Docker deployment guide (`docs/how-to/docker-deployment.md`) and `Dockerfile.example` for extending the base image with extras (OCR, PDF, custom packages).
+
+### Fixed
+- Dashboard now scrolls when content overflows (was clipped because `flex-1` had no parent flex context).
+- Built-in docs bucket no longer rebuilds on every Docker rebuild — hash now uses file content, not mtime, which Docker resets on every `--no-cache` build.
+- MCP server's DNS rebinding protection no longer rejects legitimate LAN/Docker-bridge clients with `400 Invalid Host header`. Default allowlist is seeded with localhost, host.docker.internal, hostname, LAN IPs, and the explicit `--host` IP.
 
 ### Changed
 - `ConfirmDialog` description now accepts `React.ReactNode` (was `string`).

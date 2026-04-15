@@ -1,0 +1,147 @@
+# Docker Deployment
+
+This guide covers running MarkdownKB in Docker — from a minimal first-run to a hardened LAN deployment with persistent data, secrets, and image variants.
+
+MarkdownKB ships as a docker compose stack — clone the repo, copy the example config, and `make docker-up`. There's no separate `docker run` workflow; the compose stack is the supported deployment.
+
+## First-run
+
+```bash
+git clone <repo-url> markdownkb
+cd markdownkb
+cp .env.example .env
+cp config/settings.yaml.example config/settings.yaml
+make docker-build && make docker-up
+```
+
+Open `http://localhost:9713`. The compose stack runs the main app (port 9713) and the MCP sidecar (port 9715), with persistent data in `~/.local/share/markdownkb` and Docker secrets for API keys.
+
+After every code or dependency change, use `make docker-rebuild` (`--no-cache`) — `make docker-build` reuses cached layers and can occasionally miss frontend changes.
+
+## API keys: secrets vs env vars
+
+You have two ways to hand keys to the container. Use one or the other; resolution order is **secret file > env var > empty**.
+
+### Secret files (preferred)
+
+The `secrets/` directory at the repo root holds plain-text key files, one per provider. Compose mounts them into the container at `/run/secrets/<name>` — they never appear in `docker inspect` and never enter env-var process listings.
+
+```bash
+echo -n "sk-ant-PLACEHOLDER" > secrets/anthropic_api_key
+echo -n "sk-..."     > secrets/openai_api_key
+echo -n "..."        > secrets/venice_api_key
+```
+
+The MarkdownKB API key (used by the web UI and MCP server for auth) lives in the same place:
+
+```bash
+openssl rand -hex 16 > secrets/markdownkb_api_key
+# or click "Generate API Key" in the setup banner — it writes to this file too
+```
+
+Run `make docker-restart` after writing or changing a secret.
+
+The list of recognized secret names is in [`secrets/README.md`](../../secrets/README.md). Add a new provider by creating `<provider>_api_key` and listing it under `secrets:` in `compose.yml`.
+
+### Env vars
+
+Set them in `.env` (gitignored, copied from `.env.example`):
+
+```
+ANTHROPIC_API_KEY=sk-ant-PLACEHOLDER
+OPENAI_API_KEY=sk-...
+```
+
+Convenient, but the keys are visible to anyone who can run `docker inspect <container>`. Use this only on a single-user machine.
+
+## Network exposure
+
+By default the container binds to `127.0.0.1` — only this machine can reach it. To expose to your LAN:
+
+```
+# in .env
+MARKDOWNKB_HOST=0.0.0.0           # web UI on every interface
+MARKDOWNKB_MCP_HOST=0.0.0.0       # MCP server on every interface
+```
+
+For a tighter setup, bind to a specific IP instead of `0.0.0.0`:
+
+```
+MARKDOWNKB_HOST=<your-server-ip>
+MARKDOWNKB_MCP_HOST=<your-server-ip>
+```
+
+That listens on only that one interface — a VPN or Docker bridge on the same host stays unexposed.
+
+When you go beyond localhost, set a `markdownkb_api_key` secret too. The setup banner will warn you if you've enabled network access without one. See [API Key Setup](api-key-setup.md) for the full reasoning.
+
+## Persistent data
+
+The compose stack mounts `${MARKDOWNKB_DATA_DIR:-~/.local/share/markdownkb}` to `/data` inside the container. This holds:
+
+- All SQLite databases (chats, searches, plans, presets, scopes, tracking, knowledge graph, plugin DBs)
+- The ChromaDB vector store
+- Plans, plugin data, downloaded embedding models
+
+To use a different location, set `MARKDOWNKB_DATA_DIR` in `.env` before first run. To migrate to a new location later, take a backup via **Settings → Backup & Restore**, change the path, restart, restore.
+
+## Source directory mounts
+
+MarkdownKB indexes files inside its container, so any directory listed under `sources:` in `config/settings.yaml` must also be mounted. The UI does this automatically — when you add a source via **Settings → Sources**, it writes a mount entry to `config/compose.override.yml` and prompts you to restart.
+
+If you edit `settings.yaml` directly, mount the directory yourself in `compose.yml`:
+
+```yaml
+volumes:
+  - /home/user/notes:/home/user/notes:ro      # read-only
+  - /home/user/captures:/home/user/captures   # writable
+```
+
+## Extending the base image
+
+The base image is intentionally minimal — text-only indexing, no OCR, no PDF rasterisers. If you need extra tools (tesseract for OCR, poppler-utils for high-quality PDF extraction, a custom plugin from GitHub, etc.), copy [`Dockerfile.example`](../../Dockerfile.example) to `Dockerfile.custom`, edit the lines that apply, then build:
+
+```bash
+docker build -f Dockerfile.custom -t my-markdownkb .
+```
+
+Point your compose.yml at the custom image:
+
+```yaml
+services:
+  markdownkb:
+    image: my-markdownkb
+    # remove `build: .`
+```
+
+Or build it via compose by setting `build.dockerfile: Dockerfile.custom`.
+
+## Backups before upgrades
+
+Always take a backup before pulling a newer image:
+
+1. **Settings → Backup & Restore → Download Backup**
+2. `make docker-down`
+3. `docker pull markdownkb/markdownkb:latest` (or the version tag you want)
+4. `make docker-up`
+
+If anything misbehaves, restore the backup via the same panel and you're back where you were. See [Backup and Restore](backup-and-restore.md).
+
+## Common operations
+
+| Task                              | Command                          |
+| --------------------------------- | -------------------------------- |
+| Start                             | `make docker-up`                 |
+| Stop                              | `make docker-down`               |
+| Restart (config-only changes)     | `make docker-restart`            |
+| Tail logs                         | `make docker-logs`               |
+| Open a shell in the container     | `make docker-shell`              |
+| Rebuild (after code changes)      | `make docker-rebuild`            |
+| Status                            | `make docker-ps`                 |
+
+## See also
+
+- [Getting Started](getting-started.md) — first-run walk-through
+- [API Key Setup](api-key-setup.md) — when and how to set the MarkdownKB auth key
+- [MCP Server](../reference/mcp-server.md) — Streamable HTTP transport, allowed hosts, rate limits
+- [Backup and Restore](backup-and-restore.md) — export and re-import full state

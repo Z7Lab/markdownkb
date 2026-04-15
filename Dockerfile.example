@@ -1,0 +1,38 @@
+# Example: extending the base MarkdownKB image with extra dependencies.
+#
+# Save this as `Dockerfile.custom` and build with:
+#   docker build -f Dockerfile.custom -t my-markdownkb .
+#
+# Then point compose.yml at it by setting `image: my-markdownkb` and
+# removing `build: .` from the markdownkb service.
+#
+# This file FROM's the local image you build from this checkout (the same
+# image `make docker-build` produces). If a published image is available
+# on a registry, you can replace the FROM line with that tag instead.
+
+FROM mdkb-markdownkb:latest
+
+# Switch to root for package install, then back to the unprivileged user.
+USER root
+
+# ── Common extras ────────────────────────────────
+# Pick whichever apply.  Each line adds image size — only include what you need.
+
+# OCR for image-text extraction (used by the markitdown plugin):
+# RUN apt-get update && apt-get install -y --no-install-recommends \
+#     tesseract-ocr tesseract-ocr-eng \
+#     && rm -rf /var/lib/apt/lists/*
+# RUN pip install --no-cache-dir pytesseract
+
+# PDF text extraction (poppler-based, faster than markitdown's default):
+# RUN apt-get update && apt-get install -y --no-install-recommends \
+#     poppler-utils \
+#     && rm -rf /var/lib/apt/lists/*
+
+# A specific Python package not in the base image:
+# RUN pip install --no-cache-dir my-extra-package==1.2.3
+
+# A custom plugin from a GitHub repo:
+# RUN pip install --no-cache-dir git+https://github.com/you/your-mdkb-plugin
+
+USER markdownkb
