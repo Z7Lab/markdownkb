@@ -157,7 +157,7 @@ export function DashboardTab() {
   })
 
   return (
-    <div className="flex-1 overflow-auto">
+    <div className="h-full overflow-auto">
       <div className="max-w-3xl mx-auto px-6 py-10 space-y-10">
 
         {/* Header */}
