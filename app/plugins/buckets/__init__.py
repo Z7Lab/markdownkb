@@ -35,12 +35,23 @@ def _find_docs_dir() -> Path | None:
 
 
 def _hash_docs_dir(docs_dir: Path) -> str:
-    """Hash all markdown files in a directory for change detection."""
+    """Hash all markdown files in a directory by content.
+
+    Uses file content (not mtime) so Docker rebuilds, which copy files
+    into a fresh image with a new mtime, don't falsely invalidate the
+    bucket. Identical content ⇒ identical hash ⇒ bucket stays as-is.
+    """
     h = hashlib.sha256()
     for f in sorted(docs_dir.rglob("*.md")):
-        h.update(f.name.encode())
-        h.update(str(f.stat().st_size).encode())
-        h.update(str(int(f.stat().st_mtime)).encode())
+        h.update(b"\0")
+        h.update(str(f.relative_to(docs_dir)).encode())
+        h.update(b"\0")
+        try:
+            h.update(f.read_bytes())
+        except OSError:
+            # If a file becomes unreadable mid-scan, still produce a
+            # deterministic hash by mixing in just its path.
+            continue
     return h.hexdigest()[:16]
 
 
