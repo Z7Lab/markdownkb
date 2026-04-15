@@ -1,3 +1,4 @@
+import * as React from "react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,7 +24,7 @@ export function ConfirmDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
   title: string
-  description: string
+  description: React.ReactNode
   confirmLabel?: string
   cancelLabel?: string
   variant?: "default" | "destructive"

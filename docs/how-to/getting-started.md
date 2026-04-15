@@ -113,4 +113,5 @@ See [MCP Server](../reference/mcp-server.md) for the full tool reference and set
 - **[Architecture](../reference/architecture.md)** — how the system works
 - **[Plugins](plugin-development.md)** — enable features and build your own
 - **[API Reference](../reference/api.md)** — full endpoint listing
+- **[Backup and Restore](backup-and-restore.md)** — export and re-import your full KB state
 - **[Security](../../SECURITY.md)** — API key setup, network exposure, feature flags

@@ -52,6 +52,7 @@ from app.routers import (
     threads,
 )
 from app.versioning.router import router as versioning_router
+from app.backups.router import router as backups_router
 
 
 def create_app(lifespan=None, settings_override=None) -> FastAPI:
@@ -91,6 +92,7 @@ def create_app(lifespan=None, settings_override=None) -> FastAPI:
     ):
         app.include_router(router_module.router)
     app.include_router(versioning_router)
+    app.include_router(backups_router)
 
     # Auto-discover and register plugins (feature-gated)
     from app.plugins import register_plugins

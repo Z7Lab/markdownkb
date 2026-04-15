@@ -23,12 +23,13 @@ import { SystemPromptPanel } from "./system-prompt-panel"
 import { EmbeddingPanel } from "./embedding-panel"
 import { SearchPanel } from "./retrieval-panel"
 import { DatabasePanel } from "./database-panel"
+import { BackupPanel } from "./backup-panel"
 import { LoggingPanel } from "./logging-panel"
 import { ScopesPanel } from "./scopes-panel"
 import { BucketsPanel } from "./buckets-panel"
 import { McpPanel } from "./mcp-panel"
 import { SetupBanner } from "@/components/setup-banner"
-import { Library, Archive } from "lucide-react"
+import { Library, Archive, HardDriveDownload } from "lucide-react"
 
 const sections = [
   { id: "llm", label: "Chat Model", icon: Cpu },
@@ -41,6 +42,7 @@ const sections = [
   { id: "mcp", label: "MCP", icon: Plug },
   { id: "prompt", label: "System Prompt", icon: MessageSquareText },
   { id: "database", label: "Database", icon: Database },
+  { id: "backup", label: "Backup & Restore", icon: HardDriveDownload },
   { id: "logging", label: "Logging", icon: ScrollText },
 ] as const
 
@@ -247,6 +249,9 @@ export function SettingsTab({ initialSection }: { initialSection?: string } = {}
             )}
             {activeSection === "database" && (
               <DatabasePanel />
+            )}
+            {activeSection === "backup" && (
+              <BackupPanel />
             )}
             {activeSection === "logging" && (
               <LoggingPanel
