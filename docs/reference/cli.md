@@ -12,10 +12,16 @@ If you install MarkdownKB as a package, the CLI is also available as `markdownkb
 
 The CLI resolves connection settings in this order (first match wins):
 
-1. `--url` / `--api-key` command-line flags
+1. `--url` flag / `--api-key-file PATH` or `--api-key-stdin`
 2. `MARKDOWNKB_URL` / `MARKDOWNKB_API_KEY` environment variables
 3. `~/.markdownkb` config file (YAML)
 4. Defaults (`http://localhost:9713`, no key)
+
+> **The API key is never accepted as an argv value** (no `--api-key HUNTER2`).
+> argv lands in `ps auxww`, shell history, and any wrapper that logs
+> command lines. Use a file path (`--api-key-file ~/.config/mdkb/key`),
+> stdin (`echo $KEY | markdownkb --api-key-stdin ...`), the env var, or
+> the config file instead.
 
 ### Config file
 
@@ -33,8 +39,9 @@ Every command accepts these:
 | Flag | Description |
 |------|-------------|
 | `--url URL` | Base URL of the MarkdownKB server |
-| `--api-key KEY` | API key for authenticated instances |
-| `--json` | Output machine-readable JSON instead of pretty text |
+| `--api-key-file PATH` | Read API key from `PATH` |
+| `--api-key-stdin` | Read API key from stdin |
+| `--json` | Output machine-readable JSON (known-secret fields redacted) instead of pretty text |
 
 On failure, the CLI prints an error to stderr and exits with a non-zero code.
 

@@ -32,24 +32,80 @@ def test_resolve_url_default(monkeypatch):
     assert cli.resolve_url(None, {}) == cli.DEFAULT_URL
 
 
-def test_resolve_api_key_flag_wins(monkeypatch):
+def test_resolve_api_key_file_wins(monkeypatch, tmp_path):
     monkeypatch.setenv("MARKDOWNKB_API_KEY", "env-key")
-    assert cli.resolve_api_key("flag-key", {"api_key": "cfg"}) == "flag-key"
+    key_file = tmp_path / "key"
+    key_file.write_text("file-key\n")
+    assert cli.resolve_api_key(str(key_file), False, {"api_key": "cfg"}) == "file-key"
+
+
+def test_resolve_api_key_stdin(monkeypatch):
+    monkeypatch.setenv("MARKDOWNKB_API_KEY", "env-key")
+    monkeypatch.setattr("sys.stdin", io.StringIO("stdin-key\n"))
+    assert cli.resolve_api_key(None, True, {"api_key": "cfg"}) == "stdin-key"
 
 
 def test_resolve_api_key_env_over_config(monkeypatch):
     monkeypatch.setenv("MARKDOWNKB_API_KEY", "env-key")
-    assert cli.resolve_api_key(None, {"api_key": "cfg"}) == "env-key"
+    assert cli.resolve_api_key(None, False, {"api_key": "cfg"}) == "env-key"
 
 
 def test_resolve_api_key_config_fallback(monkeypatch):
     monkeypatch.delenv("MARKDOWNKB_API_KEY", raising=False)
-    assert cli.resolve_api_key(None, {"api_key": "cfg"}) == "cfg"
+    assert cli.resolve_api_key(None, False, {"api_key": "cfg"}) == "cfg"
 
 
 def test_resolve_api_key_none(monkeypatch):
     monkeypatch.delenv("MARKDOWNKB_API_KEY", raising=False)
-    assert cli.resolve_api_key(None, {}) == ""
+    assert cli.resolve_api_key(None, False, {}) == ""
+
+
+def test_resolve_api_key_file_missing_raises():
+    with pytest.raises(cli.CliError):
+        cli.resolve_api_key("/nonexistent/path/to/key", False, {})
+
+
+def test_parser_rejects_raw_api_key_flag():
+    """The legacy --api-key VALUE flag must not exist — it'd land in ps(1)."""
+    parser = cli.build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--api-key", "hunter2", "health"])
+
+
+# ── Redaction and safe rendering ───────────────────────────
+
+
+def test_redact_masks_api_key():
+    assert cli._redact({"api_key": "hunter2", "other": 1}) == {"api_key": "***", "other": 1}
+
+
+def test_redact_masks_nested():
+    data = {"user": {"token": "abc", "name": "x"}, "items": [{"password": "p"}]}
+    assert cli._redact(data) == {
+        "user": {"token": "***", "name": "x"},
+        "items": [{"password": "***"}],
+    }
+
+
+def test_redact_passes_through_non_secret_fields():
+    assert cli._redact({"status": "ok", "count": 5}) == {"status": "ok", "count": 5}
+
+
+def test_redact_keeps_empty_values():
+    # Empty string isn't a leaked secret — don't mask it to avoid false signal
+    assert cli._redact({"api_key": ""}) == {"api_key": ""}
+
+
+def test_safe_strips_ansi_escape():
+    assert cli._safe("hello\x1b[31mred\x1b[0m") == "hello[31mred[0m"
+
+
+def test_safe_strips_control_chars():
+    assert cli._safe("a\x00b\x07c\x7fd") == "abcd"
+
+
+def test_safe_preserves_normal_text():
+    assert cli._safe("/path/to/file.md # Heading") == "/path/to/file.md # Heading"
 
 
 # ── HTTP headers ────────────────────────────────────────────

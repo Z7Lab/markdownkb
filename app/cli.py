@@ -21,12 +21,17 @@ Usage::
     markdownkb buckets [list|create <name>|search <name> <query>|delete <name>]
 
 Every command supports ``--json`` for machine-readable output and
-``--url`` / ``--api-key`` to override config. Exits non-zero on error.
+``--url`` to override config. The API key is read from (in order):
+``--api-key-file PATH``, ``--api-key-stdin``, ``MARKDOWNKB_API_KEY``,
+or the ``api_key`` field in ``~/.markdownkb``. The key is never
+accepted as an argv value so it cannot leak via ``ps``, shell history,
+or wrapper logs. Exits non-zero on error.
 """
 
 import argparse
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -73,10 +78,25 @@ def resolve_url(args_url: str | None, config: dict) -> str:
     return DEFAULT_URL
 
 
-def resolve_api_key(args_key: str | None, config: dict) -> str:
-    """Resolve API key: --api-key > env var > config > none."""
-    if args_key:
-        return args_key
+def resolve_api_key(
+    args_key_file: str | None,
+    args_key_stdin: bool,
+    config: dict,
+) -> str:
+    """Resolve API key: --api-key-file > --api-key-stdin > env var > config > none.
+
+    The key is never accepted as an argv value — flags like ``--api-key HUNTER2``
+    land in ``ps auxww``, shell history, and wrapper logs. Use a file path
+    (``--api-key-file PATH``), stdin (``--api-key-stdin``), the environment
+    variable ``MARKDOWNKB_API_KEY``, or the config file.
+    """
+    if args_key_file:
+        try:
+            return Path(args_key_file).read_text(encoding="utf-8").strip()
+        except OSError as e:
+            raise CliError(f"Could not read --api-key-file {args_key_file!r}: {e}") from e
+    if args_key_stdin:
+        return sys.stdin.read().strip()
     return os.environ.get("MARKDOWNKB_API_KEY") or config.get("api_key") or ""
 
 
@@ -134,15 +154,47 @@ def _request(
 # ── Output formatting ──────────────────────────────────────
 
 
+# Field names whose values must never appear in --json output.
+_SECRET_FIELDS = frozenset({
+    "api_key", "apikey", "token", "password", "secret",
+    "private_key", "client_secret",
+})
+
+
+def _redact(obj: Any) -> Any:
+    """Replace secret-shaped values with ``"***"`` anywhere in a nested structure."""
+    if isinstance(obj, dict):
+        return {
+            k: ("***" if k in _SECRET_FIELDS and v else _redact(v))
+            for k, v in obj.items()
+        }
+    if isinstance(obj, list):
+        return [_redact(x) for x in obj]
+    return obj
+
+
+# C0 control characters + DEL + ESC — these can hijack a TTY if echoed
+# from untrusted content (indexed file paths, chunk bodies).
+_CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\x1b]")
+
+
+def _safe(text: str) -> str:
+    """Strip terminal control sequences from untrusted text before printing."""
+    return _CONTROL_CHARS.sub("", text)
+
+
 def emit(data: Any, as_json: bool, pretty_fn=None) -> None:
-    """Print output — JSON if --json, otherwise the human formatter."""
+    """Print output — JSON if --json, otherwise the human formatter.
+
+    In JSON mode, known secret fields are redacted before emission.
+    """
     if as_json:
-        print(json.dumps(data, indent=2))
+        print(json.dumps(_redact(data), indent=2))
         return
     if pretty_fn:
         pretty_fn(data)
     else:
-        print(json.dumps(data, indent=2))
+        print(json.dumps(_redact(data), indent=2))
 
 
 def _truncate(text: str, limit: int = 300) -> str:
@@ -202,12 +254,12 @@ def cmd_search(base_url: str, api_key: str, query: str, top_k: int, as_json: boo
         for i, r in enumerate(results, 1):
             meta = r.get("metadata", {})
             score = r.get("score", 0)
-            path = meta.get("source_path", "unknown")
-            heading = meta.get("heading", "")
+            path = _safe(meta.get("source_path", "unknown"))
+            heading = _safe(meta.get("heading", ""))
             print(f"\n  [{i}] score={score:.3f}  {path}")
             if heading:
                 print(f"      # {heading}")
-            doc = r.get("document", "")
+            doc = _safe(r.get("document", ""))
             print(f"      {_truncate(doc, 240)}")
         print()
 
@@ -223,12 +275,12 @@ def cmd_chat(base_url: str, api_key: str, message: str, as_json: bool) -> int:
     )
 
     def pretty(d):
-        print(d.get("response", "").strip())
+        print(_safe(d.get("response", "").strip()))
         sources = d.get("sources", [])
         if sources:
             print("\n  Sources:")
             for s in sources:
-                print(f"    - {s}")
+                print(f"    - {_safe(s)}")
 
     emit(data, as_json, pretty)
     return 0
@@ -243,15 +295,15 @@ def cmd_sources_list(base_url: str, api_key: str, as_json: bool) -> int:
             print("  No sources configured.")
             return
         for s in sources:
-            print(f"  - {s}")
+            print(f"  - {_safe(str(s))}")
         inaccessible = d.get("inaccessible")
         if inaccessible:
             print("\n  ⚠ Inaccessible (not mounted in container):")
             for s in inaccessible:
-                print(f"    - {s}")
+                print(f"    - {_safe(str(s))}")
             msg = d.get("message")
             if msg:
-                print(f"\n  {msg}")
+                print(f"\n  {_safe(str(msg))}")
 
     emit(data, as_json, pretty)
     return 0
@@ -319,9 +371,9 @@ def cmd_buckets_list(base_url: str, api_key: str, as_json: bool) -> int:
             print("  No buckets.")
             return
         for b in buckets:
-            expires = b.get("expires_at") or "permanent"
-            name = b.get("name", "?")
-            bid = b.get("id", "")[:12]
+            expires = _safe(str(b.get("expires_at") or "permanent"))
+            name = _safe(b.get("name", "?"))
+            bid = _safe(b.get("id", "")[:12])
             files = b.get("file_count", 0)
             chunks = b.get("chunk_count", 0)
             print(f"  {name:30s}  id={bid}  files={files:<4}  chunks={chunks:<6}  {expires}")
@@ -396,8 +448,8 @@ def cmd_buckets_search(
             return
         for i, r in enumerate(results, 1):
             score = r.get("score", 0)
-            source = r.get("source", "")
-            content = r.get("content", "")
+            source = _safe(r.get("source", ""))
+            content = _safe(r.get("content", ""))
             print(f"\n  [{i}] score={score:.3f}  {source}")
             print(f"      {_truncate(content, 240)}")
         print()
@@ -431,9 +483,17 @@ def build_parser() -> argparse.ArgumentParser:
         "--url",
         help="Base URL (default: env MARKDOWNKB_URL or http://localhost:9713)",
     )
+    # Secrets are never accepted as argv values — they'd land in ps(1),
+    # shell history, and any wrapper that logs argv. Use a file path, stdin,
+    # the MARKDOWNKB_API_KEY env var, or the config file.
     parser.add_argument(
-        "--api-key",
-        help="API key (default: env MARKDOWNKB_API_KEY or ~/.markdownkb)",
+        "--api-key-file",
+        metavar="PATH",
+        help="Read API key from PATH (default: env MARKDOWNKB_API_KEY or ~/.markdownkb)",
+    )
+    parser.add_argument(
+        "--api-key-stdin", action="store_true",
+        help="Read API key from stdin",
     )
     parser.add_argument(
         "--json", action="store_true",
@@ -506,7 +566,11 @@ def main() -> int:
 
     config = load_config()
     base_url = resolve_url(args.url, config)
-    api_key = resolve_api_key(args.api_key, config)
+    try:
+        api_key = resolve_api_key(args.api_key_file, args.api_key_stdin, config)
+    except CliError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
     as_json = args.json
 
     try:
