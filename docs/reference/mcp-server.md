@@ -470,9 +470,9 @@ Most users don't need to touch `mcp.allowed_hosts`. If a client still gets `400 
 
 | Pattern          | Meaning                                       |
 |------------------|-----------------------------------------------|
-| `*`              | Disable the allowlist entirely — any Host OK |
-| `nuc.local:*`    | Allow `nuc.local` on any port                |
-| `nuc.local:9715` | Exact match only                              |
+| `*`                    | Disable the allowlist entirely — any Host OK |
+| `my-server.local:*`    | Allow `my-server.local` on any port          |
+| `my-server.local:9715` | Exact match only                             |
 
 Edit via **Settings → MCP → Allowed hosts** in the web UI. **Restart the MCP server to apply changes.**
 

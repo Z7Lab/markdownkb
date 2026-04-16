@@ -14,11 +14,14 @@ Docker secrets take highest priority, then environment variables, then `settings
 
 | Setting | settings.yaml | secrets / .env |
 |---------|--------------|----------------|
-| Server port | `server.port` | `API_PORT` |
+| Server port (local dev) | `server.port` | `API_PORT` |
+| Server port (Docker, host-side) | *(n/a — container listens on fixed `9713`)* | `MARKDOWNKB_PORT` |
+| MCP port (Docker, host-side) | *(n/a — container listens on fixed `9715`)* | `MARKDOWNKB_MCP_PORT` |
 | Ollama URL | `llm.providers[].api_base` | `OLLAMA_API_BASE` |
 | LLM API keys | *(not supported)* | `secrets/<provider>_api_key` or `<PROVIDER>_API_KEY` env |
 | MarkdownKB API key | *(not supported)* | `secrets/markdownkb_api_key` or `MARKDOWNKB_API_KEY` env |
-| Bind address | `server.host` | `MARKDOWNKB_HOST` (Docker) |
+| Bind address (web/API) | `server.host` | `MARKDOWNKB_HOST` (Docker) |
+| Bind address (MCP) | *(n/a)* | `MARKDOWNKB_MCP_HOST` (Docker) |
 | CORS origins | `server.cors_origins` | `CORS_ORIGINS` (comma-separated) |
 
 **When to use which:**
@@ -205,6 +208,25 @@ When no key is configured and the server binds to localhost only, authentication
 | `server.port` | `9713` | Backend port |
 | `server.cors_origins` | `[http://localhost:9714]` | Allowed CORS origins (list). Override with `CORS_ORIGINS` env var (comma-separated). |
 | `plans.save_directory` | `{data_directory}/plans` | Where saved plans are written |
+
+### Ports (Docker)
+
+MarkdownKB uses a two-tier port model when running in Docker:
+
+- **Container-internal ports are fixed**: the app always listens on `9713` (web/API) and `9715` (MCP) inside the container. These are implementation details, not user-configurable.
+- **Host-facing ports are remappable** via `.env`: `MARKDOWNKB_PORT` and `MARKDOWNKB_MCP_PORT` control which port on *your machine* maps to the fixed container port.
+
+Change the host-facing ports when `9713` or `9715` are already in use on your host:
+
+```dotenv
+# .env
+MARKDOWNKB_PORT=9720       # host port → container:9713
+MARKDOWNKB_MCP_PORT=9722   # host port → container:9715
+```
+
+Then `make docker-down && make docker-up`. The app URL becomes `http://localhost:9720` and the MCP URL becomes `http://localhost:9722/mcp`. Inside the container nothing changes — healthchecks, the MCP startup command, and the internal proxy URL all target the fixed container ports.
+
+Local development (outside Docker) uses `API_PORT` and `FRONTEND_PORT` in `.env` — these only affect `make dev` / `run.sh`, not the Docker container.
 
 ## Core
 

@@ -22,7 +22,7 @@ The CLI resolves connection settings in this order (first match wins):
 Create `~/.markdownkb`:
 
 ```yaml
-url: http://nuc.local:9713
+url: http://my-server.local:9713
 api_key: your-key-here
 ```
 
@@ -160,7 +160,7 @@ Name resolution: bucket commands that take a `<bucket>` argument accept either t
 markdownkb search "deployment" --json | jq -r '.results[].metadata.source_path' | sort -u
 
 # Use against a remote instance
-markdownkb --url http://nuc.local:9713 stats
+markdownkb --url http://my-server.local:9713 stats
 
 # Scripted bucket workflow
 BUCKET_ID=$(markdownkb buckets create vendor-docs --json | jq -r .id)

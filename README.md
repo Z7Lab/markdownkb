@@ -138,7 +138,7 @@ markdownkb search "query" --json | jq '.results[] | .metadata.source_path'
 Configure the target instance via `~/.markdownkb` (YAML):
 
 ```yaml
-url: http://nuc.local:9713
+url: http://my-server.local:9713
 api_key: your-key-here
 ```
 
