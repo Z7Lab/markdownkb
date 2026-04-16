@@ -8,6 +8,8 @@ interface GraphProgress {
   phase: string
 }
 
+export type DocmapStatus = "idle" | "checking-cache" | "loading" | "computing" | "done"
+
 /** Server-side minimum edge weight — edges below this are never sent. */
 export const DOCMAP_MIN_WEIGHT = 0.6
 
@@ -27,9 +29,7 @@ export function buildDocmapQs(scopeIds?: string | null, wordClouds = true, adHoc
 
 export function useDocmap() {
   const [docmapData, setDocMapData] = useState<DocMapData | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isComputing, setIsComputing] = useState(false)
-  const [checkingCache, setCheckingCache] = useState(true)
+  const [status, setStatus] = useState<DocmapStatus>("checking-cache")
   const [fetchedAt, setFetchedAt] = useState<number | null>(null)
   const [threshold, setThreshold] = useState(0.75)
   const [wordClouds, setWordClouds] = useState(true)
@@ -60,7 +60,7 @@ export function useDocmap() {
   // the active scope/tags/bucket, so a fetch here would pull the full
   // unscoped corpus and then immediately get aborted by the scoped fetch.
   useEffect(() => {
-    setCheckingCache(false)
+    setStatus("idle")
   }, [])
 
   const fetchDocMap = useCallback(async (
@@ -98,12 +98,11 @@ export function useDocmap() {
     const controller = new AbortController()
     abortRef.current = controller
     // Tracks whether this invocation is still the live fetch. A superseded
-    // call must not touch shared state (isLoading, progress, pollRef) or
-    // it will clobber the newer call that replaced it.
+    // call must not touch shared state (status, progress, pollRef) or it
+    // will clobber the newer call that replaced it.
     const isCurrent = () => abortRef.current === controller
 
-    setIsLoading(true)
-    setIsComputing(true)
+    setStatus("computing")
     setProgress({ fraction: 0, phase: "Starting..." })
 
     try {
@@ -141,8 +140,7 @@ export function useDocmap() {
           pollRef.current = null
         }
         setProgress({ fraction: 0, phase: "idle" })
-        setIsComputing(false)
-        setIsLoading(false)
+        setStatus(docmapDataRef.current ? "done" : "idle")
       }
     }
   }, [])
@@ -159,9 +157,7 @@ export function useDocmap() {
 
   return {
     docmapData,
-    isLoading,
-    isComputing,
-    checkingCache,
+    status,
     fetchedAt,
     threshold,
     setThreshold,

@@ -49,6 +49,15 @@
   --color-success: oklch(0.646 0.222 145);
   --color-warning: oklch(0.828 0.189 84.429);
   --color-error: oklch(0.577 0.245 27.325);
+
+  /* Diff view colors */
+  --color-diff-add: var(--diff-add);
+  --color-diff-remove: var(--diff-remove);
+  --color-diff-hunk: var(--diff-hunk);
+  --color-diff-change: var(--diff-change);
+
+  /* Default bucket color */
+  --color-bucket-default: var(--bucket-default);
 }
 
 :root {
@@ -84,6 +93,11 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --diff-add: oklch(0.577 0.174 149);
+  --diff-remove: oklch(0.577 0.245 27.325);
+  --diff-hunk: oklch(0.488 0.243 264.376);
+  --diff-change: oklch(0.828 0.189 84.429);
+  --bucket-default: #ff3333;
 }
 
 .dark {
@@ -123,6 +137,10 @@
   --color-success: oklch(0.696 0.17 162.48);
   --color-warning: oklch(0.769 0.188 70.08);
   --color-error: oklch(0.704 0.191 22.216);
+  --diff-add: oklch(0.696 0.17 162.48);
+  --diff-remove: oklch(0.704 0.191 22.216);
+  --diff-hunk: oklch(0.623 0.214 259);
+  --diff-change: oklch(0.769 0.188 70.08);
 }
 
 @layer base {

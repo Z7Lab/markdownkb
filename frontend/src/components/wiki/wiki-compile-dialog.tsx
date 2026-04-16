@@ -97,8 +97,7 @@ export function WikiCompileDialog({
     setNewWikiName("")
     setManualSourcePath("")
     loadWikis()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, defaultWiki])
+  }, [open, defaultWiki]) // eslint-disable-line react-hooks/exhaustive-deps -- loadWikis omitted to avoid infinite loop
 
   const handleSubmit = async () => {
     if (!effectiveSourcePath || !selectedWiki) return

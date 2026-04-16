@@ -174,7 +174,7 @@ export function RetrievalSettingsForm({
           </div>
           <Slider
             value={[bm25WeightValue]}
-            onValueChange={([val]) => setBm25WeightValue(val)}
+            onValueChange={([val]) => { if (val !== undefined) setBm25WeightValue(val) }}
             min={0}
             max={1}
             step={0.05}
@@ -203,7 +203,7 @@ export function RetrievalSettingsForm({
           </div>
           <Slider
             value={[scoreThresholdValue]}
-            onValueChange={([val]) => setScoreThresholdValue(val)}
+            onValueChange={([val]) => { if (val !== undefined) setScoreThresholdValue(val) }}
             min={0}
             max={1}
             step={0.05}
@@ -230,7 +230,7 @@ export function RetrievalSettingsForm({
           </div>
           <Slider
             value={[topKValue]}
-            onValueChange={([val]) => setTopKValue(val)}
+            onValueChange={([val]) => { if (val !== undefined) setTopKValue(val) }}
             min={1}
             max={50}
             step={1}

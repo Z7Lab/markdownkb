@@ -17,7 +17,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Loader2, Search, RotateCcw, Clock, AlertCircle, History } from "lucide-react"
-import { useState, type KeyboardEvent as ReactKeyboardEvent } from "react"
+import { Fragment, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react"
+import { useVirtualizer } from "@tanstack/react-virtual"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useScopeTagFilter } from "@/hooks/use-scope-tag-filter"
 import { useBuckets } from "@/hooks/use-buckets"
@@ -68,6 +69,15 @@ export function SearchTab() {
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false)
   const [confirmGenerateSummaryOpen, setConfirmGenerateSummaryOpen] = useState(false)
   const [expandedResults, setExpandedResults] = useState<Set<number>>(new Set())
+  const resultsRef = useRef<HTMLDivElement>(null)
+
+  // eslint-disable-next-line react-hooks/incompatible-library -- @tanstack/react-virtual v3 peer-deps lag behind React 19; safe to use
+  const virtualizer = useVirtualizer({
+    count: results.length,
+    getScrollElement: () => resultsRef.current,
+    estimateSize: () => 120,
+    overscan: 5,
+  })
 
   const QUERY_MAX = 500
 
@@ -145,6 +155,7 @@ export function SearchTab() {
 
         {/* Results area - show when loading or have results/summary */}
         {(results.length > 0 || summary || loading) && (
+          <Fragment>
           <ScrollArea className="flex-1 min-h-0">
             <div className="space-y-3 p-4 pb-4">
             {/* Query header - show the search query prominently */}
@@ -253,7 +264,7 @@ export function SearchTab() {
                             className="flex items-center gap-2 hover:underline cursor-pointer"
                           >
                             <AlertCircle className="h-3 w-3 text-amber-500" />
-                            <span className="text-amber-600 dark:text-amber-400">
+                            <span className="text-diff-change">
                               Results changed
                             </span>
                             {storedResultCount !== undefined && currentResultCount !== undefined && (
@@ -312,26 +323,49 @@ export function SearchTab() {
                 No results found for "{query}"
               </p>
             )}
-            {/* TODO: Virtualize results list with @tanstack/react-virtual if result sets commonly exceed ~50 items */}
-            {results.map((r, i) => (
-              <SearchResultCard
-                key={`${r.metadata.source_path ?? ""}:${r.score}:${i}`}
-                result={r}
-                isExpanded={expandedResults.has(i)}
-                onToggleExpanded={(e) => {
-                  e.stopPropagation()
-                  setExpandedResults((prev) => {
-                    const next = new Set(prev)
-                    if (next.has(i)) next.delete(i)
-                    else next.add(i)
-                    return next
-                  })
-                }}
-                onSelect={(path) => setViewingPath(path || null)}
-              />
-            ))}
             </div>
           </ScrollArea>
+          {results.length > 0 && (
+            <div ref={resultsRef} className="flex-1 overflow-auto min-h-0">
+              <div style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}>
+                {virtualizer.getVirtualItems().map((row) => {
+                  const r = results[row.index]
+                  if (!r) return null
+                  return (
+                    <div
+                      key={row.index}
+                      data-index={row.index}
+                      ref={virtualizer.measureElement}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        transform: `translateY(${row.start}px)`,
+                        padding: "0 16px 8px",
+                      }}
+                    >
+                      <SearchResultCard
+                        result={r}
+                        isExpanded={expandedResults.has(row.index)}
+                        onToggleExpanded={(e) => {
+                          e.stopPropagation()
+                          setExpandedResults((prev) => {
+                            const next = new Set(prev)
+                            if (next.has(row.index)) next.delete(row.index)
+                            else next.add(row.index)
+                            return next
+                          })
+                        }}
+                        onSelect={(path) => setViewingPath(path || null)}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+          </Fragment>
         )}
       </div>
 

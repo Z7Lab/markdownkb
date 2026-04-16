@@ -120,25 +120,25 @@ export function DashboardTab() {
     // Load stats
     api.get<{ total: number }>("/api/v1/files?limit=1")
       .then((r) => setFileCount(r.total))
-      .catch(() => {})
+      .catch((e) => { console.warn("Dashboard: failed to load file count", e) })
     api.get<{ total: number }>("/api/v1/threads?limit=1")
       .then((r) => setThreadCount(r.total))
-      .catch(() => {})
+      .catch((e) => { console.warn("Dashboard: failed to load thread count", e) })
 
     // Load recent threads
     api.get<{ items: Array<{ id: string; title: string; created_at: string }> }>("/api/v1/threads?limit=5")
       .then((r) => setRecentThreads(r.items))
-      .catch(() => {})
+      .catch((e) => { console.warn("Dashboard: failed to load recent threads", e) })
 
     // Load recently indexed files
     api.get<{ items: Array<{ path: string; indexed_at: string }> }>("/api/v1/files?limit=5&sort=indexed_at")
       .then((r) => setRecentFiles(r.items))
-      .catch(() => {})
+      .catch((e) => { console.warn("Dashboard: failed to load recent files", e) })
 
     // Load recent searches (only if search plugin is enabled)
     api.get<{ items: Array<{ id: string; query: string; created_at: string }> }>("/api/v1/searches?limit=5")
       .then((r) => setRecentSearches(r.items))
-      .catch(() => {})
+      .catch((e) => { console.warn("Dashboard: failed to load recent searches", e) })
   }, [])
 
   const sourceCount = settings?.source_configs?.length ?? null
@@ -243,7 +243,7 @@ export function DashboardTab() {
                     id: s.id,
                     label: s.query,
                     timestamp: getRelativeTime(s.created_at),
-                    onClick: () => setLocation(`/search`), // TODO: deep-link to search with history
+                    onClick: () => setLocation(`/search`),
                   }))}
                   label="Recent Searches"
                   emptyMessage="No searches yet"

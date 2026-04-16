@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { api, retryWithBackoff } from "@/lib/api"
+import { setVisibilityInterval } from "@/lib/polling"
 import { toast } from "sonner"
 import type { PaginatedResponse, TrackedFile } from "@/lib/types"
 
@@ -7,7 +8,7 @@ export function useFiles() {
   const [files, setFiles] = useState<TrackedFile[]>([])
   const [busyPaths, setBusyPaths] = useState<Set<string>>(new Set())
   const [error, setError] = useState<string | null>(null)
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pollCleanupRef = useRef<(() => void) | null>(null)
 
   const addBusy = useCallback((path: string) =>
     setBusyPaths((prev) => {
@@ -51,26 +52,24 @@ export function useFiles() {
   // Derive a boolean so the poll effect only re-runs when indexing state flips
   const hasIndexing = files.some((f) => f.status === "indexing")
 
-  // Auto-poll while any file is being indexed
+  // Auto-poll while any file is being indexed (pauses when tab hidden)
   useEffect(() => {
     if (!hasIndexing) {
-      if (pollRef.current) {
-        clearInterval(pollRef.current)
-        pollRef.current = null
-      }
+      pollCleanupRef.current?.()
+      pollCleanupRef.current = null
       return
     }
-    if (pollRef.current) return // already polling
-    pollRef.current = setInterval(async () => {
+    if (pollCleanupRef.current) return // already polling
+    pollCleanupRef.current = setVisibilityInterval(async () => {
       const updated = await refresh()
       if (!updated?.some((f: TrackedFile) => f.status === "indexing")) {
-        if (pollRef.current) clearInterval(pollRef.current)
-        pollRef.current = null
+        pollCleanupRef.current?.()
+        pollCleanupRef.current = null
       }
     }, 3000)
     return () => {
-      if (pollRef.current) clearInterval(pollRef.current)
-      pollRef.current = null
+      pollCleanupRef.current?.()
+      pollCleanupRef.current = null
     }
   }, [hasIndexing, refresh])
 

@@ -106,7 +106,7 @@ export function LlmConfig({
         const entries = res.models as ModelEntry[]
         setModels(entries)
         if (!userPickedModel.current && !entries.some((m) => m.id === model)) {
-          setModel(entries[0].id)
+          setModel(entries[0]!.id)
         }
         setCustomMode(false)
       }

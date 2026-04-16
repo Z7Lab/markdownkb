@@ -46,7 +46,7 @@ describe("parseSSEStream", () => {
     })
 
     expect(events).toHaveLength(1)
-    expect(events[0].data).toEqual({ content: "world" })
+    expect(events[0]!.data).toEqual({ content: "world" })
   })
 
   it("skips malformed JSON data lines", async () => {
@@ -61,7 +61,7 @@ describe("parseSSEStream", () => {
     })
 
     expect(events).toHaveLength(1)
-    expect(events[0].data).toEqual({ ok: true })
+    expect(events[0]!.data).toEqual({ ok: true })
   })
 
   it("handles empty stream", async () => {
@@ -86,7 +86,7 @@ describe("parseSSEStream", () => {
     })
 
     expect(events).toHaveLength(1)
-    expect(events[0].event).toBe("sources")
-    expect(events[0].data.sources).toEqual(["file1.md", "file2.md"])
+    expect(events[0]!.event).toBe("sources")
+    expect(events[0]!.data.sources).toEqual(["file1.md", "file2.md"])
   })
 })

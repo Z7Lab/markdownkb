@@ -59,7 +59,7 @@ function SortHeader({
         "flex items-center gap-1 px-2 h-full text-sm font-medium text-foreground cursor-pointer select-none whitespace-nowrap overflow-hidden",
         className,
       )}
-      aria-sort={active ? (sortDir === "asc" ? "ascending" : "descending") : undefined}
+      aria-label={active ? `Sort by ${sortKey}, ${sortDir === "asc" ? "ascending" : "descending"}` : `Sort by ${sortKey}`}
     >
       {children}
       {active &&
@@ -129,6 +129,7 @@ function VirtualizedFileList({
       <div style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}>
         {virtualizer.getVirtualItems().map((virtualRow) => {
           const f = files[virtualRow.index]
+          if (!f) return null
           return (
             <div
               key={f.path}
@@ -165,8 +166,8 @@ function VirtualizedFileList({
   )
 }
 
-// TODO: Extract toolbar/action bar into sub-component, filtering logic into
-// a dedicated hook, and move dialog state closer to dialogs to reduce complexity.
+// Refactor target: extract toolbar into sub-component, filtering into a hook,
+// and colocate dialog state with dialogs. Tracked in the frontend review backlog.
 export function FilesTab() {
   const { files, busyPaths, refresh, toggleRag, unindexFile, indexFile, reindexFile, indexAll, unindexSource, updateTags, bulkUpdateTags, extractEntities } = useFiles()
   const { settings } = useSettings()
@@ -350,7 +351,8 @@ export function FilesTab() {
             >
               <ResizablePanel id="file" defaultSize={DEFAULT_LAYOUT.file} minSize={8}>
                 <div className="flex items-center h-full">
-                  <div className="pl-2 flex items-center" onClick={(e) => e.stopPropagation()}>
+                  {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
+                  <div className="pl-2 flex items-center" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} role="group">
                     <Checkbox
                       aria-label="Select all files"
                       checked={filteredFiles.length > 0 && filteredFiles.every((f) => selected.has(f.path))}

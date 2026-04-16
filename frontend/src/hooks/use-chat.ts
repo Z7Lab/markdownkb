@@ -1,35 +1,33 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { api, retryWithBackoff } from "@/lib/api"
+import { api } from "@/lib/api"
 import { streamChat } from "@/lib/sse"
 import { toast } from "sonner"
 import { usePersistedState } from "@/hooks/use-persisted-state"
-import type { ChatMessage, PaginatedResponse, Thread } from "@/lib/types"
+import { useThreads } from "@/hooks/use-threads"
+import type { ChatMessage } from "@/lib/types"
 
 let idCounter = 0
 function nextId(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID()
   }
-  // Counter-based fallback for non-secure contexts (HTTP over LAN).
-  // Only needs to be unique within a browser session, not cryptographically random.
   return `msg-${Date.now()}-${++idCounter}`
 }
 
-// LocalStorage key for streaming thread tracking (transient, not persisted state)
 const STREAMING_THREAD_KEY = "markdownkb_streaming_thread"
 
 export function useChat(scopeIds?: string | null, adHocTags?: string[] | null, bucketIds?: string | null) {
   const [messages, setMessages] = usePersistedState<ChatMessage[]>("markdownkb_messages", [])
   const [isStreaming, setIsStreaming] = useState(false)
-  const [threads, setThreads] = useState<Thread[]>([])
   const [activeThreadId, setActiveThreadId] = usePersistedState<string | null>("markdownkb_active_thread", null)
   const controllerRef = useRef<AbortController | null>(null)
   const loadIdRef = useRef(0)
-  const streamingThreadIdRef = useRef<string | null>(null) // Track which thread is streaming
-  const streamContentRef = useRef("") // Mutable buffer for streaming tokens
+  const streamingThreadIdRef = useRef<string | null>(null)
+  const streamContentRef = useRef("")
   const flushTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  /** Flush buffered streaming content into React state */
+  const { threads, refreshThreads, renameThread, deleteThread: removeThread, addOptimistic } = useThreads()
+
   const flushStreamContent = useCallback(() => {
     const content = streamContentRef.current
     if (!content) return
@@ -42,7 +40,6 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null, b
     })
   }, [setMessages])
 
-  /** Shared cleanup for ending a stream (used by onDone, onError, stop) */
   const cleanupStream = useCallback(() => {
     if (flushTimerRef.current) {
       clearInterval(flushTimerRef.current)
@@ -56,7 +53,6 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null, b
     try { localStorage.removeItem(STREAMING_THREAD_KEY) } catch { /* ignore */ }
   }, [flushStreamContent])
 
-  // Restore streaming thread state on mount (transient — not managed by usePersistedState)
   useEffect(() => {
     try {
       const streamingThreadId = localStorage.getItem(STREAMING_THREAD_KEY)
@@ -68,24 +64,6 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null, b
     }
   }, [])
 
-  const refreshThreads = useCallback(async (silent = false): Promise<boolean> => {
-    try {
-      const res = await api.get<PaginatedResponse<Thread>>("/api/v1/threads")
-      setThreads(res.items)
-      return true
-    } catch (err) {
-      if (!silent) {
-        toast.error(`Failed to load threads: ${(err as Error).message}`)
-      }
-      return false
-    }
-  }, [])
-
-  // Load threads on mount with retry
-  useEffect(() => {
-    return retryWithBackoff(() => refreshThreads(true))
-  }, [refreshThreads])
-
   const send = useCallback(
     (text: string) => {
       if (!text.trim() || isStreaming) return
@@ -95,15 +73,9 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null, b
       setMessages((prev) => [...prev, userMsg, assistantMsg])
       setIsStreaming(true)
 
-      // Track that this thread is streaming
       streamingThreadIdRef.current = activeThreadId
-      try {
-        localStorage.setItem(STREAMING_THREAD_KEY, activeThreadId || "")
-      } catch {
-        // ignore
-      }
+      try { localStorage.setItem(STREAMING_THREAD_KEY, activeThreadId || "") } catch { /* ignore */ }
 
-      // Start a throttled flush timer for streaming tokens (~30fps)
       streamContentRef.current = ""
       flushTimerRef.current = setInterval(flushStreamContent, 33)
 
@@ -113,26 +85,15 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null, b
           onThread(threadId, title) {
             setActiveThreadId(threadId)
             streamingThreadIdRef.current = threadId
-            try {
-              localStorage.setItem(STREAMING_THREAD_KEY, threadId)
-            } catch {
-              // ignore
-            }
-            setThreads((prev) => {
-              if (prev.some((t) => t.id === threadId)) return prev
-              return [
-                {
-                  id: threadId,
-                  title: title || "New chat",
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                },
-                ...prev,
-              ]
+            try { localStorage.setItem(STREAMING_THREAD_KEY, threadId) } catch { /* ignore */ }
+            addOptimistic({
+              id: threadId,
+              title: title || "New chat",
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
             })
           },
           onToken(content) {
-            // Append to mutable ref; flushed to state by interval timer
             streamContentRef.current += content
           },
           onSources(sources, sourceMap) {
@@ -174,7 +135,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null, b
         bucketIds,
       )
     },
-    [isStreaming, activeThreadId, refreshThreads, scopeIds, adHocTags, bucketIds, setMessages, setActiveThreadId, cleanupStream, flushStreamContent],
+    [isStreaming, activeThreadId, refreshThreads, scopeIds, adHocTags, bucketIds, setMessages, setActiveThreadId, cleanupStream, flushStreamContent, addOptimistic],
   )
 
   const stop = useCallback(() => {
@@ -183,7 +144,6 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null, b
   }, [cleanupStream])
 
   const newChat = useCallback(() => {
-    // Don't abort background stream if it's for a different thread
     if (streamingThreadIdRef.current === activeThreadId || streamingThreadIdRef.current === null) {
       stop()
     } else {
@@ -240,53 +200,24 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null, b
     [stop, isStreaming, activeThreadId, setMessages, setActiveThreadId],
   )
 
-  const renameThread = useCallback(
-    async (threadId: string, title: string) => {
-      try {
-        await api.patch(`/api/v1/threads/${threadId}`, { title })
-        setThreads((prev) =>
-          prev.map((t) => (t.id === threadId ? { ...t, title } : t)),
-        )
-      } catch (err) {
-        toast.error(`Failed to rename thread: ${(err as Error).message}`)
-      }
-    },
-    [],
-  )
-
   const deleteThread = useCallback(
     async (threadId: string) => {
-      try {
-        await api.del(`/api/v1/threads/${threadId}`)
-        if (streamingThreadIdRef.current === threadId) {
-          stop()
-        }
-        if (activeThreadId === threadId) {
-          setMessages([])
-          setActiveThreadId(null)
-        }
-        await refreshThreads()
-      } catch (err) {
-        toast.error(`Failed to delete thread: ${(err as Error).message}`)
+      if (streamingThreadIdRef.current === threadId) stop()
+      if (activeThreadId === threadId) {
+        setMessages([])
+        setActiveThreadId(null)
       }
+      await removeThread(threadId)
     },
-    [activeThreadId, refreshThreads, stop, setMessages, setActiveThreadId],
+    [activeThreadId, removeThread, stop, setMessages, setActiveThreadId],
   )
 
   const clear = useCallback(async () => {
     stop()
     setMessages([])
     setActiveThreadId(null)
-    try {
-      localStorage.removeItem(STREAMING_THREAD_KEY)
-    } catch {
-      // ignore
-    }
-    try {
-      await api.del("/api/v1/chat/history")
-    } catch {
-      /* server-side clear is best-effort; local state is already reset */
-    }
+    try { localStorage.removeItem(STREAMING_THREAD_KEY) } catch { /* ignore */ }
+    try { await api.del("/api/v1/chat/history") } catch { /* best-effort */ }
   }, [stop, setMessages, setActiveThreadId])
 
   const continueChat = useCallback(() => {
@@ -295,9 +226,7 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null, b
 
   const savePlan = useCallback(async () => {
     try {
-      const res = await api.post<{ message: string }>("/api/v1/chat/save-plan", {
-        history: messages,
-      })
+      const res = await api.post<{ message: string }>("/api/v1/chat/save-plan", { history: messages })
       return res.message
     } catch (err) {
       const msg = `Failed to save: ${(err as Error).message}`
@@ -307,18 +236,8 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null, b
   }, [messages])
 
   return {
-    messages,
-    isStreaming,
-    threads,
-    activeThreadId,
-    send,
-    stop,
-    clear,
-    continueChat,
-    savePlan,
-    newChat,
-    loadThread,
-    renameThread,
-    deleteThread,
+    messages, isStreaming, threads, activeThreadId,
+    send, stop, clear, continueChat, savePlan,
+    newChat, loadThread, renameThread, deleteThread,
   }
 }

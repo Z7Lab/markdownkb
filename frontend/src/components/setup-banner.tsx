@@ -26,7 +26,7 @@ export function SetupBanner({ forceShow = false }: { forceShow?: boolean }) {
           setNeedsSetup(true)
         }
       })
-      .catch(() => {})
+      .catch((e) => { console.warn("Setup banner: failed to check health", e) })
   }, [])
 
   const handleGenerate = useCallback(async () => {

@@ -46,6 +46,9 @@ export function RecentActivityWidget({
           <div
             key={item.id}
             onClick={item.onClick}
+            onKeyDown={item.onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); item.onClick!() } } : undefined}
+            role={item.onClick ? "button" : undefined}
+            tabIndex={item.onClick ? 0 : undefined}
             className={cn(
               "flex items-start justify-between gap-2 p-3 rounded-md border bg-card text-sm",
               item.onClick && "cursor-pointer hover:bg-accent transition-colors",

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useState } from "react"
 import { LogViewer } from "./log-viewer"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -20,75 +20,12 @@ import {
   Wrench,
   XCircle,
 } from "lucide-react"
-import { api } from "@/lib/api"
-import { toast } from "sonner"
-
-// -- Types matching GET /api/mcp/info and GET /api/mcp/tools ----------------
-
-type McpFlagKey = "read_only" | "allow_bucket_writes" | "save_document" | "track_history"
-
-type McpInfo = {
-  endpoint: string
-  transport: string
-  auth_enabled: boolean
-  auth_methods: string[]
-  flags: Record<string, boolean>
-  allowed_hosts: string[]
-  allowed_origins: string[]
-  rate_limit_per_minute: number
-}
-
-type McpToolParam = {
-  name: string
-  type: string
-  required: boolean
-  default: string | null
-}
-
-type McpTool = {
-  name: string
-  description: string
-  write: boolean
-  requires_plugin: string | null
-  feature_flag: string | null
-  enabled: boolean
-  disabled_reason: string | null
-  parameters: McpToolParam[]
-}
-
-type McpToolsResponse = {
-  tools: McpTool[]
-  total: number
-  enabled: number
-  import_errors: { module: string; error: string }[]
-}
-
-// -- Flag metadata ----------------------------------------------------------
-
-const FLAG_DEFS: { key: McpFlagKey; label: string; description: string }[] = [
-  {
-    key: "read_only",
-    label: "Read-only",
-    description:
-      "Disable all write tools (save_file, delete_file, index_file). Overridden for bucket tools by Allow bucket writes.",
-  },
-  {
-    key: "allow_bucket_writes",
-    label: "Allow bucket writes",
-    description:
-      "Exempt bucket_create/add/push/delete from read-only mode. Buckets are isolated from the main index.",
-  },
-  {
-    key: "save_document",
-    label: "Save document tool",
-    description: "Enable the save_file MCP tool for writing markdown into configured sources.",
-  },
-  {
-    key: "track_history",
-    label: "Track history",
-    description: "Record MCP search and chat calls to the web UI history sidebar.",
-  },
-]
+import {
+  useMcpPanel,
+  FLAG_DEFS,
+  type McpInfo,
+  type McpTool,
+} from "@/hooks/use-mcp-panel"
 
 // -- Connection config snippets ---------------------------------------------
 
@@ -125,7 +62,11 @@ function genericConfig(endpoint: string, authEnabled: boolean): string {
 
 // -- Tool row ---------------------------------------------------------------
 
-function ToolRow({ tool }: { tool: McpTool }) {
+interface ToolRowProps {
+  tool: McpTool
+}
+
+function ToolRow({ tool }: ToolRowProps) {
   const [open, setOpen] = useState(false)
   const hasParams = tool.parameters.length > 0
 
@@ -203,174 +144,37 @@ function ToolRow({ tool }: { tool: McpTool }) {
 
 // -- Main panel -------------------------------------------------------------
 
-export function McpPanel({
-  onToggleMcpFlag,
-}: {
+export interface McpPanelProps {
   onToggleMcpFlag: (name: string, enabled: boolean) => Promise<void>
-}) {
-  const [info, setInfo] = useState<McpInfo | null>(null)
-  const [toolsResp, setToolsResp] = useState<McpToolsResponse | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [testing, setTesting] = useState(false)
-  const [testResult, setTestResult] = useState<"ok" | "fail" | null>(null)
-  const [newHost, setNewHost] = useState("")
-  const [savingHosts, setSavingHosts] = useState(false)
-  const [newOrigin, setNewOrigin] = useState("")
-  const [savingOrigins, setSavingOrigins] = useState(false)
-  const [rateLimit, setRateLimit] = useState<string>("0")
-  const [savingRateLimit, setSavingRateLimit] = useState(false)
-  const [mcpLogLevel, setMcpLogLevel] = useState("INFO")
+}
 
-  const load = useCallback(async () => {
-    try {
-      const [infoRes, toolsRes] = await Promise.all([
-        api.get<McpInfo>("/api/v1/mcp/info"),
-        api.get<McpToolsResponse>("/api/v1/mcp/tools"),
-      ])
-      setInfo(infoRes)
-      setToolsResp(toolsRes)
-      setRateLimit(String(infoRes.rate_limit_per_minute ?? 0))
-    } catch (err) {
-      toast.error(`Failed to load MCP info: ${(err as Error).message}`)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    load()
-    api.get<{ level: string }>("/api/v1/mcp/log-level")
-      .then((r) => setMcpLogLevel(r.level))
-      .catch(() => {})
-  }, [load])
-
-  const handleMcpLogLevel = useCallback(async (level: string) => {
-    try {
-      await api.put("/api/v1/mcp/log-level", { level })
-      setMcpLogLevel(level)
-    } catch (err) {
-      toast.error(`Failed to change MCP log level: ${(err as Error).message}`)
-    }
-  }, [])
-
-  const handleToggleFlag = useCallback(
-    async (name: string, enabled: boolean) => {
-      await onToggleMcpFlag(name, enabled)
-      await load()
-    },
-    [onToggleMcpFlag, load],
-  )
-
-  const handleTestConnection = useCallback(async () => {
-    setTesting(true)
-    setTestResult(null)
-    try {
-      const res = await api.get<McpToolsResponse>("/api/v1/mcp/tools")
-      setTestResult("ok")
-      toast.success(`MCP ready — ${res.enabled} of ${res.total} tools active`)
-    } catch (err) {
-      setTestResult("fail")
-      toast.error(`MCP unreachable: ${(err as Error).message}`)
-    } finally {
-      setTesting(false)
-    }
-  }, [])
-
-  const handleAddHost = useCallback(async () => {
-    if (!info || !newHost.trim()) return
-    const next = [...info.allowed_hosts, newHost.trim()]
-    setSavingHosts(true)
-    try {
-      await api.put("/api/v1/mcp/allowed-hosts", { allowed_hosts: next })
-      setNewHost("")
-      await load()
-      toast.success("Allowed hosts updated. Restart MCP server to apply.")
-    } catch (err) {
-      toast.error(`Failed to save: ${(err as Error).message}`)
-    } finally {
-      setSavingHosts(false)
-    }
-  }, [info, newHost, load])
-
-  const handleRemoveHost = useCallback(
-    async (host: string) => {
-      if (!info) return
-      const next = info.allowed_hosts.filter((h) => h !== host)
-      setSavingHosts(true)
-      try {
-        await api.put("/api/v1/mcp/allowed-hosts", { allowed_hosts: next })
-        await load()
-      } catch (err) {
-        toast.error(`Failed to save: ${(err as Error).message}`)
-      } finally {
-        setSavingHosts(false)
-      }
-    },
-    [info, load],
-  )
-
-  const handleAddOrigin = useCallback(async () => {
-    if (!info || !newOrigin.trim()) return
-    const next = [...info.allowed_origins, newOrigin.trim()]
-    setSavingOrigins(true)
-    try {
-      await api.put("/api/v1/mcp/allowed-origins", { allowed_origins: next })
-      setNewOrigin("")
-      await load()
-      toast.success("Allowed origins updated. Restart MCP server to apply.")
-    } catch (err) {
-      toast.error(`Failed to save: ${(err as Error).message}`)
-    } finally {
-      setSavingOrigins(false)
-    }
-  }, [info, newOrigin, load])
-
-  const handleRemoveOrigin = useCallback(
-    async (origin: string) => {
-      if (!info) return
-      const next = info.allowed_origins.filter((o) => o !== origin)
-      setSavingOrigins(true)
-      try {
-        await api.put("/api/v1/mcp/allowed-origins", { allowed_origins: next })
-        await load()
-      } catch (err) {
-        toast.error(`Failed to save: ${(err as Error).message}`)
-      } finally {
-        setSavingOrigins(false)
-      }
-    },
-    [info, load],
-  )
-
-  const handleSaveRateLimit = useCallback(async () => {
-    const parsed = parseInt(rateLimit, 10)
-    if (isNaN(parsed) || parsed < 0) {
-      toast.error("Rate limit must be 0 or a positive integer")
-      return
-    }
-    setSavingRateLimit(true)
-    try {
-      await api.put("/api/v1/mcp/rate-limit", { per_minute: parsed })
-      await load()
-      toast.success(
-        parsed === 0
-          ? "Rate limit disabled. Restart MCP server to apply."
-          : `Rate limit set to ${parsed}/min. Restart MCP server to apply.`,
-      )
-    } catch (err) {
-      toast.error(`Failed to save: ${(err as Error).message}`)
-    } finally {
-      setSavingRateLimit(false)
-    }
-  }, [rateLimit, load])
-
-  const toolsByCategory = useMemo(() => {
-    if (!toolsResp) return { enabled: [], disabled: [] }
-    return {
-      enabled: toolsResp.tools.filter((t) => t.enabled),
-      disabled: toolsResp.tools.filter((t) => !t.enabled),
-    }
-  }, [toolsResp])
+export function McpPanel({ onToggleMcpFlag }: McpPanelProps) {
+  const {
+    info,
+    toolsResp,
+    loading,
+    testing,
+    testResult,
+    newHost,
+    setNewHost,
+    savingHosts,
+    newOrigin,
+    setNewOrigin,
+    savingOrigins,
+    rateLimit,
+    setRateLimit,
+    savingRateLimit,
+    mcpLogLevel,
+    toolsByCategory,
+    handleMcpLogLevel,
+    handleToggleFlag,
+    handleTestConnection,
+    handleAddHost,
+    handleRemoveHost,
+    handleAddOrigin,
+    handleRemoveOrigin,
+    handleSaveRateLimit,
+  } = useMcpPanel({ onToggleMcpFlag })
 
   if (loading) {
     return (
@@ -390,69 +194,12 @@ export function McpPanel({
   return (
     <div className="space-y-6">
       {/* Connection */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Plug className="h-4 w-4" />
-            Connection
-          </CardTitle>
-          <CardDescription>
-            Streamable HTTP endpoint for MCP clients (Claude Desktop, Claude Code, custom agents).
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-            <span className="text-muted-foreground">Endpoint</span>
-            <span className="font-mono text-xs break-all">{info.endpoint}</span>
-            <span className="text-muted-foreground">Transport</span>
-            <span className="font-mono text-xs">{info.transport}</span>
-            <span className="text-muted-foreground">Authentication</span>
-            <span className="flex items-center gap-2 text-xs">
-              {info.auth_enabled ? (
-                <>
-                  <Lock className="h-3 w-3" />
-                  <span>Required</span>
-                </>
-              ) : (
-                <span className="text-muted-foreground">Disabled (localhost only)</span>
-              )}
-            </span>
-            {info.auth_enabled && (
-              <>
-                <span className="text-muted-foreground">Auth methods</span>
-                <span className="text-xs">{info.auth_methods.join(" · ")}</span>
-              </>
-            )}
-          </div>
-
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleTestConnection}
-              disabled={testing}
-            >
-              {testing ? (
-                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-              ) : testResult === "ok" ? (
-                <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-600" />
-              ) : testResult === "fail" ? (
-                <AlertCircle className="h-3 w-3 mr-1 text-destructive" />
-              ) : null}
-              Test connection
-            </Button>
-          </div>
-
-          <div>
-            <div className="text-xs text-muted-foreground mb-1">Claude Desktop (.mcp.json)</div>
-            <CodeBlock code={claudeDesktopConfig(info.endpoint, info.auth_enabled)} language="json" />
-          </div>
-          <div>
-            <div className="text-xs text-muted-foreground mb-1">Generic client</div>
-            <CodeBlock code={genericConfig(info.endpoint, info.auth_enabled)} language="bash" />
-          </div>
-        </CardContent>
-      </Card>
+      <ConnectionCard
+        info={info}
+        testing={testing}
+        testResult={testResult}
+        onTestConnection={handleTestConnection}
+      />
 
       {/* Feature flags */}
       <Card>
@@ -483,127 +230,38 @@ export function McpPanel({
       </Card>
 
       {/* Allowed hosts */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Allowed hosts</CardTitle>
-          <CardDescription>
-            DNS rebinding protection for the Streamable HTTP transport. Add the hostname MCP clients
-            use to reach this server. Restart the MCP server to apply changes.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {info.allowed_hosts.length === 0 ? (
-            <div className="text-xs text-muted-foreground italic">No hosts configured.</div>
-          ) : (
-            <div className="space-y-1">
-              {info.allowed_hosts.map((host) => (
-                <div
-                  key={host}
-                  className="flex items-center justify-between gap-2 rounded border bg-muted/30 px-2 py-1"
-                >
-                  <span className="text-xs font-mono break-all">{host}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 text-destructive hover:text-destructive"
-                    onClick={() => handleRemoveHost(host)}
-                    disabled={savingHosts}
-                    aria-label={`Remove ${host}`}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="flex gap-2">
-            <Input
-              placeholder="host.docker.internal:* or mcp.example.com"
-              value={newHost}
-              onChange={(e) => setNewHost(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault()
-                  handleAddHost()
-                }
-              }}
-              className="h-8 text-xs"
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleAddHost}
-              disabled={savingHosts || !newHost.trim()}
-            >
-              <Plus className="h-3 w-3 mr-1" />
-              Add
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <AllowedListCard
+        title="Allowed hosts"
+        description="DNS rebinding protection for the Streamable HTTP transport. Add the hostname MCP clients use to reach this server. Restart the MCP server to apply changes."
+        items={info.allowed_hosts}
+        emptyLabel="No hosts configured."
+        inputPlaceholder="host.docker.internal:* or mcp.example.com"
+        inputValue={newHost}
+        onInputChange={setNewHost}
+        onAdd={handleAddHost}
+        onRemove={handleRemoveHost}
+        saving={savingHosts}
+      />
 
       {/* Allowed origins */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Allowed origins</CardTitle>
-          <CardDescription>
+      <AllowedListCard
+        title="Allowed origins"
+        description={
+          <>
             Controls which browser origins (the <code>Origin</code> header) can connect.
             Use <code>*</code> to allow all, or <code>http://hostname:*</code> for a wildcard port
             match. Restart the MCP server to apply changes.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {info.allowed_origins.length === 0 ? (
-            <div className="text-xs text-muted-foreground italic">
-              No origins configured — all cross-origin requests will be rejected.
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {info.allowed_origins.map((origin) => (
-                <div
-                  key={origin}
-                  className="flex items-center justify-between gap-2 rounded border bg-muted/30 px-2 py-1"
-                >
-                  <span className="text-xs font-mono break-all">{origin}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 text-destructive hover:text-destructive"
-                    onClick={() => handleRemoveOrigin(origin)}
-                    disabled={savingOrigins}
-                    aria-label={`Remove ${origin}`}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="flex gap-2">
-            <Input
-              placeholder="* or http://your-server.local:*"
-              value={newOrigin}
-              onChange={(e) => setNewOrigin(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault()
-                  handleAddOrigin()
-                }
-              }}
-              className="h-8 text-xs"
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleAddOrigin}
-              disabled={savingOrigins || !newOrigin.trim()}
-            >
-              <Plus className="h-3 w-3 mr-1" />
-              Add
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </>
+        }
+        items={info.allowed_origins}
+        emptyLabel="No origins configured — all cross-origin requests will be rejected."
+        inputPlaceholder="* or http://your-server.local:*"
+        inputValue={newOrigin}
+        onInputChange={setNewOrigin}
+        onAdd={handleAddOrigin}
+        onRemove={handleRemoveOrigin}
+        saving={savingOrigins}
+      />
 
       {/* Rate limit */}
       <Card>
@@ -632,7 +290,7 @@ export function McpPanel({
               onClick={handleSaveRateLimit}
               disabled={savingRateLimit || rateLimit === String(info.rate_limit_per_minute ?? 0)}
             >
-              {savingRateLimit ? "Saving…" : "Save"}
+              {savingRateLimit ? "Saving\u2026" : "Save"}
             </Button>
           </div>
         </CardContent>
@@ -691,5 +349,168 @@ export function McpPanel({
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+// -- Connection card --------------------------------------------------------
+
+interface ConnectionCardProps {
+  info: McpInfo
+  testing: boolean
+  testResult: "ok" | "fail" | null
+  onTestConnection: () => void
+}
+
+function ConnectionCard({ info, testing, testResult, onTestConnection }: ConnectionCardProps) {
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Plug className="h-4 w-4" />
+          Connection
+        </CardTitle>
+        <CardDescription>
+          Streamable HTTP endpoint for MCP clients (Claude Desktop, Claude Code, custom agents).
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+          <span className="text-muted-foreground">Endpoint</span>
+          <span className="font-mono text-xs break-all">{info.endpoint}</span>
+          <span className="text-muted-foreground">Transport</span>
+          <span className="font-mono text-xs">{info.transport}</span>
+          <span className="text-muted-foreground">Authentication</span>
+          <span className="flex items-center gap-2 text-xs">
+            {info.auth_enabled ? (
+              <>
+                <Lock className="h-3 w-3" />
+                <span>Required</span>
+              </>
+            ) : (
+              <span className="text-muted-foreground">Disabled (localhost only)</span>
+            )}
+          </span>
+          {info.auth_enabled && (
+            <>
+              <span className="text-muted-foreground">Auth methods</span>
+              <span className="text-xs">{info.auth_methods.join(" \u00b7 ")}</span>
+            </>
+          )}
+        </div>
+
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onTestConnection}
+            disabled={testing}
+          >
+            {testing ? (
+              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+            ) : testResult === "ok" ? (
+              <CheckCircle2 className="h-3 w-3 mr-1 text-emerald-600" />
+            ) : testResult === "fail" ? (
+              <AlertCircle className="h-3 w-3 mr-1 text-destructive" />
+            ) : null}
+            Test connection
+          </Button>
+        </div>
+
+        <div>
+          <div className="text-xs text-muted-foreground mb-1">Claude Desktop (.mcp.json)</div>
+          <CodeBlock code={claudeDesktopConfig(info.endpoint, info.auth_enabled)} language="json" />
+        </div>
+        <div>
+          <div className="text-xs text-muted-foreground mb-1">Generic client</div>
+          <CodeBlock code={genericConfig(info.endpoint, info.auth_enabled)} language="bash" />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// -- Allowed list card (hosts / origins) ------------------------------------
+
+interface AllowedListCardProps {
+  title: string
+  description: React.ReactNode
+  items: string[]
+  emptyLabel: string
+  inputPlaceholder: string
+  inputValue: string
+  onInputChange: (value: string) => void
+  onAdd: () => void
+  onRemove: (item: string) => void
+  saving: boolean
+}
+
+function AllowedListCard({
+  title,
+  description,
+  items,
+  emptyLabel,
+  inputPlaceholder,
+  inputValue,
+  onInputChange,
+  onAdd,
+  onRemove,
+  saving,
+}: AllowedListCardProps) {
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {items.length === 0 ? (
+          <div className="text-xs text-muted-foreground italic">{emptyLabel}</div>
+        ) : (
+          <div className="space-y-1">
+            {items.map((item) => (
+              <div
+                key={item}
+                className="flex items-center justify-between gap-2 rounded border bg-muted/30 px-2 py-1"
+              >
+                <span className="text-xs font-mono break-all">{item}</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-destructive hover:text-destructive"
+                  onClick={() => onRemove(item)}
+                  disabled={saving}
+                  aria-label={`Remove ${item}`}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <Input
+            placeholder={inputPlaceholder}
+            value={inputValue}
+            onChange={(e) => onInputChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                onAdd()
+              }
+            }}
+            className="h-8 text-xs"
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onAdd}
+            disabled={saving || !inputValue.trim()}
+          >
+            <Plus className="h-3 w-3 mr-1" />
+            Add
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   )
 }

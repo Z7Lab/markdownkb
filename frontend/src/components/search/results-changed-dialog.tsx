@@ -72,7 +72,7 @@ export function ResultsChangedDialog({
             {/* New files */}
             {newFiles.length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold mb-2 text-green-600 dark:text-green-400">
+                <h3 className="text-sm font-semibold mb-2 text-diff-add">
                   New in Results ({newFiles.length})
                 </h3>
                 <p className="text-xs text-muted-foreground mb-2">
@@ -116,7 +116,7 @@ export function ResultsChangedDialog({
                           variant={change.change > 0 ? "default" : "outline"}
                           className={
                             change.change > 0
-                              ? "bg-green-500/20 text-green-600 dark:text-green-400"
+                              ? "bg-green-500/20 text-diff-add"
                               : change.change < 0
                               ? "bg-destructive/20 text-destructive"
                               : ""

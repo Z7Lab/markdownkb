@@ -61,8 +61,7 @@ export function ChatTab({ defaultThreadId }: { defaultThreadId?: string }) {
     if (!defaultThreadId && (activeThreadId || messages.length > 0)) {
       newChat();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [defaultThreadId]);
+  }, [defaultThreadId]); // eslint-disable-line react-hooks/exhaustive-deps -- activeThreadId and messages.length are read for the condition but must not re-trigger; only URL changes should.
 
   // When the server assigns a thread ID mid-stream (onThread callback inside
   // useChat), push the URL so the thread is bookmarkable. Only fires when the

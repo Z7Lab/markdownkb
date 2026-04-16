@@ -18,7 +18,7 @@ export function WordCloud({
     )
   }
 
-  const maxWeight = entries[0][1] || 1
+  const maxWeight = entries[0]![1] || 1
 
   return (
     <div className="p-3 flex flex-wrap gap-1">

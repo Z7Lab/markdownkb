@@ -95,7 +95,7 @@ export function Markdown({
     const anchorRenderer = ({ href, children: linkChildren, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
       const match = href?.match(/^#cite-(\d+)$/)
       if (match && sourceMap) {
-        const num = match[1]
+        const num = match[1]!
         const path = sourceMap[num]
         if (path) {
           return (
@@ -140,8 +140,8 @@ export function Markdown({
     let codeBlockStartIdx = -1 // index in result[] where the opening ``` is
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]
-      const fenceMatch = line.match(/^(```)(\w*)[ \t]*(\[[\d,\s\]\[]+\])?[ \t]*$/)
+      const line = lines[i]!
+      const fenceMatch = line.match(/^(```)(\w*)[ \t]*(\[[\d,\s\]]+])?[ \t]*$/)
 
       if (fenceMatch && codeBlockStartIdx === -1) {
         // Opening fence — remember where it started
@@ -150,7 +150,7 @@ export function Markdown({
         if (cite && result.length > 0) {
           // Citation on opening fence — attach to previous prose line
           result[result.length - 1] += ` ${cite}`
-          result.push("```" + (fenceMatch[2] || ""))
+          result.push("```" + (fenceMatch[2] ?? ""))
         } else {
           result.push(line)
         }
@@ -162,7 +162,7 @@ export function Markdown({
           // Move citation to the prose line before the code block
           result[codeBlockStartIdx - 1] += ` ${cite}`
         } else if (cite) {
-          result.push(cite)
+          result.push(cite!)
         }
         codeBlockStartIdx = -1
       } else {

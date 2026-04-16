@@ -18,10 +18,24 @@ export function getApiKey(): string | null {
   return apiKey
 }
 
+/** Callback invoked on any 401 response — allows the app shell to react (e.g. show setup banner). */
+let onUnauthorized: (() => void) | null = null
+
+export function setOnUnauthorized(cb: (() => void) | null) {
+  onUnauthorized = cb
+}
+
 async function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
+/**
+ * Generic HTTP request with retry/backoff. The generic `T` is a trust-based
+ * cast — callers assert the expected response shape, but no runtime validation
+ * (Zod, Valibot, etc.) is performed. Accepted risk: the backend is co-deployed
+ * and version-locked with this frontend, so contract drift is caught by
+ * integration testing rather than per-call schema validation.
+ */
 async function request<T>(
   method: string,
   path: string,
@@ -51,6 +65,7 @@ async function request<T>(
     try {
       const res = await fetch(`${BASE}${path}`, opts)
       if (!res.ok) {
+        if (res.status === 401 && onUnauthorized) onUnauthorized()
         const text = await res.text()
         throw new Error(`${res.status}: ${text}`)
       }

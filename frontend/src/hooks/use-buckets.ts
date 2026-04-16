@@ -29,6 +29,45 @@ export interface UpdateBucketParams {
   color?: string | null
 }
 
+export interface BucketFile {
+  path: string
+  title: string
+  chunk_count: number
+}
+
+export function useBucketFiles(bucketId: string | null) {
+  const [files, setFiles] = useState<BucketFile[]>([])
+  const [loading, setLoading] = useState(false)
+  const [indexing, setIndexing] = useState(false)
+
+  const load = useCallback(async () => {
+    if (!bucketId) return
+    setLoading(true)
+    try {
+      const res = await api.get<{ files: BucketFile[]; indexing?: boolean }>(
+        `/api/v1/buckets/${bucketId}/files`
+      )
+      setFiles(res.files)
+      setIndexing(res.indexing ?? false)
+    } catch (err) {
+      console.error("Failed to load bucket files", err)
+    } finally {
+      setLoading(false)
+    }
+  }, [bucketId])
+
+  useEffect(() => {
+    if (bucketId) {
+      load()
+    } else {
+      setFiles([])
+      setIndexing(false)
+    }
+  }, [bucketId, load])
+
+  return { files, loading, indexing, reload: load }
+}
+
 export function useBuckets() {
   const [buckets, setBuckets] = useState<Bucket[]>([])
   const [selectedBucketId, setSelectedBucketId] = useState<string | null>(null)

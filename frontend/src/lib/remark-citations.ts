@@ -36,9 +36,9 @@ export function remarkCitations() {
         // Citation link node
         children.push({
           type: "link",
-          url: `#cite-${match[1]}`,
+          url: `#cite-${match[1]!}`,
           title: "citation",
-          children: [{ type: "text", value: match[1] }],
+          children: [{ type: "text", value: match[1]! }],
         })
 
         lastIndex = match.index + match[0].length

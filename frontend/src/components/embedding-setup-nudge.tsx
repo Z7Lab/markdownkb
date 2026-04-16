@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Database, X } from "lucide-react"
+import { api } from "@/lib/api"
 
 const DISMISS_KEY = "markdownkb-embedding-nudge-dismissed"
 
@@ -11,12 +12,11 @@ export function EmbeddingSetupNudge({ onNavigateSettings }: { onNavigateSettings
   )
 
   useEffect(() => {
-    fetch("/api/v1/health")
-      .then((r) => r.json())
+    api.get<{ embedding_model_missing?: boolean }>("/api/v1/health")
       .then((data) => {
         if (data.embedding_model_missing) setMissing(true)
       })
-      .catch(() => {})
+      .catch(() => { console.warn("Failed to check embedding health") })
   }, [])
 
   const handleDismiss = useCallback(() => {

@@ -41,7 +41,7 @@ export function FileActions({
     : "flex gap-1"
 
   return (
-    <div className={containerClass} onClick={(e) => e.stopPropagation()}>
+    <div className={containerClass} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} role="toolbar">
       {/* Include RAG Toggle */}
       {showToggle && (
         <Tooltip>

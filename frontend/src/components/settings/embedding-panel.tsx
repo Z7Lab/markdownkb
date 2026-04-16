@@ -132,9 +132,9 @@ export function EmbeddingPanel({
         <CardContent className="space-y-4">
           {/* Provider selection */}
           <div>
-            <label className="text-sm font-medium">Provider</label>
+            <span id="embed-provider-label" className="text-sm font-medium">Provider</span>
             <Select value={provider} onValueChange={setProvider}>
-              <SelectTrigger className="mt-1">
+              <SelectTrigger className="mt-1" aria-labelledby="embed-provider-label">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -154,8 +154,9 @@ export function EmbeddingPanel({
           {isRemote && (
             <div className="space-y-3 p-3 border rounded-md">
               <div>
-                <label className="text-sm font-medium">API Base</label>
+                <label htmlFor="embed-api-base" className="text-sm font-medium">API Base</label>
                 <Input
+                  id="embed-api-base"
                   value={remoteApiBase}
                   onChange={(e) => setRemoteApiBase(e.target.value)}
                   placeholder={provider === "ollama" ? "http://localhost:11434" : "https://api.openai.com/v1"}
@@ -176,8 +177,9 @@ export function EmbeddingPanel({
                 )}
               </div>
               <div>
-                <label className="text-sm font-medium">Model</label>
+                <label htmlFor="embed-model" className="text-sm font-medium">Model</label>
                 <Input
+                  id="embed-model"
                   value={remoteModel}
                   onChange={(e) => setRemoteModel(e.target.value)}
                   placeholder={provider === "ollama" ? "nomic-embed-text" : "text-embedding-3-small"}
@@ -186,8 +188,9 @@ export function EmbeddingPanel({
               </div>
               {provider === "openai" && (
                 <div>
-                  <label className="text-sm font-medium">API Key</label>
+                  <label htmlFor="embed-api-key" className="text-sm font-medium">API Key</label>
                   <Input
+                    id="embed-api-key"
                     type="password"
                     value={remoteApiKey}
                     onChange={(e) => setRemoteApiKey(e.target.value)}

@@ -181,7 +181,7 @@ export function TagEditDialog({
           {tagGenEnabled && (
             <>
               <div className="space-y-2">
-                <label className="text-sm font-medium">AI Generation</label>
+                <span className="text-sm font-medium">AI Generation</span>
                 <Button
                   onClick={handleGenerateTags}
                   disabled={generating || saving}
@@ -264,7 +264,7 @@ export function TagEditDialog({
 
           {/* Save Options */}
           <div className="space-y-3">
-            <label className="text-sm font-medium">Save options</label>
+            <span className="text-sm font-medium">Save options</span>
 
             <div className="flex items-start space-x-2 rounded-md border p-3">
               <Checkbox

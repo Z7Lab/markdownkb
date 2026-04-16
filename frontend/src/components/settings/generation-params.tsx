@@ -46,7 +46,7 @@ export function GenerationParams({
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label className="text-sm text-muted-foreground">Temperature</label>
+          <span id="gen-temperature-label" className="text-sm text-muted-foreground">Temperature</span>
           <span className="text-sm font-mono w-12 text-right">{temperature.toFixed(2)}</span>
         </div>
         <Slider
@@ -54,7 +54,8 @@ export function GenerationParams({
           min={0}
           max={2}
           step={0.05}
-          onValueChange={([v]) => { setTemperature(v); setDirty(true) }}
+          onValueChange={([v]) => { if (v !== undefined) { setTemperature(v); setDirty(true) } }}
+          aria-labelledby="gen-temperature-label"
         />
         <p className="text-xs text-muted-foreground">
           Lower = more focused, higher = more creative. Default: 0.30

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { api } from "@/lib/api"
+import { setVisibilityInterval } from "@/lib/polling"
 
 export type LLMStatus = "online" | "offline" | "checking"
 
@@ -86,10 +87,9 @@ export function useLLMStatus() {
     }
   }, [])
 
-  // Lightweight poll every 30s — no heavy API calls to provider
+  // Lightweight poll every 30s — pauses when tab is hidden
   useEffect(() => {
-    const interval = setInterval(pollStatus, 30000)
-    return () => clearInterval(interval)
+    return setVisibilityInterval(pollStatus, 30000)
   }, [pollStatus])
 
   // Full status check once on mount

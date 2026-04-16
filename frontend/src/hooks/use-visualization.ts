@@ -27,9 +27,7 @@ export function useVisualization() {
   return {
     // Docmap
     docmapData: docmap.docmapData,
-    isLoading: docmap.isLoading,
-    isComputing: docmap.isComputing,
-    checkingCache: docmap.checkingCache,
+    docmapStatus: docmap.status,
     fetchedAt: docmap.fetchedAt,
     threshold: docmap.threshold,
     setThreshold: docmap.setThreshold,

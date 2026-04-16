@@ -33,7 +33,7 @@ export function useEmbeddingSettings(reload: () => Promise<boolean>) {
       )
       setEmbeddingModels(res.models)
     } catch (err) {
-      console.debug("Failed to load embedding models:", err)
+      console.warn("Failed to load embedding models:", err)
     }
   }, [])
 
@@ -72,7 +72,7 @@ export function useEmbeddingSettings(reload: () => Promise<boolean>) {
           loadEmbeddingModels()
         }, "Reindex complete"))
       }
-    }).catch((err) => { console.debug("Failed to check embedding status:", err) })
+    }).catch((err) => { console.warn("Failed to check embedding status:", err) })
 
     return () => { pollCleanupRef.current?.() }
   }, [reload, loadEmbeddingModels, makeEmbeddingPollCallbacks])

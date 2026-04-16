@@ -51,7 +51,7 @@ export function BucketsSidebar({
           >
             <span
               className="h-2.5 w-2.5 rounded-full shrink-0"
-              style={{ backgroundColor: bucket.color ?? "#ff3333" }}
+              style={{ backgroundColor: bucket.color ?? "var(--bucket-default)" }}
             />
             <span className="flex-1 min-w-0 truncate">{bucket.name}</span>
             {bucket.expired ? (

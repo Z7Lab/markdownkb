@@ -110,7 +110,7 @@ export function SidebarItemList<T extends SidebarItem>({
           <button
             key={item.id}
             type="button"
-            role="listitem"
+
             className={cn(
               "w-full text-left rounded-md px-3 py-2 text-sm cursor-pointer overflow-hidden hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               activeId === item.id && "bg-accent border-l-2 border-l-primary",

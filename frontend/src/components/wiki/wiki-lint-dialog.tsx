@@ -109,7 +109,7 @@ export function WikiLintDialog({
             <div className="space-y-1.5">
               <p className="text-xs font-medium">Passes to run</p>
               {(Object.keys(PASS_META) as PassName[]).map((p) => (
-                <label key={p} className="flex items-start gap-2 text-xs cursor-pointer rounded hover:bg-accent px-2 py-1.5">
+                <label key={p} aria-label={PASS_META[p].label} className="flex items-start gap-2 text-xs cursor-pointer rounded hover:bg-accent px-2 py-1.5">
                   <input
                     type="checkbox"
                     checked={selectedPasses.has(p)}

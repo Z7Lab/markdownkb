@@ -2,6 +2,16 @@ import { Component, type ErrorInfo, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle } from "lucide-react"
 
+/** Callback for external error reporting (Sentry, Datadog, server-side log, etc.). */
+export type ErrorReporter = (error: Error, componentStack: string | null | undefined) => void
+
+let errorReporter: ErrorReporter | null = null
+
+/** Register a global error reporter. Call once at app startup. */
+export function setErrorReporter(reporter: ErrorReporter | null) {
+  errorReporter = reporter
+}
+
 interface Props {
   children: ReactNode
   fallbackMessage?: string
@@ -22,11 +32,12 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error }
   }
 
-  componentDidCatch(error: Error, info: ErrorInfo) {
+  override componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[markdownkb] Error boundary caught:", error, info.componentStack)
+    errorReporter?.(error, info.componentStack)
   }
 
-  render() {
+  override render() {
     if (this.state.hasError) {
       return (
         <div className="flex flex-col items-center justify-center gap-4 p-8 text-center h-full">

@@ -112,7 +112,7 @@ export function VisualizationSidebar({
                 </div>
                 <Slider
                   value={[threshold]}
-                  onValueChange={([v]) => onThresholdChange(v)}
+                  onValueChange={([v]) => { if (v !== undefined) onThresholdChange(v) }}
                   min={0.6}
                   max={0.95}
                   step={0.05}
@@ -136,7 +136,7 @@ export function VisualizationSidebar({
                 </div>
                 <Slider
                   value={[spread]}
-                  onValueChange={([v]) => onSpreadChange(v)}
+                  onValueChange={([v]) => { if (v !== undefined) onSpreadChange(v) }}
                   min={10}
                   max={200}
                   step={5}
@@ -161,7 +161,7 @@ export function VisualizationSidebar({
                   </div>
                   <Slider
                     value={[bucketThreshold]}
-                    onValueChange={([v]) => onBucketThresholdChange(v)}
+                    onValueChange={([v]) => { if (v !== undefined) onBucketThresholdChange(v) }}
                     min={0}
                     max={1}
                     step={0.05}
@@ -189,8 +189,9 @@ export function VisualizationSidebar({
               </div>
 
               <div className="flex items-center justify-between">
-                <label className="text-xs text-muted-foreground">Word Clouds</label>
+                <label htmlFor="viz-word-clouds" className="text-xs text-muted-foreground">Word Clouds</label>
                 <Switch
+                  id="viz-word-clouds"
                   checked={wordCloudsEnabled}
                   onCheckedChange={onWordCloudsChange}
                   aria-label="Include word clouds"

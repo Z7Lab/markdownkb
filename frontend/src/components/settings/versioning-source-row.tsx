@@ -136,8 +136,9 @@ export function VersioningSourceRow({
       </div>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
-        <label className="flex items-center gap-1.5 cursor-pointer">
+        <label htmlFor={`src-writable-${status.path}`} className="flex items-center gap-1.5 cursor-pointer">
           <Switch
+            id={`src-writable-${status.path}`}
             checked={status.writable}
             onCheckedChange={toggleWritable}
             disabled={busy}

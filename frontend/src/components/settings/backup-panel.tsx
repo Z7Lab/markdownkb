@@ -86,7 +86,7 @@ export function BackupPanel() {
       const blob = await res.blob()
       const cd = res.headers.get("content-disposition") ?? ""
       const match = /filename=([^;]+)/.exec(cd)
-      const filename = match ? match[1].replace(/"/g, "") : "mdkb-backup.tar.gz"
+      const filename = match ? match[1]!.replace(/"/g, "") : "mdkb-backup.tar.gz"
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url

@@ -77,7 +77,7 @@ import type { GraphMode } from "@/hooks/use-visualization"
 
 export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
   const {
-    docmapData, isLoading, isComputing, checkingCache, fetchedAt, threshold, setThreshold,
+    docmapData, docmapStatus, fetchedAt, threshold, setThreshold,
     wordClouds, setWordClouds,
     bucketThreshold, setBucketThreshold,
     selectedNodeId, selectNode, clearSelection,
@@ -116,7 +116,7 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
   } = useScopeTagFilter()
   const { buckets } = useBuckets()
   // Docmap backend supports one bucket — use the first selected
-  const firstBucketId = selectedBucketIds.size > 0 ? Array.from(selectedBucketIds)[0] : null
+  const firstBucketId = selectedBucketIds.size > 0 ? Array.from(selectedBucketIds)[0]! : null
 
   // Sentinel initial values so the first effect run always dispatches a
   // scope-aware fetch — otherwise the mount render would see refs === params
@@ -259,6 +259,7 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
 
   // Which data set to render
   const activeForceData = mode === "knowledge" ? kgForceData : forceDocMapData
+  const isLoading = docmapStatus === "loading" || docmapStatus === "computing"
   const activeIsLoading = mode === "knowledge" ? kgLoading : isLoading
   const hasData = mode === "knowledge" ? (kgData && kgData.entities.length > 0) : (docmapData && docmapData.nodes.length > 0)
 
@@ -289,23 +290,23 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
     const s = spread / 100
     const charge = fg.d3Force("charge")
     if (charge) {
-      charge.strength(-1500 * s)
-      charge.distanceMax(2000 * s)
+      charge.strength?.(-1500 * s)
+      charge.distanceMax?.(2000 * s)
     }
     const link = fg.d3Force("link")
     if (link) {
-      link.distance((l: GraphLink) => {
+      link.distance?.((l: GraphLink) => {
         const w = typeof l.weight === "number" ? l.weight : 0.5
         return (200 + (1 - w) * 800) * s
       })
-      link.strength((l: GraphLink) => {
+      link.strength?.((l: GraphLink) => {
         const w = typeof l.weight === "number" ? l.weight : 0.5
         return w * 0.15
       })
     }
     const center = fg.d3Force("center")
     if (center) {
-      center.strength(0.02)
+      center.strength?.(0.02)
     }
     prevSpreadRef.current = spread
     if (spreadInitialized.current) {
@@ -527,9 +528,9 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
             <div className="flex flex-col items-center gap-3 text-muted-foreground w-64">
               <div className="flex items-center gap-2">
                 <Loader2 className="h-5 w-5 animate-spin" />
-                <span>{isComputing ? (mode === "knowledge" ? "Loading knowledge graph..." : "Computing document map...") : "Loading..."}</span>
+                <span>{docmapStatus === "computing" ? (mode === "knowledge" ? "Loading knowledge graph..." : "Computing document map...") : "Loading..."}</span>
               </div>
-              {isComputing && progress.phase !== "idle" && (
+              {docmapStatus === "computing" && progress.phase !== "idle" && (
                 <>
                   <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                     <div
@@ -545,7 +546,7 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
         )}
 
         {/* Not yet built */}
-        {!activeIsLoading && !checkingCache && !hasData && mode === "similarity" && !docmapData && (
+        {!activeIsLoading && docmapStatus !== "checking-cache" && !hasData && mode === "similarity" && !docmapData && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center text-muted-foreground space-y-3">
               <p className="text-sm font-medium">Document map not built yet</p>

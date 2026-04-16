@@ -1,9 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react"
+import { createContext, useCallback, useContext, type ReactNode } from "react"
 import { createElement } from "react"
-import { api, retryWithBackoff } from "@/lib/api"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { api } from "@/lib/api"
 import type { AppSettings } from "@/lib/types"
 import { useProviderSettings } from "./use-provider-settings"
 import { useEmbeddingSettings } from "./use-embedding-settings"
+
+const SETTINGS_KEY = ["settings"] as const
 
 type SettingsValue = ReturnType<typeof useSettingsInternal>
 
@@ -21,31 +24,29 @@ export function useSettings(): SettingsValue {
 }
 
 function useSettingsInternal() {
-  const [settings, setSettings] = useState<AppSettings | null>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
 
-  // Every mutation calls load() after its PUT/POST/DELETE to keep the local state
+  const { data: settings = null, error } = useQuery({
+    queryKey: SETTINGS_KEY,
+    queryFn: () => api.get<AppSettings>("/api/v1/settings"),
+    retry: 10,
+    retryDelay: 2000,
+  })
+
+  const loadError = error ? (error instanceof Error ? error.message : String(error)) : null
+
+  // Every mutation calls reload() after its PUT/POST/DELETE to keep the local state
   // in sync with the server. A full refetch is intentional: settings objects are
   // small, mutations are infrequent, and it avoids stale-cache bugs from partial
   // optimistic updates (e.g. a plugin toggle that also affects dependent settings).
   const load = useCallback(async (): Promise<boolean> => {
     try {
-      const res = await api.get<AppSettings>("/api/v1/settings")
-      setSettings(res)
-      setLoadError(null)
+      await queryClient.invalidateQueries({ queryKey: SETTINGS_KEY })
       return true
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      console.error("Failed to load settings:", message)
-      setLoadError(message)
+    } catch {
       return false
     }
-  }, [])
-
-  // Initial load with retry
-  useEffect(() => {
-    return retryWithBackoff(() => load())
-  }, [load])
+  }, [queryClient])
 
   // Domain hooks
   const provider = useProviderSettings(load)

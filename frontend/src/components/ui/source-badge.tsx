@@ -99,7 +99,7 @@ export function SourceLegend({
   const citedNums = new Set<string>();
   if (messageContent) {
     const matches = messageContent.matchAll(/\[(\d+)\]/g);
-    for (const m of matches) citedNums.add(m[1]);
+    for (const m of matches) citedNums.add(m[1]!);
   }
 
   const cited = entries.filter(([num]) => !messageContent || citedNums.has(num));

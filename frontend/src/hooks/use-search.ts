@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { api, retryWithBackoff } from "@/lib/api"
-import { streamSearchSummary } from "@/lib/sse"
 import { toast } from "sonner"
+import { useSearchSummary, INITIAL_SUMMARY } from "./use-search-summary"
 import type { PaginatedResponse, SavedSearch, SearchResult, SearchResponse, CompareResponse, SearchVersion, ScoreChange } from "@/lib/types"
 
 /** Historical search comparison metadata — always set/reset together */
@@ -15,20 +15,6 @@ interface HistoricalMeta {
   currentResultCount: number | null
   createdAt: string | null
   versionCount: number
-}
-
-/** AI summary — grouped to prevent staggered re-renders on streaming updates */
-interface SummaryState {
-  text: string
-  sources: string[]
-  isActive: boolean
-  status: string | null
-  iteration: number
-  totalIterations: number
-}
-
-const INITIAL_SUMMARY: SummaryState = {
-  text: "", sources: [], isActive: false, status: null, iteration: 0, totalIterations: 0,
 }
 
 const INITIAL_HISTORICAL: HistoricalMeta = {
@@ -57,16 +43,17 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
   // Historical search metadata (compound state)
   const [historical, setHistorical] = useState<HistoricalMeta>(INITIAL_HISTORICAL)
 
-  // AI summary — grouped into a single compound state to prevent staggered re-renders.
-  const [summaryState, setSummaryState] = useState<SummaryState>(INITIAL_SUMMARY)
-  const summaryControllerRef = useRef<AbortController | null>(null)
-
   // Deep research mode
   const [deepResearch, setDeepResearch] = useState(false)
   const [deepResearchIterations, setDeepResearchIterations] = useState(3)
 
-  // API key is set once before mount via setApiKey() and does not change at runtime,
-  // so an empty dependency array is correct here — no re-fetch needed on key change.
+  // AI summary (extracted hook)
+  const {
+    summary, summarySources, summaryStatus, isSummarizing,
+    summaryIteration, summaryTotalIterations,
+    resetSummary, startSummary, stopSummary, abortSummary, setSummaryState,
+  } = useSearchSummary(scopeIds, adHocTags, deepResearch, deepResearchIterations)
+
   useEffect(() => {
     const cancelRetry = retryWithBackoff(async () => {
       try {
@@ -81,9 +68,9 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
 
     return () => {
       cancelRetry()
-      summaryControllerRef.current?.abort()
+      abortSummary()
     }
-  }, [])
+  }, [abortSummary])
 
   const refreshSearches = useCallback(async (silent = false): Promise<boolean> => {
     try {
@@ -98,55 +85,6 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
     }
   }, [])
 
-  /** Stop any running summary and reset summary state */
-  const resetSummary = useCallback(() => {
-    summaryControllerRef.current?.abort()
-    setSummaryState(INITIAL_SUMMARY)
-  }, [])
-
-  /** Start streaming an AI summary for the given query */
-  const startSummary = useCallback((
-    searchQuery: string,
-    options: { search_id?: string | null },
-  ) => {
-    setSummaryState((s) => ({ ...s, isActive: true, status: null, iteration: 0, totalIterations: 0 }))
-    summaryControllerRef.current = streamSearchSummary(
-      searchQuery,
-      {
-        onToken: (delta) => {
-          setSummaryState((s) => ({ ...s, text: s.text + delta, status: null }))
-        },
-        onSources: (sources) => setSummaryState((s) => ({ ...s, sources })),
-        onStatus: (_phase, message, iteration, totalIterations) => {
-          setSummaryState((s) => ({
-            ...s,
-            status: message,
-            ...(iteration !== undefined ? { iteration } : {}),
-            ...(totalIterations !== undefined ? { totalIterations } : {}),
-          }))
-        },
-        onDone: () => {
-          setSummaryState((s) => ({ ...s, isActive: false, status: null }))
-        },
-        onError: (err) => {
-          setSummaryState((s) => ({ ...s, isActive: false, status: null }))
-          toast.error(`Summary failed: ${err.message}`)
-        },
-      },
-      {
-        ...options,
-        scope_ids: scopeIds,
-        ad_hoc_tags: adHocTags,
-        deep_research: deepResearch,
-        deep_research_iterations: deepResearch ? deepResearchIterations : undefined,
-      },
-    )
-  }, [scopeIds, adHocTags, deepResearch, deepResearchIterations])
-
-  /**
-   * Shared logic for search and requery — executes a search POST and starts summary streaming.
-   * The only difference is requery passes parent_id for version chaining.
-   */
   const executeSearch = useCallback(async (parentId?: string | null) => {
     if (!query.trim()) return
     setLoading(true)
@@ -209,8 +147,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
   const loadSearch = useCallback(async (saved: SavedSearch) => {
     setQuery(saved.query)
     setActiveSearchId(saved.id)
-
-    summaryControllerRef.current?.abort()
+    abortSummary()
     setSummaryState((s) => ({ ...s, isActive: false }))
 
     setLoading(true)
@@ -250,7 +187,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
     }).catch(() => {
       /* comparison is best-effort background check */
     })
-  }, [])
+  }, [abortSummary, setSummaryState])
 
   const loadVersion = useCallback(async (version: SearchVersion) => {
     await loadSearch({
@@ -277,11 +214,6 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
     }
   }, [])
 
-  const stopSummary = useCallback(() => {
-    summaryControllerRef.current?.abort()
-    setSummaryState((s) => ({ ...s, isActive: false, status: null, iteration: 0, totalIterations: 0 }))
-  }, [])
-
   const generateSummary = useCallback(async () => {
     if (!query.trim()) return
     resetSummary()
@@ -289,32 +221,26 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
   }, [query, activeSearchId, resetSummary, startSummary])
 
   const newSearch = useCallback(() => {
-    summaryControllerRef.current?.abort()
+    abortSummary()
     setQuery("")
     setResults([])
     setSummaryState(INITIAL_SUMMARY)
     setActiveSearchId(null)
     setError(null)
     setHistorical(INITIAL_HISTORICAL)
-  }, [])
+  }, [abortSummary, setSummaryState])
 
   return {
     query, setQuery,
     results, loading, loadingHistorical, error, search,
     searches, activeSearchId, renameSearch, deleteSearch, loadSearch,
-    // Summary state (spread compound state for API compatibility)
-    summary: summaryState.text,
-    summarySources: summaryState.sources,
-    summaryStatus: summaryState.status,
-    isSummarizing: summaryState.isActive,
-    summaryIteration: summaryState.iteration,
-    summaryTotalIterations: summaryState.totalIterations,
+    summary, summarySources, summaryStatus, isSummarizing,
+    summaryIteration, summaryTotalIterations,
     stopSummary, generateSummary,
     deepResearch, setDeepResearch,
     deepResearchIterations, setDeepResearchIterations,
     newSearch, refreshSearches, requery,
     loadVersion, fetchVersions,
-    // Historical search metadata (spread compound state for API compatibility)
     isHistorical: historical.isHistorical,
     resultsChanged: historical.resultsChanged,
     missingFiles: historical.missingFiles,

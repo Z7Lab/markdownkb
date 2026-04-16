@@ -72,7 +72,7 @@ export function HistoryDialog({
       `/api/v1/versioning/history?path=${encodeURIComponent(path)}`,
     ).then((r) => {
       setCommits(r.commits)
-      if (r.commits.length > 0) setSelected(r.commits[0].sha)
+      if (r.commits.length > 0) setSelected(r.commits[0]!.sha)
     }).catch((err) => {
       const msg = (err as Error).message || "Unknown error"
       setLoadError(msg)
@@ -108,7 +108,7 @@ export function HistoryDialog({
         `/api/v1/versioning/history?path=${encodeURIComponent(path)}`,
       )
       setCommits(refreshed.commits)
-      if (refreshed.commits.length > 0) setSelected(refreshed.commits[0].sha)
+      if (refreshed.commits.length > 0) setSelected(refreshed.commits[0]!.sha)
     } catch (err) {
       toast.error(`Restore failed: ${(err as Error).message}`)
     } finally {
@@ -129,9 +129,9 @@ export function HistoryDialog({
     const lines = text.split("\n")
     return lines.map((line, i) => {
       let cls = ""
-      if (line.startsWith("+") && !line.startsWith("+++")) cls = "text-green-600 dark:text-green-400"
-      else if (line.startsWith("-") && !line.startsWith("---")) cls = "text-red-600 dark:text-red-400"
-      else if (line.startsWith("@@")) cls = "text-blue-600 dark:text-blue-400"
+      if (line.startsWith("+") && !line.startsWith("+++")) cls = "text-diff-add"
+      else if (line.startsWith("-") && !line.startsWith("---")) cls = "text-diff-remove"
+      else if (line.startsWith("@@")) cls = "text-diff-hunk"
       else if (line.startsWith("diff ") || line.startsWith("index ") || line.startsWith("+++") || line.startsWith("---"))
         cls = "text-muted-foreground"
       return (
@@ -177,25 +177,27 @@ export function HistoryDialog({
                     const isCurrent = i === 0
                     const isSelected = selected === c.sha
                     return (
-                      <li
-                        key={c.sha}
-                        onClick={() => setSelected(c.sha)}
-                        className={`px-3 py-2 border-b cursor-pointer hover:bg-muted/50 ${isSelected ? "bg-primary/10" : ""}`}
-                      >
-                        <div className="flex items-center justify-between gap-1 mb-0.5">
-                          <span className="font-mono text-[10px] text-muted-foreground">
-                            {c.sha.slice(0, 8)}
-                          </span>
-                          {isCurrent && (
-                            <span className="text-[10px] px-1 rounded bg-primary/20 text-primary">current</span>
-                          )}
-                        </div>
-                        <div className="font-medium truncate" title={c.subject}>
-                          {c.subject}
-                        </div>
-                        <div className="text-[10px] text-muted-foreground">
-                          {formatDate(c.date)}
-                        </div>
+                      <li key={c.sha}>
+                        <button
+                          type="button"
+                          onClick={() => setSelected(c.sha)}
+                          className={`w-full text-left px-3 py-2 border-b cursor-pointer hover:bg-muted/50 ${isSelected ? "bg-primary/10" : ""}`}
+                        >
+                          <div className="flex items-center justify-between gap-1 mb-0.5">
+                            <span className="font-mono text-[10px] text-muted-foreground">
+                              {c.sha.slice(0, 8)}
+                            </span>
+                            {isCurrent && (
+                              <span className="text-[10px] px-1 rounded bg-primary/20 text-primary">current</span>
+                            )}
+                          </div>
+                          <div className="font-medium truncate" title={c.subject}>
+                            {c.subject}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {formatDate(c.date)}
+                          </div>
+                        </button>
                       </li>
                     )
                   })}
@@ -210,7 +212,7 @@ export function HistoryDialog({
               <span className="text-xs font-medium text-muted-foreground">
                 {selected ? `Diff @ ${selected.slice(0, 8)}` : "Select a commit"}
               </span>
-              {selected && commits && commits.length > 0 && selected !== commits[0].sha && (
+              {selected && commits && commits.length > 0 && selected !== commits[0]!.sha && (
                 <Button
                   size="sm"
                   variant="outline"

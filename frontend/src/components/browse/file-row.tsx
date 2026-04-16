@@ -63,7 +63,10 @@ export const FileRow = React.memo(function FileRow({
     <div
       className={`grid items-center border-b hover:bg-muted/50 cursor-pointer transition-colors text-sm ${selected ? "bg-primary/5" : ""}`}
       style={{ gridTemplateColumns: gridTemplate }}
+      role="button"
+      tabIndex={0}
       onClick={() => onViewFile(file.path)}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onViewFile(file.path) } }}
     >
       <div className="px-2 py-2 flex items-center gap-2 font-mono truncate overflow-hidden">
         {onToggleSelect && (
@@ -79,9 +82,12 @@ export const FileRow = React.memo(function FileRow({
       <div className="px-2 py-2 text-muted-foreground truncate overflow-hidden">
         {dirname(file.path)}
       </div>
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         className="px-2 py-1.5 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        role="group"
       >
         {editingTags ? (
           <div className="flex flex-col gap-1">
@@ -121,7 +127,10 @@ export const FileRow = React.memo(function FileRow({
         ) : (
           <div
             className="flex flex-wrap gap-0.5 cursor-pointer group min-h-[20px]"
+            role="button"
+            tabIndex={0}
             onClick={() => setEditingTags(true)}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditingTags(true) } }}
           >
             {tags.length > 0 ? (
               tags.map((t) => (

@@ -30,7 +30,7 @@ function parseThinkBlocks(text: string): ThinkBlock[] {
       const before = text.slice(lastIndex, match.index);
       if (before.trim()) blocks.push({ type: "text", content: before });
     }
-    blocks.push({ type: "think", content: match[2] });
+    blocks.push({ type: "think", content: match[2]! });
     lastIndex = regex.lastIndex;
     lastWasThink = true;
   }
@@ -40,7 +40,7 @@ function parseThinkBlocks(text: string): ThinkBlock[] {
   if (openTagMatch) {
     const before = remaining.slice(0, openTagMatch.index);
     if (before.trim()) blocks.push({ type: "text", content: before });
-    blocks.push({ type: "thinking", content: openTagMatch[2] });
+    blocks.push({ type: "thinking", content: openTagMatch[2]! });
   } else {
     if (lastWasThink) {
       remaining = remaining.replace(/^[\s:]+/, "");

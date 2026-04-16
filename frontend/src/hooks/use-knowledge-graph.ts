@@ -67,7 +67,7 @@ export function useKnowledgeGraph(mode: GraphMode) {
           setExtraction(s)
           if (s.running) pollExtraction()
         })
-        .catch(() => {})
+        .catch((e) => { console.warn("Knowledge graph: failed to check extraction status", e) })
     }
   }, [mode, pollExtraction])
 

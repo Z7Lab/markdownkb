@@ -17,7 +17,7 @@ export function useContainerDimensions(): {
     const el = containerRef.current
     if (!el) return
     const observer = new ResizeObserver((entries) => {
-      const { width, height } = entries[0].contentRect
+      const { width, height } = entries[0]!.contentRect
       setDimensions({ width: Math.floor(width), height: Math.floor(height) })
     })
     observer.observe(el)

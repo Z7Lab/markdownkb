@@ -94,8 +94,8 @@ export function useTextSearch() {
 
     // Scroll to first match
     if (marks.length > 0) {
-      marks[0].className = "bg-orange-300 dark:bg-orange-600/80 rounded-sm px-0.5 ring-2 ring-orange-500"
-      marks[0].scrollIntoView({ block: "center", behavior: "smooth" })
+      marks[0]!.className = "bg-orange-300 dark:bg-orange-600/80 rounded-sm px-0.5 ring-2 ring-orange-500"
+      marks[0]!.scrollIntoView({ block: "center", behavior: "smooth" })
     }
   }, [clearHighlights])
 
@@ -111,8 +111,8 @@ export function useTextSearch() {
       m.className = "bg-yellow-200 dark:bg-yellow-800/60 rounded-sm px-0.5"
     })
     // Highlight current match
-    marks[idx].className = "bg-orange-300 dark:bg-orange-600/80 rounded-sm px-0.5 ring-2 ring-orange-500"
-    marks[idx].scrollIntoView({ block: "center", behavior: "smooth" })
+    marks[idx]!.className = "bg-orange-300 dark:bg-orange-600/80 rounded-sm px-0.5 ring-2 ring-orange-500"
+    marks[idx]!.scrollIntoView({ block: "center", behavior: "smooth" })
 
     setState((s) => ({ ...s, currentMatch: idx + 1 }))
   }, [])

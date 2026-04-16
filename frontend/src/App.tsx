@@ -1,19 +1,19 @@
-import { lazy, Suspense, useEffect } from "react"
+import { lazy, Suspense, type ComponentType } from "react"
 import { useLocation, useRoute } from "wouter"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { ChatTab } from "@/components/chat/chat-tab"
 import { DashboardTab } from "@/components/dashboard/dashboard-tab"
 import { ErrorBoundary } from "@/components/error-boundary"
-import { IndexActivityIndicator } from "@/components/index-activity-indicator"
-import { LLMStatusIndicator } from "@/components/llm-status-indicator"
+import { AppHeader } from "@/components/app-header"
 import { IndexEventProvider } from "@/hooks/use-index-events"
-import { SettingsProvider, useSettings } from "@/hooks/use-settings"
+import { SettingsProvider } from "@/hooks/use-settings"
 import { NavigationProvider } from "@/lib/navigation"
-import { MessageSquare, Globe, FolderOpen, Lightbulb, Network, Share2, Database, BookOpen, LayoutDashboard } from "lucide-react"
+import { MessageSquare, Globe, FolderOpen, Lightbulb, Network, Share2, Database, BookOpen, LayoutDashboard, AlertCircle } from "lucide-react"
 import { SetupBanner } from "@/components/setup-banner"
 import { LlmSetupNudge } from "@/components/llm-setup-nudge"
 import { EmbeddingSetupNudge } from "@/components/embedding-setup-nudge"
+import type { LucideIcon } from "lucide-react"
 
 const SearchTab = lazy(() => import("@/components/search/search-tab").then(m => ({ default: m.SearchTab })))
 const FilesTab = lazy(() => import("@/components/browse/files-tab").then(m => ({ default: m.FilesTab })))
@@ -27,93 +27,77 @@ function TabFallback() {
   return <div className="flex-1 flex items-center justify-center text-muted-foreground">Loading...</div>
 }
 
-// Map routes to tab values (exact, non-parameterised paths only)
-const routeToTab: Record<string, string> = {
-  "/": "dashboard",
-  "/chat": "chat",
-  "/search": "search",
-  "/planner": "planner",
-  "/docmap": "docmap",
-  "/knowledge-graph": "knowledge-graph",
-  "/files": "files",
-  "/buckets": "buckets",
-  "/wiki": "wiki",
-  "/settings": "settings",
+// ── Single source of truth for routes/tabs ──────────────────────────────────
+
+interface RouteEntry {
+  value: string
+  path: string
+  icon: LucideIcon
+  label: string
+  pluginKey?: string
 }
 
-const tabToRoute: Record<string, string> = {
-  dashboard: "/",
-  chat: "/chat",
-  search: "/search",
-  planner: "/planner",
-  docmap: "/docmap",
-  "knowledge-graph": "/knowledge-graph",
-  files: "/files",
-  buckets: "/buckets",
-  wiki: "/wiki",
-  settings: "/settings",
+const ROUTE_CONFIG: RouteEntry[] = [
+  { value: "dashboard", path: "/", icon: LayoutDashboard, label: "Home" },
+  { value: "chat", path: "/chat", icon: MessageSquare, label: "Chat" },
+  { value: "search", path: "/search", icon: Globe, label: "Search" },
+  { value: "planner", path: "/planner", icon: Lightbulb, label: "Planner" },
+  { value: "docmap", path: "/docmap", icon: Share2, label: "Doc Map", pluginKey: "docmap" },
+  { value: "knowledge-graph", path: "/knowledge-graph", icon: Network, label: "Knowledge Graph", pluginKey: "knowledge_graph" },
+  { value: "buckets", path: "/buckets", icon: Database, label: "Buckets", pluginKey: "buckets" },
+  { value: "wiki", path: "/wiki", icon: BookOpen, label: "Wiki", pluginKey: "wiki_compile" },
+  { value: "files", path: "/files", icon: FolderOpen, label: "Files" },
+]
+
+const routeToTab = Object.fromEntries(ROUTE_CONFIG.map(r => [r.path, r.value]))
+const tabToRoute = Object.fromEntries(ROUTE_CONFIG.map(r => [r.value, r.path]))
+// Settings tab isn't in the nav bar but needs route mapping
+routeToTab["/settings"] = "settings"
+tabToRoute["settings"] = "/settings"
+
+// Tab content components — keyed by tab value. Entries without a component
+// use the dashboard/chat eager-loaded paths or have special rendering below.
+const TAB_COMPONENTS: Record<string, ComponentType<Record<string, never>>> = {
+  search: SearchTab,
+  planner: PlannerTab,
+  files: FilesTab,
+  buckets: BucketsTab,
+  wiki: WikiTab,
 }
 
-function DocMapTabTrigger() {
-  const { settings } = useSettings()
-  if (!settings?.plugins_enabled?.docmap) return null
+// ── 404 page ────────────────────────────────────────────────────────────────
+
+function NotFoundPage({ onGoHome }: { onGoHome: () => void }) {
   return (
-    <TabsTrigger value="docmap">
-      <Share2 className="h-4 w-4" />
-      Doc Map
-    </TabsTrigger>
+    <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center">
+      <AlertCircle className="h-10 w-10 text-muted-foreground" />
+      <div>
+        <h2 className="text-lg font-semibold mb-1">Page not found</h2>
+        <p className="text-sm text-muted-foreground">The page you're looking for doesn't exist.</p>
+      </div>
+      <button className="text-sm text-primary underline" onClick={onGoHome}>
+        Go to dashboard
+      </button>
+    </div>
   )
 }
 
-function KnowledgeGraphTabTrigger() {
-  const { settings } = useSettings()
-  if (!settings?.plugins_enabled?.knowledge_graph) return null
-  return (
-    <TabsTrigger value="knowledge-graph">
-      <Network className="h-4 w-4" />
-      Knowledge Graph
-    </TabsTrigger>
-  )
-}
-
-function BucketsTabTrigger() {
-  const { settings } = useSettings()
-  if (!settings?.plugins_enabled?.buckets) return null
-  return (
-    <TabsTrigger value="buckets">
-      <Database className="h-4 w-4" />
-      Buckets
-    </TabsTrigger>
-  )
-}
-
-function WikiTabTrigger() {
-  const { settings } = useSettings()
-  if (!settings?.plugins_enabled?.wiki_compile) return null
-  return (
-    <TabsTrigger value="wiki">
-      <BookOpen className="h-4 w-4" />
-      Wiki
-    </TabsTrigger>
-  )
-}
+// ── App ─────────────────────────────────────────────────────────────────────
 
 export function App() {
   const [location, setLocation] = useLocation()
   const [isChatThread, chatParams] = useRoute<{ threadId: string }>("/chat/:threadId")
   const [isSettingsSection, settingsParams] = useRoute<{ section: string }>("/settings/:section")
 
+  const isKnownRoute = location in routeToTab || isChatThread || isSettingsSection
   const activeTab = isChatThread
     ? "chat"
     : isSettingsSection
     ? "settings"
-    : routeToTab[location] ?? "dashboard"
+    : routeToTab[location] ?? null
 
-  // Redirect unknown routes to dashboard
-  useEffect(() => {
-    const known = location in routeToTab || isChatThread || isSettingsSection
-    if (!known) setLocation("/")
-  }, [location, setLocation, isChatThread, isSettingsSection])
+  // Show 404 for unknown routes instead of silent redirect
+  const showNotFound = !isKnownRoute
 
   const handleTabChange = (tab: string) => {
     const route = tabToRoute[tab]
@@ -129,117 +113,65 @@ export function App() {
             <SetupBanner />
             <LlmSetupNudge onNavigateSettings={() => handleTabChange("settings")} />
             <EmbeddingSetupNudge onNavigateSettings={() => handleTabChange("settings")} />
-            <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
-            <header className="shrink-0 z-20 bg-background border-b px-6 py-3 flex items-center justify-between">
-              <button
-                className="text-left hover:opacity-70 transition-opacity"
-                onClick={() => setLocation("/")}
-              >
-                <h1 className="text-lg font-bold tracking-tight">MarkdownKB</h1>
-                <p className="text-xs text-muted-foreground">
-                  Knowledge base assistant
-                </p>
-              </button>
-              <div className="flex items-center gap-4">
-                <IndexActivityIndicator />
-                <LLMStatusIndicator />
-                <TabsList>
-                <TabsTrigger value="dashboard">
-                  <LayoutDashboard className="h-4 w-4" />
-                  Home
-                </TabsTrigger>
-                <TabsTrigger value="chat">
-                  <MessageSquare className="h-4 w-4" />
-                  Chat
-                </TabsTrigger>
-                <TabsTrigger value="search">
-                  <Globe className="h-4 w-4" />
-                  Search
-                </TabsTrigger>
-                <TabsTrigger value="planner">
-                  <Lightbulb className="h-4 w-4" />
-                  Planner
-                </TabsTrigger>
-                <DocMapTabTrigger />
-                <KnowledgeGraphTabTrigger />
-                <BucketsTabTrigger />
-                <WikiTabTrigger />
-                <TabsTrigger value="files">
-                  <FolderOpen className="h-4 w-4" />
-                  Files
-                </TabsTrigger>
-              </TabsList>
-              </div>
-            </header>
+            <Tabs value={activeTab ?? "dashboard"} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0">
+              <AppHeader
+                tabs={ROUTE_CONFIG}
+                onLogoClick={() => setLocation("/")}
+              />
 
-            <main className="flex-1 flex flex-col min-h-0" aria-label={`${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} tab content`}>
-              <TabsContent value="dashboard" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
-                <ErrorBoundary fallbackMessage="Dashboard encountered an error">
-                  <DashboardTab />
-                </ErrorBoundary>
-              </TabsContent>
-              <TabsContent value="chat" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
-                <ErrorBoundary fallbackMessage="Chat encountered an error">
-                  <ChatTab defaultThreadId={chatParams?.threadId} />
-                </ErrorBoundary>
-              </TabsContent>
-              <TabsContent value="search" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
-                <ErrorBoundary fallbackMessage="Search encountered an error">
-                  <Suspense fallback={<TabFallback />}>
-                    <SearchTab />
-                  </Suspense>
-                </ErrorBoundary>
-              </TabsContent>
-              <TabsContent value="planner" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
-                <ErrorBoundary fallbackMessage="Planner encountered an error">
-                  <Suspense fallback={<TabFallback />}>
-                    <PlannerTab />
-                  </Suspense>
-                </ErrorBoundary>
-              </TabsContent>
-              <TabsContent value="docmap" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
-                <ErrorBoundary fallbackMessage="Doc Map encountered an error">
-                  <Suspense fallback={<TabFallback />}>
-                    <VisualizationTab fixedMode="similarity" />
-                  </Suspense>
-                </ErrorBoundary>
-              </TabsContent>
-              <TabsContent value="knowledge-graph" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
-                <ErrorBoundary fallbackMessage="Knowledge Graph encountered an error">
-                  <Suspense fallback={<TabFallback />}>
-                    <VisualizationTab fixedMode="knowledge" />
-                  </Suspense>
-                </ErrorBoundary>
-              </TabsContent>
-              <TabsContent value="buckets" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
-                <ErrorBoundary fallbackMessage="Buckets encountered an error">
-                  <Suspense fallback={<TabFallback />}>
-                    <BucketsTab />
-                  </Suspense>
-                </ErrorBoundary>
-              </TabsContent>
-              <TabsContent value="wiki" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
-                <ErrorBoundary fallbackMessage="Wiki encountered an error">
-                  <Suspense fallback={<TabFallback />}>
-                    <WikiTab />
-                  </Suspense>
-                </ErrorBoundary>
-              </TabsContent>
-              <TabsContent value="files" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
-                <ErrorBoundary fallbackMessage="Files encountered an error">
-                  <Suspense fallback={<TabFallback />}>
-                    <FilesTab />
-                  </Suspense>
-                </ErrorBoundary>
-              </TabsContent>
-              <TabsContent value="settings" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
-                <ErrorBoundary fallbackMessage="Settings encountered an error">
-                  <Suspense fallback={<TabFallback />}>
-                    <SettingsTab initialSection={settingsParams?.section} />
-                  </Suspense>
-                </ErrorBoundary>
-              </TabsContent>
-            </main>
+              {showNotFound ? (
+                <NotFoundPage onGoHome={() => setLocation("/")} />
+              ) : (
+                <main className="flex-1 flex flex-col min-h-0" aria-label={`${(activeTab ?? "dashboard").charAt(0).toUpperCase() + (activeTab ?? "dashboard").slice(1)} tab content`}>
+                  {/* Eagerly loaded tabs */}
+                  <TabsContent value="dashboard" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
+                    <ErrorBoundary fallbackMessage="Dashboard encountered an error">
+                      <DashboardTab />
+                    </ErrorBoundary>
+                  </TabsContent>
+                  <TabsContent value="chat" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
+                    <ErrorBoundary fallbackMessage="Chat encountered an error">
+                      <ChatTab defaultThreadId={chatParams?.threadId} />
+                    </ErrorBoundary>
+                  </TabsContent>
+
+                  {/* Lazily loaded standard tabs */}
+                  {Object.entries(TAB_COMPONENTS).map(([value, Component]) => (
+                    <TabsContent key={value} value={value} className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
+                      <ErrorBoundary fallbackMessage={`${value.charAt(0).toUpperCase() + value.slice(1)} encountered an error`}>
+                        <Suspense fallback={<TabFallback />}>
+                          <Component />
+                        </Suspense>
+                      </ErrorBoundary>
+                    </TabsContent>
+                  ))}
+
+                  {/* Visualization tabs share the same lazy component with different modes */}
+                  <TabsContent value="docmap" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
+                    <ErrorBoundary fallbackMessage="Doc Map encountered an error">
+                      <Suspense fallback={<TabFallback />}>
+                        <VisualizationTab fixedMode="similarity" />
+                      </Suspense>
+                    </ErrorBoundary>
+                  </TabsContent>
+                  <TabsContent value="knowledge-graph" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
+                    <ErrorBoundary fallbackMessage="Knowledge Graph encountered an error">
+                      <Suspense fallback={<TabFallback />}>
+                        <VisualizationTab fixedMode="knowledge" />
+                      </Suspense>
+                    </ErrorBoundary>
+                  </TabsContent>
+
+                  {/* Settings tab has special props */}
+                  <TabsContent value="settings" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
+                    <ErrorBoundary fallbackMessage="Settings encountered an error">
+                      <Suspense fallback={<TabFallback />}>
+                        <SettingsTab initialSection={settingsParams?.section} />
+                      </Suspense>
+                    </ErrorBoundary>
+                  </TabsContent>
+                </main>
+              )}
             </Tabs>
           </div>
         </NavigationProvider>
@@ -248,4 +180,3 @@ export function App() {
     </TooltipProvider>
   )
 }
-

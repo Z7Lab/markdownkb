@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
+import { setVisibilityInterval } from "@/lib/polling"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
@@ -57,8 +58,7 @@ export function LogViewer({
     seqRef.current = 0
     if (loggingOff) return
     fetchLogs()
-    const interval = setInterval(fetchLogs, pollInterval)
-    return () => clearInterval(interval)
+    return setVisibilityInterval(fetchLogs, pollInterval)
   }, [fetchLogs, pollInterval, loggingOff])
 
   // Auto-scroll to bottom on new entries

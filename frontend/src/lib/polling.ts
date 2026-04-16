@@ -4,6 +4,29 @@
 
 import { api } from "@/lib/api"
 
+/**
+ * Like setInterval but pauses when the browser tab is hidden.
+ * Returns a cleanup function that stops the interval and removes the listener.
+ */
+export function setVisibilityInterval(callback: () => void, ms: number): () => void {
+  let id: ReturnType<typeof setInterval> | null = setInterval(callback, ms)
+
+  const onVisibility = () => {
+    if (document.hidden) {
+      if (id !== null) { clearInterval(id); id = null }
+    } else {
+      if (id === null) { callback(); id = setInterval(callback, ms) }
+    }
+  }
+
+  document.addEventListener("visibilitychange", onVisibility)
+
+  return () => {
+    if (id !== null) clearInterval(id)
+    document.removeEventListener("visibilitychange", onVisibility)
+  }
+}
+
 export interface PollingStatus {
   running: boolean
   progress: number
@@ -29,39 +52,32 @@ export function startPolling(
   interval: number,
   callbacks: PollingCallbacks,
 ): () => void {
-  let pollInterval: ReturnType<typeof setInterval> | null = null
+  let stopped = false
+
+  const stop = () => {
+    if (!stopped) { stopped = true; cleanup() }
+  }
 
   const poll = async () => {
+    if (stopped) return
     try {
       const status = await api.get<PollingStatus>(statusEndpoint)
+      if (stopped) return
 
       if (status.running) {
         callbacks.onProgress(status)
       } else {
-        // Operation complete
-        if (pollInterval) {
-          clearInterval(pollInterval)
-          pollInterval = null
-        }
+        stop()
         callbacks.onComplete(status.result || "Operation complete")
       }
     } catch (error) {
-      if (pollInterval) {
-        clearInterval(pollInterval)
-        pollInterval = null
-      }
+      stop()
       callbacks.onError(error as Error)
     }
   }
 
-  // Start polling
-  pollInterval = setInterval(poll, interval)
+  // Start polling (pauses when tab is hidden)
+  const cleanup = setVisibilityInterval(poll, interval)
 
-  // Return cleanup function
-  return () => {
-    if (pollInterval) {
-      clearInterval(pollInterval)
-      pollInterval = null
-    }
-  }
+  return stop
 }

@@ -57,34 +57,34 @@ export function parseFrontmatter(raw: string): ParsedFrontmatter {
     return { tags: [], content: raw }
   }
 
-  const [, frontmatter, content] = match
+  const [, frontmatter, content] = match as RegExpMatchArray
 
   // Try inline array format: tags: [tag1, tag2]
-  const inlineMatch = frontmatter.match(/tags:\s*\[(.*?)\]/)
+  const inlineMatch = frontmatter!.match(/tags:\s*\[(.*?)\]/)
   if (inlineMatch) {
-    const tags = inlineMatch[1]
+    const tags = inlineMatch[1]!
       .split(',')
       .map(t => t.trim().replace(/['"]/g, ''))
       .filter(Boolean)
-    return { tags, content }
+    return { tags, content: content! }
   }
 
   // Try YAML list format:
   // tags:
   // - tag1
   // - tag2
-  const listMatch = frontmatter.match(/tags:\s*\n((?:\s*-\s*.+\n?)+)/)
+  const listMatch = frontmatter!.match(/tags:\s*\n((?:\s*-\s*.+\n?)+)/)
   if (listMatch) {
-    const tags = listMatch[1]
+    const tags = listMatch[1]!
       .split('\n')
       .map(line => line.trim())
       .filter(line => line.startsWith('-'))
       .map(line => line.substring(1).trim().replace(/['"]/g, ''))
       .filter(Boolean)
-    return { tags, content }
+    return { tags, content: content! }
   }
 
-  return { tags: [], content }
+  return { tags: [], content: content! }
 }
 
 /**

@@ -51,7 +51,7 @@ describe("api", () => {
     it("does not include X-MarkdownKB-Key when no key is set", async () => {
       mockJsonResponse({})
       await api.get("/api/v1/test")
-      const callArgs = mockFetch.mock.calls[0]
+      const callArgs = mockFetch.mock.calls[0]!
       expect(callArgs[1].headers["X-MarkdownKB-Key"]).toBeUndefined()
     })
 
@@ -59,7 +59,7 @@ describe("api", () => {
       setApiKey("test-key-123")
       mockJsonResponse({})
       await api.get("/api/v1/test")
-      const callArgs = mockFetch.mock.calls[0]
+      const callArgs = mockFetch.mock.calls[0]!
       expect(callArgs[1].headers["X-MarkdownKB-Key"]).toBe("test-key-123")
     })
 
