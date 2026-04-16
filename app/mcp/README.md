@@ -31,7 +31,7 @@ The tool is automatically picked up on the next server restart.
 - `tools/` — MCP tool modules (auto-discovered)
 - `tools/__init__.py` — discovery and registration logic
 - `scope.py` — scope resolution helper (resolves scope_id → folders_filter + allowed_paths for Retriever)
-- `auth.py` — API key middleware for MCP transport (accepts `X-MarkdownKB-Key` header or `?token=` query param)
+- `auth.py` — API key middleware for MCP transport (accepts `Authorization: Bearer` or `X-MarkdownKB-Key` header)
 - `history.py` — optional history tracking for MCP tool calls
 
 ## See also

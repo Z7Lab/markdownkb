@@ -168,7 +168,7 @@ export function useFileViewer(path: string | null): UseFileViewerReturn {
   })
 
   const handleReindexFile = () => withAction(async () => {
-    await api.post("/api/v1/files/reindex", { path })
+    await api.put("/api/v1/files/index", { path })
     toast.success("File reindexed successfully!")
   })
 

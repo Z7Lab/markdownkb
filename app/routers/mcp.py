@@ -133,7 +133,7 @@ def get_mcp_info(request: Request, settings: Settings = Depends(get_settings)):
         "transport": "streamable_http",
         "auth_enabled": auth_enabled,
         "auth_methods": (
-            ["Bearer token", "X-MarkdownKB-Key header", "?token= query param"]
+            ["Bearer token", "X-MarkdownKB-Key header"]
             if auth_enabled else []
         ),
         "flags": flags,

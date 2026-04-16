@@ -9,7 +9,7 @@ MarkdownKB is a chat-with-your-docs tool with a Python backend and React fronten
 │  React SPA (Vite + TypeScript + Shadcn/ui)              │
 │  Tabs: Chat │ Search │ Planner │ Doc Map │ Knowledge Graph │ Browse │ Settings │
 └────────────────────────┬────────────────────────────────┘
-                         │ HTTP/SSE (/api/*)
+                         │ HTTP/SSE (/api/v1/*)
 ┌────────────────────────▼────────────────────────────────┐
 │  FastAPI Backend                                        │
 │  ┌──────────────────────────────────────────────────┐   │
