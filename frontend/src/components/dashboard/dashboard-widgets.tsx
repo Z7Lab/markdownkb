@@ -13,59 +13,72 @@ import { cn } from "@/lib/utils"
 export interface RecentActivityItem {
   id: string
   label: string
-  timestamp: string | null  // ISO timestamp or relative string
+  timestamp: string | null
   onClick?: () => void
   badge?: ReactNode
 }
 
-interface RecentActivityWidgetProps {
+export interface ActivityGroup {
+  label: string
+  items: RecentActivityItem[]
+}
+
+interface ActivityListProps {
+  groups: ActivityGroup[]
+}
+
+export function ActivityList({ groups }: ActivityListProps) {
+  const nonEmpty = groups.filter((g) => g.items.length > 0)
+  if (nonEmpty.length === 0) return null
+
+  return (
+    <div className="rounded-md border divide-y text-sm">
+      {nonEmpty.map((group) => (
+        <div key={group.label}>
+          <div className="px-3 py-1.5 bg-muted/40">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              {group.label}
+            </span>
+          </div>
+          {group.items.map((item, ii) => (
+            <div
+              key={item.id}
+              onClick={item.onClick}
+              onKeyDown={item.onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); item.onClick!() } } : undefined}
+              role={item.onClick ? "button" : undefined}
+              tabIndex={item.onClick ? 0 : undefined}
+              className={cn(
+                "flex items-center justify-between gap-3 px-3 py-1.5",
+                ii < group.items.length - 1 && "border-b border-border/50",
+                item.onClick && "cursor-pointer hover:bg-accent transition-colors",
+              )}
+            >
+              <span className="min-w-0 truncate">{item.label}</span>
+              <div className="flex items-center gap-2 shrink-0">
+                {item.badge}
+                {item.timestamp && (
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    {item.timestamp}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// kept for any external callers — wraps ActivityList with a single group
+export interface RecentActivityWidgetProps {
   items: RecentActivityItem[]
   label: string
   emptyMessage: string
 }
 
-export function RecentActivityWidget({
-  items,
-  label,
-  emptyMessage,
-}: RecentActivityWidgetProps) {
-  if (items.length === 0) {
-    return (
-      <div className="space-y-3 text-sm">
-        <h3 className="font-semibold text-muted-foreground">{label}</h3>
-        <p className="text-xs text-muted-foreground">{emptyMessage}</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-3">
-      <h3 className="font-semibold text-sm">{label}</h3>
-      <div className="space-y-2">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            onClick={item.onClick}
-            onKeyDown={item.onClick ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); item.onClick!() } } : undefined}
-            role={item.onClick ? "button" : undefined}
-            tabIndex={item.onClick ? 0 : undefined}
-            className={cn(
-              "flex items-start justify-between gap-2 p-3 rounded-md border bg-card text-sm",
-              item.onClick && "cursor-pointer hover:bg-accent transition-colors",
-            )}
-          >
-            <div className="min-w-0 flex-1">
-              <p className="font-medium text-sm truncate">{item.label}</p>
-              {item.timestamp && (
-                <p className="text-xs text-muted-foreground">{item.timestamp}</p>
-              )}
-            </div>
-            {item.badge && <div className="shrink-0">{item.badge}</div>}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
+export function RecentActivityWidget({ items, label }: RecentActivityWidgetProps) {
+  return <ActivityList groups={[{ label, items }]} />
 }
 
 // ============================================================================

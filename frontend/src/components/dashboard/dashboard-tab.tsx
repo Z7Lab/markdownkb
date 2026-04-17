@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react"
 import { useLocation } from "wouter"
 import { useSettings } from "@/hooks/use-settings"
-import { useUrlSearchParam } from "@/hooks/use-url-search-param"
 import { api } from "@/lib/api"
 import { FileViewerDialog } from "@/components/ui/file-viewer-dialog"
 import {
-  RecentActivityWidget,
+  ActivityList,
   WidgetSection,
 } from "@/components/dashboard/dashboard-widgets"
 import {
@@ -109,7 +108,7 @@ export function DashboardTab() {
   const { settings } = useSettings()
   const [fileCount, setFileCount] = useState<number | null>(null)
   const [threadCount, setThreadCount] = useState<number | null>(null)
-  const [viewingFile, setViewingFile] = useUrlSearchParam("file")
+  const [viewingFile, setViewingFile] = useState<string | null>(null)
 
   // Activity data
   const [recentThreads, setRecentThreads] = useState<Array<{ id: string; title: string; created_at: string }>>([])
@@ -207,49 +206,37 @@ export function DashboardTab() {
         {/* Activity Section */}
         {(recentThreads.length > 0 || recentFiles.length > 0 || recentSearches.length > 0) && (
           <WidgetSection title="Activity">
-            <div className="space-y-8">
-              {/* Recent Threads */}
-              {settings?.core?.rag_chat !== false && recentThreads.length > 0 && (
-                <RecentActivityWidget
-                  items={recentThreads.map((t) => ({
+            <ActivityList
+              groups={[
+                ...(settings?.core?.rag_chat !== false ? [{
+                  label: "Recent Threads",
+                  items: recentThreads.map((t) => ({
                     id: t.id,
                     label: t.title || "(Untitled thread)",
                     timestamp: getRelativeTime(t.created_at),
                     onClick: () => setLocation(`/chat/${t.id}`),
-                  }))}
-                  label="Recent Threads"
-                  emptyMessage="No threads yet"
-                />
-              )}
-
-              {/* Recently Indexed Files */}
-              {recentFiles.length > 0 && (
-                <RecentActivityWidget
-                  items={recentFiles.map((f) => ({
+                  })),
+                }] : []),
+                {
+                  label: "Recently Indexed Files",
+                  items: recentFiles.map((f) => ({
                     id: f.path,
                     label: f.path.split("/").pop() || f.path,
                     timestamp: getRelativeTime(f.indexed_at),
                     onClick: () => setViewingFile(f.path),
-                  }))}
-                  label="Recently Indexed Files"
-                  emptyMessage="No files indexed yet"
-                />
-              )}
-
-              {/* Recent Searches */}
-              {settings?.plugins_enabled?.search && recentSearches.length > 0 && (
-                <RecentActivityWidget
-                  items={recentSearches.map((s) => ({
+                  })),
+                },
+                ...(settings?.plugins_enabled?.search ? [{
+                  label: "Recent Searches",
+                  items: recentSearches.map((s) => ({
                     id: s.id,
                     label: s.query,
                     timestamp: getRelativeTime(s.created_at),
                     onClick: () => setLocation(`/search`),
-                  }))}
-                  label="Recent Searches"
-                  emptyMessage="No searches yet"
-                />
-              )}
-            </div>
+                  })),
+                }] : []),
+              ]}
+            />
           </WidgetSection>
         )}
 
