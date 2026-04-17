@@ -92,7 +92,7 @@ def get_model_entries() -> list[dict]:
         privacy_icon = "\U0001f512" if p["privacy"] == "private" else "\U0001f464"
         label = (
             f"{p['name']}  —  {ctx_k}K ctx, {out_k}K out, "
-            f"${p['input_cost']:.2f}/M in  {privacy_icon} {p['privacy']}"
+            f"${p['input_cost']:.2f}/${p['output_cost']:.2f}/M  {privacy_icon} {p['privacy']}"
         )
         entries.append({"id": f"openai/{p['id']}", "label": label})
     return entries
