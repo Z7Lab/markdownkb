@@ -17,7 +17,11 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+from app.storage.migrations import Migration, run_migrations
+
 logger = logging.getLogger(__name__)
+
+_MIGRATIONS: list[Migration] = []
 
 _CREATE_SQL = """
 CREATE TABLE IF NOT EXISTS wikis (
@@ -41,7 +45,7 @@ class WikiDB:
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.executescript(_CREATE_SQL)
-        self._conn.commit()
+        run_migrations(self._conn, _MIGRATIONS, db_label="WikiDB")
         self._lock = threading.Lock()
         logger.info("WikiDB opened: %s", db_path)
 

@@ -20,6 +20,7 @@ interface DatabaseStats {
     embedding_model: string
     data_directory: string
   }
+  plugin_databases?: Array<{ name: string; path: string; size_bytes: number }>
 }
 
 function formatBytes(bytes: number): string {
@@ -288,6 +289,28 @@ export function DatabasePanel() {
             </Button>
           </CardContent>
         </Card>
+
+        {stats.plugin_databases && stats.plugin_databases.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Database className="h-4 w-4" />
+                Plugin Databases
+              </CardTitle>
+              <CardDescription>Plugin-owned databases stored alongside core data</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1">
+                {stats.plugin_databases.map((db) => (
+                  <div key={db.name} className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground font-mono">{db.name}.db</span>
+                    <span className="font-medium">{formatBytes(db.size_bytes)}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="flex items-center gap-2 pt-2">
           <Button

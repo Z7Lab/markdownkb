@@ -5,6 +5,8 @@ import sqlite3
 import threading
 from pathlib import Path
 
+from app.storage.migrations import Migration, run_migrations
+
 logger = logging.getLogger(__name__)
 
 _CREATE_SQL = """
@@ -14,6 +16,8 @@ CREATE TABLE IF NOT EXISTS file_tags (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 """
+
+_MIGRATIONS: list[Migration] = []
 
 
 class TagDB:
@@ -26,8 +30,8 @@ class TagDB:
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.executescript(_CREATE_SQL)
+        run_migrations(self._conn, _MIGRATIONS, db_label="TagDB")
         self._lock = threading.Lock()
-        self._conn.commit()
         logger.info("TagDB opened: %s", db_path)
 
     # -- Write operations ----------------------------------------------------

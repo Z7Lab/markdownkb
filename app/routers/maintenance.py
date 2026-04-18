@@ -60,6 +60,19 @@ def get_database_stats(
     stats["vector_database"]["embedding_model"] = settings.embedding_model
     stats["vector_database"]["data_directory"] = str(data_dir)
 
+    # Plugin-owned databases — enumerate all .db files not already listed
+    known = {"chats.db", "searches.db", "markdownkb.db"}
+    plugin_dbs = []
+    for db_path in sorted(data_dir.glob("*.db")):
+        if db_path.name not in known:
+            plugin_dbs.append({
+                "name": db_path.stem,
+                "path": str(db_path),
+                "size_bytes": get_path_size(db_path),
+            })
+    if plugin_dbs:
+        stats["plugin_databases"] = plugin_dbs
+
     return stats
 
 
