@@ -49,8 +49,12 @@ logging.getLogger().addHandler(log_buffer)
 logger = logging.getLogger(__name__)
 
 # Guard against FastMCP's streamable-HTTP session manager calling the lifespan
-# context for every new session.  We only want to register tools once.
+# context for every new session.  We only want to initialize resources and
+# register tools once — subsequent sessions reuse the cached resources so
+# the per-session lifespan returns immediately instead of re-running the full
+# (expensive) setup: model loading, VectorStore, ChromaDB collections, etc.
 _tools_registered = False
+_cached_resources: dict | None = None
 
 
 # -- Resources -----------------------------------------------------------------
@@ -297,115 +301,106 @@ def _register_prompts(server: FastMCP, settings) -> None:
 
 @asynccontextmanager
 async def lifespan(server: FastMCP):
-    """Set up MarkdownKB services and expose them via the lifespan context."""
-    settings = Settings.get()
-    load_models(settings.model_configs)
+    """Set up MarkdownKB services and expose them via the lifespan context.
 
-    store = VectorStore(settings.persist_directory, settings.collection_name)
-    tracking = TrackingDB(settings.data_directory)
+    FastMCP's streamable-HTTP session manager calls this for every new client
+    session.  All expensive work (model loading, VectorStore, ChromaDB, DBs)
+    runs only on the first call and is cached in _cached_resources.  Subsequent
+    sessions yield the cached dict immediately so the MCP handshake completes
+    in milliseconds instead of seconds.
+    """
+    global _tools_registered, _cached_resources
 
-    if store.count == 0:
-        logger.info("Empty store — running initial index")
-        run_index(settings, store, tracking)
+    if _cached_resources is None:
+        settings = Settings.get()
+        load_models(settings.model_configs)
 
-    retriever = Retriever(store, settings, tracking)
+        store = VectorStore(settings.persist_directory, settings.collection_name)
+        tracking = TrackingDB(settings.data_directory)
 
-    # Core databases
-    plandb = PlanDB(settings.data_directory)
-    scopedb = ScopeDB(settings.data_directory)
+        if store.count == 0:
+            logger.info("Empty store — running initial index")
+            run_index(settings, store, tracking)
 
-    tagdb = None
-    if settings.plugin_enabled("tags"):
-        from app.plugins.tags.tagdb import TagDB
-        tagdb = TagDB(settings.data_directory)
-        logger.info("TagDB initialized for MCP (tags plugin enabled)")
+        retriever = Retriever(store, settings, tracking)
 
-    kgdb = None
-    if settings.plugin_enabled("knowledge_graph"):
-        from app.storage.knowledgegraph import KnowledgeGraphDB
-        kgdb = KnowledgeGraphDB(settings.data_directory)
-        logger.info("KnowledgeGraphDB initialized for MCP (knowledge_graph plugin enabled)")
+        plandb = PlanDB(settings.data_directory)
+        scopedb = ScopeDB(settings.data_directory)
 
-    bucket_service = None
-    if settings.plugin_enabled("buckets"):
-        from app.plugins.buckets.bucketdb import BucketDB
-        from app.plugins.buckets.bucket_service import BucketService
-        bucketdb = BucketDB(settings.data_directory)
-        bucket_service = BucketService(
-            bucketdb, settings.persist_directory, settings.embedding_model,
-            remote_config=settings.embedding_remote_config,
-        )
-        bucket_service.cleanup_expired()
-        logger.info("BucketService initialized for MCP (buckets plugin enabled)")
+        tagdb = None
+        if settings.plugin_enabled("tags"):
+            from app.plugins.tags.tagdb import TagDB
+            tagdb = TagDB(settings.data_directory)
+            logger.info("TagDB initialized for MCP (tags plugin enabled)")
 
-    wikidb = None
-    if settings.plugin_enabled("wiki_compile"):
-        from app.plugins.wiki_compile.wikidb import WikiDB
-        wikidb = WikiDB(settings.data_directory)
-        logger.info("WikiDB initialized for MCP (wiki_compile plugin enabled)")
+        kgdb = None
+        if settings.plugin_enabled("knowledge_graph"):
+            from app.storage.knowledgegraph import KnowledgeGraphDB
+            kgdb = KnowledgeGraphDB(settings.data_directory)
+            logger.info("KnowledgeGraphDB initialized for MCP (knowledge_graph plugin enabled)")
 
-    versioning_manager = None
-    if settings.versioning_enabled:
-        try:
-            from pathlib import Path
-            from app.versioning import GitManager
-            versioning_manager = GitManager(Path(settings.versioning_root))
-            logger.info("GitManager initialized for MCP (versioning enabled)")
-        except Exception:
-            logger.warning("GitManager init failed for MCP", exc_info=True)
+        bucket_service = None
+        if settings.plugin_enabled("buckets"):
+            from app.plugins.buckets.bucketdb import BucketDB
+            from app.plugins.buckets.bucket_service import BucketService
+            bucketdb = BucketDB(settings.data_directory)
+            bucket_service = BucketService(
+                bucketdb, settings.persist_directory, settings.embedding_model,
+                remote_config=settings.embedding_remote_config,
+            )
+            bucket_service.flag_expired()
+            logger.info("BucketService initialized for MCP (buckets plugin enabled)")
 
-    # Optional history tracking — record MCP calls to the web UI sidebar DBs
-    chatdb = None
-    searchdb = None
-    if settings.mcp_enabled("track_history"):
-        chatdb = ChatDB(settings.data_directory)
-        searchdb = SearchDB(settings.data_directory)
-        logger.info("MCP history tracking enabled (searches + chat threads)")
+        wikidb = None
+        if settings.plugin_enabled("wiki_compile"):
+            from app.plugins.wiki_compile.wikidb import WikiDB
+            wikidb = WikiDB(settings.data_directory)
+            logger.info("WikiDB initialized for MCP (wiki_compile plugin enabled)")
 
-    # Auto-discover and register MCP tools.
-    # Guard: FastMCP's streamable-HTTP session manager calls the lifespan
-    # context for every new session — tools must only be registered once.
-    global _tools_registered
-    if not _tools_registered:
-        registered = register_tools(server, settings)
-        _tools_registered = True
-        logger.info(
-            "MCP server ready (%d documents indexed, %d tools: %s)",
-            store.count, len(registered), registered,
-        )
+        versioning_manager = None
+        if settings.versioning_enabled:
+            try:
+                from pathlib import Path
+                from app.versioning import GitManager
+                versioning_manager = GitManager(Path(settings.versioning_root))
+                logger.info("GitManager initialized for MCP (versioning enabled)")
+            except Exception:
+                logger.warning("GitManager init failed for MCP", exc_info=True)
+
+        chatdb = None
+        searchdb = None
+        if settings.mcp_enabled("track_history"):
+            chatdb = ChatDB(settings.data_directory)
+            searchdb = SearchDB(settings.data_directory)
+            logger.info("MCP history tracking enabled (searches + chat threads)")
+
+        _cached_resources = {
+            "settings": settings,
+            "store": store,
+            "tracking": tracking,
+            "retriever": retriever,
+            "plandb": plandb,
+            "scopedb": scopedb,
+            "tagdb": tagdb,
+            "chatdb": chatdb,
+            "searchdb": searchdb,
+            "bucket_service": bucket_service,
+            "wikidb": wikidb,
+            "kgdb": kgdb,
+            "versioning_manager": versioning_manager,
+        }
+
+        if not _tools_registered:
+            registered = register_tools(server, settings)
+            _tools_registered = True
+            logger.info(
+                "MCP server ready (%d documents indexed, %d tools: %s)",
+                store.count, len(registered), registered,
+            )
     else:
-        logger.debug("MCP lifespan re-entered (new session) — tools already registered")
+        logger.debug("MCP lifespan re-entered (new session) — reusing cached resources")
 
-    yield {
-        "settings": settings,
-        "store": store,
-        "tracking": tracking,
-        "retriever": retriever,
-        "plandb": plandb,
-        "scopedb": scopedb,
-        "tagdb": tagdb,
-        "chatdb": chatdb,
-        "searchdb": searchdb,
-        "bucket_service": bucket_service,
-        "wikidb": wikidb,
-        "kgdb": kgdb,
-        "versioning_manager": versioning_manager,
-    }
-
-    if kgdb:
-        kgdb.close()
-    if chatdb:
-        chatdb.close()
-    if searchdb:
-        searchdb.close()
-    if tagdb:
-        tagdb.close()
-    if bucket_service:
-        bucket_service.db.close()
-    scopedb.close()
-    plandb.close()
-    tracking.close()
-    logger.info("MCP server shutdown")
+    yield _cached_resources
 
 
 # -- Entry point -----------------------------------------------------------
