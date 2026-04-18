@@ -457,7 +457,11 @@ def summarize_search(
             searchdb.update_summary(req.search_id, last_yielded)
             logger.info("Saved summary for search %s", req.search_id)
 
-        yield sse("done", {})
+        active_cfg = settings.get_active_llm_config()
+        yield sse("done", {
+            "model": active_cfg.get("model", ""),
+            "provider": settings.active_provider,
+        })
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 

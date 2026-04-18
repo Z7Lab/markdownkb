@@ -122,7 +122,7 @@ export interface SummaryCallbacks {
   onToken: (delta: string) => void
   onSources: (sources: string[]) => void
   onStatus?: (phase: string, message: string, iteration?: number, totalIterations?: number) => void
-  onDone: () => void
+  onDone: (meta?: { provider?: string; model?: string }) => void
   onError: (error: Error) => void
 }
 
@@ -242,7 +242,7 @@ export function streamSearchSummary(
         )
       }
     },
-    callbacks.onDone,
+    (data) => callbacks.onDone(data ? { provider: data.provider as string, model: data.model as string } : undefined),
     callbacks.onError,
   )
 }

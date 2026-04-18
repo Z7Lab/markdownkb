@@ -51,6 +51,7 @@ export function SearchTab({ defaultSearchId }: { defaultSearchId?: string } = {}
     deepResearch, setDeepResearch,
     deepResearchIterations, setDeepResearchIterations,
     summaryIteration, summaryTotalIterations,
+    summaryModel, summaryProvider,
     newSearch,
     isHistorical,
     resultsChanged,
@@ -333,6 +334,8 @@ export function SearchTab({ defaultSearchId }: { defaultSearchId?: string } = {}
                 isDeepResearch={deepResearch}
                 iteration={summaryIteration}
                 totalIterations={summaryTotalIterations}
+                model={summaryModel}
+                provider={summaryProvider}
                 onStop={stopSummary}
                 onGenerate={() => setConfirmGenerateSummaryOpen(true)}
                 onSelectSource={setViewingPath}

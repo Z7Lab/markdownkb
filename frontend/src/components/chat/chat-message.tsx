@@ -172,12 +172,12 @@ export const ChatMessage = memo(function ChatMessage({
                 ? <SourceLegend sourceMap={message.sourceMap} onSelect={onViewFile} messageContent={message.content} />
                 : <SourceList sources={sources} onSelect={onViewFile} />
             )}
-            <div className="flex-1" />
             {message.provider && (
               <span className="text-[10px] text-muted-foreground/60 truncate max-w-48">
                 {message.model || message.provider}
               </span>
             )}
+            <div className="flex-1" />
             <Button
               variant="ghost"
               size="icon"

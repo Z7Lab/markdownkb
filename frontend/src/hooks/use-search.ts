@@ -51,6 +51,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
   const {
     summary, summarySources, summaryStatus, isSummarizing,
     summaryIteration, summaryTotalIterations,
+    summaryModel, summaryProvider,
     resetSummary, startSummary, stopSummary, abortSummary, setSummaryState,
   } = useSearchSummary(scopeIds, adHocTags, deepResearch, deepResearchIterations)
 
@@ -236,6 +237,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
     searches, activeSearchId, renameSearch, deleteSearch, loadSearch,
     summary, summarySources, summaryStatus, isSummarizing,
     summaryIteration, summaryTotalIterations,
+    summaryModel, summaryProvider,
     stopSummary, generateSummary,
     deepResearch, setDeepResearch,
     deepResearchIterations, setDeepResearchIterations,

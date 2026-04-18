@@ -16,6 +16,8 @@ export function SearchSummaryCard({
   isDeepResearch,
   iteration,
   totalIterations,
+  model,
+  provider,
   onStop,
   onGenerate,
   onSelectSource,
@@ -28,6 +30,8 @@ export function SearchSummaryCard({
   isDeepResearch?: boolean
   iteration?: number
   totalIterations?: number
+  model?: string | null
+  provider?: string | null
   onStop: () => void
   onGenerate: () => void
   onSelectSource: (path: string) => void
@@ -106,12 +110,21 @@ export function SearchSummaryCard({
         ) : (
           <>
             <Markdown className="text-sm">{summary || "Generating summary..."}</Markdown>
-            {summarySources.length > 0 && (
-              <SourceList
-                sources={summarySources}
-                onSelect={onSelectSource}
-                className="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t"
-              />
+            {(summarySources.length > 0 || (model && !isSummarizing)) && (
+              <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t">
+                {summarySources.length > 0 && (
+                  <SourceList
+                    sources={summarySources}
+                    onSelect={onSelectSource}
+                    className="flex flex-wrap items-center gap-1.5"
+                  />
+                )}
+                {model && !isSummarizing && (
+                  <span className="text-[10px] text-muted-foreground/60 ml-auto truncate max-w-48">
+                    {model || provider}
+                  </span>
+                )}
+              </div>
             )}
           </>
         )}

@@ -9,10 +9,13 @@ interface SummaryState {
   status: string | null
   iteration: number
   totalIterations: number
+  model: string | null
+  provider: string | null
 }
 
 const INITIAL: SummaryState = {
   text: "", sources: [], isActive: false, status: null, iteration: 0, totalIterations: 0,
+  model: null, provider: null,
 }
 
 export function useSearchSummary(
@@ -44,7 +47,7 @@ export function useSearchSummary(
             ...(totalIterations !== undefined ? { totalIterations } : {}),
           }))
         },
-        onDone: () => setState((s) => ({ ...s, isActive: false, status: null })),
+        onDone: (meta) => setState((s) => ({ ...s, isActive: false, status: null, model: meta?.model ?? null, provider: meta?.provider ?? null })),
         onError: (err) => {
           setState((s) => ({ ...s, isActive: false, status: null }))
           toast.error(`Summary failed: ${err.message}`)
@@ -76,6 +79,8 @@ export function useSearchSummary(
     isSummarizing: state.isActive,
     summaryIteration: state.iteration,
     summaryTotalIterations: state.totalIterations,
+    summaryModel: state.model,
+    summaryProvider: state.provider,
     resetSummary: reset,
     startSummary: start,
     stopSummary: stop,
