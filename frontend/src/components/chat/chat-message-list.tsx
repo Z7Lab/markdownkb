@@ -44,7 +44,7 @@ export function ChatMessageList({
             />
           ))}
           {isStreaming && messages[messages.length - 1]?.content === "" && (
-            <div className="flex justify-start">
+            <div className="flex justify-start" aria-live="polite" aria-busy="true">
               <div className="text-muted-foreground text-sm animate-pulse">
                 Thinking...
               </div>

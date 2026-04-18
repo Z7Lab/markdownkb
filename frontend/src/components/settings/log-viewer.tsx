@@ -145,7 +145,7 @@ export function LogViewer({
               size="icon"
               onClick={handleCopy}
               disabled={entries.length === 0}
-              title="Copy logs to clipboard"
+              aria-label="Copy logs to clipboard"
             >
               <Copy className="h-4 w-4" />
             </Button>
@@ -154,7 +154,7 @@ export function LogViewer({
               size="icon"
               onClick={handleClear}
               disabled={entries.length === 0}
-              title="Clear logs"
+              aria-label="Clear logs"
             >
               <Trash2 className="h-4 w-4" />
             </Button>

@@ -126,7 +126,7 @@ export function App() {
               {showNotFound ? (
                 <NotFoundPage onGoHome={() => setLocation("/")} />
               ) : (
-                <main className="flex-1 flex flex-col min-h-0" aria-label={`${(activeTab ?? "dashboard").charAt(0).toUpperCase() + (activeTab ?? "dashboard").slice(1)} tab content`}>
+                <main id="main-content" className="flex-1 flex flex-col min-h-0" aria-label={`${(activeTab ?? "dashboard").charAt(0).toUpperCase() + (activeTab ?? "dashboard").slice(1)} tab content`}>
                   {/* Eagerly loaded tabs */}
                   <TabsContent value="dashboard" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
                     <ErrorBoundary fallbackMessage="Dashboard encountered an error">

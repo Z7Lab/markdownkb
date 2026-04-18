@@ -175,7 +175,7 @@ export function BucketsPanel() {
                       variant="ghost"
                       size="icon"
                       className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                      title="Delete bucket"
+                      aria-label="Delete bucket"
                       onClick={() => setDeleteTarget(b)}
                     >
                       <Trash2 className="h-3 w-3" />

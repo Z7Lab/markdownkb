@@ -205,13 +205,13 @@ export function FileViewerDialog({
                   No matches
                 </span>
               )}
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={searchPrevMatch} disabled={searchMatchCount === 0}>
+              <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Previous match" onClick={searchPrevMatch} disabled={searchMatchCount === 0}>
                 <ChevronUp className="h-3.5 w-3.5" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={searchNextMatch} disabled={searchMatchCount === 0}>
+              <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Next match" onClick={searchNextMatch} disabled={searchMatchCount === 0}>
                 <ChevronDown className="h-3.5 w-3.5" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={searchClose}>
+              <Button variant="ghost" size="icon" className="h-6 w-6" aria-label="Close search" onClick={searchClose}>
                 <X className="h-3.5 w-3.5" />
               </Button>
             </div>

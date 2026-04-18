@@ -28,6 +28,7 @@ function CitationRef({
         <button
           type="button"
           onClick={onClick}
+          aria-label={`Citation ${num}: ${path}`}
           className="inline-flex items-center justify-center text-[10px] font-semibold
                      bg-primary/10 text-primary hover:bg-primary/20 rounded px-1 min-w-[1.1rem]
                      align-super cursor-pointer transition-colors leading-none py-0.5"

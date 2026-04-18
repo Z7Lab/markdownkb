@@ -106,7 +106,7 @@ export function BucketDetailPanel({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                title="Edit bucket"
+                aria-label="Edit bucket"
                 onClick={() => setEditing(!editing)}
               >
                 <Pencil className="h-3.5 w-3.5" />
@@ -115,7 +115,7 @@ export function BucketDetailPanel({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                title="Reindex from sources"
+                aria-label="Reindex from sources"
                 disabled={reindexing}
                 onClick={handleReindex}
               >
@@ -125,7 +125,7 @@ export function BucketDetailPanel({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                title="Delete bucket"
+                aria-label="Delete bucket"
                 onClick={() => onDelete(bucket.id)}
               >
                 <Trash2 className="h-3.5 w-3.5" />

@@ -37,6 +37,7 @@ function AddDirectoryForm({ onSubmit }: { onSubmit: (path: string) => void }) {
           value={path}
           onChange={(e) => setPath(e.target.value)}
           placeholder="/path/to/documents"
+          aria-label="Source path"
           className="flex-1"
           onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
         />
@@ -173,6 +174,7 @@ function ProjectRootForm({
             value={includeInput}
             onChange={(e) => setIncludeInput(e.target.value)}
             placeholder="docs/**/*.md"
+            aria-label="Include pattern"
             className="flex-1 h-8 text-xs"
             onKeyDown={(e) => e.key === "Enter" && addInclude()}
           />
@@ -202,6 +204,7 @@ function ProjectRootForm({
             value={excludeInput}
             onChange={(e) => setExcludeInput(e.target.value)}
             placeholder="CHANGELOG.md"
+            aria-label="Exclude pattern"
             className="flex-1 h-8 text-xs"
             onKeyDown={(e) => e.key === "Enter" && addExclude()}
           />

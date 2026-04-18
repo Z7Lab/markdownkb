@@ -179,7 +179,7 @@ export function SearchTab({ defaultSearchId }: { defaultSearchId?: string } = {}
         {(results.length > 0 || summary || loading) && (
           <Fragment>
           <ScrollArea className="flex-1 min-h-0">
-            <div className="space-y-3 p-4 pb-4">
+            <div className="space-y-3 p-4 pb-4" aria-live="polite" aria-busy={loading}>
             {/* Query header - show the search query prominently */}
             {query && (
               <div className="flex flex-col gap-2 pb-2 border-b">

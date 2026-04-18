@@ -128,6 +128,7 @@ export function ScopesPanel({ folders, availableTags }: { folders: string[]; ava
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Scope name (e.g. Infrastructure Docs)"
+              aria-label="Scope name"
               autoFocus
             />
             <div className="space-y-1.5">
@@ -287,6 +288,7 @@ export function ScopesPanel({ folders, availableTags }: { folders: string[]; ava
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
+                aria-label="Edit scope"
                 onClick={() => startEdit(scope)}
               >
                 <Pencil className="h-3.5 w-3.5" />
@@ -295,6 +297,7 @@ export function ScopesPanel({ folders, availableTags }: { folders: string[]; ava
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                aria-label="Delete scope"
                 onClick={() => deleteScope(scope.id)}
               >
                 <Trash2 className="h-3.5 w-3.5" />
