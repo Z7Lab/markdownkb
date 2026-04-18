@@ -379,6 +379,16 @@ export interface ModelEntry {
   label: string
 }
 
+export interface ModelProfile {
+  pattern: string
+  thinking_format: "reasoning_content" | "xml_tags" | "none"
+  default_max_tokens: number
+  default_temperature: number
+  context_managed_by: "server" | "api" | "provider"
+  max_context: number | null
+  notes: string
+}
+
 export interface ModelInfo {
   max_input_tokens?: number | null
   max_output_tokens?: number | null
@@ -391,6 +401,7 @@ export interface ModelInfo {
   provider?: string
   mode?: string
   error?: string
+  profile?: ModelProfile
   ollama_details?: {
     family?: string
     parameter_size?: string

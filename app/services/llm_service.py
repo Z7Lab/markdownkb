@@ -225,12 +225,18 @@ def _get_catalog_model_info(model: str, api_base: str = "") -> dict | None:
 
 
 def get_model_capabilities(model: str, api_base: str = "") -> dict:
-    """Fetch model capabilities from plugin catalogs."""
+    """Fetch model capabilities from plugin catalogs, merged with profile data."""
+    from app.config.profiles import get_profile
+    from app.config._paths import DEFAULT_CONFIG_PATH
+
+    profile = get_profile(model, config_dir=DEFAULT_CONFIG_PATH.parent)
+    profile_dict = {"profile": profile.to_dict()}
+
     catalog_info = _get_catalog_model_info(model, api_base)
     if catalog_info:
-        return catalog_info
+        return {**catalog_info, **profile_dict}
 
-    return {"error": "No model info available"}
+    return profile_dict
 
 
 # ── Test Prompt (streaming) ────────────────────────────────

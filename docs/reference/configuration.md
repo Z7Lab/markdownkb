@@ -136,6 +136,27 @@ Static model catalogs live in `app/plugins/catalogs/`. When a provider matches a
 
 Available catalogs: `venice` (Venice.ai — privacy-preserving OpenAI-compatible API).
 
+### Model Profiles
+
+Model profiles define per-family behavioral configuration — thinking format, default token limits, and context window metadata. They are matched by glob pattern against the model name (provider prefix stripped).
+
+**Built-in profiles** cover common families: DeepSeek R-series, Gemma 4, QwQ, Qwen3, Llama, Mistral, Claude, GPT, Phi, and others. Profile data appears in the Settings UI below the model selector (thinking badge, context size, notes).
+
+**User profiles** in `config/models/*.yaml` take priority over built-ins:
+
+```yaml
+# config/models/my-model.yaml
+pattern: "my-model*"
+thinking_format: xml_tags        # none | reasoning_content | xml_tags
+default_max_tokens: 8192
+default_temperature: 0.6
+context_managed_by: server       # server | api | provider
+max_context: 65536
+notes: "Optional note shown in the UI."
+```
+
+See `config/models/README.md` for the full field reference.
+
 ## Retrieval
 
 | Key | Default | Description |

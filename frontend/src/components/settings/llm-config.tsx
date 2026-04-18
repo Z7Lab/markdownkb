@@ -11,11 +11,69 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Download, Eye, EyeOff, Loader2, X } from "lucide-react"
-import type { AppSettings, ModelEntry, ModelInfo } from "@/lib/types"
+import type { AppSettings, ModelEntry, ModelInfo, ModelProfile } from "@/lib/types"
 import type { OllamaPullProgress } from "@/hooks/use-provider-settings"
 import { TestPrompt } from "./test-prompt"
 import { GenerationParams } from "./generation-params"
 import { LlmSetupGuide } from "@/components/llm-setup-guide"
+
+function thinkingLabel(format: ModelProfile["thinking_format"]): string {
+  if (format === "reasoning_content") return "Thinking (field)"
+  if (format === "xml_tags") return "Thinking (tags)"
+  return ""
+}
+
+function ModelInfoPanel({ modelInfo }: { modelInfo: ModelInfo }) {
+  const profile = modelInfo.profile
+  const contextTokens = modelInfo.max_input_tokens ?? profile?.max_context ?? null
+
+  return (
+    <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-3 space-y-1">
+      <div className="flex flex-wrap gap-x-4 gap-y-1">
+        {contextTokens != null && (
+          <span>Context: {(contextTokens / 1000).toFixed(0)}k</span>
+        )}
+        {modelInfo.max_output_tokens != null && (
+          <span>Max output: {(modelInfo.max_output_tokens / 1000).toFixed(0)}k</span>
+        )}
+        {modelInfo.input_cost_per_token != null && modelInfo.input_cost_per_token > 0 && (
+          <span>In: ${(modelInfo.input_cost_per_token * 1_000_000).toFixed(2)}/M</span>
+        )}
+        {modelInfo.output_cost_per_token != null && modelInfo.output_cost_per_token > 0 && (
+          <span>Out: ${(modelInfo.output_cost_per_token * 1_000_000).toFixed(2)}/M</span>
+        )}
+        {profile?.context_managed_by === "provider" && (
+          <span className="text-muted-foreground/70">Context managed by provider</span>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-1.5 pt-1">
+        {profile && profile.thinking_format !== "none" && (
+          <Badge variant="secondary">{thinkingLabel(profile.thinking_format)}</Badge>
+        )}
+        {modelInfo.supports_vision && <Badge variant="secondary">Vision</Badge>}
+        {modelInfo.supports_function_calling && <Badge variant="secondary">Tools</Badge>}
+        {modelInfo.supports_response_schema && <Badge variant="secondary">Structured</Badge>}
+        {modelInfo.supports_pdf_input && <Badge variant="secondary">PDF</Badge>}
+        {modelInfo.ollama_details && (
+          <>
+            {modelInfo.ollama_details.parameter_size && (
+              <Badge variant="outline">{modelInfo.ollama_details.parameter_size}</Badge>
+            )}
+            {modelInfo.ollama_details.quantization_level && (
+              <Badge variant="outline">{modelInfo.ollama_details.quantization_level}</Badge>
+            )}
+            {modelInfo.ollama_details.family && (
+              <Badge variant="outline">{modelInfo.ollama_details.family}</Badge>
+            )}
+          </>
+        )}
+      </div>
+      {profile?.notes && (
+        <p className="text-muted-foreground/70 pt-0.5">{profile.notes}</p>
+      )}
+    </div>
+  )
+}
 
 /** Provider types shown in the dropdown */
 const KNOWN_PROVIDERS: { name: string; label: string; defaultBase: string; guideKey: string; needsKey: boolean }[] = [
@@ -375,41 +433,7 @@ export function LlmConfig({
             <p className="text-xs text-muted-foreground">Loading model info...</p>
           )}
           {modelInfo && !modelInfo.error && !infoLoading && (
-            <div className="text-xs text-muted-foreground bg-muted/50 rounded-md p-3 space-y-1">
-              <div className="flex flex-wrap gap-x-4 gap-y-1">
-                {modelInfo.max_input_tokens != null && (
-                  <span>Context: {(modelInfo.max_input_tokens / 1000).toFixed(0)}k</span>
-                )}
-                {modelInfo.max_output_tokens != null && (
-                  <span>Max output: {(modelInfo.max_output_tokens / 1000).toFixed(0)}k</span>
-                )}
-                {modelInfo.input_cost_per_token != null && modelInfo.input_cost_per_token > 0 && (
-                  <span>In: ${(modelInfo.input_cost_per_token * 1_000_000).toFixed(2)}/M</span>
-                )}
-                {modelInfo.output_cost_per_token != null && modelInfo.output_cost_per_token > 0 && (
-                  <span>Out: ${(modelInfo.output_cost_per_token * 1_000_000).toFixed(2)}/M</span>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {modelInfo.supports_vision && <Badge variant="secondary">Vision</Badge>}
-                {modelInfo.supports_function_calling && <Badge variant="secondary">Tools</Badge>}
-                {modelInfo.supports_response_schema && <Badge variant="secondary">Structured</Badge>}
-                {modelInfo.supports_pdf_input && <Badge variant="secondary">PDF</Badge>}
-                {modelInfo.ollama_details && (
-                  <>
-                    {modelInfo.ollama_details.parameter_size && (
-                      <Badge variant="outline">{modelInfo.ollama_details.parameter_size}</Badge>
-                    )}
-                    {modelInfo.ollama_details.quantization_level && (
-                      <Badge variant="outline">{modelInfo.ollama_details.quantization_level}</Badge>
-                    )}
-                    {modelInfo.ollama_details.family && (
-                      <Badge variant="outline">{modelInfo.ollama_details.family}</Badge>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
+            <ModelInfoPanel modelInfo={modelInfo} />
           )}
         </div>
 
