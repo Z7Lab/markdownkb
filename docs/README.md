@@ -58,6 +58,6 @@ Background and reasoning. Read when you want to understand why, not how.
 | [Planner](explanation/planner.md) | MCTS-based implementation planner with skill reviews |
 | [Wiki Compile](explanation/wiki-compile.md) | Karpathy-style wiki compilation — managed wikis, the three-tier model, retrieval-augmented ingest, when to use it |
 | [Versioning](explanation/versioning.md) | Git-backed revision history for mdkb-authored writes — what gets versioned, managed repo layout, non-goals |
-| [Philosophy](explanation/philosophy.md) | The markdown-first paradigm — why tokens are value |
+| [Philosophy](explanation/manifesto.md) | The markdown-first paradigm — why tokens are value |
 | [Value Proposition](explanation/value-proposition.md) | What MarkdownKB is, who it's for, what makes it different |
 | [Security](../SECURITY.md) | Threat model, API key auth, feature flags, network exposure |

@@ -4,7 +4,7 @@ MarkdownKB keeps a git-backed revision history of every document it writes. Each
 
 ## Why versioning lives inside MarkdownKB
 
-The [markdown-first paradigm](philosophy.md) treats captured intelligence as an asset that compounds over time. That compounding only works if the base stays trustworthy: a bad AI generation, a mis-scoped overwrite, or a stale document that turned out to matter six months later shouldn't quietly erase what came before.
+The [markdown-first paradigm](manifesto.md) treats captured intelligence as an asset that compounds over time. That compounding only works if the base stays trustworthy: a bad AI generation, a mis-scoped overwrite, or a stale document that turned out to matter six months later shouldn't quietly erase what came before.
 
 External git is the classic answer, but it has real friction in this context:
 
@@ -16,7 +16,7 @@ Building versioning into MarkdownKB sidesteps all of this. The history is always
 
 ## The trust boundary, revisited
 
-The [philosophy doc](philosophy.md#the-trust-boundary) names compounding errors as the main failure mode of the capture loop: an AI-generated doc that was confidently wrong enters the base, future agents retrieve it, the error propagates. Versioning doesn't stop that from happening — human review is still the quality gate — but it does make the gate recoverable. You can roll back an overwrite. You can diff what changed between two revisions to spot where a model drifted. You can trace when a doc stopped being accurate.
+The [philosophy doc](manifesto.md#the-trust-boundary) names compounding errors as the main failure mode of the capture loop: an AI-generated doc that was confidently wrong enters the base, future agents retrieve it, the error propagates. Versioning doesn't stop that from happening — human review is still the quality gate — but it does make the gate recoverable. You can roll back an overwrite. You can diff what changed between two revisions to spot where a model drifted. You can trace when a doc stopped being accurate.
 
 In the compounding-knowledge loop, versioning is the safety net mentioned under *version history is your safety net.* It turns every accidental write into a fixable mistake instead of a lost file.
 
@@ -74,4 +74,4 @@ A source you version in your own git, with your own conventions, probably should
 - [Wiki Compile](wiki-compile.md) — the plugin that produces the densest write traffic, and what one ingest's commit contains
 - [Configuration: Versioning](../reference/configuration.md#versioning) — the full config surface
 - [API: Versioning](../reference/api.md#versioning) — the endpoint reference
-- [Philosophy: The Trust Boundary](philosophy.md#the-trust-boundary) — why the safety net matters
+- [Philosophy: The Trust Boundary](manifesto.md#the-trust-boundary) — why the safety net matters

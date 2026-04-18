@@ -1,6 +1,6 @@
 # Wiki Compile
 
-Wiki Compile turns dense, unstructured source material into structured summary pages that the rest of MarkdownKB can search, retrieve, and reason over. It's the concrete implementation of the "capture intelligence output as queryable markdown" principle from [philosophy.md](philosophy.md) — but for material you *didn't* produce interactively with an LLM. Point it at a paper, a transcript, a vendor's whitepaper, a meeting note, and it writes a synthesized summary page into a writable source directory.
+Wiki Compile turns dense, unstructured source material into structured summary pages that the rest of MarkdownKB can search, retrieve, and reason over. It's the concrete implementation of the "capture intelligence output as queryable markdown" principle from [manifesto.md](manifesto.md) — but for material you *didn't* produce interactively with an LLM. Point it at a paper, a transcript, a vendor's whitepaper, a meeting note, and it writes a synthesized summary page into a writable source directory.
 
 ## Where this comes from
 
