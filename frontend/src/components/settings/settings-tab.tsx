@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useLocation } from "wouter"
 import { useSettings } from "@/hooks/use-settings"
 import { useIndexEvents } from "@/hooks/use-index-events"
 import { api } from "@/lib/api"
@@ -51,6 +52,7 @@ const sections = [
 type SectionId = (typeof sections)[number]["id"]
 
 export function SettingsTab({ initialSection }: { initialSection?: string } = {}) {
+  const [, setLocation] = useLocation()
   const [activeSection, setActiveSection] = useState<SectionId>(
     () => (initialSection && sections.some((s) => s.id === initialSection)
       ? (initialSection as SectionId)
@@ -139,6 +141,7 @@ export function SettingsTab({ initialSection }: { initialSection?: string } = {}
               aria-current={activeSection === s.id ? "page" : undefined}
               onClick={() => {
                 setActiveSection(s.id)
+                setLocation(`/settings/${s.id}`, { replace: true })
                 if (s.id === "sources" && errorCount > 0) clearErrors()
               }}
             >

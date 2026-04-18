@@ -17,14 +17,16 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Loader2, Search, RotateCcw, Clock, AlertCircle, History } from "lucide-react"
-import { Fragment, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react"
+import { Fragment, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react"
+import { useLocation } from "wouter"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useScopeTagFilter } from "@/hooks/use-scope-tag-filter"
 import { useBuckets } from "@/hooks/use-buckets"
 import { EmptyHero } from "@/components/ui/empty-hero"
 
-export function SearchTab() {
+export function SearchTab({ defaultSearchId }: { defaultSearchId?: string } = {}) {
+  const [currentLocation, setLocation] = useLocation()
   const { scopes } = useScopes()
   const { tags: availableTags } = useTags()
   const { settings } = useSettings()
@@ -64,6 +66,26 @@ export function SearchTab() {
     fetchVersions,
   } = useSearch(scopeIdsParam, adHocTagsParam, bucketIdsParam)
   const { lastIndexedAt } = useIndexEvents()
+
+  // Auto-load search from URL — runs whenever defaultSearchId or searches change
+  useEffect(() => {
+    if (!defaultSearchId) return
+    if (activeSearchId === defaultSearchId) return
+    if (searches.length === 0) return
+    const match = searches.find((s) => s.id === defaultSearchId)
+    if (match) void loadSearch(match)
+  }, [defaultSearchId, activeSearchId, searches, loadSearch])
+
+  // Sync URL with active search — only redirect away from an ID URL once
+  // activeSearchId is settled (i.e. don't clear it while auto-load is pending)
+  useEffect(() => {
+    if (activeSearchId && currentLocation !== `/search/${activeSearchId}`) {
+      setLocation(`/search/${activeSearchId}`, { replace: true })
+    } else if (!activeSearchId && !defaultSearchId && currentLocation.startsWith("/search/")) {
+      setLocation("/search", { replace: true })
+    }
+  }, [activeSearchId, defaultSearchId, currentLocation, setLocation])
+
   const [viewingPath, setViewingPath] = useState<string | null>(null)
   const [resultsChangedDialogOpen, setResultsChangedDialogOpen] = useState(false)
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false)

@@ -15,10 +15,12 @@ import { SourceList } from "@/components/ui/source-badge"
 import { PlannerSkillReview } from "./planner-skill-review"
 import { Loader2, Lightbulb, Square, Save, Download, FileUp } from "lucide-react"
 import { useEffect, useRef, useState, type KeyboardEvent } from "react"
+import { useLocation } from "wouter"
 import { EmptyHero } from "@/components/ui/empty-hero"
 import { PromoteDialog } from "@/components/wiki/promote-dialog"
 
-export function PlannerTab() {
+export function PlannerTab({ defaultPlanId }: { defaultPlanId?: string } = {}) {
+  const [currentLocation, setLocation] = useLocation()
   const {
     plan, sources, approaches, reviews, refinedPlan, query,
     statusMessage, isPlanning, isRefined,
@@ -43,6 +45,23 @@ export function PlannerTab() {
   const [elapsed, setElapsed] = useState(0)
   const [promoteOpen, setPromoteOpen] = useState(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Sync URL with active plan
+  useEffect(() => {
+    if (activePlanId && currentLocation !== `/planner/${activePlanId}`) {
+      setLocation(`/planner/${activePlanId}`, { replace: true })
+    } else if (!activePlanId && currentLocation.startsWith("/planner/")) {
+      setLocation("/planner", { replace: true })
+    }
+  }, [activePlanId, currentLocation, setLocation])
+
+  // Auto-load plan from URL on mount
+  const hasAutoLoaded = useRef(false)
+  useEffect(() => {
+    if (!defaultPlanId || hasAutoLoaded.current) return
+    hasAutoLoaded.current = true
+    void loadPlan(defaultPlanId)
+  }, [defaultPlanId, loadPlan])
 
   useEffect(() => {
     if (isPlanning) {

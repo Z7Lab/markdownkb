@@ -232,7 +232,7 @@ export function DashboardTab() {
                     id: s.id,
                     label: s.query,
                     timestamp: getRelativeTime(s.created_at),
-                    onClick: () => setLocation(`/search`),
+                    onClick: () => setLocation(`/search/${s.id}`),
                   })),
                 }] : []),
               ]}

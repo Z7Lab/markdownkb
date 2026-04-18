@@ -56,10 +56,8 @@ routeToTab["/settings"] = "settings"
 tabToRoute["settings"] = "/settings"
 
 // Tab content components — keyed by tab value. Entries without a component
-// use the dashboard/chat eager-loaded paths or have special rendering below.
+// use eager-loaded paths or have special rendering below (chat, search, planner, settings).
 const TAB_COMPONENTS: Record<string, ComponentType<Record<string, never>>> = {
-  search: SearchTab,
-  planner: PlannerTab,
   files: FilesTab,
   buckets: BucketsTab,
   wiki: WikiTab,
@@ -88,12 +86,18 @@ export function App() {
   const [location, setLocation] = useLocation()
   const [isChatThread, chatParams] = useRoute<{ threadId: string }>("/chat/:threadId")
   const [isSettingsSection, settingsParams] = useRoute<{ section: string }>("/settings/:section")
+  const [isSearchResult, searchParams] = useRoute<{ searchId: string }>("/search/:searchId")
+  const [isPlannerSession, plannerParams] = useRoute<{ planId: string }>("/planner/:planId")
 
-  const isKnownRoute = location in routeToTab || isChatThread || isSettingsSection
+  const isKnownRoute = location in routeToTab || isChatThread || isSettingsSection || isSearchResult || isPlannerSession
   const activeTab = isChatThread
     ? "chat"
     : isSettingsSection
     ? "settings"
+    : isSearchResult
+    ? "search"
+    : isPlannerSession
+    ? "planner"
     : routeToTab[location] ?? null
 
   // Show 404 for unknown routes instead of silent redirect
@@ -132,6 +136,20 @@ export function App() {
                   <TabsContent value="chat" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
                     <ErrorBoundary fallbackMessage="Chat encountered an error">
                       <ChatTab defaultThreadId={chatParams?.threadId} />
+                    </ErrorBoundary>
+                  </TabsContent>
+                  <TabsContent value="search" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
+                    <ErrorBoundary fallbackMessage="Search encountered an error">
+                      <Suspense fallback={<TabFallback />}>
+                        <SearchTab defaultSearchId={searchParams?.searchId} />
+                      </Suspense>
+                    </ErrorBoundary>
+                  </TabsContent>
+                  <TabsContent value="planner" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
+                    <ErrorBoundary fallbackMessage="Planner encountered an error">
+                      <Suspense fallback={<TabFallback />}>
+                        <PlannerTab defaultPlanId={plannerParams?.planId} />
+                      </Suspense>
                     </ErrorBoundary>
                   </TabsContent>
 
