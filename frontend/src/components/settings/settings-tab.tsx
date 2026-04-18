@@ -15,6 +15,7 @@ import {
   Plug,
   ScrollText,
   Search,
+  Shield,
   ToggleRight,
 } from "lucide-react"
 import { LlmConfig } from "./llm-config"
@@ -30,6 +31,7 @@ import { LoggingPanel } from "./logging-panel"
 import { ScopesPanel } from "./scopes-panel"
 import { BucketsPanel } from "./buckets-panel"
 import { McpPanel } from "./mcp-panel"
+import { SecurityPanel } from "./security-panel"
 import { SetupBanner } from "@/components/setup-banner"
 import { Library, Archive, HardDriveDownload, Info } from "lucide-react"
 
@@ -43,6 +45,7 @@ const sections = [
   { id: "features", label: "Plugins", icon: ToggleRight },
   { id: "mcp", label: "MCP", icon: Plug },
   { id: "prompt", label: "System Prompt", icon: MessageSquareText },
+  { id: "security", label: "Security", icon: Shield },
   { id: "database", label: "Database", icon: Database },
   { id: "backup", label: "Backup & Restore", icon: HardDriveDownload },
   { id: "logging", label: "Logging", icon: ScrollText },
@@ -251,6 +254,9 @@ export function SettingsTab({ initialSection }: { initialSection?: string } = {}
                 defaultPrompt={settings.default_system_prompt}
                 onSave={saveSystemPrompt}
               />
+            )}
+            {activeSection === "security" && (
+              <SecurityPanel />
             )}
             {activeSection === "database" && (
               <DatabasePanel />
