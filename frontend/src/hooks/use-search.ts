@@ -165,7 +165,7 @@ export function useSearch(scopeIds?: string | null, adHocTags?: string[] | null,
         createdAt: res.created_at || null,
         versionCount: res.version_count || 0,
       }))
-      setSummaryState({ text: res.summary || "", sources: [], isActive: false, status: null, iteration: 0, totalIterations: 0 })
+      setSummaryState({ ...INITIAL_SUMMARY, text: res.summary || "" })
     } catch (err) {
       const msg = (err as Error).message
       setError(msg)
