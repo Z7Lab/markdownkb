@@ -1,0 +1,22 @@
+# Compose override that builds the "full" image variant.
+# Adds optional extras (YouTube transcript extraction, etc.) on top of the base image.
+#
+# Local usage:
+#   COMPOSE_FILE=compose.yml:compose.full.yml:compose.override.yml:config/compose.override.yml make docker-build
+#   — or simply —
+#   make docker-build-full
+#
+# DockerHub users: pull the pre-built tag instead of building locally:
+#   image: markdownkb/markdownkb:full
+
+services:
+  markdownkb:
+    build:
+      context: .
+      args:
+        EXTRAS: "youtube_transcript_api>=1.0.0,<2"
+  markdownkb-mcp:
+    build:
+      context: .
+      args:
+        EXTRAS: "youtube_transcript_api>=1.0.0,<2"

@@ -40,6 +40,12 @@ dev = [
     "mypy>=1.11.0,<2",
     "pip-audit>=2.7.0,<3",
 ]
+youtube = [
+    "youtube_transcript_api>=1.0.0,<2",
+]
+full = [
+    "markdownkb[youtube]",
+]
 
 [tool.pylint.design]
 max-locals = 20

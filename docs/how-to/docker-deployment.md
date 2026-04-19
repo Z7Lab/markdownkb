@@ -97,6 +97,43 @@ volumes:
   - /home/user/captures:/home/user/captures   # writable
 ```
 
+## Image variants
+
+MarkdownKB publishes two image tags:
+
+| Tag | Contents |
+| --- | -------- |
+| `latest` | Base image — all core features, no optional extras |
+| `full` | Base + optional extras (YouTube transcript extraction via `youtube_transcript_api`) |
+
+Use `full` if you want the converter plugin to pull full transcripts from YouTube URLs, not just video metadata and descriptions.
+
+### Pulling a specific tag
+
+Set the image in your compose.yml or override:
+
+```yaml
+services:
+  markdownkb:
+    image: markdownkb/markdownkb:full   # or :latest
+    # remove `build: .` when using a pre-built image
+  markdownkb-mcp:
+    image: markdownkb/markdownkb:full
+    # remove `build: .`
+```
+
+### Building the full image locally
+
+```bash
+make docker-build-full
+```
+
+This passes the extras build arg through `compose.full.yml`. Use `make docker-rebuild-full` for a clean no-cache build.
+
+### Note on YouTube ToS
+
+`youtube_transcript_api` fetches transcripts via YouTube's public timedtext API. Including it in your image is fine (MIT license), but your use of it is subject to [YouTube's Terms of Service](https://www.youtube.com/t/terms). Use it for personal knowledge bases — not for bulk scraping.
+
 ## Extending the base image
 
 The base image is intentionally minimal — text-only indexing, no OCR, no PDF rasterisers. If you need extra tools (tesseract for OCR, poppler-utils for high-quality PDF extraction, a custom plugin from GitHub, etc.), copy [`Dockerfile.example`](../../Dockerfile.example) to `Dockerfile.custom`, edit the lines that apply, then build:
@@ -137,6 +174,7 @@ If anything misbehaves, restore the backup via the same panel and you're back wh
 | Tail logs                         | `make docker-logs`               |
 | Open a shell in the container     | `make docker-shell`              |
 | Rebuild (after code changes)      | `make docker-rebuild`            |
+| Build full variant                | `make docker-build-full`         |
 | Status                            | `make docker-ps`                 |
 
 ## See also

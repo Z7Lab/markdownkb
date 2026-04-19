@@ -36,6 +36,14 @@ SUPPORTED_FORMATS = {
 ALL_EXTENSIONS = {ext for fmt in SUPPORTED_FORMATS.values() for ext in fmt["extensions"]}
 
 
+def _has_transcript_support() -> bool:
+    try:
+        import youtube_transcript_api  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
 def _convert_file(source: Path, dest: Path) -> str | None:
     """Convert a single file to markdown. Returns error message or None on success."""
     from markitdown import MarkItDown
@@ -132,6 +140,30 @@ def _bg_convert(source_dir: str, dest_dir: str, extensions: set[str]):
 
 
 # -- Endpoints --
+
+
+class ConvertUrlRequest(BaseModel):
+    url: str = Field(..., min_length=1, description="URL to convert to markdown (supports YouTube, web pages, and any URL markitdown handles)")
+
+
+@router.post("/url")
+@limiter.limit(HEAVY)
+def convert_url(request: Request, req: ConvertUrlRequest):
+    """Convert a URL to markdown. YouTube URLs extract title, description, and transcript (if youtube_transcript_api is installed)."""
+    from markitdown import MarkItDown
+
+    try:
+        result = MarkItDown().convert(req.url)
+    except Exception as exc:
+        raise HTTPException(400, f"Conversion failed: {exc}") from exc
+
+    if not result.text_content:
+        raise HTTPException(422, "No content could be extracted from the URL")
+
+    return {
+        "markdown": result.text_content,
+        "transcript_support": _has_transcript_support(),
+    }
 
 
 class ConvertRequest(BaseModel):

@@ -13,7 +13,7 @@ API_PORT        ?= 9713
 FRONTEND_PORT   ?= 9714
 
 .DEFAULT_GOAL := help
-.PHONY: help install dev stop docker-build docker-rebuild docker-up docker-down docker-restart docker-logs docker-ps docker-shell docker-clean docker-clean-all backend prod test lint status check-ports mcp audit typecheck
+.PHONY: help install dev stop docker-build docker-rebuild docker-build-full docker-rebuild-full docker-up docker-down docker-restart docker-logs docker-ps docker-shell docker-clean docker-clean-all backend prod test lint status check-ports mcp audit typecheck
 
 # ── Quick Start ──────────────────────────────────
 
@@ -67,6 +67,15 @@ docker-build: ## Build image (cached) + restart — use after code changes
 docker-rebuild: ## Full clean rebuild (no cache) + restart — use after dependency changes only
 	@docker compose build --no-cache
 	@docker compose up -d
+
+docker-build-full: ## Build 'full' image variant (includes YouTube transcript extraction) + restart
+	@docker compose -f compose.yml -f compose.full.yml build
+	@docker compose -f compose.yml -f compose.full.yml up -d
+
+docker-rebuild-full: ## Full clean rebuild of 'full' variant (no cache) + restart
+	@docker compose -f compose.yml -f compose.full.yml build --no-cache
+	@docker compose -f compose.yml -f compose.full.yml up -d
+
 
 docker-up: ## Start container (detached)
 	@mkdir -p data/chromadb data/plans

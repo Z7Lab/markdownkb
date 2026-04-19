@@ -22,6 +22,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.lock ./requirements.txt
 RUN pip wheel --no-cache-dir --wheel-dir /app/wheels -r requirements.txt
 
+# Pre-build wheels for optional extras (empty string = base image, no extras).
+# Pass --build-arg EXTRAS="youtube_transcript_api>=1.0.0,<2" for the full image.
+ARG EXTRAS=""
+RUN mkdir -p /app/wheels-extras && \
+    [ -z "$EXTRAS" ] || pip wheel --no-cache-dir --wheel-dir /app/wheels-extras $EXTRAS
+
 
 # ── Stage 3: Production ─────────────────────────
 FROM python:3.13.2-slim
@@ -40,6 +46,13 @@ RUN groupadd --gid ${GID} markdownkb && useradd --uid ${UID} --gid markdownkb ma
 # Install pre-built wheels (no compilers needed)
 COPY --from=python-builder /app/wheels /tmp/wheels
 RUN pip install --no-cache-dir /tmp/wheels/*.whl && rm -rf /tmp/wheels
+
+# Install optional extra wheels if any were built
+COPY --from=python-builder /app/wheels-extras /tmp/wheels-extras
+RUN find /tmp/wheels-extras -name "*.whl" | grep -q . \
+    && pip install --no-cache-dir /tmp/wheels-extras/*.whl \
+    || true
+RUN rm -rf /tmp/wheels-extras
 
 # Copy application code
 COPY app/ ./app/
