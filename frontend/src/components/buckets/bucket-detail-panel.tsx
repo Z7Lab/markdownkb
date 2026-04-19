@@ -1,16 +1,43 @@
-import { useCallback, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { type Bucket, type useBuckets, useBucketFiles } from "@/hooks/use-buckets"
-import { api } from "@/lib/api"
+import { api, getApiKey } from "@/lib/api"
 import { toast } from "sonner"
 import { relativeTime } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Pencil, Trash2, FileText, Loader2, Clock,
-  Infinity as InfinityIcon, RefreshCw,
+  Infinity as InfinityIcon, RefreshCw, Link, Upload,
 } from "lucide-react"
 import { BucketEditForm } from "./bucket-edit-form"
+
+const SUPPORTED_EXTENSIONS = ".pdf,.docx,.pptx,.xlsx,.xls,.epub,.html,.htm,.csv,.txt,.rst,.rtf,.odt,.ipynb,.msg"
+
+function filenameFromContent(hint: string, markdown: string): string {
+  const titleMatch = /^#{1,3} (.+)$/m.exec(markdown)
+  if (titleMatch?.[1]) {
+    return titleMatch[1]
+      .replace(/[^\w\s-]/g, "").trim()
+      .replace(/\s+/g, "-").toLowerCase()
+      .slice(0, 80) + ".md"
+  }
+  try {
+    const { hostname, pathname } = new URL(hint)
+    const slug = pathname.replace(/\//g, "-").replace(/[^\w-]/g, "").slice(0, 40)
+    return `${hostname}${slug || ""}.md`
+  } catch {
+    const base = hint.split("/").pop()?.replace(/\.[^.]+$/, "") ?? "imported"
+    return `${base}.md`
+  }
+}
+
+function converterErrorMessage(msg: string): string {
+  if (msg.includes("404") || msg.includes("Not Found"))
+    return "Converter plugin is not enabled — enable it in Settings → Plugins"
+  return `Import failed: ${msg}`
+}
 
 export interface BucketDetailPanelProps {
   bucket: Bucket
@@ -30,6 +57,78 @@ export function BucketDetailPanel({
   const { files, loading: loadingFiles, indexing: filesIndexing, reload: reloadFiles } = useBucketFiles(bucket.id)
   const [editing, setEditing] = useState(false)
   const [reindexing, setReindexing] = useState(false)
+
+  // Import state
+  const [clipUrl, setClipUrl] = useState("")
+  const [clipping, setClipping] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<{ name: string; done: boolean; error?: string }[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const pushDocument = useCallback(async (name: string, markdown: string) => {
+    await api.post(`/api/v1/buckets/${bucket.id}/documents`, {
+      documents: [{ name, content: markdown }],
+    })
+  }, [bucket.id])
+
+  const handleClip = useCallback(async () => {
+    const url = clipUrl.trim()
+    if (!url) return
+    setClipping(true)
+    try {
+      const converted = await api.post<{ markdown: string }>("/api/v1/converter/url", { url })
+      const name = filenameFromContent(url, converted.markdown)
+      await pushDocument(name, converted.markdown)
+      setClipUrl("")
+      reloadFiles()
+      toast.success(`Clipped "${name}"`)
+    } catch (err) {
+      toast.error(converterErrorMessage((err as Error).message))
+    } finally {
+      setClipping(false)
+    }
+  }, [clipUrl, pushDocument, reloadFiles])
+
+  const handleFileUpload = useCallback(async (fileList: FileList) => {
+    const files = Array.from(fileList)
+    if (!files.length) return
+    setUploading(true)
+    setUploadProgress(files.map((f) => ({ name: f.name, done: false })))
+
+    const key = getApiKey()
+    const headers: Record<string, string> = key ? { "X-MarkdownKB-Key": key } : {}
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]!
+      try {
+        const fd = new FormData()
+        fd.append("file", file)
+        const res = await fetch("/api/v1/converter/upload", { method: "POST", headers, body: fd })
+        if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`)
+        const data = (await res.json()) as { markdown: string; filename: string }
+        const name = filenameFromContent(file.name, data.markdown)
+        await pushDocument(name, data.markdown)
+        setUploadProgress((prev) => prev.map((p, j) => j === i ? { ...p, done: true } : p))
+      } catch (err) {
+        const msg = (err as Error).message
+        setUploadProgress((prev) => prev.map((p, j) => j === i ? { ...p, done: true, error: msg } : p))
+      }
+    }
+
+    reloadFiles()
+    setUploading(false)
+    if (fileInputRef.current) fileInputRef.current.value = ""
+
+    const succeeded = uploadProgress.filter((p) => p.done && !p.error).length
+    const failed = uploadProgress.filter((p) => p.error).length
+    if (failed === 0) toast.success(`Imported ${files.length} file${files.length !== 1 ? "s" : ""}`)
+    else toast.warning(`${succeeded} imported, ${failed} failed`)
+  }, [pushDocument, reloadFiles, uploadProgress])
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    if (e.dataTransfer.files.length) void handleFileUpload(e.dataTransfer.files)
+  }, [handleFileUpload])
 
   const handleReindex = useCallback(async () => {
     setReindexing(true)
@@ -56,6 +155,8 @@ export function BucketDetailPanel({
     try { return JSON.parse(bucket.sources) as { path: string; glob?: string }[] }
     catch { return [] }
   })()
+
+  const importing = clipping || uploading
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -159,6 +260,72 @@ export function BucketDetailPanel({
               </div>
             </div>
           )}
+
+          {/* Import */}
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Import</p>
+
+            {/* URL clip */}
+            <div className="flex gap-2">
+              <Input
+                value={clipUrl}
+                onChange={(e) => setClipUrl(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") void handleClip() }}
+                placeholder="Paste a URL (YouTube, article, docs…)"
+                className="h-8 text-xs"
+                disabled={importing}
+                aria-label="URL to import"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 shrink-0"
+                onClick={handleClip}
+                disabled={importing || !clipUrl.trim()}
+              >
+                {clipping ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link className="h-3.5 w-3.5" />}
+                <span className="ml-1.5">{clipping ? "Clipping…" : "Clip"}</span>
+              </Button>
+            </div>
+
+            {/* File drop zone */}
+            <div
+              className="border border-dashed rounded-md px-3 py-4 text-center cursor-pointer hover:bg-accent/50 transition-colors"
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleDrop}
+              onClick={() => !importing && fileInputRef.current?.click()}
+              aria-label="Drop files to import"
+            >
+              {uploading ? (
+                <div className="space-y-1">
+                  {uploadProgress.map((p) => (
+                    <div key={p.name} className="flex items-center gap-2 text-xs justify-center">
+                      {p.done
+                        ? p.error
+                          ? <span className="text-destructive truncate max-w-[200px]">{p.name} — {p.error}</span>
+                          : <span className="text-green-600 truncate max-w-[200px]">✓ {p.name}</span>
+                        : <><Loader2 className="h-3 w-3 animate-spin shrink-0" /><span className="truncate max-w-[200px] text-muted-foreground">{p.name}</span></>
+                      }
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-1 text-muted-foreground pointer-events-none">
+                  <Upload className="h-4 w-4" />
+                  <p className="text-xs">Drop files or click to browse</p>
+                  <p className="text-[10px]">PDF, Word, PowerPoint, Excel, EPUB and more</p>
+                </div>
+              )}
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept={SUPPORTED_EXTENSIONS}
+              className="hidden"
+              onChange={(e) => { if (e.target.files?.length) void handleFileUpload(e.target.files) }}
+            />
+          </div>
 
           {/* Files table */}
           <div>

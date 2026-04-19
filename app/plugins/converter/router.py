@@ -1,10 +1,13 @@
 """Converter endpoints — batch convert documents to markdown via markitdown."""
 
 import logging
+import os
+import shutil
+import tempfile
 import threading
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
 
 from app.config import Settings
@@ -163,6 +166,33 @@ def convert_url(request: Request, req: ConvertUrlRequest):
     return {
         "markdown": result.text_content,
         "transcript_support": _has_transcript_support(),
+    }
+
+
+@router.post("/upload")
+@limiter.limit(HEAVY)
+async def convert_upload(request: Request, file: UploadFile = File(...)):
+    """Convert an uploaded file to markdown. Supports PDF, Word, PowerPoint, Excel, EPUB, and more."""
+    from markitdown import MarkItDown
+
+    suffix = Path(file.filename or "upload").suffix or ".bin"
+    fd, tmp = tempfile.mkstemp(suffix=suffix)
+    try:
+        os.close(fd)
+        with open(tmp, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+        result = MarkItDown().convert_local(Path(tmp))
+    except Exception as exc:
+        raise HTTPException(400, f"Conversion failed: {exc}") from exc
+    finally:
+        Path(tmp).unlink(missing_ok=True)
+
+    if not result.text_content:
+        raise HTTPException(422, "No content could be extracted from the file")
+
+    return {
+        "markdown": result.text_content,
+        "filename": file.filename,
     }
 
 
