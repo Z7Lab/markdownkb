@@ -1,6 +1,8 @@
 """Health and stats endpoints."""
 
+import os
 import queue
+import stat
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
@@ -34,6 +36,45 @@ def health(request: Request, store: VectorStore = Depends(get_store)):
     if using_defaults:
         result["using_defaults"] = True
     return result
+
+
+@router.get("/settings/security-check")
+@limiter.limit(STANDARD)
+def security_check(request: Request, settings: Settings = Depends(get_settings)):
+    """Structured security checklist — accessible without auth (same as /health)."""
+    auth_enabled = getattr(request.app.state, "auth_enabled", True)
+    network_exposed = getattr(request.app.state, "network_exposed", False)
+    api_key: str = getattr(request.app.state, "api_key", "") or ""
+
+    # API key strength: none / weak (< 16 chars) / ok
+    if not api_key:
+        api_key_strength = "none"
+    elif len(api_key) < 16:
+        api_key_strength = "weak"
+    else:
+        api_key_strength = "ok"
+
+    # Data directory world-readable check
+    data_dir = settings.data_directory
+    data_dir_world_readable = False
+    try:
+        mode = os.stat(data_dir).st_mode
+        data_dir_world_readable = bool(mode & stat.S_IROTH)
+    except OSError:
+        pass
+
+    # MCP enabled in settings (separate process — flag if any feature is on)
+    mcp_features = settings.mcp_features
+    mcp_enabled = any(mcp_features.values()) if mcp_features else False
+
+    return {
+        "auth_enabled": auth_enabled,
+        "network_exposed": network_exposed,
+        "api_key_strength": api_key_strength,
+        "data_dir_world_readable": data_dir_world_readable,
+        "data_dir": data_dir,
+        "mcp_enabled": mcp_enabled,
+    }
 
 
 @router.get("/health/llm")

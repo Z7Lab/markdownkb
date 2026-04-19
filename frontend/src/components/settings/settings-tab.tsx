@@ -32,7 +32,6 @@ import { ScopesPanel } from "./scopes-panel"
 import { BucketsPanel } from "./buckets-panel"
 import { McpPanel } from "./mcp-panel"
 import { SecurityPanel } from "./security-panel"
-import { SetupBanner } from "@/components/setup-banner"
 import { Library, Archive, HardDriveDownload, Info } from "lucide-react"
 
 const sections = [
@@ -161,7 +160,6 @@ export function SettingsTab({ initialSection }: { initialSection?: string } = {}
       </AppSidebar>
       <div className="flex-1 min-w-0 min-h-0">
         <ScrollArea className="h-full">
-          <SetupBanner forceShow />
           <div className="p-6 max-w-3xl">
             {activeSection === "llm" && (
               <LlmConfig

@@ -2,23 +2,24 @@ import { useCallback, useEffect, useState } from "react"
 import { useLocation } from "wouter"
 import { Button } from "@/components/ui/button"
 import { api } from "@/lib/api"
-import { ShieldAlert, X } from "lucide-react"
+import { ShieldAlert } from "lucide-react"
 
 interface HealthResponse {
   auth_enabled: boolean
   network_exposed: boolean
 }
 
-const DISMISS_KEY = "markdownkb-setup-banner-dismissed"
+const DISMISS_KEY = "markdownkb-setup-banner-dismissed-forever"
 
-export function SetupBanner({ forceShow = false }: { forceShow?: boolean }) {
+export function SetupBanner() {
   const [needsSetup, setNeedsSetup] = useState(false)
   const [dismissed, setDismissed] = useState(
-    () => !forceShow && sessionStorage.getItem(DISMISS_KEY) === "true",
+    () => localStorage.getItem(DISMISS_KEY) === "true",
   )
   const [, setLocation] = useLocation()
 
   useEffect(() => {
+    if (dismissed) return
     api.get<HealthResponse>("/api/v1/health")
       .then((data) => {
         if (!data.auth_enabled && data.network_exposed) {
@@ -26,11 +27,11 @@ export function SetupBanner({ forceShow = false }: { forceShow?: boolean }) {
         }
       })
       .catch((e) => { console.warn("Setup banner: failed to check health", e) })
-  }, [])
+  }, [dismissed])
 
   const handleDismiss = useCallback(() => {
     setDismissed(true)
-    sessionStorage.setItem(DISMISS_KEY, "true")
+    localStorage.setItem(DISMISS_KEY, "true")
   }, [])
 
   if (!needsSetup || dismissed) return null
@@ -40,23 +41,22 @@ export function SetupBanner({ forceShow = false }: { forceShow?: boolean }) {
       <div className="flex items-center gap-3 mx-auto max-w-3xl">
         <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
         <p className="text-sm text-amber-800 dark:text-amber-200 flex-1">
-          This instance is accessible on your network without authentication.
+          Please visit the security panel to review your security settings.
         </p>
         <Button
           variant="outline"
           size="sm"
           onClick={() => setLocation("/settings/security")}
         >
-          Set up security
+          Review Security
         </Button>
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 px-2 shrink-0 text-amber-700 dark:text-amber-300 hover:text-amber-900 hover:bg-amber-100 dark:hover:bg-amber-900/50"
-          aria-label="Dismiss security warning"
+          className="h-7 shrink-0 text-amber-700 dark:text-amber-300 hover:text-amber-900 hover:bg-amber-100 dark:hover:bg-amber-900/50"
           onClick={handleDismiss}
         >
-          <X className="h-4 w-4" />
+          Dismiss forever
         </Button>
       </div>
     </div>
