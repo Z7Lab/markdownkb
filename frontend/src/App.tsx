@@ -89,7 +89,8 @@ export function App() {
   const [isSearchResult, searchParams] = useRoute<{ searchId: string }>("/search/:searchId")
   const [isPlannerSession, plannerParams] = useRoute<{ planId: string }>("/planner/:planId")
 
-  const isKnownRoute = location in routeToTab || isChatThread || isSettingsSection || isSearchResult || isPlannerSession
+  const pathname = location.split("?")[0] ?? "/"
+  const isKnownRoute = pathname in routeToTab || isChatThread || isSettingsSection || isSearchResult || isPlannerSession
   const activeTab = isChatThread
     ? "chat"
     : isSettingsSection
@@ -98,7 +99,7 @@ export function App() {
     ? "search"
     : isPlannerSession
     ? "planner"
-    : routeToTab[location] ?? null
+    : routeToTab[pathname] ?? null
 
   // Show 404 for unknown routes instead of silent redirect
   const showNotFound = !isKnownRoute

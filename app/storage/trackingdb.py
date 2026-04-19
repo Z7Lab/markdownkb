@@ -253,7 +253,7 @@ class TrackingDB:
             cursor = self._conn.execute(
                 """UPDATE indexed_files
                 SET status = 'pending', chunk_count = 0,
-                    content_hash = '', updated_at = datetime('now')
+                    updated_at = datetime('now')
                 WHERE status = 'indexing'"""
             )
             self._conn.commit()
