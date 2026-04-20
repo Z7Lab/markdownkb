@@ -2,6 +2,7 @@
 /untracked
 scripts/internal/
 docs/internal/
+planning_docs/
 
 .claude/
 .codex/

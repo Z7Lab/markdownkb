@@ -76,4 +76,4 @@ Optional rate limiting via slowapi can be enabled with the `rate_limiting` featu
 
 ## Reporting Vulnerabilities
 
-If you discover a security vulnerability, please report it privately — **do not open a public GitHub issue**. Email the maintainer directly with steps to reproduce and the expected vs. actual behavior. This gives us time to prepare a fix before the issue is disclosed publicly.
+If you discover a security vulnerability, please report it privately — **do not open a public GitHub issue**. Use [GitHub's private vulnerability reporting](../../security/advisories/new) or email **REDACTED** with steps to reproduce and the expected vs. actual behavior. This gives us time to prepare a fix before the issue is disclosed publicly. We aim to acknowledge reports within 48 hours.

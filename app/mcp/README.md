@@ -36,5 +36,4 @@ The tool is automatically picked up on the next server restart.
 
 ## See also
 
-- [docs/mcp-server.md](../../docs/mcp-server.md) — full MCP server documentation
-- [docs/mcp-tools.md](../../docs/mcp-tools.md) — MCP tool usage documentation
+- [MCP Server](../../docs/reference/mcp-server.md) — full MCP server documentation (tools, transports, authentication)

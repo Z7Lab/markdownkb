@@ -38,7 +38,7 @@ Look things up mid-task. Structured for scanning, not reading top-to-bottom.
 | [Architecture](reference/architecture.md) | System overview, components, data flow, storage layer, plugin system |
 | [Configuration](reference/configuration.md) | All settings keys, feature flags, `.env` vs `settings.yaml` precedence |
 | [API](reference/api.md) | Full REST endpoint listing for all features |
-| [MCP Server](reference/mcp-server.md) | 32 MCP tools, transports (stdio/Streamable HTTP), authentication, scope support |
+| [MCP Server](reference/mcp-server.md) | 35 MCP tools, transports (stdio/Streamable HTTP), authentication, scope support |
 | [CLI](reference/cli.md) | Command-line interface — search, chat, index, sources, buckets, over HTTP |
 | [LLM Benchmarking](reference/llm-benchmarking.md) | Measuring tokens/second for Ollama and llama.cpp |
 
@@ -58,6 +58,7 @@ Background and reasoning. Read when you want to understand why, not how.
 | [Planner](explanation/planner.md) | MCTS-based implementation planner with skill reviews |
 | [Wiki Compile](explanation/wiki-compile.md) | Karpathy-style wiki compilation — managed wikis, the three-tier model, retrieval-augmented ingest, when to use it |
 | [Versioning](explanation/versioning.md) | Git-backed revision history for mdkb-authored writes — what gets versioned, managed repo layout, non-goals |
+| [Versioning and Upgrades](explanation/versioning-and-upgrades.md) | App versioning, update detection (PyPI / Docker Hub / git), schema migration pattern, plugin contract versioning |
 | [Philosophy](explanation/manifesto.md) | The markdown-first paradigm — why tokens are value |
 | [Value Proposition](explanation/value-proposition.md) | What MarkdownKB is, who it's for, what makes it different |
 | [Security](../SECURITY.md) | Threat model, API key auth, feature flags, network exposure |

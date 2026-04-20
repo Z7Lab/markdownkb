@@ -153,7 +153,7 @@ Or via environment variables `MARKDOWNKB_URL` and `MARKDOWNKB_API_KEY`. Every co
 | [API Key Setup](docs/how-to/api-key-setup.md) | When you need a key, how to set one |
 | [Configuration](docs/reference/configuration.md) | All settings, feature flags, `.env` vs `settings.yaml` |
 | [API Reference](docs/reference/api.md) | Full endpoint listing |
-| [MCP Server](docs/reference/mcp-server.md) | 32 MCP tools, transports, authentication |
+| [MCP Server](docs/reference/mcp-server.md) | 35 MCP tools, transports, authentication |
 | [Architecture](docs/reference/architecture.md) | System overview, data flow, storage, plugins |
 | [Embedding Models](docs/how-to/embedding-models.md) | Local ONNX and remote embedding (Ollama, cloud) |
 | [Knowledge Graph](docs/explanation/knowledge-graph.md) | Entity extraction and document similarity |
