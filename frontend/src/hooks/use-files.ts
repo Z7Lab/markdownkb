@@ -96,7 +96,7 @@ export function useFiles() {
   const unindexFile = useCallback(async (path: string) => {
     addBusy(path)
     try {
-      await api.del("/api/v1/files/index", { path })
+      await api.del("/api/v1/files/index", { path, purge: true })
       await refresh()
     } catch (err) {
       toast.error(`Failed to unindex: ${(err as Error).message}`)

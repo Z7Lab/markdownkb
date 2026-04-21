@@ -124,6 +124,13 @@ class FileActionRequest(BaseModel):
     """Request model for single-file index/unindex/reindex."""
 
     path: str = Field(..., min_length=1, max_length=4096)
+    purge: bool = Field(False, description=(
+        "When True, delete the tracking row entirely instead of resetting to pending. "
+        "Use for explicit user-initiated removal — the file will not reappear in the "
+        "Files tab or be re-indexed on next scan (assuming it matches a global_ignore "
+        "pattern or has been deleted from disk). When False (default), the row is kept "
+        "so re-indexing can resume from the same path."
+    ))
 
 
 class FileSearchRequest(BaseModel):

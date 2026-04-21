@@ -67,7 +67,7 @@ Supports Google-style quoted phrases: `"exact phrase"` requires literal match in
 | POST | `/api/v1/files/search` | Content-based file search (returns file paths). Supports quoted exact phrases. |
 | POST | `/api/v1/files/index` | Index a single file — parse, embed, store. File must be within a configured source directory. |
 | PUT | `/api/v1/files/index` | Re-embed a file's existing chunks (use after changing embedding model). |
-| DELETE | `/api/v1/files/index` | **Unindex a single file** — removes its chunks from the vector store and tracking DB without touching the file on disk. Returns `{"status": "unindexed", "chunks_removed": N}`. Use this to remove a specific file without triggering a full reindex. |
+| DELETE | `/api/v1/files/index` | **Unindex a single file** — removes chunks from the vector store without touching the file on disk. Body: `{"path": "...", "purge": false}`. With `purge: false` (default): resets status to `pending`, keeps the tracking row so the file can be re-indexed later. With `purge: true`: deletes the tracking row entirely — the file disappears from the Files tab and won't be re-indexed on next scan (use this when the file is in `global_ignore` or you want to forget it completely). Returns `{"status": "unindexed"|"purged", "chunks_removed": N}`. |
 | DELETE | `/api/v1/sources/index` | Unindex all files under a source directory (bulk version of the above) |
 | DELETE | `/api/v1/files/orphaned` | Prune tracker rows for files that no longer exist on disk |
 

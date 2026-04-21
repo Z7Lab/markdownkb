@@ -310,12 +310,24 @@ def unindex_file(
     tracking: TrackingDB = Depends(get_tracking),
     store: VectorStore = Depends(get_store),
 ):
-    """Remove a file's chunks from the vector store and reset its status."""
+    """Remove a file's chunks from the vector store.
+
+    With ``purge=false`` (default): resets status to pending and keeps the
+    tracking row — the file can be re-indexed later from the same path.
+
+    With ``purge=true``: deletes the tracking row entirely — the file will
+    not appear in the Files tab or be re-indexed on next scan.  Use this
+    when the file matches a global_ignore pattern or you want to forget it
+    completely without deleting it from disk.
+    """
     record = tracking.get_file(req.path)
     if not record:
         raise HTTPException(status_code=404, detail="File not tracked")
     chunks_removed = record["chunk_count"]
     store.delete_by_source(req.path)
+    if req.purge:
+        tracking.remove_file(req.path)
+        return {"status": "purged", "chunks_removed": chunks_removed}
     tracking.unindex_file(req.path)
     return {"status": "unindexed", "chunks_removed": chunks_removed}
 
