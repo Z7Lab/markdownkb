@@ -51,7 +51,20 @@ API-driven changes (via the Settings UI) take effect immediately — they update
 |-----|---------|-------------|
 | `sources` | `[{path: ./docs, writable: false}]` | Directories to scan for markdown files (list of dicts with `path`, optional `writable`, optional `versioned`) |
 | `project_roots` | `[]` | Auto-discover docs in cloned repos (see below) |
-| `global_ignore` | node_modules, .git, etc. | Glob patterns to skip |
+| `global_ignore` | node_modules, .git, etc. | Glob patterns to skip during indexing |
+
+`global_ignore` patterns are matched against every file path the scanner finds across all source directories. Files matching any pattern are silently skipped — they are never indexed, never appear in the Files tab, and are not included in search or chat context. This is **indexing-only** exclusion: the files still exist on disk and are still versioned by git if your source is versioned.
+
+Use this when you want a subdirectory to be part of a watched source (and therefore versioned) but not indexed. Example:
+
+```yaml
+global_ignore:
+  - "**/code_reviews/**"   # version these but don't index them
+  - "**/node_modules/**"
+  - "**/__pycache__/**"
+```
+
+Patterns use glob syntax (`**` matches any depth). The API endpoints `POST /api/v1/ignore-patterns` and `DELETE /api/v1/ignore-patterns` add and remove patterns at runtime without a restart — changes take effect on the next scan. Already-indexed files matching a newly-added pattern are **not automatically removed** from the index; use `DELETE /api/v1/files` per-file or trigger a full reindex to clean up.
 
 Each source is a dict with `path` (string, required), `writable` (boolean, optional — defaults to `true`), and `versioned` (boolean, optional — defaults to the value of `writable`). When `writable: false`, the Write API (`POST/DELETE /api/v1/documents`) and MCP write tools (`save_file`, `delete_file`) return **403 Forbidden** for that source. When `versioned: true` (the default for writable sources), every mdkb-authored write to that source is automatically committed to a per-source managed git repo — see [Versioning](#versioning) below. The bundled `./docs` directory defaults to `writable: false` in the example config to protect project documentation from accidental writes.
 

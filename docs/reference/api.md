@@ -59,17 +59,17 @@ Supports Google-style quoted phrases: `"exact phrase"` requires literal match in
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/files` | List all discovered files (paginated) |
-| GET | `/api/v1/file` | Read file content. Path must be under a configured source root OR tracked by a bucket; other paths return 403. |
-| GET | `/api/v1/file/status` | Get status of a single file |
+| GET | `/api/v1/files` | List all indexed files with status, chunk count, and tags. Accepts `limit`/`offset` for pagination. Response key is `items`. |
+| GET | `/api/v1/file` | Read full content of a file by `?path=`. Must be under a configured source root or tracked by a bucket; other paths return 403. |
+| GET | `/api/v1/file/status` | Get indexing status of a single file by `?path=` |
 | GET | `/api/v1/folders` | List unique folders from indexed documents |
-| PUT | `/api/v1/files/rag` | Toggle RAG inclusion for a file |
+| PUT | `/api/v1/files/rag` | Toggle RAG inclusion for a file (excluded files stay indexed but are skipped during retrieval) |
 | POST | `/api/v1/files/search` | Content-based file search (returns file paths). Supports quoted exact phrases. |
-| DELETE | `/api/v1/files/index` | Remove file chunks from index |
-| POST | `/api/v1/files/index` | Index a single file |
-| PUT | `/api/v1/files/index` | Re-embed a file's chunks |
-| DELETE | `/api/v1/sources/index` | Unindex all files under a source directory |
-| DELETE | `/api/v1/files/orphaned` | Prune tracker rows for files no longer on disk |
+| POST | `/api/v1/files/index` | Index a single file — parse, embed, store. File must be within a configured source directory. |
+| PUT | `/api/v1/files/index` | Re-embed a file's existing chunks (use after changing embedding model). |
+| DELETE | `/api/v1/files/index` | **Unindex a single file** — removes its chunks from the vector store and tracking DB without touching the file on disk. Returns `{"status": "unindexed", "chunks_removed": N}`. Use this to remove a specific file without triggering a full reindex. |
+| DELETE | `/api/v1/sources/index` | Unindex all files under a source directory (bulk version of the above) |
+| DELETE | `/api/v1/files/orphaned` | Prune tracker rows for files that no longer exist on disk |
 
 ## Settings
 
@@ -79,8 +79,8 @@ Supports Google-style quoted phrases: `"exact phrase"` requires literal match in
 | GET | `/api/v1/sources` | List source directories |
 | POST | `/api/v1/sources` | Add source directory (immediately starts watching + indexing) |
 | DELETE | `/api/v1/sources` | Remove source directory (with optional `cleanup` to unindex files) |
-| POST | `/api/v1/ignore-patterns` | Add ignore pattern |
-| DELETE | `/api/v1/ignore-patterns` | Remove ignore pattern |
+| POST | `/api/v1/ignore-patterns` | Add a `global_ignore` glob pattern. Body: `{"pattern": "**/code_reviews/**"}`. Files matching it are skipped on the **next** scan — does not remove already-indexed files (use `DELETE /api/v1/files/index` for that). |
+| DELETE | `/api/v1/ignore-patterns` | Remove a `global_ignore` glob pattern. Body: `{"pattern": "..."}` |
 | GET | `/api/v1/project-roots` | List project root configurations |
 | POST | `/api/v1/project-roots` | Add project root (path + include/exclude patterns) |
 | PUT | `/api/v1/project-roots` | Update project root patterns |
