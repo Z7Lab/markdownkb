@@ -62,6 +62,7 @@ def handler(message: str, scope_id: str | None = None,
         allowed_paths=allowed_paths,
         exclude_patterns=exclude_patterns,
         sources_out=sources, source_map_out=source_map,
+        kgdb=deps.get("kgdb"),
     ):
         response = chunk
 

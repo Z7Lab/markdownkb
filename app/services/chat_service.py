@@ -213,7 +213,8 @@ def chat_respond(message: str, retriever: Retriever,
                  sources_out: list[str] | None = None,
                  source_map_out: dict[str, str] | None = None,
                  conversation_history: ConversationHistory | None = None,
-                 history_override: list[dict] | None = None) -> Generator:
+                 history_override: list[dict] | None = None,
+                 kgdb=None) -> Generator:
     """Generate a streaming RAG response for the given message.
 
     When ``bucket_retrievers`` is provided alongside the main retriever,
@@ -260,10 +261,16 @@ def chat_respond(message: str, retriever: Retriever,
     else:
         history = conversation_history.get_history() if conversation_history else []
 
+    system_prompt = settings.system_prompt
+    if kgdb is not None:
+        kg_ctx = kgdb.context_for_query(search_query)
+        if kg_ctx:
+            system_prompt = (system_prompt + kg_ctx) if system_prompt else kg_ctx
+
     messages, source_map = build_rag_messages(
         message, documents, metadatas,
         conversation_history=history,
-        system_prompt=settings.system_prompt,
+        system_prompt=system_prompt,
     )
 
     raw_response = ""

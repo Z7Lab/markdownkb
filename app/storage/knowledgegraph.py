@@ -419,3 +419,31 @@ class KnowledgeGraphDB:
             "source_files": sources,
             "cached_chunks": cached,
         }
+
+    def context_for_query(self, query: str, max_entities: int = 5) -> str:
+        """Return a compact KG context block for entities mentioned in the query.
+
+        Returns an empty string when the KG has no matching entities, so callers
+        can safely do ``context += kgdb.context_for_query(q)`` without guards.
+        """
+        query_lower = query.lower()
+        all_entities = self.get_all_entities()
+        matches = [e for e in all_entities if e["name"] in query_lower]
+        matches = sorted(matches, key=lambda e: e["mention_count"], reverse=True)[:max_entities]
+        if not matches:
+            return ""
+
+        lines = ["\n### Knowledge Graph Context"]
+        for entity in matches:
+            full = self.get_entity(entity["name"])
+            if not full:
+                continue
+            lines.append(f"\n**{full['display_name']}** ({full['entity_type']})")
+            if full.get("description"):
+                lines.append(f"  {full['description']}")
+            outgoing = (full.get("outgoing") or [])[:4]
+            if outgoing:
+                rel_strs = [f"{r['rel_type']} → {r['target']}" for r in outgoing]
+                lines.append(f"  Relationships: {', '.join(rel_strs)}")
+
+        return "\n".join(lines) if len(lines) > 1 else ""

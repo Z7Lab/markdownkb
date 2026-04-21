@@ -213,6 +213,61 @@ def on_shutdown(app) -> None:
 
 Access in your router via `request.app.state.my_db`. Do not use `app/deps.py` — that's for core dependencies. Plugin resources live on `app.state` and are accessed directly.
 
+## Integrating with Core Pipelines
+
+Plugins sometimes need to contribute to pipelines they don't own — chat, search, planner. Two patterns exist; choose based on whether core can function without the plugin.
+
+### Pattern 1: Dispatcher callbacks (`tag_utils.py`)
+
+Use this when **core code must call the plugin at a defined point** — the pipeline has a clear hook that core itself needs to invoke, and the plugin provides the implementation. Core imports `tag_utils` unconditionally and calls it; if no plugin has registered, the call is a no-op.
+
+`app/tag_utils.py` is the example: the indexer calls `tag_utils.run_tags_hook()` after every file is indexed. The tags plugin registers its implementation at startup with `register_tags_hook(fn)`. Core doesn't know or care whether the hook is registered.
+
+```python
+# Core calls this unconditionally:
+from app.tag_utils import run_tags_hook
+run_tags_hook(path, content)
+
+# Tags plugin registers its implementation at startup:
+from app import tag_utils
+tag_utils.register_tags_hook(my_tag_extractor)
+```
+
+### Pattern 2: Optional `getattr` enrichment
+
+Use this when **the plugin provides optional augmentation** — the pipeline works fine without it, and the plugin just makes results richer. The service receives the plugin's DB/service object as a parameter (resolved from `app.state` by the router) and skips enrichment if it's `None`.
+
+The knowledge_graph and buckets plugins use this pattern. The caller does:
+
+```python
+kgdb = getattr(request.app.state, "kgdb", None)
+result = some_service(query, ..., kgdb=kgdb)
+```
+
+And the service does:
+
+```python
+def some_service(query, ..., kgdb=None):
+    ...
+    if kgdb is not None:
+        extra = kgdb.some_enrichment_method(query)
+        # use extra
+```
+
+**Rules for this pattern:**
+- Plugin logic stays in the plugin's own class/module — nothing goes in `app/rag/`, `app/services/`, or other core directories
+- The enrichment method lives on the plugin's DB class (e.g. `KnowledgeGraphDB.context_for_query()`)
+- Services accept `kgdb=None` (or equivalent) as an optional parameter — they never import from the plugin directly
+- Routers resolve `getattr(request.app.state, "kgdb", None)` and pass it in
+
+### Which pattern to use
+
+| Situation | Pattern |
+|-----------|---------|
+| Core has a defined hook it must call (indexing, tagging, resolving paths) | Dispatcher callback |
+| Plugin adds optional richness to a response (extra context, annotations) | Optional `getattr` enrichment |
+| Plugin provides its own endpoints only, no core integration needed | Neither — just a router |
+
 ## MCP Tool Integration
 
 Plugins can provide MCP tools. Create tool files in `app/mcp/tools/` with `requires_plugin` set to your plugin name:

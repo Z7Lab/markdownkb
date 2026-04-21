@@ -29,6 +29,7 @@ def run_planner(
     allowed_paths: set[str] | None = None,
     exclude_patterns: list[str] | None = None,
     bucket_retriever: Retriever | None = None,
+    kgdb=None,
 ) -> dict[str, Any]:
     """Run the MCTS planner and optionally refine with skill reviews."""
     planner = MCTSPlanner(retriever, settings)
@@ -36,6 +37,7 @@ def run_planner(
     planner._allowed_paths = allowed_paths
     planner._exclude_patterns = exclude_patterns
     planner._bucket_retriever = bucket_retriever
+    planner._kgdb = kgdb
     result = planner.plan(request, iterations, n_approaches)
 
     if skill_names and settings.core_enabled("agent_skills"):
@@ -62,6 +64,7 @@ def stream_planner(
     allowed_paths: set[str] | None = None,
     exclude_patterns: list[str] | None = None,
     bucket_retriever: Retriever | None = None,
+    kgdb=None,
 ) -> Generator[str, None, None]:
     """Stream planner progress as SSE events.
 
@@ -73,6 +76,7 @@ def stream_planner(
     planner._allowed_paths = allowed_paths
     planner._exclude_patterns = exclude_patterns
     planner._bucket_retriever = bucket_retriever
+    planner._kgdb = kgdb
     planner._exploration_log = []
     planner._user_patterns = extract_user_patterns(retriever)
 

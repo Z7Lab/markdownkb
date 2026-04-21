@@ -118,6 +118,7 @@ def chat_stream(
             sources_out=sources,
             source_map_out=source_map,
             conversation_history=conv_history,
+            kgdb=getattr(request.app.state, "kgdb", None),
         )
         try:
             try:

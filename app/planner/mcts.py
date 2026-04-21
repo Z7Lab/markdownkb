@@ -57,6 +57,8 @@ class MCTSPlanner:
         self._allowed_paths = allowed_paths
         self._exclude_patterns: list[str] | None = None
         self._bucket_retriever = None
+        self._kgdb = None
+        self._kg_context = ""
 
     def plan(self, request: str, iterations: int = 3,
              n_approaches: int = 3) -> dict[str, Any]:
@@ -141,6 +143,8 @@ class MCTSPlanner:
             f"Searched knowledge base for: '{request}' -- "
             f"found {len(results)} results"
         )
+        if self._kgdb is not None:
+            self._kg_context = self._kgdb.context_for_query(request)
         return [
             {
                 "document": r.document,
@@ -161,6 +165,8 @@ class MCTSPlanner:
             f"[{m.get('source_path', 'unknown')}]\n{d}"
             for d, m in zip(documents, metadatas)
         )
+        if self._kg_context:
+            context += "\n\n" + self._kg_context
 
         return context, metadatas
 

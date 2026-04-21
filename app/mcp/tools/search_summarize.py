@@ -46,6 +46,12 @@ def handler(query: str, top_k: int = 5) -> dict:
 
     context = "\n\n---\n\n".join(context_parts)
 
+    kgdb = deps.get("kgdb")
+    if kgdb is not None:
+        kg_ctx = kgdb.context_for_query(query)
+        if kg_ctx:
+            context += "\n\n" + kg_ctx
+
     messages = [
         {"role": "system", "content": get_search_summary_system()},
         {"role": "user", "content": get_search_summary_user().format(

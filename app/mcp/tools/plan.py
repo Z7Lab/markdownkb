@@ -52,6 +52,7 @@ def handler(
         n_approaches=n_approaches,
         folders_filter=folders_filter,
         allowed_paths=allowed_paths,
+        kgdb=deps.get("kgdb"),
     )
 
     # Save to PlanDB if requested and available

@@ -65,6 +65,7 @@ def plan(
             allowed_paths=allowed if not bucket_only else None,
             exclude_patterns=exclude_patterns if not bucket_only else None,
             bucket_retriever=first_bucket if not bucket_only else None,
+            kgdb=getattr(request.app.state, "kgdb", None),
         )
     except RuntimeError as e:
         logger.error("Planner error: %s", e)
@@ -115,6 +116,7 @@ def plan_stream(
                 allowed_paths=allowed if not bucket_only else None,
                 exclude_patterns=exclude_patterns if not bucket_only else None,
                 bucket_retriever=first_bucket_s if not bucket_only else None,
+                kgdb=getattr(request.app.state, "kgdb", None),
             )
         except RuntimeError as e:
             logger.error("Planner stream error: %s", e)
