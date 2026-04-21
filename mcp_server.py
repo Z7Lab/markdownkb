@@ -66,8 +66,83 @@ def _slugify(name: str) -> str:
 
 
 def _register_resources(server: FastMCP, settings) -> None:
-    """Register MCP resources: static source-directory listings + file template."""
+    """Register MCP resources: overview, source-directory listings, scopes, buckets, file template."""
     from pathlib import Path
+
+    # Overview resource: live KB summary — useful to attach to context in clients
+    # like the llama.cpp browser chat before asking questions.
+    @server.resource(
+        "markdownkb://overview",
+        name="Knowledge Base Overview",
+        description="Live summary of the knowledge base: file count, chunks, sources, scopes, and buckets.",
+        mime_type="text/plain",
+    )
+    def _overview() -> str:
+        from app.storage.trackingdb import TrackingDB
+        from app.storage.scopedb import ScopeDB
+
+        # Prefer already-initialized instances from the lifespan cache to avoid
+        # re-opening ChromaDB on every resource read.
+        cached = _cached_resources or {}
+        tracking_owned = cached.get("tracking") is None
+        scopedb_owned = True
+
+        tracking = cached.get("tracking") or TrackingDB(settings.data_directory)
+        store = cached.get("store")
+        scopedb = ScopeDB(settings.data_directory)
+        try:
+            file_count = tracking.file_count()
+            chunk_count = store.count if store else 0
+            scopes = scopedb.list_scopes()
+            recent = tracking.get_all_files(limit=10)
+        finally:
+            if tracking_owned:
+                tracking.close()
+            if scopedb_owned:
+                scopedb.close()
+
+        lines = ["# MarkdownKB Knowledge Base Overview", ""]
+        lines.append(f"Indexed: {file_count} files, {chunk_count} chunks")
+        lines.append(f"Watch directories: {len(settings.sources)}")
+        lines.append(f"Named scopes: {len(scopes)}")
+
+        if settings.plugin_enabled("buckets"):
+            from app.plugins.buckets.bucketdb import BucketDB
+            bucketdb = BucketDB(settings.data_directory)
+            try:
+                buckets = bucketdb.list_all()
+            finally:
+                bucketdb.close()
+            lines.append(f"Buckets: {len(buckets)}")
+
+        if settings.sources:
+            lines.append("")
+            lines.append("## Watch Directories")
+            for src in settings.sources:
+                p = Path(src)
+                count = len(list(p.rglob("*.md"))) if p.is_dir() else (1 if p.is_file() else 0)
+                lines.append(f"- {src} ({count} files)")
+
+        if scopes:
+            lines.append("")
+            lines.append("## Named Scopes")
+            for sc in scopes:
+                desc = sc["name"]
+                if sc.get("folders"):
+                    desc += f" — {', '.join(sc['folders'])}"
+                if sc.get("tags"):
+                    desc += f" [tags: {', '.join(sc['tags'])}]"
+                lines.append(f"- {desc}")
+
+        if recent:
+            lines.append("")
+            lines.append("## Recently Indexed Files")
+            for f in recent:
+                name = Path(f["path"]).name
+                ts = (f.get("indexed_at") or "")[:10]
+                lines.append(f"- {name}" + (f" ({ts})" if ts else ""))
+
+        return "\n".join(lines)
 
     # Static resources: one per configured source directory so clients can
     # browse the top-level structure without listing every file.
@@ -490,9 +565,14 @@ def _create_mcp(bind_host: str = "127.0.0.1", bind_port: int = 9715) -> FastMCP:
     mcp = FastMCP(
         "markdownkb",
         instructions=(
-            "MarkdownKB is a personal markdown knowledge base. Use the tools below to "
-            "search indexed documents, retrieve full file contents, list indexed "
-            "files, generate implementation plans, and trigger re-indexing."
+            "MarkdownKB is a personal knowledge base of markdown documents. "
+            "Use the search/retrieve tools for semantic search, the chat tool for "
+            "RAG-grounded answers, list_files/read_file to browse documents, and "
+            "deep_research for multi-angle synthesis. "
+            "Resources: attach markdownkb://overview for a live KB summary, or attach "
+            "a scope/directory/bucket resource to scope context to a specific area. "
+            "Prompts: ask-kb, summarize-topic, and research-topic are ready-made "
+            "starting points."
         ),
         lifespan=lifespan,
         transport_security=transport_security,

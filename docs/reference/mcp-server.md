@@ -6,7 +6,7 @@ The server runs as a **separate process** alongside the FastAPI app. It imports 
 
 ## All MCP Tools at a Glance
 
-35 tools organized by category. Core tools are always available; plugin tools appear when their plugin is enabled.
+40+ tools organized by category. Core tools are always available; plugin tools appear when their plugin is enabled.
 
 **Search & Retrieval:**
 - `search` — hybrid vector + keyword search, returns chunks with source paths
@@ -336,6 +336,36 @@ MarkdownKB exposes watched directories, scopes, and buckets as MCP resources so 
 
 Resources are registered at MCP server startup — a restart is required to pick up newly added sources, scopes, or buckets.
 
+### Overview
+
+A live summary of the entire knowledge base — good for attaching to context before asking questions.
+
+| URI | Description |
+|-----|-------------|
+| `markdownkb://overview` | File count, chunk count, sources, scopes, buckets, and recent files |
+
+```
+markdownkb://overview
+→ # MarkdownKB Knowledge Base Overview
+
+  Indexed: 1076 files, 28174 chunks
+  Watch directories: 10
+  Named scopes: 6
+  Buckets: 4
+
+  ## Watch Directories
+  - /app/docs (87 files)
+  ...
+
+  ## Named Scopes
+  - Architecture — /home/user/projects/myapp/docs [tags: architecture]
+  ...
+
+  ## Recently Indexed Files
+  - auth-middleware.md (2026-04-20)
+  ...
+```
+
 ### Watch Directories
 
 One resource per configured watch directory. Lists every `.md` file in that directory (up to 500).
@@ -508,6 +538,27 @@ Add to `~/.config/claude/claude_desktop_config.json`:
 }
 ```
 
+## Browser-based Clients (llama.cpp, Open WebUI, etc.)
+
+Any browser-based chat UI with MCP support (such as llama-server's built-in interface) connects via Streamable HTTP. The MCP tools, resources, and prompts run in the browser — they call MarkdownKB's MCP server and inject results into the conversation.
+
+**Endpoint:** `http://localhost:9715/mcp`  
+(Replace `localhost` with the host MarkdownKB runs on if connecting from another machine.)
+
+**Generic steps:**
+1. Open the chat UI's settings and go to its MCP configuration panel
+2. Add a new server with the URL above
+3. If you have an API key set, add an auth header: `Authorization: Bearer <key>` or `X-MarkdownKB-Key: <key>`
+4. Save — the client connects immediately and shows tool/resource/prompt badges
+
+**Using resources in a browser client:**  
+Open the resource browser (usually a paperclip or attachment icon) to see resources grouped by type. Attach `markdownkb://overview` for a live KB summary, or attach a specific scope/directory/bucket listing to focus context on a particular area before asking questions.
+
+**Using prompts in a browser client:**  
+Open the prompt picker (usually a `/` shortcut or icon) to see the three built-in prompts: `ask-kb`, `summarize-topic`, and `research-topic`. Select one, fill in the argument, and it pre-populates the message with the right tool call instruction.
+
+> CORS is permissive by default so browser clients on any origin can connect. To restrict, set `mcp.allowed_origins` in `config/settings.yaml`.
+
 ## Docker
 
 The MCP server runs as a separate service in `compose.yml`:
@@ -560,6 +611,17 @@ Three gating mechanisms control whether a tool is registered:
 3. **`write: True`** — tool disabled when `mcp.read_only` is `true`, regardless of other flags. Exception: bucket write tools are allowed when `mcp.allow_bucket_writes: true`.
 
 To add a new MCP tool, create a new `.py` file in `app/mcp/tools/` following the existing pattern.
+
+### Resources and Prompts
+
+Resources and prompts are registered in `mcp_server.py` at startup via two functions:
+
+- **`_register_resources(server, settings)`** — defines all MCP resources. Each resource is a URI + function that returns content when a client reads it. Add a new `@server.resource(...)` block here to expose additional content.
+- **`_register_prompts(server, settings)`** — defines MCP prompt templates (the shortcuts that appear in the prompt picker). Add a `@server.prompt(...)` block here to add new templates.
+
+The **server instructions** (shown in browser clients as "Server instructions") are set via the `instructions=` argument to `FastMCP(...)` near the bottom of `mcp_server.py`. This is the first thing a client-side model reads about what MarkdownKB is and how to use it.
+
+Resources and prompts are registered at server startup from the values in `settings` at that moment. Adding a new scope, bucket, or source after the server starts requires restarting the MCP server to make it appear as a resource.
 
 ### Scope Support
 

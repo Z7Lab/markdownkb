@@ -461,12 +461,11 @@ That's it. MarkdownKB uses llama.cpp for all generation — RAG chat, search sum
 
 ### llama.cpp browser UI and MCP
 
-llama-server's built-in web UI supports MCP. You can add MarkdownKB as an MCP server there and use MarkdownKB's search, chat, and file tools from the llama.cpp chat interface. However, this only works **inside that browser session** — the MCP tools run in the browser, not natively in the server.
+llama-server's built-in web UI supports MCP. Add MarkdownKB as an MCP server and get all tools, resources, and prompt templates available directly in the chat interface. MCP runs in the browser — it calls MarkdownKB's server and injects results into the conversation.
 
-This means:
-- **llama.cpp browser chat** — MCP works, full MarkdownKB tool set available
-- **Direct API calls** (`/v1/chat/completions`) — no MCP intercept, tool calls won't fire
-- **Your own scripts** — call the MarkdownKB REST API directly; see [Using the MarkdownKB API](../how-to/using-markdownkb-api.md)
+**Endpoint:** `http://localhost:9715/mcp`
+
+For setup steps and details on using resources and prompts, see [MCP Server — Browser-based Clients](../reference/mcp-server.md#browser-based-clients-llamacpp-open-webui-etc).
 
 ### Using MarkdownKB from a separate llama.cpp workflow
 
