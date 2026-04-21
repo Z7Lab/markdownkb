@@ -45,7 +45,7 @@ The **Buckets tab** is the primary UI for managing buckets. It has a left sideba
 **Sidebar:** Lists all buckets with a color indicator and file count. Expired buckets are dimmed and badged. Clicking a bucket opens its detail view. The **New Bucket** button at the top of the sidebar opens the creation form.
 
 **Detail panel:** Shows the selected bucket's name, stats (file count, chunk count, created time, expiration), sources, and a file table. Three action icons appear in the header:
-- **Edit** (pencil) — opens an inline form to change the name, expiration, and color
+- **Edit** (pencil) — opens an inline form to change the name, description, expiration, and color
 - **Reindex** (refresh) — re-scans the original sources and indexes any new files
 - **Delete** (trash) — removes the bucket and all its vector data
 
@@ -57,7 +57,7 @@ The **Buckets tab** is the primary UI for managing buckets. It has a left sideba
 
 1. Go to the **Buckets tab**
 2. Click **New Bucket** in the left sidebar
-3. Enter a name, source path, glob pattern, expiration, and optional color
+3. Enter a name, optional description, source path, glob pattern, expiration, and optional color
 4. Click **Create**
 
 ### From the API
@@ -202,4 +202,4 @@ plugins:
 
 ## Storage
 
-Each bucket gets its own ChromaDB collection (`bucket_{id}`), stored alongside the main collection. Bucket metadata (name, sources, expiration, color) is in `{data_directory}/buckets.db`. File membership records (which files belong to which bucket) are also stored there, used to exclude bucket files from the Files tab. Deleting a bucket removes the DB record, the file memberships, and the ChromaDB collection.
+Each bucket gets its own ChromaDB collection (`bucket_{id}`), stored alongside the main collection. Bucket metadata (name, description, sources, expiration, color) is in `{data_directory}/buckets.db`. File membership records (which files belong to which bucket) are also stored there, used to exclude bucket files from the Files tab. Deleting a bucket removes the DB record, the file memberships, and the ChromaDB collection.

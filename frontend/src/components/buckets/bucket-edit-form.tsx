@@ -2,6 +2,7 @@ import { useState } from "react"
 import { type Bucket, type useBuckets } from "@/hooks/use-buckets"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Clock, Infinity as InfinityIcon, X, Check } from "lucide-react"
@@ -28,12 +29,15 @@ export function BucketEditForm({
   const [name, setName] = useState(bucket.name)
   const [color, setColor] = useState<string | null>(bucket.color)
   const [expiresIn, setExpiresIn] = useState<number | null | "keep">("keep")
+  const [description, setDescription] = useState(bucket.description ?? "")
 
   async function handleSave() {
     const params: Parameters<typeof updateBucket>[1] = {}
     if (name.trim() && name.trim() !== bucket.name) params.name = name.trim()
     if (color !== bucket.color) params.color = color
     if (expiresIn !== "keep") params.expires_in = expiresIn
+    const newDesc = description.trim() || null
+    if (newDesc !== (bucket.description ?? null)) params.description = newDesc
     if (Object.keys(params).length > 0) {
       await updateBucket(bucket.id, params)
     }
@@ -57,6 +61,18 @@ export function BucketEditForm({
             onChange={(e) => setName(e.target.value)}
             className="mt-1 h-8 text-sm"
             autoFocus
+          />
+        </div>
+        <div>
+          <label htmlFor="bucket-edit-description" className="text-xs font-medium">Description</label>
+          <Textarea
+            id="bucket-edit-description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="What is this bucket for?"
+            className="mt-1 text-sm min-h-[52px] resize-none"
+            rows={2}
+            maxLength={1000}
           />
         </div>
         <div>

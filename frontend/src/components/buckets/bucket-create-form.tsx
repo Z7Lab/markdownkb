@@ -2,6 +2,7 @@ import { useState } from "react"
 import { type useBuckets } from "@/hooks/use-buckets"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Clock, Infinity as InfinityIcon } from "lucide-react"
 import { BucketPathStatus } from "./bucket-path-status"
@@ -28,6 +29,7 @@ export function BucketCreateForm({
   const [glob, setGlob] = useState("**/*.md")
   const [expiresIn, setExpiresIn] = useState<number | null>(null)
   const [color, setColor] = useState<string | null>(null)
+  const [description, setDescription] = useState("")
 
   async function handleCreate() {
     if (!name.trim() || !path.trim()) return
@@ -36,6 +38,7 @@ export function BucketCreateForm({
       sources: [{ path: path.trim(), glob: glob.trim() || "**/*.md" }],
       expires_in: expiresIn,
       color: color ?? undefined,
+      description: description.trim() || null,
     })
     if (res) {
       onCreated(res.id)
@@ -55,6 +58,18 @@ export function BucketCreateForm({
             placeholder="e.g. grpc-evaluation"
             className="mt-1"
             autoFocus
+          />
+        </div>
+        <div>
+          <label htmlFor="bucket-create-description" className="text-sm font-medium">Description <span className="text-muted-foreground font-normal">(optional)</span></label>
+          <Textarea
+            id="bucket-create-description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="What is this bucket for?"
+            className="mt-1 min-h-[60px] resize-none"
+            rows={2}
+            maxLength={1000}
           />
         </div>
         <div>

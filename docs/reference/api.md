@@ -306,9 +306,9 @@ Requires `plugins.docmap.enabled: true`. Plugin: `app/plugins/docmap/`.
 | GET | `/api/v1/docmap/edge-explain` | LLM-generated one-sentence explanation of why two docs are connected. Accepts `bucket_id` (for bucket cross-edges) and `refresh=true` (bypass cache). |
 | GET | `/api/v1/docmap/progress` | Current computation progress |
 
-Accepts optional `scope_ids`, `ad_hoc_tags[]`, `word_clouds`, `min_weight`, `bucket_id`, `bucket_min_weight`, and `client_threshold` query parameters. Supports both scope and tag filtering. Filters out files with `include_rag=false`.
+Accepts optional `scope_ids`, `ad_hoc_tags[]`, `word_clouds`, `min_weight`, `bucket_ids`, `bucket_min_weight`, and `client_threshold` query parameters. Supports both scope and tag filtering. Filters out files with `include_rag=false`.
 
-When `bucket_id` is set, the response includes the bucket's documents merged into the graph with `_bucket: true` markers and the bucket's color. Bucket nodes always render even if they have no surviving edges — selecting a bucket should never make it invisible.
+When `bucket_ids` is set (comma-separated bucket IDs or names), the response includes each bucket's documents merged into the graph with `_bucket: true` markers and the bucket's color. Bucket nodes always render even if they have no surviving edges — selecting a bucket should never make it invisible. The legacy `bucket_id` (single) parameter is still accepted for backwards compatibility.
 
 **Cross-collection edges** (bucket ↔ scope) are computed via Reciprocal Rank Fusion of four similarity signals — mean top-K chunk-pair cosine, max chunk-pair cosine, document-level TF-IDF cosine, and relative neighbour rank — rather than a single cosine threshold. Fused scores are normalized per bucket doc to [0, 1], and `bucket_min_weight` (default 0.50) filters edges by this normalized score: 1.0 keeps only each bucket doc's single best match, 0.0 keeps every computed connection. See [docmap.md](../explanation/docmap.md#bucket-overlay) for the full explanation.
 
@@ -441,6 +441,7 @@ Temporary scoped document collections with independent vector storage. Each buck
 | `name` | (required) | Unique bucket name |
 | `sources` | `[]` | List of `{path, glob}` source descriptors (optional — omit to create an empty bucket) |
 | `expires_in` | null | Optional auto-delete after this many seconds (min 60) |
+| `description` | null | Optional free-text description of the bucket's purpose |
 
 ## Lint
 

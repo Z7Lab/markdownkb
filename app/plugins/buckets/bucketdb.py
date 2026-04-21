@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS buckets (
     created_at  TEXT NOT NULL DEFAULT (datetime('now')),
     expires_at  TEXT,
     expired     INTEGER NOT NULL DEFAULT 0,
-    color       TEXT
+    color       TEXT,
+    description TEXT
 );
 
 CREATE TABLE IF NOT EXISTS file_memberships (
@@ -43,6 +44,8 @@ _MIGRATIONS: list[tuple[int, str, str]] = [
             PRIMARY KEY (file_path, bucket_id)
         )
      """),
+    (4, "add description column to buckets",
+     "ALTER TABLE buckets ADD COLUMN description TEXT"),
 ]
 
 
@@ -71,14 +74,15 @@ class BucketDB:
         chunk_count: int,
         expires_at: str | None = None,
         color: str | None = None,
+        description: str | None = None,
     ) -> dict:
         """Create a new bucket record. Returns the created row as a dict."""
         bucket_id = uuid.uuid4().hex[:12]
         with self._lock:
             self._conn.execute(
-                """INSERT INTO buckets (id, name, sources, file_count, chunk_count, expires_at, color)
-                VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (bucket_id, name, sources, file_count, chunk_count, expires_at, color),
+                """INSERT INTO buckets (id, name, sources, file_count, chunk_count, expires_at, color, description)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (bucket_id, name, sources, file_count, chunk_count, expires_at, color, description),
             )
             self._conn.commit()
             row = self._conn.execute(
@@ -108,7 +112,7 @@ class BucketDB:
 
     _UPDATABLE_COLUMNS = frozenset({
         "name", "sources", "file_count", "chunk_count",
-        "expires_at", "expired", "color",
+        "expires_at", "expired", "color", "description",
     })
 
     def update(self, bucket_id: str, **fields) -> bool:

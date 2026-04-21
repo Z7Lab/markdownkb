@@ -234,6 +234,11 @@ export function BucketDetailPanel({
             </div>
           </div>
 
+          {/* Description */}
+          {bucket.description && !editing && (
+            <p className="text-sm text-muted-foreground">{bucket.description}</p>
+          )}
+
           {/* Edit form */}
           {editing && (
             <BucketEditForm

@@ -14,6 +14,7 @@ export interface Bucket {
   expires_at: string | null
   expired: boolean
   color: string | null
+  description: string | null
 }
 
 export interface CreateBucketParams {
@@ -21,12 +22,14 @@ export interface CreateBucketParams {
   sources: { path: string; glob?: string }[]
   expires_in?: number | null
   color?: string | null
+  description?: string | null
 }
 
 export interface UpdateBucketParams {
   name?: string
   expires_in?: number | null
   color?: string | null
+  description?: string | null
 }
 
 export interface BucketFile {

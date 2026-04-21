@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Folder,
   FolderOpen,
+  Package,
 } from "lucide-react"
 import type { TrackedFile } from "@/lib/types"
 
@@ -66,6 +67,7 @@ function FolderTreeNode({
   onSelectFolder,
   expandedPaths,
   toggleExpand,
+  isBuiltIn,
 }: {
   node: FolderNode
   depth: number
@@ -73,6 +75,7 @@ function FolderTreeNode({
   onSelectFolder: (path: string | null) => void
   expandedPaths: Set<string>
   toggleExpand: (path: string) => void
+  isBuiltIn?: boolean
 }) {
   const isExpanded = expandedPaths.has(node.fullPath)
   const isSelected = selectedFolder === node.fullPath
@@ -107,6 +110,11 @@ function FolderTreeNode({
           <Folder className="h-4 w-4 shrink-0 text-muted-foreground" />
         )}
         <span className="truncate">{node.name}</span>
+        {isBuiltIn && (
+          <span title="App built-in docs — read-only" className="shrink-0">
+            <Package className="h-3 w-3 text-muted-foreground/60" />
+          </span>
+        )}
         {node.fileCount > 0 && (
           <span className="ml-auto shrink-0 text-xs text-muted-foreground">
             {node.fileCount}
@@ -182,6 +190,7 @@ export function FolderTree({
             onSelectFolder={onSelectFolder}
             expandedPaths={expandedPaths}
             toggleExpand={toggleExpand}
+            isBuiltIn={node.fullPath === "/app/docs"}
           />
         ))}
       </div>

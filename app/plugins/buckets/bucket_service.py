@@ -52,6 +52,7 @@ class BucketService:
         sources: list[dict],
         expires_in: int | None = None,
         color: str | None = None,
+        description: str | None = None,
     ) -> dict:
         """Create a bucket, ingest sources, return metadata."""
         if self._db.name_exists(name):
@@ -107,6 +108,7 @@ class BucketService:
             chunk_count=len(all_ids),
             expires_at=expires_at,
             color=color,
+            description=description,
         )
         bucket_id = record["id"]
 

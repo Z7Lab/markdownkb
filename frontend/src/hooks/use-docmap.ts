@@ -13,7 +13,7 @@ export type DocmapStatus = "idle" | "checking-cache" | "loading" | "computing" |
 /** Server-side minimum edge weight — edges below this are never sent. */
 export const DOCMAP_MIN_WEIGHT = 0.6
 
-export function buildDocmapQs(scopeIds?: string | null, wordClouds = true, adHocTags?: string[] | null, bucketId?: string | null, bucketThreshold?: number | null): string {
+export function buildDocmapQs(scopeIds?: string | null, wordClouds = true, adHocTags?: string[] | null, bucketIds?: string[] | null, bucketThreshold?: number | null): string {
   const params = new URLSearchParams()
   if (scopeIds) params.set("scope_ids", scopeIds)
   if (!wordClouds) params.set("word_clouds", "false")
@@ -21,8 +21,10 @@ export function buildDocmapQs(scopeIds?: string | null, wordClouds = true, adHoc
   if (adHocTags && adHocTags.length > 0) {
     for (const t of adHocTags) params.append("ad_hoc_tags", t)
   }
-  if (bucketId) params.set("bucket_id", bucketId)
-  if (bucketId && bucketThreshold != null) params.set("bucket_min_weight", String(bucketThreshold))
+  if (bucketIds && bucketIds.length > 0) {
+    params.set("bucket_ids", bucketIds.join(","))
+    if (bucketThreshold != null) params.set("bucket_min_weight", String(bucketThreshold))
+  }
   const qs = params.toString()
   return qs ? `?${qs}` : ""
 }
@@ -42,7 +44,7 @@ export function useDocmap() {
   const docmapDataRef = useRef<DocMapData | null>(null)
   const lastScopeRef = useRef<string | null | undefined>(undefined)
   const lastTagsRef = useRef<string | null>(null)
-  const lastBucketRef = useRef<string | null>(null)
+  const lastBucketsRef = useRef<string | null>(null)
   const lastBucketThresholdRef = useRef<number | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -68,25 +70,25 @@ export function useDocmap() {
     force = false,
     wc = true,
     adHocTags?: string[] | null,
-    bucketId?: string | null,
+    bucketIds?: string[] | null,
     bucketThresh?: number | null,
   ) => {
     const tagsKey = adHocTags ? adHocTags.sort().join(",") : null
-    const bucketKey = bucketId ?? null
-    const bucketThreshKey = bucketId ? (bucketThresh ?? null) : null
+    const bucketsKey = bucketIds && bucketIds.length > 0 ? [...bucketIds].sort().join(",") : null
+    const bucketThreshKey = bucketsKey ? (bucketThresh ?? null) : null
     if (
       !force
       && docmapDataRef.current
       && lastScopeRef.current === scopeIds
       && lastTagsRef.current === tagsKey
-      && lastBucketRef.current === bucketKey
+      && lastBucketsRef.current === bucketsKey
       && lastBucketThresholdRef.current === bucketThreshKey
     ) {
       return
     }
     lastScopeRef.current = scopeIds ?? null
     lastTagsRef.current = tagsKey
-    lastBucketRef.current = bucketKey
+    lastBucketsRef.current = bucketsKey
     lastBucketThresholdRef.current = bucketThreshKey
 
     abortRef.current?.abort()
@@ -106,7 +108,7 @@ export function useDocmap() {
     setProgress({ fraction: 0, phase: "Starting..." })
 
     try {
-      const dataPromise = api.get<DocMapData>(`/api/v1/docmap/data${buildDocmapQs(scopeIds, wc, adHocTags, bucketId, bucketThresh)}`, controller.signal)
+      const dataPromise = api.get<DocMapData>(`/api/v1/docmap/data${buildDocmapQs(scopeIds, wc, adHocTags, bucketIds, bucketThresh)}`, controller.signal)
       await new Promise(r => setTimeout(r, 50))
       if (isCurrent()) {
         pollRef.current = setInterval(async () => {

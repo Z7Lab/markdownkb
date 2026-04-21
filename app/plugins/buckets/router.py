@@ -44,6 +44,7 @@ class CreateBucketRequest(BaseModel):
     sources: list[BucketSource] = Field(default_factory=list)
     expires_in: int | None = Field(None, ge=60, description="Seconds until expiry")
     color: str | None = Field(None, max_length=20, description="Hex color for this bucket")
+    description: str | None = Field(None, max_length=1000, description="Optional description")
 
 
 class BucketSearchRequest(BaseModel):
@@ -72,6 +73,7 @@ class UpdateBucketRequest(BaseModel):
     expires_in: int | None = Field(None, description="Seconds from now, or null for permanent")
     name: str | None = Field(None, min_length=1, max_length=200, description="New bucket name")
     color: str | None = Field(None, max_length=20, description="Hex color")
+    description: str | None = Field(None, max_length=1000, description="Optional description")
 
 
 # -- Helpers -----------------------------------------------------------------
@@ -160,7 +162,7 @@ def create_bucket(
             color = _BUCKET_COLORS[len(existing) % len(_BUCKET_COLORS)]
 
         sources = [s.model_dump() for s in req.sources]
-        record = svc.create(req.name, sources, req.expires_in, color=color)
+        record = svc.create(req.name, sources, req.expires_in, color=color, description=req.description)
 
         # In Docker, paths that aren't mounted need to be added to compose.override.yml.
         docker_restart_required = False
@@ -236,11 +238,15 @@ def update_bucket(
     if req.color is not None:
         updates["color"] = req.color
 
+    # Handle description change (empty string clears it)
+    if "description" in req.model_fields_set:
+        updates["description"] = req.description
+
     if updates:
         svc.db.update(record["id"], **updates)
 
     updated = svc.db.get(record["id"])
-    return {"status": "updated", **{k: updated.get(k) for k in ("name", "expires_at", "expired", "color")}}
+    return {"status": "updated", **{k: updated.get(k) for k in ("name", "expires_at", "expired", "color", "description")}}
 
 
 @router.get("/buckets/{bucket_id}/files")
