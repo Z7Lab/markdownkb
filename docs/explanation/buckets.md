@@ -82,6 +82,8 @@ Sources accept absolute paths to files or directories. The `glob` pattern defaul
 
 **Docker:** If a source path isn't mounted into the container, MarkdownKB automatically adds it to `config/compose.override.yml` and returns `docker_restart_required: true`. Restart with `make docker-down && make docker-up` — the bucket will index on next startup. When a bucket is deleted, its mount is removed from `compose.override.yml` if no other bucket needs it.
 
+Buckets are mounted more precisely than watched source directories. A watched source mounts an entire directory tree; a bucket mount covers only the specific path the bucket needs. This means that if you're using buckets for content you're less certain about — third-party docs, external references — Docker's mount boundary limits what any operation can reach to just that bucket's path. See [Write tool security](../reference/mcp-server.md#write-tool-security) for the full picture of what's bounded and what isn't.
+
 ## Editing a Bucket
 
 Click the **pencil icon** in the bucket detail panel to enter edit mode. You can change:

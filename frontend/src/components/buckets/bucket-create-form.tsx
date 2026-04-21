@@ -4,6 +4,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { Clock, Infinity as InfinityIcon } from "lucide-react"
 import { BucketPathStatus } from "./bucket-path-status"
 
@@ -30,6 +38,7 @@ export function BucketCreateForm({
   const [expiresIn, setExpiresIn] = useState<number | null>(null)
   const [color, setColor] = useState<string | null>(null)
   const [description, setDescription] = useState("")
+  const [pendingRestartId, setPendingRestartId] = useState<string | null>(null)
 
   async function handleCreate() {
     if (!name.trim() || !path.trim()) return
@@ -41,7 +50,11 @@ export function BucketCreateForm({
       description: description.trim() || null,
     })
     if (res) {
-      onCreated(res.id)
+      if (res.docker_restart_required) {
+        setPendingRestartId(res.id)
+      } else {
+        onCreated(res.id)
+      }
     }
   }
 
@@ -155,6 +168,31 @@ export function BucketCreateForm({
           </Button>
         </div>
       </div>
+
+      <Dialog open={pendingRestartId !== null} onOpenChange={(open) => {
+        if (!open && pendingRestartId) onCreated(pendingRestartId)
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Docker restart required</DialogTitle>
+            <DialogDescription>
+              The bucket path has been added to Docker mounts. The container needs to restart before it can access the new path.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-md bg-muted px-4 py-3 font-mono text-sm space-y-1">
+            <p>make docker-down</p>
+            <p>make docker-up</p>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            The bucket has been saved. Once Docker restarts with the new mount, it will index the files automatically.
+          </p>
+          <DialogFooter>
+            <Button onClick={() => { if (pendingRestartId) onCreated(pendingRestartId) }}>
+              Got it
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

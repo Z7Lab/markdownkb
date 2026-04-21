@@ -98,10 +98,10 @@ export function useBuckets() {
         const res = await api.post<Bucket & { docker_restart_required?: boolean }>("/api/v1/buckets", params)
         await refresh()
         if (res.docker_restart_required) {
-          toast.warning(`Bucket "${res.name}" created — restart required`, {
+          toast.success(`Bucket "${res.name}" created`, {
             id: toastId,
-            description: "Path added to Docker mounts. Run: make docker-down && make docker-up",
-            duration: 8000,
+            description: "Docker restart required to mount the new path.",
+            duration: 4000,
           })
         } else {
           toast.success(`Bucket "${res.name}" ready`, {

@@ -97,6 +97,8 @@ volumes:
   - /home/user/captures:/home/user/captures   # writable
 ```
 
+**Security boundary:** Only mounted paths exist inside the container. Any path that isn't explicitly mounted is simply inaccessible — the container process cannot read or write to it, regardless of what an application or agent attempts. This means the blast radius of any write operation (including MCP write tools like `save_file`) is strictly bounded to the directories you've chosen to mount. See [MCP write tool security](../reference/mcp-server.md#write-tool-security).
+
 ## Image variants
 
 MarkdownKB publishes two image tags:

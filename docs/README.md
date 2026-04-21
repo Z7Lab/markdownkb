@@ -11,6 +11,7 @@ Task-oriented. Follow these when you're trying to get something done.
 | [Getting Started](how-to/getting-started.md) | Install, configure, index your first docs, search and chat |
 | [Local LLM Setup](how-to/local-llm-setup.md) | Step-by-step Ollama install and model setup (macOS, Linux, Windows) |
 | [API Key Setup](how-to/api-key-setup.md) | When you need a key, how to set one, how to use it |
+| [Security Hardening](how-to/security-hardening.md) | Checklist for network-exposed deployments — auth, rate limiting, Docker isolation, MCP write tools, prompt injection |
 | [Embedding Models](how-to/embedding-models.md) | Choose and configure local ONNX or remote embedding (Ollama, cloud) |
 | [Remote LLM Setup](how-to/remote-llm-setup.md) | Connect Docker MarkdownKB to remote Ollama or llama.cpp servers |
 | [Scopes and Filtering](how-to/scopes-and-filtering.md) | Named filter presets — folders, tags, exclude patterns, persistent sidebar state |
