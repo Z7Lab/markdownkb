@@ -614,12 +614,12 @@ To add a new MCP tool, create a new `.py` file in `app/mcp/tools/` following the
 
 ### Resources and Prompts
 
-Resources and prompts are registered in `mcp_server.py` at startup via two functions:
+Resources and prompts are registered in `app/mcp/server.py` at startup via two functions:
 
 - **`_register_resources(server, settings)`** — defines all MCP resources. Each resource is a URI + function that returns content when a client reads it. Add a new `@server.resource(...)` block here to expose additional content.
 - **`_register_prompts(server, settings)`** — defines MCP prompt templates (the shortcuts that appear in the prompt picker). Add a `@server.prompt(...)` block here to add new templates.
 
-The **server instructions** (shown in browser clients as "Server instructions") are set via the `instructions=` argument to `FastMCP(...)` near the bottom of `mcp_server.py`. This is the first thing a client-side model reads about what MarkdownKB is and how to use it.
+The **server instructions** (shown in browser clients as "Server instructions") are set via the `instructions=` argument to `FastMCP(...)` in `app/mcp/server.py`. This is the first thing a client-side model reads about what MarkdownKB is and how to use it.
 
 Resources and prompts are registered at server startup from the values in `settings` at that moment. Adding a new scope, bucket, or source after the server starts requires restarting the MCP server to make it appear as a resource.
 

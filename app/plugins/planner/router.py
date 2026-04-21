@@ -133,7 +133,8 @@ def list_plans(
     plandb: PlanDB = Depends(get_plandb),
 ):
     """List saved plans, newest first."""
-    return {"plans": plandb.list_plans()}
+    plans = plandb.list_plans()
+    return {"plans": plans, "total": len(plans)}
 
 
 @router.post("/plans", status_code=201)

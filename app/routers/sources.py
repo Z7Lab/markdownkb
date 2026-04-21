@@ -30,15 +30,13 @@ def _watch_and_index(watcher, path: str):
         return
     resolved = str(Path(path).resolve())
     if watcher.add_directory(resolved):
-        import threading
+        from app.services.task_registry import run_tracked
 
-        def _index_safe():
-            try:
-                watcher.index_directory(resolved)
-            except Exception:
-                logger.error("Background directory index failed for %s", resolved, exc_info=True)
-
-        threading.Thread(target=_index_safe, daemon=True).start()
+        run_tracked(
+            kind="source_index",
+            target=lambda: watcher.index_directory(resolved),
+            label=f"Index {resolved}",
+        )
 
 
 def _sync_compose_override(settings: Settings):

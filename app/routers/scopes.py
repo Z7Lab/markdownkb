@@ -35,7 +35,8 @@ def list_scopes(
     scopedb: ScopeDB = Depends(get_scopedb),
 ):
     """List all scopes, newest first."""
-    return {"scopes": scopedb.list_scopes()}
+    items = scopedb.list_scopes()
+    return {"scopes": items, "total": len(items)}
 
 
 @router.post("", status_code=201)

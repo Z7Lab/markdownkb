@@ -126,4 +126,4 @@ def list_reports(
             logger.debug("Could not enumerate wiki dirs for reports", exc_info=True)
 
     all_reports.sort(key=lambda r: r["modified"], reverse=True)
-    return {"reports": all_reports}
+    return {"reports": all_reports, "total": len(all_reports)}

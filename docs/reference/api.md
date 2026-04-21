@@ -199,6 +199,15 @@ Search, Chat, and Planner endpoints accept an optional `scope_id` field in their
 
 MCP tools (`search`, `search_documents`, `chat`, `plan`, `deep_research`) also accept a `scope_id` parameter for the same behavior. Use the `list_scopes` MCP tool to discover available scopes. See [MCP Server](mcp-server.md#scope-support) for details.
 
+## Background Tasks
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/tasks` | List recent background tasks (newest first). Query: `kind`, `limit` (max 200) |
+| GET | `/api/v1/tasks/{task_id}` | Get status of a single background task |
+
+Task statuses: `pending` → `running` → `succeeded` / `failed`. Failed tasks include an `error` field. Task kinds include `startup_index`, `source_index`, and `watcher_rescan_index`.
+
 ## Embeddings & Indexing
 
 | Method | Path | Description |

@@ -3,6 +3,7 @@
 import logging
 import os
 import time
+import uuid
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,9 +14,34 @@ from slowapi.errors import RateLimitExceeded
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
+from app.logging_ctx import request_id_var
 from app.ratelimit import limiter
 
 _access_logger = logging.getLogger("app.access")
+
+
+class RequestIdMiddleware(BaseHTTPMiddleware):
+    """Propagate or mint an X-Request-ID header for every request.
+
+    Stores the id in a ContextVar so any logger called during handler
+    execution (including in the default threadpool for sync routes) can
+    attach it to log records via ``RequestIdFilter``. Echoes the id back
+    on the response so clients can cross-reference server logs.
+    """
+
+    _HEADER = "X-Request-ID"
+
+    async def dispatch(self, request: Request, call_next):
+        incoming = request.headers.get(self._HEADER, "").strip()
+        # Cap length to prevent log-injection via oversized client ids.
+        rid = incoming[:64] if incoming else uuid.uuid4().hex[:16]
+        token = request_id_var.set(rid)
+        try:
+            response = await call_next(request)
+        finally:
+            request_id_var.reset(token)
+        response.headers[self._HEADER] = rid
+        return response
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
@@ -106,6 +132,7 @@ from app.routers import (
     settings,
     setup,
     sources,
+    tasks,
     threads,
 )
 from app.versioning.router import router as versioning_router
@@ -132,6 +159,10 @@ def create_app(lifespan=None, settings_override=None) -> FastAPI:
     app.add_middleware(GZipMiddleware, minimum_size=1000)
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestLoggingMiddleware)
+    # RequestIdMiddleware is added last so it becomes the outermost layer:
+    # the id is set before any other middleware runs and the response header
+    # is attached after they all return.
+    app.add_middleware(RequestIdMiddleware)
 
     # Resolve settings early for CORS config
     from app.config import Settings
@@ -141,7 +172,7 @@ def create_app(lifespan=None, settings_override=None) -> FastAPI:
     for router_module in (
         health, chat, threads, files,
         settings, setup, sources, llm, maintenance,
-        embeddings, scopes, plugins, mcp,
+        embeddings, scopes, plugins, mcp, tasks,
     ):
         app.include_router(router_module.router)
     app.include_router(versioning_router)

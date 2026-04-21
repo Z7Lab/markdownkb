@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.config import Settings
 from app.deps import get_presetsdb, get_settings
+from app.services.settings_service import build_settings_response
 from app.storage.presetsdb import PresetsDB
-from app.plugins import get_registry
 from app.ratelimit import STANDARD, limiter
 from app.schemas import (
     CreatePresetRequest,
@@ -29,67 +29,7 @@ router = APIRouter(prefix="/api/v1", tags=["settings"])
 @limiter.limit(STANDARD)
 def get_settings_endpoint(request: Request, settings: Settings = Depends(get_settings)):
     """Get all application settings."""
-    active_cfg = settings.get_active_llm_config()
-    return {
-        "active_provider": settings.active_provider,
-        "providers": [
-            {
-                "name": p["name"],
-                "model": p.get("model", ""),
-                "api_base": p.get("api_base", ""),
-                "api_key_set": bool(settings.resolve_provider_key(p["name"])),
-                "api_key_source": "env" if settings.key_is_from_env(p["name"]) else "yaml",
-                "temperature": p.get("temperature"),
-                "max_tokens": p.get("max_tokens"),
-                "num_ctx": p.get("extra_body", {}).get("num_ctx", p.get("num_ctx")),
-            }
-            for p in settings.llm_providers
-        ],
-        "core": settings.core_features,
-        "mcp_flags": settings.mcp_features,
-        "plugins_enabled": {
-            name: cfg.get("enabled", False)
-            for name, cfg in settings.raw.get("plugins", {}).items()
-        },
-        "mcp": settings.mcp_config,
-        "sources": settings.sources,
-        "source_configs": settings.source_configs,
-        "project_roots": settings.project_roots,
-        "global_ignore": settings.global_ignore,
-        "versioning_root": settings.versioning_root,
-        "active_model": active_cfg.get("model", ""),
-        "active_api_base": active_cfg.get("api_base", ""),
-        "system_prompt": settings.system_prompt,
-        "default_system_prompt": settings.default_system_prompt,
-        "search_summary_prompt": settings.search_summary_prompt,
-        "default_search_summary_prompt": settings.default_search_summary_prompt,
-        "embedding_model": settings.embedding_model,
-        "embedding_provider": settings.embedding_provider,
-        "embedding_remote_config": settings.embedding_remote_config,
-        "intelligent_search_enabled": settings.intelligent_search_enabled,
-        "top_k": settings.top_k,
-        "default_top_k": settings.default_top_k,
-        "score_threshold": settings.score_threshold,
-        "default_score_threshold": settings.default_score_threshold,
-        "hybrid_search": settings.hybrid_search,
-        "default_hybrid_search": settings.default_hybrid_search,
-        "bm25_weight": settings.bm25_weight,
-        "default_bm25_weight": settings.default_bm25_weight,
-        "log_level": settings.log_level,
-        "temperature": settings.llm_temperature,
-        "max_tokens": settings.llm_max_tokens,
-        "num_ctx": settings.llm_num_ctx,
-        "plugin_manifests": {
-            entry["name"]: {
-                "name": entry["name"],
-                "feature_flag": entry.get("feature_flag"),
-                "manifest": entry.get("manifest") or {},
-                "enabled": entry.get("enabled", False),
-            }
-            for entry in get_registry()
-        },
-        "dashboard_widgets": settings.dashboard_widgets,
-    }
+    return build_settings_response(settings)
 
 
 @router.post("/settings/reload")
@@ -308,7 +248,8 @@ def list_presets(
     presetsdb: PresetsDB = Depends(get_presetsdb),
 ):
     """List all retrieval presets."""
-    return {"presets": presetsdb.list_presets()}
+    presets = presetsdb.list_presets()
+    return {"presets": presets, "total": len(presets)}
 
 
 @router.post("/settings/presets", status_code=201)

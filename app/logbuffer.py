@@ -66,5 +66,5 @@ class RingBufferHandler(logging.Handler):
 # Must be module-level because the logging framework holds a reference.
 log_buffer = RingBufferHandler(capacity=500)
 log_buffer.setFormatter(
-    logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"),
+    logging.Formatter("%(asctime)s %(levelname)s [rid=%(request_id)s] %(name)s: %(message)s"),
 )

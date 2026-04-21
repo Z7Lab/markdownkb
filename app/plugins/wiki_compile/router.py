@@ -107,7 +107,8 @@ def list_wikis(
     wikidb: WikiDB = Depends(_get_wikidb),
 ):
     """List all managed wikis."""
-    return {"wikis": wikidb.list_all()}
+    wikis = wikidb.list_all()
+    return {"wikis": wikis, "total": len(wikis)}
 
 
 @router.post("/wikis")

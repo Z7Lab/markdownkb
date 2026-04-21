@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api import create_app
+from app.logging_ctx import install_request_id_log_factory
 from app.config import Settings
 from app.embeddings.downloader import is_installed
 from app.embeddings.registry import load_models
@@ -27,9 +28,12 @@ from app.storage.scopedb import ScopeDB
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 
+# LogRecord factory must be installed BEFORE basicConfig so the root
+# handler's first records already carry the request_id attribute.
+install_request_id_log_factory()
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    format="%(asctime)s %(levelname)s [rid=%(request_id)s] %(name)s: %(message)s",
 )
 logging.getLogger().addHandler(log_buffer)
 logger = logging.getLogger(__name__)
@@ -107,14 +111,14 @@ async def lifespan(app: FastAPI):
     # Always run the indexer on startup — it skips unchanged files (hash
     # comparison) so this is fast when everything is up to date. This
     # catches files added between restarts that the watcher never saw.
-    def _run_index_safe():
-        try:
-            run_index(settings, store, tracking, cancel=cancel_event)
-        except Exception:
-            logger.error("Background startup index failed", exc_info=True)
-
+    from app.services.task_registry import get_default_registry, run_tracked
     logger.info("Starting background index scan...")
-    threading.Thread(target=_run_index_safe, daemon=True).start()
+    run_tracked(
+        kind="startup_index",
+        target=lambda: run_index(settings, store, tracking, cancel=cancel_event),
+        label="Startup index scan",
+        registry=get_default_registry(),
+    )
 
     # Initialise versioning manager (git-backed revision history).
     # Failure is non-fatal — writers fall back to unversioned behaviour.
@@ -139,6 +143,7 @@ async def lifespan(app: FastAPI):
 
     # Store services on app.state for dependency injection
     from app.services.chat_service import ConversationHistory
+    from app.services.task_registry import get_default_registry
     app.state.settings = settings
     app.state.using_default_config = settings.using_defaults
     app.state.store = store
@@ -152,6 +157,7 @@ async def lifespan(app: FastAPI):
     app.state.cancel_event = cancel_event
     app.state.conversation_history = ConversationHistory()
     app.state.versioning_manager = versioning_manager
+    app.state.task_registry = get_default_registry()
 
     # Initialize plugin resources (on_startup hooks)
     from app.plugins import init_plugins
@@ -161,10 +167,21 @@ async def lifespan(app: FastAPI):
     log_level = getattr(logging, settings.log_level, logging.INFO)
     logging.getLogger().setLevel(log_level)
 
-    # Enable rate limiting if configured
+    # Rate limiting: explicit opt-in via core flag, or auto-enabled when the
+    # server binds to a non-localhost address (0.0.0.0 / :: / explicit LAN IP).
+    # Auto-enable ensures network-exposed deployments have brute-force / cost
+    # protection on by default without relying on user configuration.
+    bind_host = settings.server_host
+    network_exposed = bind_host not in ("127.0.0.1", "::1", "localhost")
     if settings.core_enabled("rate_limiting"):
         limiter.enabled = True
-        logger.info("Rate limiting enabled")
+        logger.info("Rate limiting enabled (core flag)")
+    elif network_exposed:
+        limiter.enabled = True
+        logger.warning(
+            "Rate limiting auto-enabled: server is binding to %s (network-exposed).",
+            bind_host,
+        )
 
     # Start file watcher if enabled
     app.state.watcher = None

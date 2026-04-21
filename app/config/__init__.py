@@ -44,6 +44,7 @@ from app.config._paths import (
     resolve_env as _resolve_env,
     resolve_env_recursive as _resolve_env_recursive,
 )
+from app.config._validate import SettingsValidationError, validate as _validate_settings
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +94,11 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
         if migrated:
             self.save()
 
+        # Validate scalar types / ranges so misconfigured YAML fails loudly
+        # at startup instead of at first-use deep inside the LLM or search
+        # code paths.
+        _validate_settings(self._data)
+
     @property
     def using_defaults(self) -> bool:
         """Return True if no config file was found and built-in defaults are in use."""
@@ -127,6 +133,7 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
                 self._data = {}
                 self._using_defaults = True
             self._data = _resolve_env_recursive(self._data)
+            _validate_settings(self._data)
             self._mcp_cache.clear()
             self._prompt_cache.clear()
             logger.info("Settings reloaded from %s", self._path)

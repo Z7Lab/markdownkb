@@ -70,6 +70,11 @@ def get_tagdb(request: Request):
     return getattr(request.app.state, "tagdb", None)
 
 
+def get_task_registry(request: Request):
+    """Return the shared background :class:`TaskRegistry`."""
+    return request.app.state.task_registry
+
+
 def require_auth(request: Request) -> None:
     """Dependency that requires authentication to be configured.
 

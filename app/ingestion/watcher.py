@@ -292,15 +292,17 @@ class FileWatcher:
     def _rescan_project_roots(self):
         """Re-expand project roots and watch any newly discovered directories."""
         try:
+            from app.services.task_registry import run_tracked
             for source in self._settings.sources:
                 if source not in self._watched:
                     if self.add_directory(source):
                         logger.info("Project root rescan: discovered new directory %s", source)
-                        threading.Thread(
-                            target=self.index_directory,
-                            args=(source,),
-                            daemon=True,
-                        ).start()
+                        _src = source
+                        run_tracked(
+                            kind="watcher_rescan_index",
+                            target=lambda s=_src: self.index_directory(s),
+                            label=f"Index discovered dir {source}",
+                        )
             # Reset interval on success
             self._rescan_interval = 60.0
         except Exception:

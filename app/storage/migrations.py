@@ -20,6 +20,20 @@ logger = logging.getLogger(__name__)
 MigrationBody = Union[str, Callable[[sqlite3.Connection], None]]
 Migration = tuple[int, str, MigrationBody]
 
+# SQLite OperationalError message fragments that indicate "the migration
+# target already exists" — safe to skip for idempotent ALTERs. Anything
+# outside this list is treated as a genuine failure.
+_IDEMPOTENT_ERROR_FRAGMENTS = (
+    "duplicate column name",
+    "already exists",
+)
+
+
+def _is_already_exists_error(exc: sqlite3.OperationalError) -> bool:
+    """Return True if *exc* indicates an already-applied migration."""
+    msg = str(exc).lower()
+    return any(fragment in msg for fragment in _IDEMPOTENT_ERROR_FRAGMENTS)
+
 
 def run_migrations(
     conn: sqlite3.Connection,
@@ -29,8 +43,10 @@ def run_migrations(
     """Apply any migrations whose version > current PRAGMA user_version.
 
     SQL-string bodies are applied with a single ``execute`` — ``ALTER``
-    statements that would fail on a freshly created table (because the
-    column already exists in ``CREATE TABLE``) are swallowed.
+    statements that would fail because the target already exists (column
+    already present from a fresh ``CREATE TABLE``, or index/table that was
+    re-created) are swallowed. Genuine errors (disk full, corrupt DB,
+    syntax) are re-raised so they surface loudly.
 
     Callable bodies receive the connection and are expected to be
     idempotent; any existing ``PRAGMA table_info`` / ``sqlite_master``
@@ -50,11 +66,18 @@ def run_migrations(
             try:
                 conn.execute(body)
                 logger.info("%s migration %d applied: %s", db_label or "DB", version, description)
-            except sqlite3.OperationalError:
-                logger.debug(
-                    "%s migration %d skipped (already present): %s",
-                    db_label or "DB", version, description,
-                )
+            except sqlite3.OperationalError as e:
+                if _is_already_exists_error(e):
+                    logger.debug(
+                        "%s migration %d skipped (already present): %s",
+                        db_label or "DB", version, description,
+                    )
+                else:
+                    logger.error(
+                        "%s migration %d failed: %s — %s",
+                        db_label or "DB", version, description, e,
+                    )
+                    raise
     # PRAGMA can't be parameterised; target is len(migrations), code-controlled.
     conn.execute(f"PRAGMA user_version = {int(target)}")
     conn.commit()

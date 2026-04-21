@@ -145,7 +145,7 @@ def list_buckets(
         actual = store.count
         b["indexed_chunks"] = actual
         b["indexing"] = b["chunk_count"] > 0 and actual == 0
-    return {"buckets": buckets}
+    return {"buckets": buckets, "total": len(buckets)}
 
 
 @router.post("/buckets", status_code=201)
