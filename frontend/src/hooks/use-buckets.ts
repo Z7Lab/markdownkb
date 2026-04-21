@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
-import { api } from "@/lib/api"
+import { api, getApiKey } from "@/lib/api"
 import { toast } from "sonner"
 
 export interface Bucket {
@@ -158,6 +158,68 @@ export function useBuckets() {
     [updateBucket],
   )
 
+  const exportBucket = useCallback((id: string, name: string) => {
+    const key = getApiKey()
+    const headers: Record<string, string> = key ? { "X-MarkdownKB-Key": key } : {}
+    const toastId = toast.loading(`Exporting "${name}"...`)
+    fetch(`/api/v1/buckets/${id}/export`, { headers })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`)
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = `bucket-${name}.zip`
+        a.click()
+        URL.revokeObjectURL(url)
+        toast.success(`Exported "${name}"`, { id: toastId, duration: 3000 })
+      })
+      .catch((err: unknown) => {
+        toast.error(`Export failed: ${(err as Error).message}`, { id: toastId })
+      })
+  }, [])
+
+  const importBucket = useCallback(async (file: File): Promise<Bucket | null> => {
+    const key = getApiKey()
+    const headers: Record<string, string> = key ? { "X-MarkdownKB-Key": key } : {}
+    const toastId = toast.loading(`Importing "${file.name}"...`)
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      const res = await fetch("/api/v1/buckets/import", { method: "POST", headers, body: fd })
+      if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`)
+      const bucket = (await res.json()) as Bucket
+      await refresh()
+      toast.success(`Imported bucket "${bucket.name}"`, {
+        id: toastId,
+        description: `${bucket.chunk_count} chunks`,
+        duration: 4000,
+      })
+      return bucket
+    } catch (err) {
+      toast.error(`Import failed: ${(err as Error).message}`, { id: toastId })
+      return null
+    }
+  }, [refresh])
+
+  const promoteBucket = useCallback(async (id: string, name: string) => {
+    const toastId = toast.loading(`Promoting "${name}" to watched directories...`)
+    try {
+      const res = await api.post<{ promoted: string[]; already_present: string[]; message: string }>(
+        `/api/v1/buckets/${id}/promote`, {}
+      )
+      toast.success(`Promoted "${name}"`, {
+        id: toastId,
+        description: res.message,
+        duration: 5000,
+      })
+      return res
+    } catch (err) {
+      toast.error(`Promote failed: ${(err as Error).message}`, { id: toastId })
+      return null
+    }
+  }, [])
+
   return {
     buckets,
     selectedBucketId,
@@ -166,6 +228,9 @@ export function useBuckets() {
     updateBucket,
     deleteBucket,
     updateExpiration,
+    exportBucket,
+    importBucket,
+    promoteBucket,
     refresh,
   }
 }

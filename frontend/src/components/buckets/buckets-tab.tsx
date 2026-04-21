@@ -9,7 +9,7 @@ import { BucketDetailPanel } from "./bucket-detail-panel"
 import { BucketsEmptyState } from "./buckets-empty-state"
 
 export function BucketsTab() {
-  const { buckets, createBucket, updateBucket, deleteBucket, refresh } = useBuckets()
+  const { buckets, createBucket, updateBucket, deleteBucket, exportBucket, importBucket, promoteBucket, refresh } = useBuckets()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
@@ -53,6 +53,13 @@ export function BucketsTab() {
         selectedId={creating ? null : selectedId}
         onSelect={handleSelectBucket}
         onNewBucket={handleNewBucket}
+        onImport={async (file) => {
+          const bucket = await importBucket(file)
+          if (bucket) {
+            setCreating(false)
+            setSelectedId(bucket.id)
+          }
+        }}
       />
 
       <div className="flex-1 min-w-0 overflow-hidden">
@@ -73,6 +80,8 @@ export function BucketsTab() {
             onDelete={setConfirmDelete}
             onViewFile={(path) => setViewingPath(path)}
             updateBucket={updateBucket}
+            exportBucket={exportBucket}
+            promoteBucket={promoteBucket}
             refresh={refresh}
           />
         )}

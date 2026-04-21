@@ -121,10 +121,16 @@ class SourcesMixin:
             if self._source_entry(s)["versioned"]
         ]
 
-    def add_source(self, path: str):
-        """Add a source directory if not already present."""
+    def add_source(self, path: str | dict):
+        """Add a source directory if not already present.
+
+        ``path`` may be a plain string or a source entry dict with ``path``
+        (and optional ``writable``, ``versioned``, ``tier`` keys).  When a
+        dict is supplied it is stored as-is so that flags are preserved.
+        """
         raw = self._data.setdefault("sources", [])
-        if path not in raw and path not in self.explicit_sources:
+        resolved_path = self._resolve_path(path["path"] if isinstance(path, dict) else path)
+        if resolved_path not in self.explicit_sources:
             raw.append(path)
 
     def update_source(

@@ -1,11 +1,14 @@
 """Bucket management endpoints — CRUD, search, and chat."""
 
+import io
 import json
 import logging
+import zipfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.config import Settings
@@ -478,3 +481,190 @@ def push_documents(
     except Exception as e:
         logger.error("Bucket push failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Bucket push failed")
+
+
+# ---------------------------------------------------------------------------
+# Export / Import / Promote
+# ---------------------------------------------------------------------------
+
+_EXPORT_FORMAT_VERSION = 1
+
+
+@router.get("/buckets/{bucket_id}/export")
+@limiter.limit(STANDARD)
+def export_bucket(
+    request: Request,
+    bucket_id: str,
+    svc: BucketService = Depends(_get_bucket_service),
+):
+    """Export a bucket as a portable zip archive.
+
+    The archive contains:
+    - ``manifest.json`` — bucket metadata (name, description, color, sources,
+      chunk count, export timestamp, format version).
+    - ``chunks.json`` — all chunk documents, embeddings, and metadata. These
+      are stored with their pre-computed embeddings so the bucket can be
+      re-imported without re-embedding.
+    """
+    record = svc.db.resolve(bucket_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Bucket not found")
+
+    store = svc.get_store(record["id"])
+    data = store.get_all_with_embeddings()
+
+    manifest = {
+        "format_version": _EXPORT_FORMAT_VERSION,
+        "name": record["name"],
+        "description": record.get("description"),
+        "color": record.get("color"),
+        "sources": json.loads(record.get("sources", "[]")),
+        "created_at": record.get("created_at"),
+        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "chunk_count": len(data["ids"]),
+    }
+
+    chunks = [
+        {
+            "id": chunk_id,
+            "document": doc,
+            "metadata": meta,
+            "embedding": emb,
+        }
+        for chunk_id, doc, meta, emb in zip(
+            data["ids"], data["documents"], data["metadatas"], data["embeddings"]
+        )
+    ]
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("manifest.json", json.dumps(manifest, indent=2))
+        zf.writestr("chunks.json", json.dumps(chunks))
+    buf.seek(0)
+
+    safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in record["name"])
+    filename = f"bucket-{safe_name}.zip"
+    return StreamingResponse(
+        buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/buckets/import", status_code=201)
+@limiter.limit(STANDARD)
+async def import_bucket(
+    request: Request,
+    file: UploadFile,
+    svc: BucketService = Depends(_get_bucket_service),
+    settings: Settings = Depends(get_settings),
+):
+    """Import a bucket from a previously exported zip archive.
+
+    Uses pre-computed embeddings from the archive — no re-embedding is performed.
+    If the bucket name already exists, a numeric suffix is appended.
+    """
+    if not file.filename or not file.filename.endswith(".zip"):
+        raise HTTPException(status_code=400, detail="Expected a .zip file")
+
+    try:
+        raw = await file.read()
+        buf = io.BytesIO(raw)
+        with zipfile.ZipFile(buf) as zf:
+            names = zf.namelist()
+            if "manifest.json" not in names or "chunks.json" not in names:
+                raise HTTPException(status_code=400, detail="Invalid bucket archive — missing manifest.json or chunks.json")
+
+            manifest = json.loads(zf.read("manifest.json"))
+            chunks = json.loads(zf.read("chunks.json"))
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=400, detail="File is not a valid zip archive")
+
+    if manifest.get("format_version") != _EXPORT_FORMAT_VERSION:
+        raise HTTPException(status_code=400, detail=f"Unsupported archive format version: {manifest.get('format_version')}")
+
+    # Resolve name collision
+    base_name = manifest.get("name", "imported-bucket")
+    name = base_name
+    suffix = 1
+    while svc.db.name_exists(name):
+        name = f"{base_name}-{suffix}"
+        suffix += 1
+
+    # Auto-assign color if not in manifest
+    color = manifest.get("color")
+    if not color:
+        existing = svc.db.list_all()
+        color = _BUCKET_COLORS[len(existing) % len(_BUCKET_COLORS)]
+
+    record = svc.db.create(
+        name=name,
+        sources=json.dumps(manifest.get("sources", [])),
+        file_count=0,
+        chunk_count=0,
+        color=color,
+        description=manifest.get("description"),
+    )
+    bucket_id = record["id"]
+
+    if chunks:
+        ids = [c["id"] for c in chunks]
+        docs = [c["document"] for c in chunks]
+        embeddings = [c["embedding"] for c in chunks]
+        metadatas = [c["metadata"] for c in chunks]
+
+        store = svc.get_store(bucket_id)
+        store.add(ids, docs, embeddings, metadatas)
+
+        # Count unique source files
+        file_paths = {m.get("source_path", "") for m in metadatas if m.get("source_path")}
+        svc.db.update(bucket_id, file_count=len(file_paths), chunk_count=len(ids))
+        record = svc.db.get(bucket_id)
+
+    logger.info("Bucket imported: %s (%d chunks)", name, len(chunks))
+    return record
+
+
+@router.post("/buckets/{bucket_id}/promote")
+@limiter.limit(STANDARD)
+def promote_bucket(
+    request: Request,
+    bucket_id: str,
+    svc: BucketService = Depends(_get_bucket_service),
+    settings: Settings = Depends(get_settings),
+):
+    """Promote bucket source paths to permanent watched directories.
+
+    Adds each of the bucket's source paths to the main ``sources`` list in
+    settings so the FileWatcher indexes them into the main knowledge base.
+    The bucket itself is not modified or deleted.
+    """
+    record = svc.db.resolve(bucket_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Bucket not found")
+
+    sources = json.loads(record.get("sources", "[]"))
+    if not sources:
+        return {"promoted": [], "message": "Bucket has no source paths to promote"}
+
+    added: list[str] = []
+    already_present: list[str] = []
+    for src in sources:
+        path = src.get("path", "") if isinstance(src, dict) else str(src)
+        if not path:
+            continue
+        existing = settings.explicit_sources
+        if path in existing:
+            already_present.append(path)
+        else:
+            settings.add_source({"path": path, "writable": False, "tier": -1})
+            added.append(path)
+
+    if added:
+        settings.save()
+
+    return {
+        "promoted": added,
+        "already_present": already_present,
+        "message": f"Added {len(added)} source(s) to watched directories. FileWatcher will index them on the next scan.",
+    }

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Pencil, Trash2, FileText, Loader2, Clock,
-  Infinity as InfinityIcon, RefreshCw, Link, Upload,
+  Infinity as InfinityIcon, RefreshCw, Link, Upload, Download, FolderInput,
 } from "lucide-react"
 import { BucketEditForm } from "./bucket-edit-form"
 
@@ -44,6 +44,8 @@ export interface BucketDetailPanelProps {
   onDelete: (id: string) => void
   onViewFile: (path: string) => void
   updateBucket: ReturnType<typeof useBuckets>["updateBucket"]
+  exportBucket: ReturnType<typeof useBuckets>["exportBucket"]
+  promoteBucket: ReturnType<typeof useBuckets>["promoteBucket"]
   refresh: () => Promise<void>
 }
 
@@ -52,6 +54,8 @@ export function BucketDetailPanel({
   onDelete,
   onViewFile,
   updateBucket,
+  exportBucket,
+  promoteBucket,
   refresh,
 }: BucketDetailPanelProps) {
   const { files, loading: loadingFiles, indexing: filesIndexing, reload: reloadFiles } = useBucketFiles(bucket.id)
@@ -221,6 +225,26 @@ export function BucketDetailPanel({
                 onClick={handleReindex}
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${reindexing ? "animate-spin" : ""}`} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                aria-label="Export bucket"
+                title="Export bucket as zip"
+                onClick={() => exportBucket(bucket.id, bucket.name)}
+              >
+                <Download className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                aria-label="Promote to watched directories"
+                title="Add bucket sources to watched directories"
+                onClick={() => promoteBucket(bucket.id, bucket.name)}
+              >
+                <FolderInput className="h-3.5 w-3.5" />
               </Button>
               <Button
                 variant="ghost"

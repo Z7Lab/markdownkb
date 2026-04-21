@@ -44,10 +44,14 @@ The **Buckets tab** is the primary UI for managing buckets. It has a left sideba
 
 **Sidebar:** Lists all buckets with a color indicator and file count. Expired buckets are dimmed and badged. Clicking a bucket opens its detail view. The **New Bucket** button at the top of the sidebar opens the creation form.
 
-**Detail panel:** Shows the selected bucket's name, stats (file count, chunk count, created time, expiration), sources, and a file table. Three action icons appear in the header:
+**Detail panel:** Shows the selected bucket's name, stats (file count, chunk count, created time, expiration), sources, and a file table. Action icons in the header:
 - **Edit** (pencil) — opens an inline form to change the name, description, expiration, and color
 - **Reindex** (refresh) — re-scans the original sources and indexes any new files
+- **Export** (download) — downloads the bucket as a portable zip archive
+- **Promote** (folder-input) — adds the bucket's source paths to the main watched directories
 - **Delete** (trash) — removes the bucket and all its vector data
+
+**Sidebar header:** The **New Bucket** button creates a fresh bucket. The **Import** button (upload icon) restores a bucket from a previously exported zip file.
 
 **Files table:** Lists all files indexed in the bucket with their chunk counts. Click a file to open it in the viewer.
 

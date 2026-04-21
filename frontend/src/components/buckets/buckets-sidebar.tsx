@@ -1,7 +1,8 @@
+import { useRef } from "react"
 import { AppSidebar } from "@/components/ui/app-sidebar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Plus } from "lucide-react"
+import { Plus, Upload } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Bucket } from "@/hooks/use-buckets"
 
@@ -10,23 +11,48 @@ export function BucketsSidebar({
   selectedId,
   onSelect,
   onNewBucket,
+  onImport,
 }: {
   buckets: Bucket[]
   selectedId: string | null
   onSelect: (id: string) => void
   onNewBucket: () => void
+  onImport: (file: File) => void
 }) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   return (
     <AppSidebar
       header={
-        <Button
-          variant="outline"
-          className="w-full justify-start gap-2"
-          onClick={onNewBucket}
-        >
-          <Plus className="h-4 w-4" />
-          New Bucket
-        </Button>
+        <div className="flex gap-1.5">
+          <Button
+            variant="outline"
+            className="flex-1 justify-start gap-2"
+            onClick={onNewBucket}
+          >
+            <Plus className="h-4 w-4" />
+            New Bucket
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            title="Import bucket from zip"
+            aria-label="Import bucket"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload className="h-4 w-4" />
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".zip"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) { onImport(file); e.target.value = "" }
+            }}
+          />
+        </div>
       }
     >
       <div className="p-2 space-y-0.5">
