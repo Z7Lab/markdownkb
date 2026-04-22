@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react"
 import { type Bucket, type useBuckets, useBucketFiles } from "@/hooks/use-buckets"
-import { api, getApiKey } from "@/lib/api"
+import { api } from "@/lib/api"
 import { toast } from "sonner"
 import { relativeTime } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -12,6 +12,7 @@ import {
   Infinity as InfinityIcon, RefreshCw, Link, Upload, Download, FolderInput,
 } from "lucide-react"
 import { BucketEditForm } from "./bucket-edit-form"
+import { BucketPathStatus } from "./bucket-path-status"
 
 const SUPPORTED_EXTENSIONS = ".pdf,.docx,.pptx,.xlsx,.xls,.epub,.html,.htm,.csv,.txt,.rst,.rtf,.odt,.ipynb,.msg"
 
@@ -28,6 +29,7 @@ function filenameFromContent(hint: string, markdown: string): string {
     const slug = pathname.replace(/\//g, "-").replace(/[^\w-]/g, "").slice(0, 40)
     return `${hostname}${slug || ""}.md`
   } catch {
+    // hint is not a valid URL (e.g. a local path); derive filename from the last segment
     const base = hint.split("/").pop()?.replace(/\.[^.]+$/, "") ?? "imported"
     return `${base}.md`
   }
@@ -36,6 +38,10 @@ function filenameFromContent(hint: string, markdown: string): string {
 function converterErrorMessage(msg: string): string {
   if (msg.includes("404") || msg.includes("Not Found"))
     return "Converter plugin is not enabled — enable it in Settings → Plugins"
+  if (msg.includes("403") || msg.includes("Forbidden"))
+    return "Import failed: the site blocked the request (403 Forbidden). Try downloading the page and uploading the file instead."
+  if (msg.includes("401") || msg.includes("Unauthorized"))
+    return "Import failed: the URL requires authentication (401). Download the file and upload it instead."
   return `Import failed: ${msg}`
 }
 
@@ -99,17 +105,12 @@ export function BucketDetailPanel({
     setUploading(true)
     setUploadProgress(files.map((f) => ({ name: f.name, done: false })))
 
-    const key = getApiKey()
-    const headers: Record<string, string> = key ? { "X-MarkdownKB-Key": key } : {}
-
     for (let i = 0; i < files.length; i++) {
       const file = files[i]!
       try {
         const fd = new FormData()
         fd.append("file", file)
-        const res = await fetch("/api/v1/converter/upload", { method: "POST", headers, body: fd })
-        if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`)
-        const data = (await res.json()) as { markdown: string; filename: string }
+        const data = await api.upload<{ markdown: string; filename: string }>("/api/v1/converter/upload", fd)
         const name = filenameFromContent(file.name, data.markdown)
         await pushDocument(name, data.markdown)
         setUploadProgress((prev) => prev.map((p, j) => j === i ? { ...p, done: true } : p))
@@ -157,7 +158,7 @@ export function BucketDetailPanel({
 
   const sources = (() => {
     try { return JSON.parse(bucket.sources) as { path: string; glob?: string }[] }
-    catch { return [] }
+    catch { return [] } // malformed sources JSON; treat as empty
   })()
 
   const importing = clipping || uploading
@@ -277,14 +278,17 @@ export function BucketDetailPanel({
           {sources.length > 0 && (
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1">Sources</p>
-              <div className="space-y-0.5">
+              <div className="space-y-1">
                 {sources.map((s, i) => (
-                  <p key={i} className="text-xs font-mono text-muted-foreground truncate">
-                    {s.path}
-                    {s.glob && s.glob !== "**/*.md" && (
-                      <span className="text-muted-foreground/60 ml-2">{s.glob}</span>
-                    )}
-                  </p>
+                  <div key={i}>
+                    <p className="text-xs font-mono text-muted-foreground truncate">
+                      {s.path}
+                      {s.glob && s.glob !== "**/*.md" && (
+                        <span className="text-muted-foreground/60 ml-2">{s.glob}</span>
+                      )}
+                    </p>
+                    <BucketPathStatus path={s.path} />
+                  </div>
                 ))}
               </div>
             </div>
@@ -320,9 +324,12 @@ export function BucketDetailPanel({
             {/* File drop zone */}
             <div
               className="border border-dashed rounded-md px-3 py-4 text-center cursor-pointer hover:bg-accent/50 transition-colors"
+              role="button"
+              tabIndex={0}
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleDrop}
               onClick={() => !importing && fileInputRef.current?.click()}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (!importing) fileInputRef.current?.click() } }}
               aria-label="Drop files to import"
             >
               {uploading ? (
