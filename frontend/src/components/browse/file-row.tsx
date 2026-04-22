@@ -82,7 +82,7 @@ export const FileRow = React.memo(function FileRow({
       <div className="px-2 py-2 text-muted-foreground truncate overflow-hidden">
         {dirname(file.path)}
       </div>
-      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- stopPropagation wrapper around interactive children; role=group is correct, not role=button */}
       <div
         className="px-2 py-1.5 overflow-hidden"
         onClick={(e) => e.stopPropagation()}

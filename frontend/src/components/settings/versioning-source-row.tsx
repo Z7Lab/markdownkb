@@ -35,7 +35,7 @@ function formatRelative(iso: string | null): string {
     if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`
     return `${Math.floor(secs / 86400)}d ago`
   } catch {
-    return iso
+    return iso // Date constructor threw (invalid ISO string); return raw value
   }
 }
 

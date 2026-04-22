@@ -84,7 +84,7 @@ export function useEmbeddingSettings(reload: () => Promise<boolean>) {
         const res = await api.post<{ message: string }>("/api/v1/index")
         setIndexStatus(res.message)
       } catch (e) {
-        setIndexStatus(`Error: ${e}`)
+        setIndexStatus(`Error: ${e instanceof Error ? e.message : String(e)}`)
       }
       return
     }
@@ -98,7 +98,7 @@ export function useEmbeddingSettings(reload: () => Promise<boolean>) {
       }, "Reindex complete"))
     } catch (e) {
       setEmbeddingSwitching(false)
-      setEmbeddingStatus(`Error: ${e}`)
+      setEmbeddingStatus(`Error: ${e instanceof Error ? e.message : String(e)}`)
     }
   }, [reload, makeEmbeddingPollCallbacks])
 
@@ -131,7 +131,7 @@ export function useEmbeddingSettings(reload: () => Promise<boolean>) {
         }, `Installed ${modelId}`), 1000)
       } catch (e) {
         setEmbeddingSwitching(false)
-        setEmbeddingStatus(`Error: ${e}`)
+        setEmbeddingStatus(`Error: ${e instanceof Error ? e.message : String(e)}`)
       }
     },
     [loadEmbeddingModels, makeEmbeddingPollCallbacks],
@@ -144,7 +144,7 @@ export function useEmbeddingSettings(reload: () => Promise<boolean>) {
         setEmbeddingStatus(`Removed ${modelId}`)
         await loadEmbeddingModels()
       } catch (e) {
-        setEmbeddingStatus(`Error: ${e}`)
+        setEmbeddingStatus(`Error: ${e instanceof Error ? e.message : String(e)}`)
       }
     },
     [loadEmbeddingModels],
@@ -166,7 +166,7 @@ export function useEmbeddingSettings(reload: () => Promise<boolean>) {
         }, "Switched successfully"))
       } catch (e) {
         setEmbeddingSwitching(false)
-        setEmbeddingStatus(`Error: ${e}`)
+        setEmbeddingStatus(`Error: ${e instanceof Error ? e.message : String(e)}`)
       }
     },
     [reload, loadEmbeddingModels, makeEmbeddingPollCallbacks],

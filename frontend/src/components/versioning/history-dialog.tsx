@@ -121,7 +121,7 @@ export function HistoryDialog({
     try {
       return new Date(iso).toLocaleString()
     } catch {
-      return iso
+      return iso // invalid date string from API; display raw value
     }
   }
 

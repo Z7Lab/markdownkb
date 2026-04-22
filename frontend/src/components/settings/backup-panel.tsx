@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { api, getApiKey } from "@/lib/api"
+import { api } from "@/lib/api"
 import { toast } from "sonner"
 import { Download, Upload, RefreshCw, AlertTriangle, CheckCircle2 } from "lucide-react"
 
@@ -39,10 +39,6 @@ function formatBytes(bytes: number): string {
   return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`
 }
 
-function authHeaders(): Record<string, string> {
-  const key = getApiKey()
-  return key ? { "X-MarkdownKB-Key": key } : {}
-}
 
 export function BackupPanel() {
   const [status, setStatus] = useState<BackupStatus | null>(null)
@@ -72,17 +68,12 @@ export function BackupPanel() {
   const handleDownload = async () => {
     setDownloading(true)
     try {
-      const res = await fetch("/api/v1/backups/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({
-          include_config: includeConfig,
-          include_sources: includeSources,
-        }),
-      })
-      if (!res.ok) {
-        throw new Error(`${res.status}: ${await res.text()}`)
-      }
+      const res = await api.fetchRaw(
+        "POST",
+        "/api/v1/backups/create",
+        JSON.stringify({ include_config: includeConfig, include_sources: includeSources }),
+        { "Content-Type": "application/json" },
+      )
       const blob = await res.blob()
       const cd = res.headers.get("content-disposition") ?? ""
       const match = /filename=([^;]+)/.exec(cd)
@@ -110,15 +101,7 @@ export function BackupPanel() {
     try {
       const fd = new FormData()
       fd.append("file", file)
-      const res = await fetch("/api/v1/backups/preview", {
-        method: "POST",
-        body: fd,
-        headers: authHeaders(),
-      })
-      if (!res.ok) {
-        throw new Error(`${res.status}: ${await res.text()}`)
-      }
-      const data = (await res.json()) as { manifest: BackupManifest }
+      const data = await api.upload<{ manifest: BackupManifest }>("/api/v1/backups/preview", fd)
       setPendingRestore({ file, manifest: data.manifest })
     } catch (err) {
       toast.error(`Preview failed: ${(err as Error).message}`)
@@ -136,14 +119,7 @@ export function BackupPanel() {
       fd.append("file", pendingRestore.file)
       fd.append("apply_config", String(applyConfig))
       fd.append("apply_sources", String(applySources))
-      const res = await fetch("/api/v1/backups/restore", {
-        method: "POST",
-        body: fd,
-        headers: authHeaders(),
-      })
-      if (!res.ok) {
-        throw new Error(`${res.status}: ${await res.text()}`)
-      }
+      await api.upload("/api/v1/backups/restore", fd)
       toast.success("Restore complete — restart the container to use the new data")
       setPendingRestore(null)
       await loadStatus()

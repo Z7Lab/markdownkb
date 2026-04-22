@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
-import { api, getApiKey } from "@/lib/api"
+import { api } from "@/lib/api"
 import { toast } from "sonner"
 
 export interface Bucket {
@@ -159,12 +159,9 @@ export function useBuckets() {
   )
 
   const exportBucket = useCallback((id: string, name: string) => {
-    const key = getApiKey()
-    const headers: Record<string, string> = key ? { "X-MarkdownKB-Key": key } : {}
     const toastId = toast.loading(`Exporting "${name}"...`)
-    fetch(`/api/v1/buckets/${id}/export`, { headers })
+    api.fetchRaw("GET", `/api/v1/buckets/${id}/export`)
       .then(async (res) => {
-        if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`)
         const blob = await res.blob()
         const url = URL.createObjectURL(blob)
         const a = document.createElement("a")
@@ -180,15 +177,11 @@ export function useBuckets() {
   }, [])
 
   const importBucket = useCallback(async (file: File): Promise<Bucket | null> => {
-    const key = getApiKey()
-    const headers: Record<string, string> = key ? { "X-MarkdownKB-Key": key } : {}
     const toastId = toast.loading(`Importing "${file.name}"...`)
     try {
       const fd = new FormData()
       fd.append("file", file)
-      const res = await fetch("/api/v1/buckets/import", { method: "POST", headers, body: fd })
-      if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`)
-      const bucket = (await res.json()) as Bucket
+      const bucket = await api.upload<Bucket>("/api/v1/buckets/import", fd)
       await refresh()
       toast.success(`Imported bucket "${bucket.name}"`, {
         id: toastId,

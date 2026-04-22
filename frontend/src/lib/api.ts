@@ -92,6 +92,33 @@ async function request<T>(
 }
 
 /**
+ * Raw HTTP request for non-JSON responses (blobs, streams, FormData uploads).
+ * Injects auth header and checks status, but returns the raw Response for the
+ * caller to consume. Used by api.upload (FormData → JSON) and api.fetchRaw
+ * (caller handles response body — e.g. blob download, SSE-adjacent reads).
+ */
+async function requestRaw(
+  method: string,
+  path: string,
+  body?: BodyInit | null,
+  extraHeaders?: Record<string, string>,
+  signal?: AbortSignal,
+): Promise<Response> {
+  const headers: Record<string, string> = { ...extraHeaders }
+  if (apiKey) headers["X-MarkdownKB-Key"] = apiKey
+  const opts: RequestInit = { method, headers }
+  if (body != null) opts.body = body
+  if (signal) opts.signal = signal
+  const res = await fetch(`${BASE}${path}`, opts)
+  if (!res.ok) {
+    if (res.status === 401 && onUnauthorized) onUnauthorized()
+    const text = await res.text()
+    throw new Error(`${res.status}: ${text}`)
+  }
+  return res
+}
+
+/**
  * Retry an async operation with fixed-delay backoff.
  * Returns a cleanup function that cancels pending retries.
  * Used by hooks for initial data loading (settings, threads, files, etc.).
@@ -129,4 +156,15 @@ export const api = {
   put: <T>(path: string, body?: unknown) => request<T>("PUT", path, body),
   patch: <T>(path: string, body?: unknown) => request<T>("PATCH", path, body),
   del: <T>(path: string, body?: unknown) => request<T>("DELETE", path, body),
+  /** POST a FormData body and parse the JSON response. Use for file/archive uploads. */
+  upload: <T>(path: string, body: FormData, signal?: AbortSignal): Promise<T> =>
+    requestRaw("POST", path, body, undefined, signal).then(r => r.json() as Promise<T>),
+  /** Send a request and return the raw Response for non-JSON consumption (blobs, streams). */
+  fetchRaw: (
+    method: string,
+    path: string,
+    body?: BodyInit | null,
+    extraHeaders?: Record<string, string>,
+    signal?: AbortSignal,
+  ) => requestRaw(method, path, body, extraHeaders, signal),
 }

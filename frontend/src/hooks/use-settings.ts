@@ -44,7 +44,7 @@ function useSettingsInternal() {
       await queryClient.invalidateQueries({ queryKey: SETTINGS_KEY })
       return true
     } catch {
-      return false
+      return false // retryWithBackoff will retry; callers ignore the boolean on failure
     }
   }, [queryClient])
 

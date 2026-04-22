@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react"
 import { toast } from "sonner"
-import { api, getApiKey } from "@/lib/api"
+import { api } from "@/lib/api"
 import { parseSSEStream } from "@/lib/sse"
 import type { ModelEntry, ModelInfo } from "@/lib/types"
 
@@ -122,16 +122,15 @@ export function useProviderSettings(reload: () => Promise<boolean>) {
       setPullProgress({ pulling: true, model: modelName, percent: 0, status: "Starting pull...", error: null, done: false })
 
       try {
-        const headers: Record<string, string> = { "Content-Type": "application/json" }
-        const key = getApiKey()
-        if (key) headers["X-MarkdownKB-Key"] = key
-
-        const res = await fetch("/api/v1/settings/ollama/pull", {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ model_name: modelName, api_base: apiBase }),
-          signal: controller.signal,
-        })
+        // api.fetchRaw returns the raw Response (body unconsumed on success) so
+        // the caller can stream it via getReader() — used here for chunked progress.
+        const res = await api.fetchRaw(
+          "POST",
+          "/api/v1/settings/ollama/pull",
+          JSON.stringify({ model_name: modelName, api_base: apiBase }),
+          { "Content-Type": "application/json" },
+          controller.signal,
+        )
 
         if (!res.ok) {
           const text = await res.text()

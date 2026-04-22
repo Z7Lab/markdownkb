@@ -351,7 +351,7 @@ export function FilesTab() {
             >
               <ResizablePanel id="file" defaultSize={DEFAULT_LAYOUT.file} minSize={8}>
                 <div className="flex items-center h-full">
-                  {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
+                  {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- stopPropagation wrapper around the select-all Checkbox; role=group is correct */}
                   <div className="pl-2 flex items-center" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} role="group">
                     <Checkbox
                       aria-label="Select all files"

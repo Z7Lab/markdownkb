@@ -109,7 +109,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
   try {
     return document.execCommand("copy")
   } catch {
-    return false
+    return false // execCommand throws in some sandboxed contexts; report failure
   } finally {
     document.body.removeChild(textarea)
   }

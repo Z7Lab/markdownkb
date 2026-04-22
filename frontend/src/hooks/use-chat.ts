@@ -64,6 +64,9 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null, b
     }
   }, [])
 
+  // Abort stream and clear the flush interval if the component unmounts mid-stream
+  useEffect(() => () => { cleanupStream() }, [cleanupStream])
+
   const send = useCallback(
     (text: string) => {
       if (!text.trim() || isStreaming) return

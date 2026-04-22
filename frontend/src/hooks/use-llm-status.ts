@@ -50,7 +50,7 @@ export function useLLMStatus() {
       }
       // If configured, keep last known status from the full check
     } catch {
-      setStatus("offline")
+      setStatus("offline") // backend unreachable; treat as offline
     }
   }, [])
 
@@ -80,6 +80,7 @@ export function useLLMStatus() {
       setLastChecked(new Date())
       fullCheckDone.current = true
     } catch {
+      // Backend unreachable or provider not configured; mark offline and stop blocking UI
       setStatus("offline")
       setAvailableModels([])
       setLastChecked(new Date())

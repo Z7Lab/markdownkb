@@ -40,7 +40,7 @@ export function usePathCheck(path: string, debounceMs = 400): PathCheckState {
           setState({ status: "not_found" })
         }
       } catch {
-        setState({ status: "idle" })
+        setState({ status: "idle" }) // path check API unavailable; treat as unchecked
       }
     }, debounceMs)
 
