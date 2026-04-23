@@ -435,6 +435,8 @@ Temporary scoped document collections with independent vector storage. Each buck
 | GET | `/api/v1/buckets/{id}/export` | Export bucket as a portable zip archive (manifest + pre-computed embeddings) |
 | POST | `/api/v1/buckets/import` | Import a bucket from a previously exported zip (multipart file upload, no re-embedding) |
 | POST | `/api/v1/buckets/{id}/promote` | Add bucket source paths to the main watched directories in settings |
+| GET | `/api/v1/buckets/base-path` | Get the configured base path and whether it is mounted in Docker |
+| POST | `/api/v1/buckets/base-path` | Set (or clear) the base path; auto-adds it to Docker mounts if needed |
 
 ### POST /api/v1/buckets
 

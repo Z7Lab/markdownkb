@@ -1,5 +1,6 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { type useBuckets } from "@/hooks/use-buckets"
+import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -34,6 +35,18 @@ export function BucketCreateForm({
 }: BucketCreateFormProps) {
   const [name, setName] = useState("")
   const [path, setPath] = useState("")
+  const [basePath, setBasePath] = useState<string | null>(null)
+
+  useEffect(() => {
+    api.get<{ base_path: string | null }>("/api/v1/buckets/base-path")
+      .then((r) => {
+        if (r.base_path) {
+          setBasePath(r.base_path)
+          setPath(r.base_path.replace(/\/$/, "") + "/")
+        }
+      })
+      .catch(() => {})
+  }, [])
   const [glob, setGlob] = useState("**/*.md")
   const [expiresIn, setExpiresIn] = useState<number | null>(null)
   const [color, setColor] = useState<string | null>(null)
@@ -94,6 +107,9 @@ export function BucketCreateForm({
             placeholder="Absolute path to file or directory"
             className="mt-1"
           />
+          {basePath && path.startsWith(basePath) && (
+            <p className="text-[11px] text-muted-foreground mt-1">Under base path — no Docker restart needed after first mount.</p>
+          )}
           <BucketPathStatus path={path} />
         </div>
         <div>

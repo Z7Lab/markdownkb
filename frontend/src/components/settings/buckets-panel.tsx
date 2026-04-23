@@ -1,7 +1,16 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import {
   Table,
   TableBody,
@@ -14,6 +23,8 @@ import { Trash2 } from "lucide-react"
 import { useBuckets, type Bucket } from "@/hooks/use-buckets"
 import { useTableSort } from "@/hooks/use-table-sort"
 import { relativeTime } from "@/lib/utils"
+import { api } from "@/lib/api"
+import { toast } from "sonner"
 
 type BucketStatus = "active" | "expiring" | "expired"
 
@@ -89,6 +100,87 @@ function SortHeader({
   )
 }
 
+function BasePathConfig() {
+  const [basePath, setBasePath] = useState("")
+  const [saved, setSaved] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [restartRequired, setRestartRequired] = useState(false)
+
+  useEffect(() => {
+    api.get<{ base_path: string | null }>("/api/v1/buckets/base-path")
+      .then((r) => {
+        const v = r.base_path ?? ""
+        setBasePath(v)
+        setSaved(v)
+      })
+      .catch(() => {})
+  }, [])
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const res = await api.post<{ base_path: string | null; docker_restart_required: boolean }>(
+        "/api/v1/buckets/base-path",
+        { base_path: basePath.trim() || null },
+      )
+      setSaved(basePath.trim())
+      if (res.docker_restart_required) setRestartRequired(true)
+      else toast.success("Base path saved")
+    } catch (err) {
+      toast.error(`Failed to save: ${(err as Error).message}`)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const dirty = basePath.trim() !== (saved ?? "")
+
+  return (
+    <>
+      <div className="space-y-2">
+        <div>
+          <h3 className="text-sm font-medium">Base path</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Default root for new bucket paths. Buckets created under this directory won't require a Docker restart after the first one.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Input
+            value={basePath}
+            onChange={(e) => setBasePath(e.target.value)}
+            placeholder="/home/user/buckets"
+            className="h-8 text-xs font-mono"
+          />
+          <Button size="sm" className="h-8 shrink-0" onClick={handleSave} disabled={!dirty || saving}>
+            Save
+          </Button>
+        </div>
+      </div>
+
+      <Dialog open={restartRequired} onOpenChange={(o) => { if (!o) setRestartRequired(false) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Docker restart required</DialogTitle>
+            <DialogDescription>
+              The base path has been added to Docker mounts. Restart the container to apply.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-md bg-muted px-4 py-3 font-mono text-sm space-y-1">
+            <p>make docker-down</p>
+            <p>make docker-up</p>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            After restart, all buckets created under this path will be accessible without further restarts.
+          </p>
+          <DialogFooter>
+            <Button onClick={() => setRestartRequired(false)}>Got it</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
 export function BucketsPanel() {
   const { buckets, deleteBucket } = useBuckets()
   const [deleteTarget, setDeleteTarget] = useState<Bucket | null>(null)
@@ -108,7 +200,9 @@ export function BucketsPanel() {
   const headerProps = { currentKey: sortKey, currentDir: sortDir, onSort }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-6">
+      <BasePathConfig />
+      <div className="border-t pt-4 space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium">Bucket History</h3>
         {buckets.length > 0 && (
@@ -197,6 +291,7 @@ export function BucketsPanel() {
         variant="destructive"
         onConfirm={handleDelete}
       />
+      </div>
     </div>
   )
 }

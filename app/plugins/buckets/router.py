@@ -127,6 +127,52 @@ def _get_bucket_service(request: Request) -> BucketService:
 
 # -- Endpoints ---------------------------------------------------------------
 
+class BasepathRequest(BaseModel):
+    base_path: str | None = Field(None)
+
+
+@router.get("/buckets/base-path")
+@limiter.limit(STANDARD)
+def get_base_path(
+    request: Request,
+    svc: BucketService = Depends(_get_bucket_service),
+    settings: Settings = Depends(get_settings),
+):
+    """Return the configured buckets base path and whether it is mounted."""
+    base_path = settings.get_plugin_config("buckets").get("base_path") or None
+    mounted = False
+    if base_path and in_docker():
+        resolved = str(Path(base_path).resolve())
+        mounted = resolved in set(settings._data.get("bucket_mounts", []))
+    return {"base_path": base_path, "mounted": mounted, "docker": in_docker()}
+
+
+@router.post("/buckets/base-path")
+@limiter.limit(STANDARD)
+def set_base_path(
+    request: Request,
+    req: BasepathRequest,
+    svc: BucketService = Depends(_get_bucket_service),
+    settings: Settings = Depends(get_settings),
+):
+    """Set (or clear) the buckets base path and mount it in Docker if needed."""
+    docker_restart_required = False
+    if req.base_path:
+        settings.set_plugin_config("buckets", {"base_path": req.base_path})
+        if in_docker():
+            resolved = str(Path(req.base_path).resolve())
+            if settings.add_bucket_mount(resolved):
+                _sync_bucket_compose(settings, svc)
+                docker_restart_required = True
+    else:
+        settings.set_plugin_config("buckets", {"base_path": None})
+    settings.save()
+    return {
+        "base_path": req.base_path or None,
+        "docker_restart_required": docker_restart_required,
+    }
+
+
 @router.get("/buckets")
 @limiter.limit(STANDARD)
 def list_buckets(
@@ -169,12 +215,21 @@ def create_bucket(
         # Check the source path itself (not the parent) — a sibling mount can make the
         # parent appear to exist as a Docker-internal directory while the target path is
         # still inaccessible.
+        # Exception: if the path is under a configured base_path that is already mounted,
+        # no new mount is needed (the parent bind-mount covers all subdirectories).
         docker_restart_required = False
         if in_docker():
             changed = False
+            base_path_str = settings.get_plugin_config("buckets").get("base_path", "")
+            mounted_paths = {m for m in settings._data.get("bucket_mounts", [])}
+            base_resolved = str(Path(base_path_str).resolve()) if base_path_str else ""
+            base_mounted = bool(base_resolved and base_resolved in mounted_paths)
+
             for src in req.sources:
                 resolved = str(Path(src.path).resolve())
                 if not Path(resolved).exists():
+                    if base_mounted and (resolved == base_resolved or resolved.startswith(base_resolved + "/")):
+                        continue  # covered by the base path mount
                     if settings.add_bucket_mount(resolved):
                         changed = True
             if changed:
