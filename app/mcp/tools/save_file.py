@@ -2,6 +2,7 @@
 
 import logging
 import re
+import threading
 from pathlib import Path
 
 from app.config import Settings
@@ -18,6 +19,8 @@ logger = logging.getLogger(__name__)
 
 # Characters not allowed in filenames
 _UNSAFE_CHARS = re.compile(r'[<>:"|?*\x00-\x1f]')
+
+_save_lock = threading.Lock()
 
 
 def handler(
@@ -84,18 +87,19 @@ def handler(
 
     full_path = target_dir / relative
 
-    # -- Guard against accidental overwrite -----------------------------------
-    if full_path.exists() and not overwrite:
-        raise ValueError(
-            f"File already exists: {relative}. Set overwrite=true to replace."
-        )
+    with _save_lock:
+        # -- Guard against accidental overwrite -----------------------------------
+        if full_path.exists() and not overwrite:
+            raise ValueError(
+                f"File already exists: {relative}. Set overwrite=true to replace."
+            )
 
-    # -- Write ----------------------------------------------------------------
-    try:
-        full_path.parent.mkdir(parents=True, exist_ok=True)
-        full_path.write_text(content, encoding="utf-8")
-    except OSError as exc:
-        raise ValueError(f"Failed to write file: {exc}") from exc
+        # -- Write ----------------------------------------------------------------
+        try:
+            full_path.parent.mkdir(parents=True, exist_ok=True)
+            full_path.write_text(content, encoding="utf-8")
+        except OSError as exc:
+            raise ValueError(f"Failed to write file: {exc}") from exc
 
     logger.info("Document saved via MCP: %s", full_path)
 

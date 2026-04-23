@@ -101,12 +101,13 @@ class LLMMixin:
     @llm_temperature.setter
     def llm_temperature(self, value: float):
         """Set temperature on the active provider entry."""
-        for p in self.llm_providers:
-            if p.get("name") == self.active_provider:
-                p["temperature"] = value
-                return
-        # Fallback: set global default
-        self._data.setdefault("llm", {})["temperature"] = value
+        with self._lock:
+            for p in self.llm_providers:
+                if p.get("name") == self.active_provider:
+                    p["temperature"] = value
+                    return
+            # Fallback: set global default
+            self._data.setdefault("llm", {})["temperature"] = value
 
     @property
     def llm_max_tokens(self) -> int:
@@ -119,11 +120,12 @@ class LLMMixin:
     @llm_max_tokens.setter
     def llm_max_tokens(self, value: int):
         """Set max_tokens on the active provider entry."""
-        for p in self.llm_providers:
-            if p.get("name") == self.active_provider:
-                p["max_tokens"] = value
-                return
-        self._data.setdefault("llm", {})["max_tokens"] = value
+        with self._lock:
+            for p in self.llm_providers:
+                if p.get("name") == self.active_provider:
+                    p["max_tokens"] = value
+                    return
+            self._data.setdefault("llm", {})["max_tokens"] = value
 
     @property
     def llm_num_ctx(self) -> int | None:
@@ -134,10 +136,11 @@ class LLMMixin:
     @llm_num_ctx.setter
     def llm_num_ctx(self, value: int | None):
         """Set context window on the active provider's extra_body."""
-        for p in self.llm_providers:
-            if p.get("name") == self.active_provider:
-                if value is None:
-                    p.get("extra_body", {}).pop("num_ctx", None)
-                else:
-                    p.setdefault("extra_body", {})["num_ctx"] = value
-                return
+        with self._lock:
+            for p in self.llm_providers:
+                if p.get("name") == self.active_provider:
+                    if value is None:
+                        p.get("extra_body", {}).pop("num_ctx", None)
+                    else:
+                        p.setdefault("extra_body", {})["num_ctx"] = value
+                    return

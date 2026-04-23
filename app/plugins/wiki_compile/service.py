@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -42,6 +43,7 @@ MAX_SOURCE_CHARS = 8000
 RETRIEVAL_QUERY_CHARS = 1500
 
 _SAFE_SLUG_RE = re.compile(r"[^a-z0-9]+")
+_wiki_log_lock = threading.Lock()
 
 
 class WikiCompileError(Exception):
@@ -245,13 +247,14 @@ def append_log(target_dir: Path, verb: str, detail: str) -> Path:
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     entry = f"\n## [{ts}] {verb} | {detail}\n"
     dest = target_dir / "log.md"
-    if dest.exists():
-        existing = dest.read_text(encoding="utf-8")
-        if not existing.endswith("\n"):
-            existing += "\n"
-    else:
-        existing = "# Wiki Log\n\nChronological record of wiki changes.\n"
-    dest.write_text(existing + entry, encoding="utf-8")
+    with _wiki_log_lock:
+        if dest.exists():
+            existing = dest.read_text(encoding="utf-8")
+            if not existing.endswith("\n"):
+                existing += "\n"
+        else:
+            existing = "# Wiki Log\n\nChronological record of wiki changes.\n"
+        dest.write_text(existing + entry, encoding="utf-8")
     return dest
 
 

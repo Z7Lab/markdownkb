@@ -2,6 +2,7 @@
 
 import logging
 import secrets
+import threading
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -12,6 +13,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/setup", tags=["setup"])
 
 from app.config import _data_secrets_dir
+
+_setup_lock = threading.Lock()
 
 
 @router.post("/generate-key")
@@ -30,24 +33,25 @@ def generate_key(request: Request):
     if client_host not in ("127.0.0.1", "::1"):
         raise HTTPException(403, "Key generation is only allowed from localhost")
 
-    if getattr(request.app.state, "auth_enabled", False):
-        raise HTTPException(403, "API key already configured")
+    with _setup_lock:
+        if getattr(request.app.state, "auth_enabled", False):
+            raise HTTPException(403, "API key already configured")
 
-    key = secrets.token_urlsafe(32)
+        key = secrets.token_urlsafe(32)
 
-    target = _data_secrets_dir() / "markdownkb_api_key"
-    try:
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(key)
-        logger.info("Generated API key, written to %s", target)
-    except OSError as e:
-        logger.error("Failed to write API key to %s: %s", target, e)
-        raise HTTPException(500, "Failed to persist API key")
+        target = _data_secrets_dir() / "markdownkb_api_key"
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(key)
+            logger.info("Generated API key, written to %s", target)
+        except OSError as e:
+            logger.error("Failed to write API key to %s: %s", target, e)
+            raise HTTPException(500, "Failed to persist API key")
 
-    # Enable auth on the running instance by updating app state.
-    # ApiKeyMiddleware reads app.state.api_key on every request, so no
-    # middleware rebuild is needed.
-    request.app.state.api_key = key
-    request.app.state.auth_enabled = True
+        # Enable auth on the running instance by updating app state.
+        # ApiKeyMiddleware reads app.state.api_key on every request, so no
+        # middleware rebuild is needed.
+        request.app.state.api_key = key
+        request.app.state.auth_enabled = True
 
     return {"api_key": key, "status": "configured"}

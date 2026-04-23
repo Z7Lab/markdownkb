@@ -14,14 +14,15 @@ class PromptsMixin:
         Results are cached per name until reload_prompts() is called.
         Raises FileNotFoundError if the prompt file is missing.
         """
-        if name in self._prompt_cache:
-            return self._prompt_cache[name]
+        with self._lock:
+            if name in self._prompt_cache:
+                return self._prompt_cache[name]
 
-        prompt_file = self._path.parent / "prompts" / f"{name}.md"
-        text = prompt_file.read_text(encoding="utf-8").strip()
-        logger.debug("Loaded prompt '%s' from %s", name, prompt_file)
-        self._prompt_cache[name] = text
-        return text
+            prompt_file = self._path.parent / "prompts" / f"{name}.md"
+            text = prompt_file.read_text(encoding="utf-8").strip()
+            logger.debug("Loaded prompt '%s' from %s", name, prompt_file)
+            self._prompt_cache[name] = text
+            return text
 
     def reload_prompts(self):
         """Clear the prompt cache so files are re-read on next access."""
@@ -38,7 +39,8 @@ class PromptsMixin:
     @system_prompt.setter
     def system_prompt(self, value: str):
         """Set the RAG system prompt (written to settings.yaml)."""
-        self._data.setdefault("prompts", {})["system_prompt"] = value
+        with self._lock:
+            self._data.setdefault("prompts", {})["system_prompt"] = value
 
     @property
     def default_system_prompt(self) -> str:
@@ -56,7 +58,8 @@ class PromptsMixin:
     @search_summary_prompt.setter
     def search_summary_prompt(self, value: str):
         """Set the search summary prompt (written to settings.yaml)."""
-        self._data.setdefault("prompts", {})["search_summary_prompt"] = value
+        with self._lock:
+            self._data.setdefault("prompts", {})["search_summary_prompt"] = value
 
     @property
     def default_search_summary_prompt(self) -> str:

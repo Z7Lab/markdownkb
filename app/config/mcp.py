@@ -12,35 +12,36 @@ class MCPMixin:
 
     def _load_mcp_config(self, tool_name: str) -> dict:
         """Load MCP tool config from tool folder + user overrides."""
-        if tool_name in self._mcp_cache:
-            return self._mcp_cache[tool_name]
+        with self._lock:
+            if tool_name in self._mcp_cache:
+                return self._mcp_cache[tool_name]
 
-        # Load default config from tool folder (app/mcp/{tool_name}/config.yaml)
-        tool_dir = self._project_root / "app" / "mcp" / tool_name
-        tool_config_file = tool_dir / "config.yaml"
+            # Load default config from tool folder (app/mcp/{tool_name}/config.yaml)
+            tool_dir = self._project_root / "app" / "mcp" / tool_name
+            tool_config_file = tool_dir / "config.yaml"
 
-        config = {}
-        if tool_config_file.exists():
-            try:
-                with open(tool_config_file, encoding="utf-8") as f:
-                    config = yaml.safe_load(f) or {}
-            except (OSError, yaml.YAMLError) as e:
-                logger.warning("Failed to load MCP config %s: %s", tool_config_file, e)
+            config = {}
+            if tool_config_file.exists():
+                try:
+                    with open(tool_config_file, encoding="utf-8") as f:
+                        config = yaml.safe_load(f) or {}
+                except (OSError, yaml.YAMLError) as e:
+                    logger.warning("Failed to load MCP config %s: %s", tool_config_file, e)
 
-        # Overlay user overrides from config/mcp/{tool_name}.yaml
-        from app.config import _resolve_env_recursive
-        user_config_file = self._mcp_dir / f"{tool_name}.yaml"
-        if user_config_file.exists():
-            try:
-                with open(user_config_file, encoding="utf-8") as f:
-                    user_config = yaml.safe_load(f) or {}
-                config.update(user_config)
-            except (OSError, yaml.YAMLError) as e:
-                logger.warning("Failed to load MCP user config %s: %s", user_config_file, e)
+            # Overlay user overrides from config/mcp/{tool_name}.yaml
+            from app.config import _resolve_env_recursive
+            user_config_file = self._mcp_dir / f"{tool_name}.yaml"
+            if user_config_file.exists():
+                try:
+                    with open(user_config_file, encoding="utf-8") as f:
+                        user_config = yaml.safe_load(f) or {}
+                    config.update(user_config)
+                except (OSError, yaml.YAMLError) as e:
+                    logger.warning("Failed to load MCP user config %s: %s", user_config_file, e)
 
-        config = _resolve_env_recursive(config)
-        self._mcp_cache[tool_name] = config
-        return config
+            config = _resolve_env_recursive(config)
+            self._mcp_cache[tool_name] = config
+            return config
 
     def _save_mcp_config(self, tool_name: str, config: dict):
         """Save MCP tool config to separate YAML file."""

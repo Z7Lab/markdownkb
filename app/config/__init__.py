@@ -469,10 +469,11 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
 
     def add_bucket_mount(self, path: str) -> bool:
         """Add a path to bucket_mounts if not already present. Returns True if added."""
-        mounts = self._data.setdefault("bucket_mounts", [])
-        if path not in mounts:
-            mounts.append(path)
-            return True
+        with self._lock:
+            mounts = self._data.setdefault("bucket_mounts", [])
+            if path not in mounts:
+                mounts.append(path)
+                return True
         return False
 
     def remove_bucket_mount(self, path: str):

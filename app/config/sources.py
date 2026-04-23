@@ -72,7 +72,8 @@ class SourcesMixin:
     @sources.setter
     def sources(self, value: list[str]):
         """Set the list of explicit source directories."""
-        self._data["sources"] = value
+        with self._lock:
+            self._data["sources"] = value
 
     def is_source_writable(self, path: str) -> bool:
         """Check whether a source directory allows writes.
@@ -128,10 +129,11 @@ class SourcesMixin:
         (and optional ``writable``, ``versioned``, ``tier`` keys).  When a
         dict is supplied it is stored as-is so that flags are preserved.
         """
-        raw = self._data.setdefault("sources", [])
-        resolved_path = self._resolve_path(path["path"] if isinstance(path, dict) else path)
-        if resolved_path not in self.explicit_sources:
-            raw.append(path)
+        with self._lock:
+            raw = self._data.setdefault("sources", [])
+            resolved_path = self._resolve_path(path["path"] if isinstance(path, dict) else path)
+            if resolved_path not in self.explicit_sources:
+                raw.append(path)
 
     def update_source(
         self, path: str, *,
@@ -143,22 +145,23 @@ class SourcesMixin:
         entry as a normalized dict, or None when the source is not
         configured.
         """
-        resolved = self._resolve_path(path)
-        raw = self._data.get("sources", [])
-        for entry in raw:
-            if not isinstance(entry, dict):
-                continue
-            if self._resolve_path(entry.get("path", "")) != resolved:
-                continue
-            if writable is not None:
-                entry["writable"] = bool(writable)
-            if versioned is not None:
-                entry["versioned"] = bool(versioned)
-            if tier is not None:
-                if tier not in (-1, 0, 1):
-                    raise ValueError("tier must be -1, 0, or 1")
-                entry["tier"] = int(tier)
-            return self._source_entry(entry)
+        with self._lock:
+            resolved = self._resolve_path(path)
+            raw = self._data.get("sources", [])
+            for entry in raw:
+                if not isinstance(entry, dict):
+                    continue
+                if self._resolve_path(entry.get("path", "")) != resolved:
+                    continue
+                if writable is not None:
+                    entry["writable"] = bool(writable)
+                if versioned is not None:
+                    entry["versioned"] = bool(versioned)
+                if tier is not None:
+                    if tier not in (-1, 0, 1):
+                        raise ValueError("tier must be -1, 0, or 1")
+                    entry["tier"] = int(tier)
+                return self._source_entry(entry)
         return None
 
     def sources_by_tier(self, tier: int) -> list[dict]:
@@ -167,16 +170,17 @@ class SourcesMixin:
 
     def remove_source(self, path: str):
         """Remove a source directory from the list."""
-        raw = self._data.setdefault("sources", [])
-        if path in raw:
-            raw.remove(path)
-        else:
-            # Try matching by resolved path
-            resolved = self._resolve_path(path)
-            for s in list(raw):
-                if self._resolve_path(s) == resolved:
-                    raw.remove(s)
-                    break
+        with self._lock:
+            raw = self._data.setdefault("sources", [])
+            if path in raw:
+                raw.remove(path)
+            else:
+                # Try matching by resolved path
+                resolved = self._resolve_path(path)
+                for s in list(raw):
+                    if self._resolve_path(s) == resolved:
+                        raw.remove(s)
+                        break
 
     # --- Project Roots ---
     @property
@@ -228,39 +232,42 @@ class SourcesMixin:
     def add_project_root(self, path: str, include: list[str] | None = None,
                          exclude: list[str] | None = None):
         """Add a project root configuration."""
-        roots = self._data.setdefault("project_roots", [])
-        resolved = self._resolve_path(path)
-        for r in roots:
-            if self._resolve_path(r.get("path", "")) == resolved:
-                return  # Already exists
-        entry: dict = {"path": path}
-        if include:
-            entry["include"] = include
-        if exclude:
-            entry["exclude"] = exclude
-        roots.append(entry)
+        with self._lock:
+            roots = self._data.setdefault("project_roots", [])
+            resolved = self._resolve_path(path)
+            for r in roots:
+                if self._resolve_path(r.get("path", "")) == resolved:
+                    return  # Already exists
+            entry: dict = {"path": path}
+            if include:
+                entry["include"] = include
+            if exclude:
+                entry["exclude"] = exclude
+            roots.append(entry)
 
     def remove_project_root(self, path: str):
         """Remove a project root by path."""
-        roots = self._data.get("project_roots", [])
-        resolved = self._resolve_path(path)
-        self._data["project_roots"] = [
-            r for r in roots
-            if self._resolve_path(r.get("path", "")) != resolved
-        ]
+        with self._lock:
+            roots = self._data.get("project_roots", [])
+            resolved = self._resolve_path(path)
+            self._data["project_roots"] = [
+                r for r in roots
+                if self._resolve_path(r.get("path", "")) != resolved
+            ]
 
     def update_project_root(self, path: str, include: list[str] | None = None,
                             exclude: list[str] | None = None):
         """Update include/exclude patterns for an existing project root."""
-        resolved = self._resolve_path(path)
-        for r in self._data.get("project_roots", []):
-            if self._resolve_path(r.get("path", "")) == resolved:
-                if include is not None:
-                    r["include"] = include
-                if exclude is not None:
-                    r["exclude"] = exclude
-                return
-        raise KeyError(f"Project root not found: {path}")
+        with self._lock:
+            resolved = self._resolve_path(path)
+            for r in self._data.get("project_roots", []):
+                if self._resolve_path(r.get("path", "")) == resolved:
+                    if include is not None:
+                        r["include"] = include
+                    if exclude is not None:
+                        r["exclude"] = exclude
+                    return
+            raise KeyError(f"Project root not found: {path}")
 
     @property
     def global_ignore(self) -> list[str]:
@@ -269,12 +276,14 @@ class SourcesMixin:
 
     def add_ignore_pattern(self, pattern: str):
         """Add a glob pattern to the ignore list."""
-        patterns = self._data.setdefault("global_ignore", [])
-        if pattern not in patterns:
-            patterns.append(pattern)
+        with self._lock:
+            patterns = self._data.setdefault("global_ignore", [])
+            if pattern not in patterns:
+                patterns.append(pattern)
 
     def remove_ignore_pattern(self, pattern: str):
         """Remove a glob pattern from the ignore list."""
-        patterns = self._data.get("global_ignore", [])
-        if pattern in patterns:
-            patterns.remove(pattern)
+        with self._lock:
+            patterns = self._data.get("global_ignore", [])
+            if pattern in patterns:
+                patterns.remove(pattern)

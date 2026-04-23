@@ -202,6 +202,10 @@ async def lifespan(app: FastAPI):
     from app.plugins import shutdown_plugins
     shutdown_plugins(app)
 
+    # Shutdown: signal background threads to stop before closing DBs
+    if hasattr(app.state, "cancel_event"):
+        app.state.cancel_event.set()
+
     # Shutdown: close DB connections
     tracking.close()
     chatdb.close()

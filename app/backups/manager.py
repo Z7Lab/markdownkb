@@ -22,6 +22,7 @@ import shutil
 import sqlite3
 import tarfile
 import tempfile
+import threading
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -29,6 +30,8 @@ from pathlib import Path
 from typing import Iterable
 
 logger = logging.getLogger(__name__)
+
+_restore_lock = threading.Lock()
 
 MANIFEST_NAME = "manifest.json"
 BACKUP_FORMAT_VERSION = 1
@@ -231,8 +234,9 @@ class BackupManager:
             with tarfile.open(archive, "r:gz") as tf:
                 _safe_extractall(tf, staging)
 
-            self._swap_into_place(staging, options)
-            self._write_restart_marker(manifest)
+            with _restore_lock:
+                self._swap_into_place(staging, options)
+                self._write_restart_marker(manifest)
             return manifest
         finally:
             shutil.rmtree(staging, ignore_errors=True)

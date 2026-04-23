@@ -3,6 +3,7 @@
 import logging
 import os
 import re
+import threading
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -15,6 +16,8 @@ from app.ratelimit import STANDARD, limiter
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
+
+_write_lock = threading.Lock()
 
 # Characters not allowed in filenames (beyond what the OS rejects)
 _UNSAFE_CHARS = re.compile(r'[<>:"|?*\x00-\x1f]')
@@ -132,20 +135,21 @@ def create_document(
 
     full_path = target_dir / relative
 
-    # Guard against overwriting without explicit flag
-    if full_path.exists() and not req.overwrite:
-        raise HTTPException(
-            409,
-            f"File already exists: {relative}. Set overwrite=true to replace.",
-        )
+    with _write_lock:
+        # Guard against overwriting without explicit flag
+        if full_path.exists() and not req.overwrite:
+            raise HTTPException(
+                409,
+                f"File already exists: {relative}. Set overwrite=true to replace.",
+            )
 
-    # Write the file
-    try:
-        full_path.parent.mkdir(parents=True, exist_ok=True)
-        full_path.write_text(req.content, encoding="utf-8")
-    except OSError as exc:
-        logger.error("Failed to write document %s: %s", full_path, exc)
-        raise HTTPException(500, "Failed to write file")
+        # Write the file
+        try:
+            full_path.parent.mkdir(parents=True, exist_ok=True)
+            full_path.write_text(req.content, encoding="utf-8")
+        except OSError as exc:
+            logger.error("Failed to write document %s: %s", full_path, exc)
+            raise HTTPException(500, "Failed to write file")
 
     logger.info("Document written: %s", full_path)
 

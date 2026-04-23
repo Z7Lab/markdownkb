@@ -119,7 +119,8 @@ def install_model(
         url = HF_URL.format(repo=info.huggingface_repo, path=rel_path)
         logger.info("Downloading %s", url)
 
-        tmp = file_dest.with_suffix(".tmp")
+        import uuid
+        tmp = file_dest.with_suffix(f".tmp.{uuid.uuid4().hex[:8]}")
         req = urllib.request.Request(url, headers={"User-Agent": "markdownkb/1.0"})
         with urllib.request.urlopen(req, timeout=600) as resp:
             total = int(resp.headers.get("Content-Length", 0))
