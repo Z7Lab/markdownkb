@@ -170,108 +170,104 @@ export function BucketDetailPanel({
 
   return (
     <>
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="relative flex flex-col h-full overflow-hidden">
       <ScrollArea className="flex-1 min-h-0">
         <div className="p-6 space-y-4">
           {/* Header */}
-          <div className="flex items-start justify-between gap-3">
+          <div className="space-y-2">
+            {/* Name row */}
             <div className="flex items-center gap-2 min-w-0">
               <span
-                className="h-3 w-3 rounded-full shrink-0 mt-0.5"
+                className="h-3 w-3 rounded-full shrink-0"
                 style={{ backgroundColor: bucket.color ?? "var(--bucket-default)" }}
               />
-              <div className="min-w-0">
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                  {bucket.name}
-                  {bucket.indexing && (
-                    <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-500/50 gap-1">
-                      <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                      indexing
-                    </Badge>
-                  )}
-                  {bucket.expired && (
-                    <Badge variant="outline" className="text-[10px] text-destructive border-destructive/40">
-                      expired
-                    </Badge>
-                  )}
-                </h2>
-                <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
-                  <span>{bucket.file_count} files</span>
-                  <span>{bucket.chunk_count} chunks</span>
-                  <span>{relativeTime(bucket.created_at)}</span>
-                  {bucket.expires_at && !bucket.expired && (
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      expires {new Date(bucket.expires_at + "Z").toLocaleDateString()}
-                    </span>
-                  )}
-                  {!bucket.expires_at && !bucket.expired && (
-                    <span className="flex items-center gap-1">
-                      <InfinityIcon className="h-3 w-3" /> permanent
-                    </span>
-                  )}
-                </div>
-              </div>
+              <h2 className="text-lg font-semibold flex items-center gap-2 min-w-0 truncate">
+                {bucket.name}
+                {bucket.indexing && (
+                  <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-500/50 gap-1 shrink-0">
+                    <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                    indexing
+                  </Badge>
+                )}
+                {bucket.expired && (
+                  <Badge variant="outline" className="text-[10px] text-destructive border-destructive/40 shrink-0">
+                    expired
+                  </Badge>
+                )}
+              </h2>
             </div>
-            <div className="flex items-center gap-1 shrink-0">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                aria-label="Edit bucket"
-                onClick={() => setEditing(!editing)}
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                aria-label="Reindex from sources"
-                disabled={reindexing}
-                onClick={handleReindex}
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${reindexing ? "animate-spin" : ""}`} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                aria-label="Export bucket"
-                title="Export bucket as zip"
-                onClick={() => exportBucket(bucket.id, bucket.name)}
-              >
-                <Download className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                aria-label="Promote to watched directories"
-                title="Add bucket sources to watched directories"
-                onClick={() => promoteBucket(bucket.id, bucket.name)}
-              >
-                <FolderInput className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                aria-label="Chat with bucket"
-                title="Chat with this bucket"
-                onClick={() => setChatOpen(true)}
-              >
-                <MessageSquare className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                aria-label="Delete bucket"
-                onClick={() => onDelete(bucket.id)}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
+
+            {/* Stats + action toolbar */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-3 text-xs text-muted-foreground min-w-0">
+                <span>{bucket.file_count} files</span>
+                <span>{bucket.chunk_count} chunks</span>
+                <span>{relativeTime(bucket.created_at)}</span>
+                {bucket.expires_at && !bucket.expired && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    expires {new Date(bucket.expires_at + "Z").toLocaleDateString()}
+                  </span>
+                )}
+                {!bucket.expires_at && !bucket.expired && (
+                  <span className="flex items-center gap-1">
+                    <InfinityIcon className="h-3 w-3" /> permanent
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-0.5 shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                  aria-label="Edit bucket"
+                  title="Edit bucket"
+                  onClick={() => setEditing(!editing)}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                  aria-label="Reindex from sources"
+                  title="Reindex from sources"
+                  disabled={reindexing}
+                  onClick={handleReindex}
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${reindexing ? "animate-spin" : ""}`} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                  aria-label="Export bucket"
+                  title="Export bucket as zip"
+                  onClick={() => exportBucket(bucket.id, bucket.name)}
+                >
+                  <Download className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                  aria-label="Promote to watched directories"
+                  title="Add bucket sources to watched directories"
+                  onClick={() => promoteBucket(bucket.id, bucket.name)}
+                >
+                  <FolderInput className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                  aria-label="Delete bucket"
+                  title="Delete bucket"
+                  onClick={() => onDelete(bucket.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -439,6 +435,18 @@ export function BucketDetailPanel({
           </div>
         </div>
       </ScrollArea>
+
+      {/* FAB — chat with bucket */}
+      {!bucket.expired && (
+        <button
+          className="absolute bottom-6 right-6 z-10 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl hover:bg-primary/90 flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+          onClick={() => setChatOpen(true)}
+          aria-label="Chat with bucket"
+          title="Chat with this bucket"
+        >
+          <MessageSquare className="h-5 w-5" />
+        </button>
+      )}
     </div>
     <BucketChatDrawer
       open={chatOpen}
