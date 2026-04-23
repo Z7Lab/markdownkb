@@ -79,6 +79,11 @@ class UpdateBucketRequest(BaseModel):
     description: str | None = Field(None, max_length=1000, description="Optional description")
 
 
+class RenameDocumentRequest(BaseModel):
+    old_path: str = Field(..., min_length=1)
+    new_name: str = Field(..., min_length=1, max_length=500)
+
+
 # -- Helpers -----------------------------------------------------------------
 
 def _sync_bucket_compose(settings: Settings, svc: BucketService) -> bool:
@@ -548,6 +553,36 @@ def push_documents(
     except Exception as e:
         logger.error("Bucket push failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Bucket push failed")
+
+
+@router.patch("/buckets/{bucket_id}/documents")
+@limiter.limit(STANDARD)
+def rename_bucket_document(
+    request: Request,
+    bucket_id: str,
+    req: RenameDocumentRequest,
+    svc: BucketService = Depends(_get_bucket_service),
+):
+    """Rename a virtual document within a bucket.
+
+    Only virtual documents (paths starting with ``bucket://``) can be renamed.
+    Filesystem-sourced files must be renamed on disk and reindexed.
+    """
+    record = svc.db.resolve(bucket_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Bucket not found")
+    if not req.old_path.startswith("bucket://"):
+        raise HTTPException(status_code=400, detail="Only virtual documents can be renamed via this endpoint")
+    bucket_name = record["name"]
+    new_name = req.new_name if req.new_name.endswith(".md") else f"{req.new_name}.md"
+    new_path = f"bucket://{bucket_name}/{new_name}"
+    if new_path == req.old_path:
+        return {"old_path": req.old_path, "new_path": new_path, "chunks_updated": 0}
+    store = svc.get_store(record["id"])
+    count = store.rename_source(req.old_path, new_path, f"bucket://{bucket_name}")
+    if count == 0:
+        raise HTTPException(status_code=404, detail="Document not found in bucket")
+    return {"old_path": req.old_path, "new_path": new_path, "chunks_updated": count}
 
 
 # ---------------------------------------------------------------------------

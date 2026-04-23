@@ -431,6 +431,7 @@ Temporary scoped document collections with independent vector storage. Each buck
 | POST | `/api/v1/buckets/{id}/chat` | RAG chat scoped to a bucket. Returns 410 if the bucket is expired. |
 | POST | `/api/v1/buckets/{id}/add` | Add documents to an existing bucket (skips duplicates) |
 | POST | `/api/v1/buckets/{id}/documents` | Push documents by content (no filesystem access needed) |
+| PATCH | `/api/v1/buckets/{id}/documents` | Rename a virtual document. Body: `{ old_path, new_name }`. Only `bucket://` paths accepted; returns 400 for filesystem-sourced files. |
 | GET | `/api/v1/buckets/{id}/file` | Read full content of a bucket file (reconstructed from chunks). Query param: `path`. |
 | GET | `/api/v1/buckets/{id}/export` | Export bucket as a portable zip archive (manifest + pre-computed embeddings) |
 | POST | `/api/v1/buckets/import` | Import a bucket from a previously exported zip (multipart file upload, no re-embedding) |

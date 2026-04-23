@@ -87,6 +87,21 @@ export function parseFrontmatter(raw: string): ParsedFrontmatter {
   return { tags: [], content: content! }
 }
 
+/**
+ * Slugify a string into a safe markdown filename (without the .md extension).
+ * Strips punctuation, collapses whitespace to hyphens, lowercases, trims to 80 chars.
+ * Example: "Karpathy's Wiki vs. Open Brain." → "karpathys-wiki-vs-open-brain"
+ */
+export function slugifyFilename(text: string): string {
+  return text
+    .replace(/[^\w\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .toLowerCase()
+    .slice(0, 80)
+    .replace(/-+$/, "")
+}
+
 export function downloadMarkdown(content: string, filename: string): void {
   const blob = new Blob([content], { type: "text/markdown" })
   const url = URL.createObjectURL(blob)

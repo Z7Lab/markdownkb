@@ -214,6 +214,21 @@ POST /api/v1/buckets/{id}/documents
 
 Pushed documents work identically to UI uploads — virtual paths, no filesystem. Designed for remote agents and integrations. Also available via the `bucket_push` MCP tool.
 
+### Renaming virtual documents
+
+Virtual documents (uploaded files, URL clips, pushed content) can be renamed from the bucket files table — click the pencil icon on any row with a `bucket://` path. The name is slugified automatically, so pasting a full title like `Karpathy's Wiki vs. Open Brain.` produces `karpathys-wiki-vs-open-brain.md`.
+
+Filesystem-sourced files cannot be renamed this way — rename them on disk and reindex to update the bucket.
+
+Via the API:
+```json
+PATCH /api/v1/buckets/{id}/documents
+{
+  "old_path": "bucket://my-bucket/old-name.md",
+  "new_name": "new-name"
+}
+```
+
 ### Adding more filesystem sources
 
 To add another source path to an existing bucket without recreating it:

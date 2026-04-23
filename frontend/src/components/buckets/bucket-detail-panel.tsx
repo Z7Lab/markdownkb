@@ -2,15 +2,16 @@ import { useCallback, useRef, useState } from "react"
 import { type Bucket, type useBuckets, useBucketFiles } from "@/hooks/use-buckets"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
-import { relativeTime } from "@/lib/utils"
+import { relativeTime, slugifyFilename } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
-  Pencil, Trash2, FileText, Loader2, Clock,
+  Pencil, Trash2, FileText, Loader2, Clock, Check, X as XIcon,
   Infinity as InfinityIcon, RefreshCw, Link, Upload, Download, FolderInput, MessageSquare,
 } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { BucketEditForm } from "./bucket-edit-form"
 import { BucketPathStatus } from "./bucket-path-status"
 import { BucketChatDrawer } from "./bucket-chat-drawer"
@@ -20,10 +21,7 @@ const SUPPORTED_EXTENSIONS = ".pdf,.docx,.pptx,.xlsx,.xls,.epub,.html,.htm,.csv,
 function filenameFromContent(hint: string, markdown: string): string {
   const titleMatch = /^#{1,3} (.+)$/m.exec(markdown)
   if (titleMatch?.[1]) {
-    return titleMatch[1]
-      .replace(/[^\w\s-]/g, "").trim()
-      .replace(/\s+/g, "-").toLowerCase()
-      .slice(0, 80) + ".md"
+    return slugifyFilename(titleMatch[1]) + ".md"
   }
   try {
     const { hostname, pathname } = new URL(hint)
@@ -69,6 +67,9 @@ export function BucketDetailPanel({
   const [editing, setEditing] = useState(false)
   const [reindexing, setReindexing] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
+  const [renamingPath, setRenamingPath] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState("")
+  const [renaming, setRenaming] = useState(false)
 
   // Import state
   const [clipUrl, setClipUrl] = useState("")
@@ -157,6 +158,38 @@ export function BucketDetailPanel({
       setReindexing(false)
     }
   }, [bucket.id, bucket.name, refresh, reloadFiles])
+
+  const startRename = useCallback((path: string, currentDisplay: string) => {
+    const name = currentDisplay.endsWith(".md") ? currentDisplay.slice(0, -3) : currentDisplay
+    setRenamingPath(path)
+    setRenameValue(name)
+  }, [])
+
+  const commitRename = useCallback(async () => {
+    if (!renamingPath || !renameValue.trim() || renaming) return
+    setRenaming(true)
+    try {
+      const slugged = slugifyFilename(renameValue)
+      if (!slugged) { setRenaming(false); return }
+      await api.patch(`/api/v1/buckets/${bucket.id}/documents`, {
+        old_path: renamingPath,
+        new_name: slugged,
+      })
+      setRenamingPath(null)
+      setRenameValue("")
+      reloadFiles()
+      toast.success("Document renamed")
+    } catch (err) {
+      toast.error(`Rename failed: ${(err as Error).message}`)
+    } finally {
+      setRenaming(false)
+    }
+  }, [renamingPath, renameValue, renaming, bucket.id, reloadFiles])
+
+  const cancelRename = useCallback(() => {
+    setRenamingPath(null)
+    setRenameValue("")
+  }, [])
 
   const sources = (() => {
     try { return JSON.parse(bucket.sources) as { path: string; glob?: string }[] }
@@ -406,29 +439,84 @@ export function BucketDetailPanel({
 
             {!loadingFiles && files.length > 0 && (
               <div className="border rounded-md overflow-hidden">
-                <div className="grid grid-cols-[1fr_auto] text-xs font-medium text-muted-foreground bg-muted/30 px-3 py-1.5 border-b">
+                <div className="grid grid-cols-[1fr_auto_auto] text-xs font-medium text-muted-foreground bg-muted/30 px-3 py-1.5 border-b">
                   <span>File</span>
-                  <span>Chunks</span>
+                  <span className="pr-6">Chunks</span>
+                  <span />
                 </div>
                 <div className="divide-y">
-                  {files.map((f) => (
-                    <button
-                      key={f.path}
-                      type="button"
-                      className="w-full grid grid-cols-[1fr_auto] items-center px-3 py-2 text-xs hover:bg-accent text-left transition-colors"
-                      onClick={() => onViewFile(f.path)}
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
-                        <span className="truncate">
-                          {f.title || f.path.split("/").pop()}
-                        </span>
+                  {files.map((f) => {
+                    const isVirtual = f.path.startsWith("bucket://")
+                    const display = f.title || f.path.split("/").pop() || f.path
+                    const isRenaming = renamingPath === f.path
+                    return (
+                      <div
+                        key={f.path}
+                        className="grid grid-cols-[1fr_auto_auto] items-center px-3 py-1.5 text-xs hover:bg-accent transition-colors"
+                      >
+                        {isRenaming ? (
+                          <div className="flex items-center gap-1 min-w-0 col-span-3">
+                            <Input
+                              value={renameValue}
+                              onChange={(e) => setRenameValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") void commitRename()
+                                if (e.key === "Escape") cancelRename()
+                              }}
+                              className="h-6 text-xs flex-1"
+                              autoFocus
+                              disabled={renaming}
+                            />
+                            <span className="text-[10px] text-muted-foreground">.md</span>
+                            <button
+                              className="p-0.5 hover:text-green-600 disabled:opacity-50"
+                              onClick={() => void commitRename()}
+                              disabled={renaming || !renameValue.trim()}
+                              aria-label="Confirm rename"
+                            >
+                              {renaming ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                            </button>
+                            <button
+                              className="p-0.5 hover:text-destructive"
+                              onClick={cancelRename}
+                              disabled={renaming}
+                              aria-label="Cancel rename"
+                            >
+                              <XIcon className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              className="flex items-center gap-2 min-w-0 text-left py-0.5"
+                              onClick={() => onViewFile(f.path)}
+                            >
+                              <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
+                              <span className="truncate">{display}</span>
+                            </button>
+                            <span className="text-muted-foreground tabular-nums pr-2">{f.chunk_count}</span>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+                                  onClick={() => isVirtual && startRename(f.path, display)}
+                                  disabled={!isVirtual}
+                                  aria-label={isVirtual ? "Rename document" : "Edit the file on disk and reindex to rename it"}
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {isVirtual ? "Rename document" : "Edit the file on disk and reindex to rename it"}
+                              </TooltipContent>
+                            </Tooltip>
+                          </>
+                        )}
                       </div>
-                      <span className="text-muted-foreground tabular-nums pl-4">
-                        {f.chunk_count}
-                      </span>
-                    </button>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             )}
