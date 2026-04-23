@@ -5,10 +5,13 @@ delegate to the same underlying logic via the plugin's WikiDB and
 compose-override machinery.
 """
 
+import logging
 from pathlib import Path
 
 from app.config import Settings
 from app.config.docker import in_docker, write_compose_override
+
+logger = logging.getLogger(__name__)
 
 TOOL = {
     "name": "wiki_compile_create",
@@ -73,6 +76,6 @@ def handler(name: str, path: str | None = None) -> dict:
             )
             docker_restart_required = write_compose_override(all_configs, project_root)
         except Exception:
-            pass
+            logger.exception("Failed to write compose override for wiki create; docker_restart_required will be False")
 
     return {**record, "docker_restart_required": docker_restart_required}

@@ -132,19 +132,19 @@ search(query: "authentication flow", scope_id: "abc123def456")
 → {results: [...], total, scope_id: "abc123def456"}
 ```
 
-Optionally filter results by tags (OR logic — documents matching any tag are included), scope, or both. Use `list_tags` to discover available tags and `list_scopes` to discover available scopes. When both `scope_id` and `tags` are provided, they are combined.
+Optionally filter results by tags (OR logic — documents matching any tag are included), scope, or both. Use `list_tags` to discover available tags and `list_scopes` to discover available scopes. When both `scope_id` and `tags` are provided, they are combined. `top_k` defaults to the `top_k` value configured in Settings → Search (typically 5), matching the web UI behaviour.
 
 ### search_documents
 
 ```
-search_documents(query: "authentication flow", top_k: 3, max_chars: 15000)
+search_documents(query: "authentication flow", top_k: 5, max_chars: 15000)
 → {documents: [{path, title, content, score}, ...], total_chars}
 
 search_documents(query: "authentication flow", scope_id: "abc123def456")
 → {documents: [...], total_chars, scope_id: "abc123def456"}
 ```
 
-Unlike `search` which returns individual chunks, this returns the **full content** of the top matching files (deduplicated by source path). Ideal for embedding complete documents into prompts. The `max_chars` budget prevents oversized responses — documents are included in score order until the budget is exhausted, with truncation if needed. Accepts `scope_id` and `tags` for filtering.
+Unlike `search` which returns individual chunks, this returns the **full content** of the top matching files (deduplicated by source path). Ideal for embedding complete documents into prompts. The `max_chars` budget prevents oversized responses — documents are included in score order until the budget is exhausted, with truncation if needed. Accepts `scope_id` and `tags` for filtering. `top_k` defaults to the `top_k` value configured in Settings → Search (typically 5), matching the web UI behaviour.
 
 ### plan
 

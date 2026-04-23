@@ -5,8 +5,12 @@ filesystem action the user does themselves. This mirrors the bucket
 delete pattern (data is preserved; only the registration is removed).
 """
 
+import logging
+
 from app.config import Settings
 from app.config.docker import in_docker, write_compose_override
+
+logger = logging.getLogger(__name__)
 
 TOOL = {
     "name": "wiki_compile_delete",
@@ -67,7 +71,7 @@ def handler(name: str) -> dict:
             )
             docker_restart_required = write_compose_override(all_configs, project_root)
         except Exception:
-            pass
+            logger.exception("Failed to write compose override for wiki delete; docker_restart_required will be False")
 
     return {
         "status": "deregistered",

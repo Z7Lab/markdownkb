@@ -136,6 +136,8 @@ def refresh_models(request: Request, req: RefreshModelsRequest):
         req.name,
         req.api_base,
     )
+    if not models:
+        raise HTTPException(status_code=422, detail=status)
     return {"models": models, "status": status}
 
 

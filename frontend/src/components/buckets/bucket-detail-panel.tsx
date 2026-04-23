@@ -158,7 +158,10 @@ export function BucketDetailPanel({
 
   const sources = (() => {
     try { return JSON.parse(bucket.sources) as { path: string; glob?: string }[] }
-    catch { return [] } // malformed sources JSON; treat as empty
+    catch (err) {
+      console.warn(`Malformed sources JSON for bucket "${bucket.name}"; treating as empty.`, err)
+      return []
+    }
   })()
 
   const importing = clipping || uploading

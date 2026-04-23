@@ -72,7 +72,7 @@ export function GenerationParams({
           min={1}
           max={128000}
           value={maxTokens}
-          onChange={(e) => { setMaxTokens(Number(e.target.value)); setDirty(true) }}
+          onChange={(e) => { const v = Number(e.target.value); if (v >= 1) { setMaxTokens(v); setDirty(true) } }}
         />
         <p className="text-xs text-muted-foreground">
           {isOllama ? (

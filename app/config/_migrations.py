@@ -34,6 +34,8 @@ _PLUGIN_FLAG_MAP = {
 def migrate_settings(data: dict) -> bool:
     """Migrate legacy ``features:``/``plugins:`` layout to core/mcp/plugins/services.
 
+    Applied to configs written before v0.4.0. Safe to remove once no pre-0.4.0
+    configs remain in the wild (sentinel: ``"features" not in data``).
     Returns True if migration was performed (caller should save).
     """
     if "features" not in data or "core" in data:
@@ -80,6 +82,8 @@ def migrate_settings(data: dict) -> bool:
 def migrate_num_ctx(data: dict) -> bool:
     """Move legacy top-level ``num_ctx`` into each provider's ``extra_body``.
 
+    Applied to configs written before v0.5.0. Safe to remove once no pre-0.5.0
+    configs remain in the wild (sentinel: ``"num_ctx" not in provider``).
     Returns True if any migration was performed.
     """
     migrated = False

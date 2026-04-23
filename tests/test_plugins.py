@@ -34,13 +34,6 @@ def test_plugin_imports_cleanly(plugin):
         assert hasattr(mod, "FEATURE_FLAG"), f"{plugin} missing FEATURE_FLAG"
 
 
-def test_search_service_helpers_match_router_aliases():
-    """The search plugin extracted helpers; aliases must still resolve."""
-    from app.plugins.search.router import _cfg, _group_results_by_file
-    from app.plugins.search.service import get_search_config, group_results_by_file
-    assert _cfg is get_search_config
-    assert _group_results_by_file is group_results_by_file
-
 
 def test_docmap_cache_key_stable():
     """docmap.service.cache_key produces deterministic tuples."""

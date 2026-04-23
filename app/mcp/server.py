@@ -215,6 +215,7 @@ def _register_resources(server: FastMCP, settings) -> None:
         _scopes = _scopedb.list_scopes()
         _scopedb.close()
     except Exception:
+        logger.exception("Failed to load scopes for MCP resource registration; scope resources will be unavailable")
         _scopes = []
 
     for scope in _scopes:
@@ -274,6 +275,7 @@ def _register_resources(server: FastMCP, settings) -> None:
             _buckets = _bucketdb.list_all()
             _bucketdb.close()
         except Exception:
+            logger.exception("Failed to load buckets for MCP resource registration; bucket resources will be unavailable")
             _buckets = []
 
         for bucket in _buckets:

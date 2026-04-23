@@ -153,10 +153,12 @@ class TestSearchDocuments:
 
     def _make_context(self, retriever, tracking):
         """Build a fake MCP context matching what tools expect."""
+        from tests.conftest import FakeSettings
         ctx = MagicMock()
         ctx.request_context.lifespan_context = {
             "retriever": retriever,
             "tracking": tracking,
+            "settings": FakeSettings(),
         }
         mcp_server = MagicMock()
         mcp_server.get_context.return_value = ctx

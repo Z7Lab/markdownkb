@@ -9,6 +9,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+from app.config import Settings
 from app.mcp.history import record_search
 from app.mcp.scope import resolve_mcp_scope
 from app.rag.retriever import Retriever
@@ -22,7 +23,7 @@ TOOL = {
 _mcp = None  # Injected by register_tools()
 
 
-def handler(query: str, top_k: int = 3, max_chars: int = 15000,
+def handler(query: str, top_k: int | None = None, max_chars: int = 15000,
             tags: list[str] | None = None,
             scope_id: str | None = None) -> dict:
     """Search and return full documents matching a query.
@@ -35,7 +36,8 @@ def handler(query: str, top_k: int = 3, max_chars: int = 15000,
 
     Args:
         query: Search query string.
-        top_k: Maximum number of documents to return (default 3).
+        top_k: Maximum number of documents to return. Defaults to the
+               ``top_k`` value configured in settings (typically 5).
         max_chars: Character budget for total returned content (default
                    15000).  Documents are included in score order until
                    the budget is exhausted.
@@ -50,6 +52,9 @@ def handler(query: str, top_k: int = 3, max_chars: int = 15000,
     deps = ctx.request_context.lifespan_context
     retriever: Retriever = deps["retriever"]
     tracking: TrackingDB = deps["tracking"]
+    settings: Settings = deps["settings"]
+    if top_k is None:
+        top_k = settings.top_k
 
     # Resolve scope + ad-hoc tags into folder filter and allowed paths
     folders_filter, allowed_paths, exclude_patterns = resolve_mcp_scope(

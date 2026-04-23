@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -160,14 +161,14 @@ export function LlmConfig({
     setLoading(true)
     try {
       const res = await onRefreshModels(provider, apiBase)
-      if (res.models.length > 0) {
-        const entries = res.models as ModelEntry[]
-        setModels(entries)
-        if (!userPickedModel.current && !entries.some((m) => m.id === model)) {
-          setModel(entries[0]!.id)
-        }
-        setCustomMode(false)
+      const entries = res.models as ModelEntry[]
+      setModels(entries)
+      if (!userPickedModel.current && !entries.some((m) => m.id === model)) {
+        setModel(entries[0]!.id)
       }
+      setCustomMode(false)
+    } catch (err) {
+      toast.error(`Could not fetch models: ${(err as Error).message}`)
     } finally {
       setLoading(false)
     }

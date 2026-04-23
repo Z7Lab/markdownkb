@@ -12,7 +12,9 @@ function loadSet(key: string): Set<string> {
       const arr = JSON.parse(raw)
       if (Array.isArray(arr)) return new Set(arr)
     }
-  } catch { /* ignore */ }
+  } catch (err) {
+    console.warn(`Failed to parse localStorage filter state for key "${key}"; resetting to empty.`, err)
+  }
   return new Set()
 }
 

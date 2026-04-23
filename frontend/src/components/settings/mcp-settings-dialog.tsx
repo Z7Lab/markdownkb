@@ -122,7 +122,7 @@ export function McpSettingsDialog({
               id="max_tags"
               type="number"
               value={config.max_tags as number || 7}
-              onChange={(e) => updateField("max_tags", parseInt(e.target.value))}
+              onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v)) updateField("max_tags", v) }}
               min={1}
               max={20}
             />
@@ -136,7 +136,7 @@ export function McpSettingsDialog({
               id="content_preview_length"
               type="number"
               value={config.content_preview_length as number || 1000}
-              onChange={(e) => updateField("content_preview_length", parseInt(e.target.value))}
+              onChange={(e) => { const v = parseInt(e.target.value, 10); if (!isNaN(v)) updateField("content_preview_length", v) }}
               min={100}
               max={5000}
             />

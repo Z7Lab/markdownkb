@@ -100,7 +100,11 @@ export function PromoteDialog({
 
     // Load wikis + writable sources in parallel.
     Promise.all([
-      api.get<{ wikis: WikiRecord[] }>("/api/v1/wiki-compile/wikis").catch(() => ({ wikis: [] })),
+      api.get<{ wikis: WikiRecord[] }>("/api/v1/wiki-compile/wikis")
+        .catch((err: Error) => {
+          toast.error(`Could not load wikis: ${err.message}`)
+          return { wikis: [] as WikiRecord[] }
+        }),
       api.get<{ sources: string[] }>("/api/v1/sources"),
       api.get<{ source_configs?: { path: string; writable: boolean }[] }>("/api/v1/settings"),
     ]).then(([wikisResp, , settingsResp]) => {

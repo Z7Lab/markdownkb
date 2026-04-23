@@ -15,11 +15,11 @@ let cached: boolean | null = null
 let inflight: Promise<boolean> | null = null
 
 async function probe(): Promise<boolean> {
-  if (cached !== null) return cached
+  if (cached === true) return true
   if (inflight) return inflight
   inflight = api.get<{ wikis: unknown[] }>("/api/v1/wiki-compile/wikis")
     .then(() => { cached = true; return true })
-    .catch(() => { cached = false; return false })
+    .catch(() => false)  // transient error: don't cache, allow retry on next mount
     .finally(() => { inflight = null })
   return inflight
 }

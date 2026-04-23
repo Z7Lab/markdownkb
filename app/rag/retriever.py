@@ -124,7 +124,7 @@ class Retriever:
             if excluded:
                 results = [
                     r for r in results
-                    if r.metadata.get("source_path") not in excluded
+                    if r.metadata.get("source_path", "") not in excluded
                 ]
 
         # Filter by threshold and limit

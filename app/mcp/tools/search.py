@@ -1,5 +1,6 @@
 """MCP tool: search the knowledge base via hybrid vector + keyword search."""
 
+from app.config import Settings
 from app.mcp.history import record_search
 from app.mcp.scope import resolve_mcp_scope
 from app.rag.retriever import Retriever
@@ -12,7 +13,7 @@ TOOL = {
 _mcp = None  # Injected by register_tools()
 
 
-def handler(query: str, top_k: int = 5, tags: list[str] | None = None,
+def handler(query: str, top_k: int | None = None, tags: list[str] | None = None,
             scope_id: str | None = None) -> dict:
     """Search the knowledge base using hybrid vector + keyword search.
 
@@ -23,7 +24,8 @@ def handler(query: str, top_k: int = 5, tags: list[str] | None = None,
 
     Args:
         query: Search query string.
-        top_k: Maximum number of results to return (default 5).
+        top_k: Maximum number of results to return. Defaults to the
+               ``top_k`` value configured in settings (typically 5).
         tags: Optional list of tags to filter by (OR logic — documents
               matching any tag are included).  Use the list_tags tool
               to discover available tags.
@@ -34,6 +36,9 @@ def handler(query: str, top_k: int = 5, tags: list[str] | None = None,
     ctx = _mcp.get_context()
     deps = ctx.request_context.lifespan_context
     retriever: Retriever = deps["retriever"]
+    settings: Settings = deps["settings"]
+    if top_k is None:
+        top_k = settings.top_k
 
     # Resolve scope + ad-hoc tags into folder filter and allowed paths
     folders_filter, allowed_paths, exclude_patterns = resolve_mcp_scope(

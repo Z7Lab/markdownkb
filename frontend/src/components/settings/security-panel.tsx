@@ -78,12 +78,14 @@ function StatusIcon({ status }: { status: CheckStatus }) {
 export function SecurityPanel() {
   const [check, setCheck] = useState<SecurityCheck | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const load = () => {
     setLoading(true)
+    setError(null)
     api.get<SecurityCheck>("/api/v1/settings/security-check")
-      .then(setCheck)
-      .catch(() => { /* best-effort */ })
+      .then((data) => { setCheck(data); setError(null) })
+      .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false))
   }
 
@@ -106,7 +108,11 @@ export function SecurityPanel() {
         </Button>
       </div>
 
-      {check && (
+      {error && (
+        <p className="text-sm text-destructive">Security check failed: {error}</p>
+      )}
+
+      {!error && check && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">

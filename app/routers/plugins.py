@@ -118,7 +118,8 @@ def _check_system_dependencies(manifest: dict) -> list[dict]:
 def _build_plugin_response(entry: dict, settings: Settings) -> dict:
     """Build a rich plugin info dict from a registry entry."""
     manifest = entry.get("manifest") or {}
-    feature_flag = entry.get("feature_flag") or manifest.get("feature_flag", "")
+    entry_flag = entry.get("feature_flag")
+    feature_flag = entry_flag if entry_flag is not None else manifest.get("feature_flag", "")
 
     dep_status = _check_system_dependencies(manifest)
     missing_required = [d for d in dep_status if d["required"] and not d["available"]]

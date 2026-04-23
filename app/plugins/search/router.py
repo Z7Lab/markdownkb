@@ -28,11 +28,6 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["search"])
 
 
-# Backwards-compatible aliases for the service helpers; any call site may
-# migrate to the ``app.plugins.search.service`` module directly.
-_cfg = get_search_config
-_group_results_by_file = group_results_by_file
-
 
 @router.post("/search")
 @limiter.limit(HEAVY)
@@ -46,7 +41,7 @@ def search(
     tracking: TrackingDB = Depends(get_tracking),
 ):
     """Search the vector database with optional intelligent query enhancement."""
-    cfg = _cfg(settings)
+    cfg = get_search_config(settings)
     ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
     scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
     allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
@@ -118,7 +113,7 @@ def search(
         chunk_results = filtered
 
     # Group chunks by file for cleaner results
-    grouped_results = _group_results_by_file(chunk_results)
+    grouped_results = group_results_by_file(chunk_results)
 
     # Limit to top_k files (not chunks)
     grouped_results = grouped_results[:top_k]
@@ -243,7 +238,7 @@ def compare_historical_search(
     if not search_record:
         raise HTTPException(status_code=404, detail="Search not found")
 
-    cfg = _cfg(settings)
+    cfg = get_search_config(settings)
     # Re-run search with current KB state for comparison
     raw_query = search_record["query"]
     cmp_phrases: list[str] = []
@@ -263,7 +258,7 @@ def compare_historical_search(
     )
     if cmp_phrases:
         chunk_results = [r for r in chunk_results if all(p in r.document.lower() for p in cmp_phrases)]
-    current_grouped_results = _group_results_by_file(chunk_results)
+    current_grouped_results = group_results_by_file(chunk_results)
     current_grouped_results = current_grouped_results[:settings.top_k]
 
     # Compare stored vs current for change detection
@@ -356,7 +351,7 @@ def summarize_search(
     tracking: TrackingDB = Depends(get_tracking),
 ):
     """Generate AI summary of search results with streaming response."""
-    cfg = _cfg(settings)
+    cfg = get_search_config(settings)
     ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
     scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
     allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
@@ -457,9 +452,9 @@ def summarize_search(
             searchdb.update_summary(req.search_id, last_yielded)
             logger.info("Saved summary for search %s", req.search_id)
 
-        active_cfg = settings.get_active_llm_config()
+        activeget_search_config = settings.get_active_llm_config()
         yield sse("done", {
-            "model": active_cfg.get("model", ""),
+            "model": activeget_search_config.get("model", ""),
             "provider": settings.active_provider,
         })
 
