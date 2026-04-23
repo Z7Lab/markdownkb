@@ -12,6 +12,7 @@ export function useBucketChat(bucketId: string) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const controllerRef = useRef<AbortController | null>(null)
+  const threadIdRef = useRef<string | null>(null)
   const streamContentRef = useRef("")
   const flushTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -53,7 +54,7 @@ export function useBucketChat(bucketId: string) {
     controllerRef.current = streamChat(
       text,
       {
-        onThread() {},
+        onThread(threadId) { threadIdRef.current = threadId },
         onToken(content) { streamContentRef.current += content },
         onSources(sources, sourceMap) {
           setMessages((prev) => {
@@ -71,7 +72,7 @@ export function useBucketChat(bucketId: string) {
           cleanup()
         },
       },
-      null,
+      threadIdRef.current,
       null,
       null,
       bucketId,
@@ -85,6 +86,7 @@ export function useBucketChat(bucketId: string) {
 
   const clear = useCallback(() => {
     stop()
+    threadIdRef.current = null
     setMessages([])
   }, [stop])
 
