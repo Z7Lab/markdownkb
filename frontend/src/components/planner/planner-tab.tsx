@@ -18,6 +18,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react"
 import { useLocation } from "wouter"
 import { EmptyHero } from "@/components/ui/empty-hero"
 import { PromoteDialog } from "@/components/wiki/promote-dialog"
+import { downloadMarkdown } from "@/lib/utils"
 
 export function PlannerTab({ defaultPlanId }: { defaultPlanId?: string } = {}) {
   const [currentLocation, setLocation] = useLocation()
@@ -93,13 +94,7 @@ export function PlannerTab({ defaultPlanId }: { defaultPlanId?: string } = {}) {
   function handleDownload() {
     const content = isRefined && refinedPlan ? refinedPlan : plan
     if (!content) return
-    const blob = new Blob([content], { type: "text/markdown" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `plan-${query.slice(0, 40).replace(/[^a-zA-Z0-9]+/g, "-")}.md`
-    a.click()
-    URL.revokeObjectURL(url)
+    downloadMarkdown(content, `plan-${query.slice(0, 40).replace(/[^a-zA-Z0-9]+/g, "-")}`)
   }
 
   const hasResults = plan || approaches.length > 0

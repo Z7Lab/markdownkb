@@ -87,6 +87,16 @@ export function parseFrontmatter(raw: string): ParsedFrontmatter {
   return { tags: [], content: content! }
 }
 
+export function downloadMarkdown(content: string, filename: string): void {
+  const blob = new Blob([content], { type: "text/markdown" })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = filename.endsWith(".md") ? filename : `${filename}.md`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 /**
  * Copy text to clipboard with fallback for non-secure contexts (e.g. LAN access over HTTP).
  * Returns true if the copy succeeded.

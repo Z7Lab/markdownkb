@@ -1,9 +1,22 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
-import { X } from "lucide-react"
+import { X, Download } from "lucide-react"
 import { ChatMessageList } from "@/components/chat/chat-message-list"
 import { ChatInput } from "@/components/chat/chat-input"
 import { useBucketChat } from "@/hooks/use-bucket-chat"
+import { downloadMarkdown } from "@/lib/utils"
+import type { ChatMessage } from "@/lib/types"
+
+function formatTranscript(bucketName: string, messages: ChatMessage[]): string {
+  const date = new Date().toLocaleDateString()
+  const lines = [`# Chat: ${bucketName} (${date})`, ""]
+  for (const msg of messages) {
+    if (!msg.content) continue
+    lines.push(msg.role === "user" ? `**You:** ${msg.content}` : `**Assistant:** ${msg.content}`)
+    lines.push("")
+  }
+  return lines.join("\n")
+}
 
 export function BucketChatDrawer({
   open,
@@ -23,15 +36,28 @@ export function BucketChatDrawer({
       <SheetContent side="right" className="w-[420px] sm:w-[520px] flex flex-col p-0 gap-0" showCloseButton={false}>
         <SheetHeader className="flex flex-row items-center justify-between px-4 py-3 border-b shrink-0">
           <SheetTitle className="text-sm font-medium truncate">{bucketName}</SheetTitle>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"
-            onClick={onClose}
-            aria-label="Close chat"
-          >
-            <X className="h-3.5 w-3.5" />
-          </Button>
+          <div className="flex items-center gap-0.5 shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              onClick={() => downloadMarkdown(formatTranscript(bucketName, messages), `chat-${bucketName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`)}
+              disabled={messages.length === 0}
+              aria-label="Download transcript"
+              title="Download transcript"
+            >
+              <Download className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              onClick={onClose}
+              aria-label="Close chat"
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </SheetHeader>
         <div className="flex-1 min-h-0 overflow-y-auto">
           <ChatMessageList messages={messages} isStreaming={isStreaming} bucketId={bucketId} />
