@@ -102,7 +102,7 @@ def _sync_bucket_compose(settings: Settings, svc: BucketService) -> bool:
 
 
 def _collect_bucket_mount_paths(svc: BucketService) -> list[str]:
-    """Return the set of unique directory paths needed for Docker mounts across all buckets."""
+    """Return the set of unique source paths needed for Docker mounts across all buckets."""
     paths: list[str] = []
     seen: set[str] = set()
     for bucket in svc.db.list_all():
@@ -111,12 +111,10 @@ def _collect_bucket_mount_paths(svc: BucketService) -> list[str]:
             raw = src.get("path", "")
             if not raw:
                 continue
-            p = Path(raw)
-            # Mount the directory containing the path (file or dir)
-            mount = str(p if p.is_dir() else p.parent)
-            if mount not in seen:
-                seen.add(mount)
-                paths.append(mount)
+            resolved = str(Path(raw).resolve())
+            if resolved not in seen:
+                seen.add(resolved)
+                paths.append(resolved)
     return paths
 
 
@@ -168,14 +166,16 @@ def create_bucket(
         record = svc.create(req.name, sources, req.expires_in, color=color, description=req.description)
 
         # In Docker, paths that aren't mounted need to be added to compose.override.yml.
+        # Check the source path itself (not the parent) — a sibling mount can make the
+        # parent appear to exist as a Docker-internal directory while the target path is
+        # still inaccessible.
         docker_restart_required = False
         if in_docker():
             changed = False
             for src in req.sources:
-                p = Path(src.path)
-                mount = str(p if p.is_dir() else p.parent)
-                if not Path(mount).exists():
-                    if settings.add_bucket_mount(mount):
+                resolved = str(Path(src.path).resolve())
+                if not Path(resolved).exists():
+                    if settings.add_bucket_mount(resolved):
                         changed = True
             if changed:
                 settings.save()
@@ -389,6 +389,11 @@ def search_bucket(
     settings: Settings = Depends(get_settings),
 ):
     """Search within a bucket."""
+    record = svc.db.resolve(bucket_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Bucket not found")
+    if record.get("expired"):
+        raise HTTPException(status_code=410, detail="Bucket has expired — delete it or extend its expiry")
     try:
         return svc.search(bucket_id, req.query, req.top_k, settings)
     except ValueError as e:
@@ -406,6 +411,11 @@ def chat_bucket(
     settings: Settings = Depends(get_settings),
 ):
     """RAG chat scoped to a bucket."""
+    record = svc.db.resolve(bucket_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Bucket not found")
+    if record.get("expired"):
+        raise HTTPException(status_code=410, detail="Bucket has expired — delete it or extend its expiry")
     try:
         return svc.chat(bucket_id, req.message, settings)
     except ValueError as e:
@@ -428,6 +438,8 @@ def reindex_bucket(
     record = svc.db.resolve(bucket_id)
     if not record:
         raise HTTPException(status_code=404, detail="Bucket not found")
+    if record.get("expired"):
+        raise HTTPException(status_code=410, detail="Bucket has expired — delete it or extend its expiry")
     sources = json.loads(record.get("sources", "[]"))
     if not sources:
         return {"added_files": 0, "added_chunks": 0, "message": "No sources configured"}

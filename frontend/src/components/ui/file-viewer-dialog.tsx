@@ -26,9 +26,11 @@ import { HistoryDialog } from "@/components/versioning/history-dialog"
 export function FileViewerDialog({
   path,
   onClose,
+  bucketId,
 }: {
   path: string | null
   onClose: () => void
+  bucketId?: string | null
 }) {
   const {
     rawContent, loading, actionLoading, fileStatus,
@@ -37,7 +39,7 @@ export function FileViewerDialog({
     page, totalPages, totalLines, fileTags, copyingAll,
     fetchPage, handleSaveTags, handleToggleRag,
     handleIndexFile, handleReindexFile, handleUnindexFile, handleCopyContent,
-  } = useFileViewer(path)
+  } = useFileViewer(path, bucketId)
 
   const {
     containerRef: searchContainerRef,

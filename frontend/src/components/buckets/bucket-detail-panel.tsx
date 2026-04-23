@@ -278,9 +278,9 @@ export function BucketDetailPanel({
           )}
 
           {/* Sources */}
-          {sources.length > 0 && (
-            <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1">Sources</p>
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-1">Sources</p>
+            {sources.length > 0 ? (
               <div className="space-y-1">
                 {sources.map((s, i) => (
                   <div key={i}>
@@ -290,12 +290,14 @@ export function BucketDetailPanel({
                         <span className="text-muted-foreground/60 ml-2">{s.glob}</span>
                       )}
                     </p>
-                    <BucketPathStatus path={s.path} />
+                    <BucketPathStatus path={s.path} context="view" />
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-xs text-muted-foreground">No local sources — add content via upload or URL clip.</p>
+            )}
+          </div>
 
           {/* Import */}
           <div className="space-y-2">

@@ -419,7 +419,7 @@ Ingest into a wiki:
 
 Requires `plugins.buckets.enabled: true`. Plugin: `app/plugins/buckets/`.
 
-Temporary scoped document collections with independent vector storage. Each bucket gets its own ChromaDB collection for isolated search and RAG chat. Expired buckets are automatically cleaned up on startup.
+Temporary scoped document collections with independent vector storage. Each bucket gets its own ChromaDB collection for isolated search and RAG chat. Expired buckets are flagged on startup but not deleted — they remain visible until manually removed.
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -427,8 +427,8 @@ Temporary scoped document collections with independent vector storage. Each buck
 | POST | `/api/v1/buckets` | Create a new bucket from source paths |
 | GET | `/api/v1/buckets/{id}` | Get bucket details |
 | DELETE | `/api/v1/buckets/{id}` | Delete a bucket and its vector data |
-| POST | `/api/v1/buckets/{id}/search` | Search within a bucket |
-| POST | `/api/v1/buckets/{id}/chat` | RAG chat scoped to a bucket |
+| POST | `/api/v1/buckets/{id}/search` | Search within a bucket. Returns 410 if the bucket is expired. |
+| POST | `/api/v1/buckets/{id}/chat` | RAG chat scoped to a bucket. Returns 410 if the bucket is expired. |
 | POST | `/api/v1/buckets/{id}/add` | Add documents to an existing bucket (skips duplicates) |
 | POST | `/api/v1/buckets/{id}/documents` | Push documents by content (no filesystem access needed) |
 | GET | `/api/v1/buckets/{id}/file` | Read full content of a bucket file (reconstructed from chunks). Query param: `path`. |

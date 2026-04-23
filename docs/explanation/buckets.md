@@ -111,11 +111,18 @@ Any combination of fields can be sent — only the fields present in the request
 Buckets can be permanent (no `expires_in`) or set to expire:
 
 - **Permanent** — stays until you explicitly delete it. The built-in docs bucket is permanent.
-- **Expiring** — when the expiry time passes, the bucket is flagged as **expired** and stops being indexed. It is **not automatically deleted** — it remains visible in the UI with an "expired" badge until you delete it manually.
+- **Expiring** — when the expiry time passes, the bucket is flagged as **expired**. It is **not automatically deleted** — it remains visible in the Buckets tab with an "expired" badge until you delete it manually.
 
-This means you won't silently lose a bucket you wanted to keep. Expired buckets are still browsable — their files and vector data remain intact.
+Once expired, a bucket is inert:
+- It no longer appears in the bucket selector in Chat, Search, Planner, or Doc Map — it cannot be searched or chatted with
+- Reindex is blocked
+- The detail panel still shows its files so you can review content before deleting
 
-**Settings panel history:** Settings > Buckets shows a sortable table of all buckets with their status (Active, Expiring soon, Expired). You can delete any bucket from this table, including expired ones. Bucket creation is on the Buckets tab — the Settings panel is management-only.
+To recover an expired bucket, edit it and set a new expiration (or remove it to make it permanent). This clears the expired flag and restores full access.
+
+To permanently remove it, click the **trash icon** in the bucket detail panel header, or delete it from **Settings > Buckets**.
+
+**Settings > Buckets** shows a sortable table of all buckets with their status (Active, Expiring soon, Expired). You can delete any bucket from this table. Bucket creation is on the Buckets tab — the Settings panel is management-only.
 
 ## Bucket Colors
 
@@ -150,7 +157,43 @@ This is the most powerful mode. Use cases:
 
 ## Adding Documents
 
-You can add documents to an existing bucket without recreating it:
+There are two ways to add content to a bucket. They can be mixed freely — a bucket can have both a local source path and imported documents.
+
+### From a filesystem path (local sources)
+
+Set a **source path** when creating the bucket. MarkdownKB scans the path for markdown files matching the glob pattern, embeds them, and indexes them into the bucket's collection. The source path is recorded and you can **Reindex** later to pick up new files. In Docker, paths outside the container require a volume mount — see [Docker deployment](../how-to/docker-deployment.md).
+
+Use this when the documents live on disk and you want the bucket to reflect the current state of that directory.
+
+### Via upload or URL clip (no local path needed)
+
+From the bucket detail panel, you can import content directly without any filesystem path:
+
+- **URL clip** — paste a URL (article, YouTube video, documentation page) into the import field and click **Clip**. The converter plugin fetches and converts the page to markdown, then stores it in the bucket. Requires the `converter` plugin.
+- **File upload** — drag files into the drop zone or click to browse. Supported formats include PDF, Word, PowerPoint, Excel, EPUB, HTML, and more. Each file is converted to markdown and stored in the bucket. Requires the `converter` plugin.
+
+Uploaded and clipped documents are stored as **virtual documents** — they exist only as vectors in ChromaDB with paths like `bucket://bucket-name/filename.md`. There is no file on disk. They are permanent members of the bucket and survive reindexes. They do not require a source path or Docker mount.
+
+Use this when you want to quickly load external content without managing files on disk — articles you've found, PDFs sent to you, pages you want to reference in a session.
+
+### Via the API (content push)
+
+The API supports pushing markdown content directly, without any files on disk:
+
+```json
+POST /api/v1/buckets/{id}/documents
+{
+  "documents": [
+    {"name": "api-reference.md", "content": "# API Reference\n\n..."}
+  ]
+}
+```
+
+Pushed documents work identically to UI uploads — virtual paths, no filesystem. Designed for remote agents and integrations. Also available via the `bucket_push` MCP tool.
+
+### Adding more filesystem sources
+
+To add another source path to an existing bucket without recreating it:
 
 ```json
 POST /api/v1/buckets/{id}/add
@@ -164,21 +207,6 @@ Duplicate files (same path) are skipped.
 ### Reading files back
 
 You can read the full content of any bucket file (filesystem-sourced or pushed) via `GET /api/v1/buckets/{id}/file?path=...` or the `bucket_read_file` MCP tool. Content is reconstructed from stored chunks.
-
-### Content push (no filesystem access)
-
-Buckets can also be populated by pushing document content directly over the API, without any files on disk:
-
-```json
-POST /api/v1/buckets/{id}/documents
-{
-  "documents": [
-    {"name": "api-reference.md", "content": "# API Reference\n\n..."}
-  ]
-}
-```
-
-Pushed documents exist only as vectors in ChromaDB with virtual paths like `bucket://bucket-name/api-reference.md`. This is designed for remote agents and integrations that cannot write files to the MarkdownKB host. The same capability is available via the `bucket_push` MCP tool.
 
 ## MCP Tools
 

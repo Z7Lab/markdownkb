@@ -13,10 +13,12 @@ export function BucketSelector({
   selectedBucketIds: Set<string>
   onBucketChange: (ids: Set<string>) => void
 }) {
+  const activeBuckets = buckets.filter((b) => !b.expired)
+
   // Clear stale bucket selections (expired/deleted buckets)
   useEffect(() => {
     if (selectedBucketIds.size === 0) return
-    const validIds = new Set(buckets.map((b) => b.id))
+    const validIds = new Set(activeBuckets.map((b) => b.id))
     const stale = Array.from(selectedBucketIds).filter((id) => !validIds.has(id))
     if (stale.length > 0) {
       const next = new Set(selectedBucketIds)
@@ -25,7 +27,7 @@ export function BucketSelector({
     }
   }, [selectedBucketIds, buckets, onBucketChange])
 
-  if (buckets.length === 0) return null
+  if (activeBuckets.length === 0) return null
 
   function toggle(id: string, checked: boolean) {
     const next = new Set(selectedBucketIds)
@@ -34,7 +36,7 @@ export function BucketSelector({
     onBucketChange(next)
   }
 
-  const selectedNames = buckets
+  const selectedNames = activeBuckets
     .filter((b) => selectedBucketIds.has(b.id))
     .map((b) => b.name)
     .join(", ")
@@ -47,7 +49,7 @@ export function BucketSelector({
       summary={selectedNames || undefined}
     >
       <div className="space-y-0.5 pl-2">
-        {buckets.map((b) => (
+        {activeBuckets.map((b) => (
           <label
             key={b.id}
             className="flex items-center gap-2 px-1 py-1 rounded hover:bg-accent cursor-pointer text-xs"

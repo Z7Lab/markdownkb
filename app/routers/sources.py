@@ -76,7 +76,9 @@ def check_path(request: Request, path: str, settings: Settings = Depends(get_set
 
     if not accessible and docker:
         saved_paths = {c["path"] for c in settings.source_configs + settings.project_root_source_configs}
-        result["already_configured"] = resolved in saved_paths
+        bucket_mounts = [c["path"] for c in settings.bucket_mount_configs]
+        in_bucket_mount = any(resolved == mp or resolved.startswith(mp + "/") for mp in bucket_mounts)
+        result["already_configured"] = (resolved in saved_paths) or in_bucket_mount
 
     return result
 

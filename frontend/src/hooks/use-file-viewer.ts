@@ -45,7 +45,7 @@ export interface UseFileViewerReturn {
   handleCopyContent: (isMarkdown: boolean) => Promise<void>
 }
 
-export function useFileViewer(path: string | null): UseFileViewerReturn {
+export function useFileViewer(path: string | null, bucketId?: string | null): UseFileViewerReturn {
   const [rawContent, setRawContent] = useState("")
   const [loading, setLoading] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
@@ -61,18 +61,36 @@ export function useFileViewer(path: string | null): UseFileViewerReturn {
   const fetchPage = useCallback(async (filePath: string, pageNum: number, signal?: AbortSignal) => {
     setLoading(true)
     try {
-      const res = await api.get<FileReadResponse>(
-        `/api/v1/file?path=${encodeURIComponent(filePath)}&page=${pageNum}&page_size=${PAGE_SIZE}`,
-        signal,
-      )
+      let content: string
+      let totalPagesVal = 1
+      let totalLinesVal = 0
+      let pageVal = pageNum
+
+      if (bucketId) {
+        const data = await api.get<{ path: string; title: string; content: string; chunk_count: number }>(
+          `/api/v1/buckets/${bucketId}/file?path=${encodeURIComponent(filePath)}`,
+          signal,
+        )
+        content = data.content
+        totalLinesVal = content.split("\n").length
+      } else {
+        const res = await api.get<FileReadResponse>(
+          `/api/v1/file?path=${encodeURIComponent(filePath)}&page=${pageNum}&page_size=${PAGE_SIZE}`,
+          signal,
+        )
+        content = res.content
+        pageVal = res.page ?? pageNum
+        totalPagesVal = res.total_pages ?? 1
+        totalLinesVal = res.total_lines ?? 0
+      }
+
       if (signal?.aborted) return
-      setRawContent(res.content)
-      setPage(res.page ?? pageNum)
-      setTotalPages(res.total_pages ?? 1)
-      setTotalLines(res.total_lines ?? 0)
-      // Parse and persist tags from page 1 (frontmatter only appears on first page)
+      setRawContent(content)
+      setPage(pageVal)
+      setTotalPages(totalPagesVal)
+      setTotalLines(totalLinesVal)
       if (pageNum === 1 && filePath.endsWith(".md")) {
-        const { tags } = parseFrontmatter(res.content)
+        const { tags } = parseFrontmatter(content)
         setFileTags(tags)
       }
     } catch {
@@ -83,7 +101,7 @@ export function useFileViewer(path: string | null): UseFileViewerReturn {
     } finally {
       if (!signal?.aborted) setLoading(false)
     }
-  }, [])
+  }, [bucketId])
 
   useEffect(() => {
     if (!path) return
@@ -97,22 +115,24 @@ export function useFileViewer(path: string | null): UseFileViewerReturn {
 
     fetchPage(path, 1, controller.signal)
 
-    api
-      .get<{ path: string; status: string; include_rag: number; chunk_count: number }>(
-        `/api/v1/file/status?path=${encodeURIComponent(path)}`,
-        controller.signal,
-      )
-      .then((res) => {
-        if (controller.signal.aborted) return
-        setFileStatus({ status: res.status, include_rag: res.include_rag, chunk_count: res.chunk_count })
-      })
-      .catch(() => {
-        if (controller.signal.aborted) return
-        setFileStatus(INITIAL_STATUS)
-      })
+    if (!bucketId) {
+      api
+        .get<{ path: string; status: string; include_rag: number; chunk_count: number }>(
+          `/api/v1/file/status?path=${encodeURIComponent(path)}`,
+          controller.signal,
+        )
+        .then((res) => {
+          if (controller.signal.aborted) return
+          setFileStatus({ status: res.status, include_rag: res.include_rag, chunk_count: res.chunk_count })
+        })
+        .catch(() => {
+          if (controller.signal.aborted) return
+          setFileStatus(INITIAL_STATUS)
+        })
+    }
 
     return () => controller.abort()
-  }, [path, fetchPage])
+  }, [path, bucketId, fetchPage])
 
   const refreshFileStatus = async () => {
     if (!path) return
@@ -184,8 +204,14 @@ export function useFileViewer(path: string | null): UseFileViewerReturn {
     if (!path) return
     setCopyingAll(true)
     try {
-      const res = await api.get<FileReadResponse>(`/api/v1/file?path=${encodeURIComponent(path)}`)
-      const fullContent = isMarkdown ? parseFrontmatter(res.content).content : res.content
+      let fullContent: string
+      if (bucketId) {
+        const data = await api.get<{ content: string }>(`/api/v1/buckets/${bucketId}/file?path=${encodeURIComponent(path)}`)
+        fullContent = data.content
+      } else {
+        const res = await api.get<FileReadResponse>(`/api/v1/file?path=${encodeURIComponent(path)}`)
+        fullContent = isMarkdown ? parseFrontmatter(res.content).content : res.content
+      }
       const ok = await copyToClipboard(fullContent)
       if (ok) {
         toast.success("File content copied to clipboard")

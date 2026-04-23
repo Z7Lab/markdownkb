@@ -13,7 +13,7 @@ export function BucketsTab() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
-  const [viewingPath, setViewingPath] = useState<string | null>(null)
+  const [viewing, setViewing] = useState<{ path: string; bucketId: string } | null>(null)
 
   // Poll for updates — faster when any bucket is indexing (pauses when tab hidden)
   const anyIndexing = buckets.some((b) => b.indexing)
@@ -78,7 +78,7 @@ export function BucketsTab() {
           <BucketDetailPanel
             bucket={selectedBucket}
             onDelete={setConfirmDelete}
-            onViewFile={(path) => setViewingPath(path)}
+            onViewFile={(path) => setViewing({ path, bucketId: selectedBucket.id })}
             updateBucket={updateBucket}
             exportBucket={exportBucket}
             promoteBucket={promoteBucket}
@@ -92,8 +92,9 @@ export function BucketsTab() {
       </div>
 
       <FileViewerDialog
-        path={viewingPath}
-        onClose={() => setViewingPath(null)}
+        path={viewing?.path ?? null}
+        bucketId={viewing?.bucketId}
+        onClose={() => setViewing(null)}
       />
 
       <ConfirmDialog

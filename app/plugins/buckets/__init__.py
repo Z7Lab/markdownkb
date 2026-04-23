@@ -137,6 +137,45 @@ def _ensure_docs_bucket(svc) -> None:
         logger.exception("Failed to create docs bucket")
 
 
+def _sync_missing_bucket_mounts(svc, settings) -> None:
+    """Ensure every bucket source path has a Docker volume mount configured.
+
+    Paths not accessible inside Docker indicate a missing mount entry. Adding them
+    here and rewriting compose.override.yml means the user only needs one more
+    `make docker-down && make docker-up` to recover.
+    """
+    import json as _json
+    from app.config.docker import in_docker, write_compose_override
+
+    if not in_docker():
+        return
+
+    changed = False
+    for bucket in svc.db.list_all():
+        sources = _json.loads(bucket.get("sources", "[]"))
+        for src in sources:
+            raw = src.get("path", "")
+            if not raw:
+                continue
+            resolved = str(Path(raw).resolve())
+            if not Path(resolved).exists() and settings.add_bucket_mount(resolved):
+                logger.info("Added missing bucket mount to config: %s — restart Docker to apply", resolved)
+                changed = True
+
+    if changed:
+        settings.save()
+        try:
+            project_root = settings._path.resolve().parent.parent
+            all_configs = (
+                settings.source_configs
+                + settings.project_root_source_configs
+                + settings.bucket_mount_configs
+            )
+            write_compose_override(all_configs, project_root)
+        except Exception:
+            logger.debug("Could not sync compose.override.yml for bucket mounts", exc_info=True)
+
+
 def on_startup(app) -> None:
     """Initialize BucketDB and BucketService, clean up expired buckets."""
     from app.plugins.buckets.bucket_service import BucketService
@@ -150,10 +189,13 @@ def on_startup(app) -> None:
     svc = BucketService(bucketdb, chromadb_dir, settings.embedding_model, remote_config=settings.embedding_remote_config)
     app.state.bucket_service = svc
 
-    # Clean up expired buckets on startup
-    cleaned = svc.cleanup_expired()
-    if cleaned:
-        logger.info("Cleaned up %d expired bucket(s) on startup", cleaned)
+    # Ensure every bucket source path is represented in Docker mounts config.
+    _sync_missing_bucket_mounts(svc, settings)
+
+    # Flag newly expired buckets on startup (does not delete them)
+    flagged = svc.flag_expired()
+    if flagged:
+        logger.info("Flagged %d expired bucket(s) on startup", flagged)
 
     # Create the built-in documentation bucket on first run (background)
     import threading
