@@ -41,7 +41,7 @@ export function useBucketChat(bucketId: string) {
 
   useEffect(() => () => { cleanup() }, [cleanup])
 
-  const send = useCallback((text: string) => {
+  const send = useCallback((text: string, filePaths?: string[] | null) => {
     if (!text.trim() || isStreaming) return
 
     const userMsg: ChatMessage = { id: nextId(), role: "user", content: text }
@@ -76,6 +76,7 @@ export function useBucketChat(bucketId: string) {
       null,
       null,
       bucketId,
+      filePaths ?? null,
     )
   }, [isStreaming, bucketId, cleanup, flushStreamContent])
 

@@ -210,6 +210,7 @@ def chat_respond(message: str, retriever: Retriever,
                  allowed_paths: set[str] | None = None,
                  exclude_patterns: list[str] | None = None,
                  bucket_retrievers: list[Retriever] | None = None,
+                 bucket_allowed_paths: set[str] | None = None,
                  sources_out: list[str] | None = None,
                  source_map_out: dict[str, str] | None = None,
                  conversation_history: ConversationHistory | None = None,
@@ -234,7 +235,7 @@ def chat_respond(message: str, retriever: Retriever,
     # Merge bucket results when both scope and bucket(s) are active
     if bucket_retrievers:
         for br in bucket_retrievers:
-            bucket_results = br.search(search_query)
+            bucket_results = br.search(search_query, allowed_paths=bucket_allowed_paths)
             for r in bucket_results:
                 r.metadata["_bucket"] = "true"
             results = results + bucket_results

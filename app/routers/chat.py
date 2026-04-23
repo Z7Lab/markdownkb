@@ -105,6 +105,8 @@ def chat_stream(
         # - both: use main retriever with scope filters + bucket retrievers merged
         bucket_only = chat_scope.bucket_only
 
+        bucket_allowed_paths = set(req.bucket_file_paths) if req.bucket_file_paths else None
+
         inner = chat_respond(
             req.message,
             bucket_retrievers[0] if bucket_only else retriever,
@@ -112,9 +114,10 @@ def chat_stream(
             chatdb=chatdb,
             thread_id=thread_id,
             folders_filter=scope_folders if not bucket_only else None,
-            allowed_paths=allowed if not bucket_only else None,
+            allowed_paths=(allowed if not bucket_only else bucket_allowed_paths),
             exclude_patterns=exclude_patterns if not bucket_only else None,
             bucket_retrievers=(bucket_retrievers[1:] if bucket_only else bucket_retrievers) or None,
+            bucket_allowed_paths=bucket_allowed_paths,
             sources_out=sources,
             source_map_out=source_map,
             conversation_history=conv_history,

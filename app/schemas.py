@@ -86,6 +86,7 @@ class StreamChatRequest(BaseModel):
     scope_ids: list[str] | None = None
     ad_hoc_tags: list[str] | None = None
     bucket_ids: list[str] | None = None
+    bucket_file_paths: list[str] | None = None
 
     _normalize_scope_ids = field_validator("scope_ids", mode="before")(_normalize_id_list)
     _normalize_bucket_ids = field_validator("bucket_ids", mode="before")(_normalize_id_list)

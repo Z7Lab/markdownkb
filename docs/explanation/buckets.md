@@ -154,6 +154,8 @@ Concrete examples:
 
 The chat session is ephemeral — it doesn't persist between drawer opens. It's designed for the active working session: open, investigate, close. If you want to save a useful exchange, use the download button in the drawer header to export the transcript.
 
+**File scoping:** Below the drawer header, a row shows how many files are active ("All 12 files" or "3 of 12 files"). Click it to expand a checklist and select exactly which files the chat draws from. Deselecting files narrows retrieval — useful when one video dominates results and you want the LLM to focus on the others.
+
 ## Using a Bucket (Search, Planner, Doc Map)
 
 Select a bucket from the sidebar dropdown in Chat, Search, Planner, or Doc Map to scope those features to the bucket's content.
