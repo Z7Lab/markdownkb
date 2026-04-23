@@ -9,10 +9,11 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Pencil, Trash2, FileText, Loader2, Clock,
-  Infinity as InfinityIcon, RefreshCw, Link, Upload, Download, FolderInput,
+  Infinity as InfinityIcon, RefreshCw, Link, Upload, Download, FolderInput, MessageSquare,
 } from "lucide-react"
 import { BucketEditForm } from "./bucket-edit-form"
 import { BucketPathStatus } from "./bucket-path-status"
+import { BucketChatDrawer } from "./bucket-chat-drawer"
 
 const SUPPORTED_EXTENSIONS = ".pdf,.docx,.pptx,.xlsx,.xls,.epub,.html,.htm,.csv,.txt,.rst,.rtf,.odt,.ipynb,.msg"
 
@@ -67,6 +68,7 @@ export function BucketDetailPanel({
   const { files, loading: loadingFiles, indexing: filesIndexing, reload: reloadFiles } = useBucketFiles(bucket.id)
   const [editing, setEditing] = useState(false)
   const [reindexing, setReindexing] = useState(false)
+  const [chatOpen, setChatOpen] = useState(false)
 
   // Import state
   const [clipUrl, setClipUrl] = useState("")
@@ -167,6 +169,7 @@ export function BucketDetailPanel({
   const importing = clipping || uploading
 
   return (
+    <>
     <div className="flex flex-col h-full overflow-hidden">
       <ScrollArea className="flex-1 min-h-0">
         <div className="p-6 space-y-4">
@@ -249,6 +252,16 @@ export function BucketDetailPanel({
                 onClick={() => promoteBucket(bucket.id, bucket.name)}
               >
                 <FolderInput className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                aria-label="Chat with bucket"
+                title="Chat with this bucket"
+                onClick={() => setChatOpen(true)}
+              >
+                <MessageSquare className="h-3.5 w-3.5" />
               </Button>
               <Button
                 variant="ghost"
@@ -427,5 +440,12 @@ export function BucketDetailPanel({
         </div>
       </ScrollArea>
     </div>
+    <BucketChatDrawer
+      open={chatOpen}
+      onClose={() => setChatOpen(false)}
+      bucketId={bucket.id}
+      bucketName={bucket.name}
+    />
+    </>
   )
 }

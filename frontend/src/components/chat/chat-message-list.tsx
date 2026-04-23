@@ -10,10 +10,12 @@ export function ChatMessageList({
   messages,
   isStreaming,
   showDiagnostics = false,
+  bucketId,
 }: {
   messages: ChatMessage[];
   isStreaming: boolean;
   showDiagnostics?: boolean;
+  bucketId?: string | null;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [viewingFile, setViewingFile] = useState<string | null>(null);
@@ -53,7 +55,7 @@ export function ChatMessageList({
           <div ref={bottomRef} />
         </div>
       </ScrollArea>
-      <FileViewerDialog path={viewingFile} onClose={() => setViewingFile(null)} />
+      <FileViewerDialog path={viewingFile} bucketId={bucketId} onClose={() => setViewingFile(null)} />
     </>
   );
 }

@@ -133,9 +133,28 @@ Each bucket gets a color — auto-assigned from the palette on creation, or set 
 
 The default palette cycles through indigo, violet, pink, orange, teal, cyan, lime, and amber.
 
-## Using a Bucket
+## Chat with a Bucket
 
-Select a bucket from the sidebar dropdown in Chat, Search, Planner, or Doc Map.
+The bucket detail panel has a **Chat** button that opens a streaming chat drawer scoped entirely to that bucket's content. You don't need to leave the Buckets tab or configure anything — just click and start asking questions.
+
+This is where buckets become qualitatively different from chatting with a single document.
+
+**Single-source chat (what YouTube already does):** When you chat with one video or one article, the LLM only has that one thing to reason from. YouTube itself offers this now. You're not getting more than the source gives you.
+
+**Multi-source synthesis (what bucket chat does):** When you've clipped 5 YouTube videos into a bucket, the chat draws on all 5 simultaneously. The LLM can synthesize, compare, find agreement, surface contradictions, and answer questions that no single video answers. It can also combine clipped videos with uploaded PDFs, articles, and any other content in the bucket — all treated as one coherent collection.
+
+Concrete examples:
+
+- Clip 5 conference talks on a topic. Ask: "What is the consensus view across all these speakers? Where do they disagree?"
+- Clip 3 tutorials on the same framework. Ask: "What do all three authors consider essential? What did each one cover that the others missed?"
+- Clip a vendor's overview video, their API docs page, and two comparison articles. Ask: "What are the real tradeoffs based on everything here?"
+- Build a research bucket with 10 articles. Ask: "What gaps in this field do these authors collectively identify?"
+
+The chat session is ephemeral — it doesn't persist between drawer opens. It's designed for the active working session: open, investigate, close. If you want to save a useful exchange, use the download button in the drawer header to export the transcript.
+
+## Using a Bucket (Search, Planner, Doc Map)
+
+Select a bucket from the sidebar dropdown in Chat, Search, Planner, or Doc Map to scope those features to the bucket's content.
 
 ### Bucket Only
 
