@@ -74,9 +74,10 @@ export function BucketDetailPanel({
   const [sortKey, setSortKey] = useState<"path" | "chunk_count" | "indexed_at">("path")
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
 
-  function handleSort(key: "path" | "chunk_count" | "indexed_at") {
-    if (sortKey === key) setSortDir((d) => d === "asc" ? "desc" : "asc")
-    else { setSortKey(key); setSortDir(key === "indexed_at" ? "desc" : "asc") }
+  function handleSort(key: string) {
+    const k = key as "path" | "chunk_count" | "indexed_at"
+    if (sortKey === k) setSortDir((d) => d === "asc" ? "desc" : "asc")
+    else { setSortKey(k); setSortDir(k === "indexed_at" ? "desc" : "asc") }
   }
 
   // Import state
@@ -97,8 +98,8 @@ export function BucketDetailPanel({
     if (!url) return
     setClipping(true)
     try {
-      const converted = await api.post<{ markdown: string }>("/api/v1/converter/url", { url })
-      const name = filenameFromContent(url, converted.markdown)
+      const converted = await api.post<{ markdown: string; title?: string }>("/api/v1/converter/url", { url })
+      const name = converted.title ? slugifyFilename(converted.title) + ".md" : filenameFromContent(url, converted.markdown)
       await pushDocument(name, converted.markdown)
       setClipUrl("")
       reloadFiles()

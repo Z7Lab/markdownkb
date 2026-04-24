@@ -171,12 +171,14 @@ async def lifespan(app: FastAPI):
     # server binds to a non-localhost address (0.0.0.0 / :: / explicit LAN IP).
     # Auto-enable ensures network-exposed deployments have brute-force / cost
     # protection on by default without relying on user configuration.
+    # Explicit false in settings always wins — auto-enable is skipped.
     bind_host = settings.server_host
     network_exposed = bind_host not in ("127.0.0.1", "::1", "localhost")
+    rate_limiting_explicit = "rate_limiting" in (settings._data.get("core") or {})
     if settings.core_enabled("rate_limiting"):
         limiter.enabled = True
         logger.info("Rate limiting enabled (core flag)")
-    elif network_exposed:
+    elif network_exposed and not rate_limiting_explicit:
         limiter.enabled = True
         logger.warning(
             "Rate limiting auto-enabled: server is binding to %s (network-exposed).",

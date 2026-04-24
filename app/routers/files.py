@@ -42,7 +42,7 @@ def get_file_status(
 
 
 @router.get("/files")
-@limiter.limit(HEAVY)
+@limiter.limit(STANDARD)
 def list_files(
     request: Request,
     offset: int = Query(0, ge=0),

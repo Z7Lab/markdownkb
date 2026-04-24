@@ -85,7 +85,15 @@ The chunk size should fit within the embedding model's token window:
 | all-MiniLM-L12-v2 | 256 tokens | 512–800 chars |
 | bge-small-en-v1.5 | 512 tokens | 1000–1500 chars |
 
-At ~4 characters per token, 1500 chars &asymp; 375 tokens, which fits comfortably within bge-small-en-v1.5's 512-token limit. With overlap, a stored chunk can reach ~1650 characters (~412 tokens) — still within bounds.
+At ~4 characters per token for prose, 1500 chars ≈ 375 tokens, which fits comfortably within bge-small-en-v1.5's 512-token limit. With overlap, a stored chunk can reach ~1650 characters (~412 tokens) — still within bounds for prose.
+
+**Code-heavy content tokenizes denser.** The "~4 chars/token" estimate assumes natural language. Code and technical markdown tokenize at roughly 2–3 chars/token because underscores, hyphens, backticks, and short identifiers each become separate tokens (e.g. `run_id` → `run`, `_`, `id` = 3 tokens for 6 chars). A 1500-char chunk of code or code-heavy markdown can produce 500–700 tokens.
+
+**What happens when a chunk exceeds the token limit:** Inputs are silently truncated at the model's token limit — the model only sees the first 512 tokens and the rest is discarded. The embedding is computed from the truncated input. For prose this is rarely an issue; for code-heavy files it can mean the end of each chunk is never represented in the vector index, reducing retrieval precision for content that appears in the tail of those chunks.
+
+**If your knowledge base is code-heavy**, consider switching to an embedding model with a larger context window such as `nomic-embed-text` (8192 tokens). This requires a full reindex and potentially loading a different model on your embedding server. See [configuration.md](../reference/configuration.md#embedding-models) for how to configure a remote embedding provider.
+
+**Remote embedding servers** must be configured with `--ubatch-size` large enough to accept your chunk sizes. The llama.cpp default (equal to context size) will reject code-heavy chunks with a 500 error. See [llamacpp-setup.md](../thirdparty/llamacpp-setup.md#critical-ubatch-size-for-embedding-servers) for the correct server flags.
 
 ### Changing chunk size
 

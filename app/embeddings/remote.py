@@ -12,6 +12,9 @@ logger = logging.getLogger(__name__)
 class RemoteEmbedder:
     """Embedding via a remote API (Ollama or OpenAI-compatible)."""
 
+    # ~4 chars/token * 512 tokens, conservative for code-heavy content
+    _max_input_chars: int = 2000
+
     def __init__(self, model: str, api_base: str, api_type: str = "ollama", api_key: str = ""):
         validate_api_base(api_base)
         self._model = model
@@ -71,9 +74,12 @@ class RemoteEmbedder:
         if self._api_key:
             headers["Authorization"] = f"Bearer {self._api_key}"
 
+        # Conservative char limit — matches what local ONNX does (silently truncates at 512
+        # tokens). Prevents 500 errors from servers that reject oversized inputs.
+        max_chars = self._max_input_chars
         all_embeddings: list[list[float]] = []
         for i in range(0, len(texts), batch_size):
-            batch = texts[i:i + batch_size]
+            batch = [t[:max_chars] for t in texts[i:i + batch_size]]
             try:
                 resp = httpx.post(
                     f"{self._api_base}/v1/embeddings",

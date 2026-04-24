@@ -68,13 +68,16 @@ docker-rebuild: ## Full clean rebuild (no cache) + restart — use after depende
 	@docker compose build --no-cache
 	@docker compose up -d
 
+# NOTE: explicit -f flags suppress Docker Compose's auto-loading of compose.override.yml,
+# so compose.override.yml (source directory mounts) must be listed explicitly here.
+# Omitting it causes sources to appear unmounted → scanner prunes all indexed files.
 docker-build-full: ## Build 'full' image variant (includes YouTube transcript extraction) + restart
-	@docker compose -f compose.yml -f compose.full.yml build
-	@docker compose -f compose.yml -f compose.full.yml up -d
+	@docker compose -f compose.yml -f compose.override.yml -f compose.full.yml build
+	@docker compose -f compose.yml -f compose.override.yml -f compose.full.yml up -d
 
 docker-rebuild-full: ## Full clean rebuild of 'full' variant (no cache) + restart
-	@docker compose -f compose.yml -f compose.full.yml build --no-cache
-	@docker compose -f compose.yml -f compose.full.yml up -d
+	@docker compose -f compose.yml -f compose.override.yml -f compose.full.yml build --no-cache
+	@docker compose -f compose.yml -f compose.override.yml -f compose.full.yml up -d
 
 
 docker-up: ## Start container (detached)

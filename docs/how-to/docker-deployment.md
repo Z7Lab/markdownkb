@@ -99,6 +99,8 @@ volumes:
 
 **Security boundary:** Only mounted paths exist inside the container. Any path that isn't explicitly mounted is simply inaccessible — the container process cannot read or write to it, regardless of what an application or agent attempts. This means the blast radius of any write operation (including MCP write tools like `save_file`) is strictly bounded to the directories you've chosen to mount. See [MCP write tool security](../reference/mcp-server.md#write-tool-security).
 
+**Warning — explicit `-f` flags suppress override auto-loading:** Docker Compose automatically loads `compose.override.yml` only when you run `docker compose` without any `-f` flags. If you pass explicit `-f` flags (e.g. to use an image variant), `compose.override.yml` is silently ignored. This means your source directory mounts won't be present — on startup the scanner will see those paths as gone and **delete all their indexed files** from the database. Always include `-f compose.override.yml` explicitly when combining override files, or use the `make` targets which handle this correctly.
+
 ## Image variants
 
 MarkdownKB publishes two image tags:

@@ -125,6 +125,8 @@ project_roots:
 
 The code defaults (512/50) are conservative fallbacks. The recommended values (1500/150) are set in `settings.yaml.example` and optimized for `bge-small-en-v1.5` (1500 chars &asymp; 375 tokens, within the model's 512-token window). After changing chunk settings, re-index all files for the new values to take effect.
 
+**Token truncation:** All embedding models have a hard token limit (512 for the bundled models). Inputs longer than this limit are silently truncated — the model only sees the first 512 tokens. For prose, 1500 chars is ~375 tokens and fits comfortably. For code-heavy content, tokenization is denser (~2–3 chars/token), so a 1500-char code chunk can exceed 512 tokens and be truncated. This is a property of the model, not the chunker. Switching to a model with a larger context window (e.g. `nomic-embed-text` at 8192 tokens) eliminates this for code-heavy knowledge bases.
+
 Three local ONNX embedding models are available: `all-MiniLM-L6-v2`, `all-MiniLM-L12-v2`, and `bge-small-en-v1.5`. Alternatively, set `provider: remote` to offload embeddings to an Ollama instance or OpenAI-compatible API on another machine. See [embedding-models.md](../how-to/embedding-models.md) for details.
 
 For a detailed explanation of how chunking works — header splitting, paragraph boundaries, breadcrumbs, frontmatter extraction, and how to structure files for best search quality — see [chunking.md](../explanation/chunking.md).

@@ -163,8 +163,16 @@ def convert_url(request: Request, req: ConvertUrlRequest):
     if not result.text_content:
         raise HTTPException(422, "No content could be extracted from the URL")
 
+    title = (result.title or "").strip()
+    markdown = result.text_content
+    # Prepend source attribution if not already present in the content
+    if req.url not in markdown:
+        attribution = f"**Source:** {req.url}\n\n"
+        markdown = attribution + markdown
+
     return {
-        "markdown": result.text_content,
+        "markdown": markdown,
+        "title": title,
         "transcript_support": _has_transcript_support(),
     }
 

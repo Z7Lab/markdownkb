@@ -329,6 +329,80 @@ curl http://localhost:8080/health
 
 ---
 
+## Using llama.cpp as an Embedding Server
+
+llama.cpp can serve embedding models via the same OpenAI-compatible API, making it a fast local alternative to cloud embedding providers.
+
+### Running an Embedding Model
+
+```bash
+~/llama.cpp/build/bin/llama-server \
+  -m /path/to/bge-small-en-v1.5-f16.gguf \
+  --host 0.0.0.0 \
+  --port 8081 \
+  -t 6 \
+  -c 2048 \
+  --ubatch-size 2048 \
+  --embedding \
+  --no-mmap
+```
+
+### Critical: `-c` and `--ubatch-size` for Embedding Servers
+
+Two flags must both be large enough — each causes a different error if too small:
+
+| Flag | Too small causes | Recommended |
+|------|-----------------|-------------|
+| `-c` (context size) | `400 Bad Request` — "input is larger than max context size" | `2048` |
+| `--ubatch-size` | `500 Internal Server Error` — "input is too large to process" | `2048` |
+
+**Set both to `2048` for MarkdownKB.** Here's why:
+
+MarkdownKB's default `chunk_size` is 1500 characters, calibrated for prose (~4 chars/token → ~375 tokens). Two things push chunks over the model's 512-token limit:
+
+1. **Breadcrumb prepending** — each chunk gets a "From: path > heading" prefix (~100 chars) before embedding, adding ~25–50 tokens
+2. **Code tokenizes denser** — underscores, hyphens, backticks each become separate tokens; `run_id` → `run`, `_`, `id` = 3 tokens for 6 chars (~2 chars/token); a 1500-char code chunk can produce 540+ tokens
+
+With `-c 2048`, the server accepts these inputs. Tokens beyond the model's training window (512) are handled by llama.cpp's context extension — embeddings may be slightly lower quality for content past token 512, but the request succeeds rather than failing entirely. For a switch to a model natively supporting longer contexts see [configuration.md](../reference/configuration.md#embedding-models).
+
+### Configuring MarkdownKB to Use the Embedding Server
+
+In `config/settings.yaml`:
+
+```yaml
+embeddings:
+  model: bge-small-en-v1.5        # local model name (used for fallback/display)
+  provider: remote
+  api_base: http://your-server.local:8081
+  api_type: openai
+  remote_model: bge-small-en-v1.5-f16.gguf
+  chunk_size: 1500
+  chunk_overlap: 150
+```
+
+Restart the container after changing (config is mounted as a volume — no rebuild needed):
+
+```bash
+make docker-restart
+```
+
+### Model Compatibility
+
+When switching from local ONNX to remote llama.cpp for the same model, embeddings are **fully compatible** — same model weights, same dimensions. No reindex required. When switching to a *different* model (different weights or dimensions), a full reindex is required.
+
+### Embedding-Specific Server Flags
+
+| Flag | Purpose | Embedding recommendation |
+|------|---------|--------------------------|
+| `--embedding` | Enable embedding endpoint | Required |
+| `--ubatch-size N` | Physical batch size | `2048` (see above) |
+| `-c N` | Context window | Match model max (512 for bge-small) |
+| `--parallel N` | Concurrent requests | `1` is fine for single-client use |
+| `--no-mmap` | Disable memory-mapped loading | Helps on some ARM devices |
+| `-fa` | Flash attention | `off` for embedding models (no attention sink needed) |
+
+---
+
 ## Next Steps
 
 - See [llama.cpp API Guide](llamacpp-api.md) for API usage and MarkdownKB integration

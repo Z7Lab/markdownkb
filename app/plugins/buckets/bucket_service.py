@@ -1,5 +1,6 @@
 """Business logic for temp buckets — ingestion, search, chat, cleanup."""
 
+import hashlib
 import json
 import logging
 from datetime import datetime, timezone, timedelta
@@ -237,8 +238,9 @@ class BucketService:
         """Push markdown documents into a bucket by content (no filesystem access needed).
 
         Each document dict must have ``name`` (virtual filename ending in .md)
-        and ``content`` (raw markdown text).  Documents with a name that already
-        exists in the bucket are skipped.
+        and ``content`` (raw markdown text).  Documents with identical content
+        (by SHA-256 hash) are skipped as duplicates. Filename collisions are
+        resolved by appending a counter suffix.
         """
         record = self._db.resolve(bucket)
         if not record:
@@ -249,10 +251,14 @@ class BucketService:
 
         store = self.get_store(bucket_id)
         existing_paths: set[str] = set()
+        existing_hashes: set[str] = set()
         for meta in store.get_all_metadatas():
             path = meta.get("source_path", "")
             if path:
                 existing_paths.add(path)
+            h = meta.get("content_hash", "")
+            if h:
+                existing_hashes.add(h)
 
         all_ids: list[str] = []
         all_docs: list[str] = []
@@ -268,10 +274,20 @@ class BucketService:
             if not name.endswith(".md"):
                 name = f"{name}.md"
 
-            virtual_path = f"bucket://{bucket_name}/{name}"
-            if virtual_path in existing_paths:
+            content_hash = hashlib.sha256(content.encode()).hexdigest()
+            if content_hash in existing_hashes:
                 skipped_files += 1
                 continue
+
+            # Resolve filename collisions by appending a counter
+            stem = name[:-3]
+            candidate = name
+            counter = 1
+            while f"bucket://{bucket_name}/{candidate}" in existing_paths:
+                candidate = f"{stem}-{counter}.md"
+                counter += 1
+            name = candidate
+            virtual_path = f"bucket://{bucket_name}/{name}"
 
             raw_chunks = parse_markdown_content(content, virtual_path, source_root=f"bucket://{bucket_name}")
             sized_chunks: list[Chunk] = []
@@ -288,11 +304,15 @@ class BucketService:
                 continue
 
             added_files += 1
+            existing_hashes.add(content_hash)
+            existing_paths.add(virtual_path)
             for i, chunk in enumerate(sized_chunks):
                 chunk_id = f"bucket:{bucket_name}:{virtual_path}:{i}"
                 all_ids.append(chunk_id)
                 all_docs.append(chunk.content)
-                all_metas.append(chunk.metadata)
+                m = dict(chunk.metadata)
+                m["content_hash"] = content_hash
+                all_metas.append(m)
 
         if all_docs:
             embeddings = embed_texts(all_docs, self._embedding_model, remote_config=self._remote_config)

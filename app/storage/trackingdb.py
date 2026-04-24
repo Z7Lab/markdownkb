@@ -332,11 +332,12 @@ class TrackingDB:
             self._conn.commit()
 
     def mark_error(self, path: str, error_msg: str):
-        """Set status='error' with error message."""
+        """Set status='error' with error message. Clears content_hash so the
+        file is retried on the next index scan rather than skipped."""
         with self._lock:
             self._conn.execute(
                 """UPDATE indexed_files
-                SET status = 'error', error_msg = ?,
+                SET status = 'error', error_msg = ?, content_hash = '',
                     updated_at = datetime('now')
                 WHERE path = ?""",
                 (error_msg, path),
