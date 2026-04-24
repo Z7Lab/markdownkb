@@ -467,6 +467,30 @@ def rename_bucket_document(
     return {"old_path": req.old_path, "new_path": new_path, "chunks_updated": count}
 
 
+@router.delete("/buckets/{bucket_id}/documents")
+@limiter.limit(STANDARD)
+def delete_bucket_document(
+    request: Request,
+    bucket_id: str,
+    path: str,
+    svc: BucketService = Depends(_get_bucket_service),
+):
+    """Delete a virtual document from a bucket.
+
+    Only virtual documents (paths starting with ``bucket://``) can be deleted.
+    Filesystem-sourced files must be removed from disk.
+    """
+    if not path.startswith("bucket://"):
+        raise HTTPException(status_code=400, detail="Only virtual documents can be deleted via this endpoint")
+    try:
+        return svc.delete_document(bucket_id, path)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error("Bucket document delete failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Document delete failed")
+
+
 # ---------------------------------------------------------------------------
 # Export / Import / Promote
 # ---------------------------------------------------------------------------

@@ -381,6 +381,30 @@ class BucketService:
 
         return {"response": response, "sources": sources, "source_map": source_map}
 
+    # -- Delete document -----------------------------------------------------
+
+    def delete_document(self, bucket: str, path: str) -> dict:
+        """Delete a single virtual document from a bucket by its source path."""
+        record = self._db.resolve(bucket)
+        if not record:
+            raise ValueError(f"Bucket not found: {bucket}")
+
+        store = self.get_store(record["id"])
+        try:
+            existing = store._collection.get(where={"source_path": path}, include=[])
+            chunk_count = len(existing["ids"])
+        except Exception:
+            chunk_count = 0
+
+        store.delete_by_source(path)
+
+        new_file_count = max(0, record["file_count"] - 1)
+        new_chunk_count = max(0, record["chunk_count"] - chunk_count)
+        self._db.update_counts(record["id"], new_file_count, new_chunk_count)
+
+        logger.info("Bucket '%s': deleted document %s (%d chunks)", record["name"], path, chunk_count)
+        return {"deleted": True, "path": path, "chunks_deleted": chunk_count}
+
     # -- Delete --------------------------------------------------------------
 
     def delete(self, bucket: str) -> dict:

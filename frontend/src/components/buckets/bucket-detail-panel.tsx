@@ -72,6 +72,7 @@ export function BucketDetailPanel({
   const [renameValue, setRenameValue] = useState("")
   const [renaming, setRenaming] = useState(false)
   const [sortKey, setSortKey] = useState<"path" | "chunk_count" | "indexed_at">("path")
+  const [deletingPath, setDeletingPath] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
 
   function handleSort(key: string) {
@@ -199,6 +200,19 @@ export function BucketDetailPanel({
     setRenamingPath(null)
     setRenameValue("")
   }, [])
+
+  const handleDeleteDocument = useCallback(async (path: string) => {
+    setDeletingPath(path)
+    try {
+      await api.del(`/api/v1/buckets/${bucket.id}/documents?path=${encodeURIComponent(path)}`)
+      reloadFiles()
+      toast.success("Document deleted")
+    } catch (err) {
+      toast.error(`Delete failed: ${(err as Error).message}`)
+    } finally {
+      setDeletingPath(null)
+    }
+  }, [bucket.id, reloadFiles])
 
   const handleScopeToggle = useCallback(async (path: string, allPaths: string[]) => {
     const current = (bucket.scope_paths && bucket.scope_paths.length > 0) ? bucket.scope_paths : allPaths
@@ -568,22 +582,42 @@ export function BucketDetailPanel({
                                 />
                               </TableCell>
                               <TableCell className="px-3 py-1.5">
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      type="button"
-                                      className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
-                                      onClick={() => isVirtual && startRename(f.path, display)}
-                                      disabled={!isVirtual}
-                                      aria-label={isVirtual ? "Rename document" : "Edit the file on disk and reindex to rename it"}
-                                    >
-                                      <Pencil className="h-3 w-3" />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    {isVirtual ? "Rename document" : "Edit the file on disk and reindex to rename it"}
-                                  </TooltipContent>
-                                </Tooltip>
+                                <div className="flex items-center gap-1">
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        type="button"
+                                        className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+                                        onClick={() => isVirtual && startRename(f.path, display)}
+                                        disabled={!isVirtual}
+                                        aria-label={isVirtual ? "Rename document" : "Edit the file on disk and reindex to rename it"}
+                                      >
+                                        <Pencil className="h-3 w-3" />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      {isVirtual ? "Rename document" : "Edit the file on disk and reindex to rename it"}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  {isVirtual && (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <button
+                                          type="button"
+                                          className="p-0.5 text-muted-foreground hover:text-destructive disabled:opacity-30 disabled:cursor-not-allowed"
+                                          onClick={() => void handleDeleteDocument(f.path)}
+                                          disabled={deletingPath === f.path}
+                                          aria-label="Delete document"
+                                        >
+                                          {deletingPath === f.path
+                                            ? <Loader2 className="h-3 w-3 animate-spin" />
+                                            : <Trash2 className="h-3 w-3" />}
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Delete document</TooltipContent>
+                                    </Tooltip>
+                                  )}
+                                </div>
                               </TableCell>
                             </>
                           )}
