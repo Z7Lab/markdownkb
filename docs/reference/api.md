@@ -349,14 +349,49 @@ Requires `plugins.knowledge_graph.enabled: true`. Plugin: `app/plugins/knowledge
 
 ## File Converter
 
-Requires `plugins.converter.enabled: true`. Plugin: `app/plugins/converter/`. Requires Pandoc installed on the system.
+Requires `plugins.converter.enabled: true`. Plugin: `app/plugins/converter/`. Uses Microsoft markitdown (pure Python — no external tools required).
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/converter/formats` | List supported formats and check tool availability |
-| POST | `/api/v1/converter/convert` | Start batch conversion (source_dir, dest_dir, optional format filter) |
+| POST | `/api/v1/converter/url` | Fetch a URL and convert to markdown (web pages, YouTube, etc.) |
+| POST | `/api/v1/converter/upload` | Upload a file and convert to markdown |
+| GET | `/api/v1/converter/formats` | List supported input formats |
+| POST | `/api/v1/converter/convert` | Start batch conversion (source_dir → dest_dir) |
 | GET | `/api/v1/converter/status` | Conversion progress (running, files done/total, errors) |
 | POST | `/api/v1/converter/cancel` | Cancel running conversion |
+
+### POST /api/v1/converter/url
+
+Request: `{ "url": "https://..." }`
+
+Response:
+
+```json
+{
+  "markdown": "**Source:** https://...\n\n# Page Title\n...",
+  "title": "Page Title",
+  "transcript_support": true
+}
+```
+
+- `title` — extracted page or video title (empty string if unavailable)
+- `transcript_support` — whether `youtube_transcript_api` is installed (YouTube transcripts require the `full` image variant)
+- Source URL is prepended as `**Source:** <url>` if not already present in the content
+
+### POST /api/v1/converter/upload
+
+Request: multipart form with a `file` field.
+
+Response:
+
+```json
+{
+  "markdown": "# Converted content...",
+  "filename": "original-filename.pdf"
+}
+```
+
+Supported formats: PDF, Word (docx), PowerPoint (pptx), Excel (xlsx/xls), HTML, EPUB, CSV, plain text, reStructuredText, RTF, LibreOffice (odt), Jupyter notebooks (ipynb), Outlook messages (msg).
 
 ## Tags
 
