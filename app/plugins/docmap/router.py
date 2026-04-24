@@ -91,19 +91,20 @@ def graph_data(
             all_bucket_ids.append(bid)
             seen.add(bid)
 
-    # Include all bucket IDs and threshold in cache key — different
-    # bucket selections or thresholds must not share a cache entry.
-    cache_buckets = ",".join(sorted(all_bucket_ids))
-    key = _cache_key(scope_folders, scope_tags, ad_hoc_tags, top_k, word_clouds, min_weight, exclude_patterns)
-    key = key + (cache_buckets, bucket_min_weight if all_bucket_ids else 0.0)
-
-    # Resolve all bucket records up front
+    # Resolve all bucket records up front (needed for cache key — color is baked into nodes)
     bucket_records: list[dict] = []
     if all_bucket_ids and bucket_service:
         for bid in all_bucket_ids:
             rec = bucket_service.db.resolve(bid)
             if rec:
                 bucket_records.append(rec)
+
+    # Include bucket IDs, threshold, and colors in cache key — color changes
+    # must produce a new cache entry since color is baked into graph nodes.
+    cache_buckets = ",".join(sorted(all_bucket_ids))
+    cache_bucket_colors = ",".join(r.get("color") or "" for r in bucket_records)
+    key = _cache_key(scope_folders, scope_tags, ad_hoc_tags, top_k, word_clouds, min_weight, exclude_patterns)
+    key = key + (cache_buckets, bucket_min_weight if all_bucket_ids else 0.0, cache_bucket_colors)
 
     with _cache_lock:
         if key in _graph_cache:

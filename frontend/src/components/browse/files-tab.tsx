@@ -21,7 +21,7 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable"
-import { FileDown, FileText, FileX, Loader2, RefreshCw, Search, Tag, Wand2, X } from "lucide-react"
+import { AlertCircle, FileDown, FileText, FileX, Loader2, RefreshCw, Search, Tag, Wand2, X } from "lucide-react"
 import { SortButton } from "@/components/ui/table"
 import type { TrackedFile } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -190,6 +190,7 @@ export function FilesTab() {
   const ragIncluded = files.filter((f) => f.include_rag === 1 && f.status === "complete").length
   const notIndexed = files.filter((f) => f.status === "not_indexed" || f.status === "pending").length
   const ragExcluded = files.filter((f) => f.include_rag === 0).length
+  const errorCount = files.filter((f) => f.status === "error").length
 
   return (
     <div className="flex flex-row h-full overflow-hidden">
@@ -263,6 +264,19 @@ export function FilesTab() {
                 }
                 {isIndexing ? "Indexing..." : "Index All"}
               </Button>
+              {errorCount > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="cursor-pointer border-destructive/50 text-destructive hover:bg-destructive/10"
+                  onClick={() => indexAll()}
+                  disabled={isIndexing}
+                  title="Retry all errored files"
+                >
+                  <AlertCircle className="h-3.5 w-3.5 mr-1.5" />
+                  Retry {errorCount} error{errorCount !== 1 ? "s" : ""}
+                </Button>
+              )}
               {selectedFolder && (
                 <Button variant="outline" size="sm" className="cursor-pointer" onClick={() => setConfirmUnindexAll(true)}>
                   <FileX className="h-3.5 w-3.5 mr-1.5" />
@@ -288,7 +302,7 @@ export function FilesTab() {
                   : `Showing ${filteredFiles.length} of ${folderFiltered.length} files${searchMode === "content" ? " (by content)" : ""}`
                 : selectedFolder
                   ? `${folderFiltered.length} of ${files.length} files`
-                  : `${files.length} files — ${ragIncluded} in RAG, ${notIndexed} not indexed${ragExcluded > 0 ? `, ${ragExcluded} excluded` : ""}`}
+                  : `${files.length} files — ${ragIncluded} in RAG, ${notIndexed} not indexed${ragExcluded > 0 ? `, ${ragExcluded} excluded` : ""}${errorCount > 0 ? `, ${errorCount} errored` : ""}`}
             </p>
           </div>
         </div>
