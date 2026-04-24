@@ -13,7 +13,7 @@ from app.skills.executor import (
     run_multi_skill_review,
 )
 from app.skills.loader import discover_skills
-from app.utils import sse
+from app.transport import sse
 
 logger = logging.getLogger(__name__)
 

@@ -9,14 +9,28 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
 
 from app.config import Settings
-from app.config.docker import in_docker, write_compose_override
+from app.config.docker import in_docker
 from app.deps import get_settings
 from app.ratelimit import LLM, STANDARD, limiter
 
 from .bucket_service import BucketService
+from .docker_mount import (
+    ensure_base_path_mount,
+    ensure_mounts_for_sources,
+    prune_mounts_after_delete,
+)
+from .schemas import (
+    AddToBucketRequest,
+    BasepathRequest,
+    BucketChatRequest,
+    BucketSearchRequest,
+    CreateBucketRequest,
+    PushDocumentsRequest,
+    RenameDocumentRequest,
+    UpdateBucketRequest,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,93 +48,7 @@ _BUCKET_COLORS = [
     "#f59e0b",  # amber
 ]
 
-
-# -- Request schemas ---------------------------------------------------------
-
-class BucketSource(BaseModel):
-    path: str = Field(..., min_length=1)
-    glob: str = Field("**/*.md")
-
-
-class CreateBucketRequest(BaseModel):
-    name: str = Field(..., min_length=1, max_length=200)
-    sources: list[BucketSource] = Field(default_factory=list)
-    expires_in: int | None = Field(None, ge=60, description="Seconds until expiry")
-    color: str | None = Field(None, max_length=20, description="Hex color for this bucket")
-    description: str | None = Field(None, max_length=1000, description="Optional description")
-
-
-class BucketSearchRequest(BaseModel):
-    query: str = Field(..., min_length=1, max_length=2000)
-    top_k: int = Field(5, ge=1, le=50)
-
-
-class BucketChatRequest(BaseModel):
-    message: str = Field(..., min_length=1, max_length=4000)
-
-
-class AddToBucketRequest(BaseModel):
-    sources: list[BucketSource] = Field(..., min_length=1)
-
-
-class BucketDocument(BaseModel):
-    name: str = Field(..., min_length=1, max_length=500, description="Virtual filename (e.g. 'notes.md')")
-    content: str = Field(..., min_length=1, max_length=500000, description="Raw markdown content")
-
-
-class PushDocumentsRequest(BaseModel):
-    documents: list[BucketDocument] = Field(..., min_length=1, max_length=50)
-
-
-class UpdateBucketRequest(BaseModel):
-    expires_in: int | None = Field(None, description="Seconds from now, or null for permanent")
-    name: str | None = Field(None, min_length=1, max_length=200, description="New bucket name")
-    color: str | None = Field(None, max_length=20, description="Hex color")
-    description: str | None = Field(None, max_length=1000, description="Optional description")
-
-
-class RenameDocumentRequest(BaseModel):
-    old_path: str = Field(..., min_length=1)
-    new_name: str = Field(..., min_length=1, max_length=500)
-
-
-# -- Helpers -----------------------------------------------------------------
-
-def _sync_bucket_compose(settings: Settings, svc: BucketService) -> bool:
-    """Regenerate compose.override.yml including all active bucket mounts.
-
-    Returns True if the file changed (Docker restart needed for new mounts).
-    """
-    if not in_docker():
-        return False
-    try:
-        project_root = settings._path.resolve().parent.parent
-        all_configs = (
-            settings.source_configs
-            + settings.project_root_source_configs
-            + settings.bucket_mount_configs
-        )
-        return write_compose_override(all_configs, project_root)
-    except Exception:
-        logger.debug("Could not sync compose.override.yml for buckets", exc_info=True)
-        return False
-
-
-def _collect_bucket_mount_paths(svc: BucketService) -> list[str]:
-    """Return the set of unique source paths needed for Docker mounts across all buckets."""
-    paths: list[str] = []
-    seen: set[str] = set()
-    for bucket in svc.db.list_all():
-        sources = json.loads(bucket.get("sources", "[]"))
-        for src in sources:
-            raw = src.get("path", "")
-            if not raw:
-                continue
-            resolved = str(Path(raw).resolve())
-            if resolved not in seen:
-                seen.add(resolved)
-                paths.append(resolved)
-    return paths
+_EXPORT_FORMAT_VERSION = 1
 
 
 def _get_bucket_service(request: Request) -> BucketService:
@@ -130,10 +58,15 @@ def _get_bucket_service(request: Request) -> BucketService:
     return svc
 
 
-# -- Endpoints ---------------------------------------------------------------
+def _resolve_bucket(svc: BucketService, bucket_id: str) -> dict:
+    """Look up a bucket by id or name, raising 404 if missing."""
+    record = svc.db.resolve(bucket_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Bucket not found")
+    return record
 
-class BasepathRequest(BaseModel):
-    base_path: str | None = Field(None)
+
+# -- Endpoints ---------------------------------------------------------------
 
 
 @router.get("/buckets/base-path")
@@ -148,7 +81,7 @@ def get_base_path(
     mounted = False
     if base_path and in_docker():
         resolved = str(Path(base_path).resolve())
-        mounted = resolved in set(settings._data.get("bucket_mounts", []))
+        mounted = resolved in set(settings.bucket_mounts)
     return {"base_path": base_path, "mounted": mounted, "docker": in_docker()}
 
 
@@ -164,11 +97,7 @@ def set_base_path(
     docker_restart_required = False
     if req.base_path:
         settings.set_plugin_config("buckets", {"base_path": req.base_path})
-        if in_docker():
-            resolved = str(Path(req.base_path).resolve())
-            if settings.add_bucket_mount(resolved):
-                _sync_bucket_compose(settings, svc)
-                docker_restart_required = True
+        docker_restart_required = ensure_base_path_mount(settings, svc, req.base_path)
     else:
         settings.set_plugin_config("buckets", {"base_path": None})
     settings.save()
@@ -185,10 +114,8 @@ def list_buckets(
     svc: BucketService = Depends(_get_bucket_service),
 ):
     """List all buckets with metadata and indexing status."""
-    # Flag newly expired buckets (does not delete them)
     svc.flag_expired()
     buckets = svc.db.list_all()
-    # Add indexing status by comparing DB chunk count vs ChromaDB
     for b in buckets:
         store = svc.get_store(b["id"])
         actual = store.count
@@ -207,7 +134,6 @@ def create_bucket(
 ):
     """Create a new bucket from source paths."""
     try:
-        # Auto-assign color from palette if not provided
         color = req.color
         if not color:
             existing = svc.db.list_all()
@@ -216,31 +142,9 @@ def create_bucket(
         sources = [s.model_dump() for s in req.sources]
         record = svc.create(req.name, sources, req.expires_in, color=color, description=req.description)
 
-        # In Docker, paths that aren't mounted need to be added to compose.override.yml.
-        # Check the source path itself (not the parent) — a sibling mount can make the
-        # parent appear to exist as a Docker-internal directory while the target path is
-        # still inaccessible.
-        # Exception: if the path is under a configured base_path that is already mounted,
-        # no new mount is needed (the parent bind-mount covers all subdirectories).
-        docker_restart_required = False
-        if in_docker():
-            changed = False
-            base_path_str = settings.get_plugin_config("buckets").get("base_path", "")
-            mounted_paths = {m for m in settings._data.get("bucket_mounts", [])}
-            base_resolved = str(Path(base_path_str).resolve()) if base_path_str else ""
-            base_mounted = bool(base_resolved and base_resolved in mounted_paths)
-
-            for src in req.sources:
-                resolved = str(Path(src.path).resolve())
-                if not Path(resolved).exists():
-                    if base_mounted and (resolved == base_resolved or resolved.startswith(base_resolved + "/")):
-                        continue  # covered by the base path mount
-                    if settings.add_bucket_mount(resolved):
-                        changed = True
-            if changed:
-                settings.save()
-                _sync_bucket_compose(settings, svc)
-                docker_restart_required = True
+        docker_restart_required = ensure_mounts_for_sources(
+            settings, svc, [s.path for s in req.sources],
+        )
 
         return {**record, "docker_restart_required": docker_restart_required}
     except ValueError as e:
@@ -259,10 +163,7 @@ def get_bucket(
     svc: BucketService = Depends(_get_bucket_service),
 ):
     """Get a single bucket by ID or name."""
-    record = svc.db.resolve(bucket_id)
-    if not record:
-        raise HTTPException(status_code=404, detail="Bucket not found")
-    return record
+    return _resolve_bucket(svc, bucket_id)
 
 
 @router.patch("/buckets/{bucket_id}")
@@ -274,13 +175,10 @@ def update_bucket(
     svc: BucketService = Depends(_get_bucket_service),
 ):
     """Update bucket settings (name, expiration, color)."""
-    record = svc.db.resolve(bucket_id)
-    if not record:
-        raise HTTPException(status_code=404, detail="Bucket not found")
+    record = _resolve_bucket(svc, bucket_id)
 
     updates: dict = {}
 
-    # Handle expiration change
     if "expires_in" in req.model_fields_set:
         if req.expires_in is None or req.expires_in <= 0:
             updates["expires_at"] = None
@@ -291,17 +189,14 @@ def update_bucket(
             ).strftime("%Y-%m-%d %H:%M:%S")
             updates["expired"] = 0
 
-    # Handle name change
     if req.name is not None:
         if req.name != record["name"] and svc.db.name_exists(req.name):
             raise HTTPException(status_code=409, detail="Bucket name already taken")
         updates["name"] = req.name
 
-    # Handle color change
     if req.color is not None:
         updates["color"] = req.color
 
-    # Handle description change (empty string clears it)
     if "description" in req.model_fields_set:
         updates["description"] = req.description
 
@@ -324,15 +219,12 @@ def list_bucket_files(
     Falls back to scanning source paths when ChromaDB is still
     being populated (background indexing).
     """
-    record = svc.db.resolve(bucket_id)
-    if not record:
-        raise HTTPException(status_code=404, detail="Bucket not found")
+    record = _resolve_bucket(svc, bucket_id)
     store = svc.get_store(record["id"])
     all_meta = store.get_all_metadatas()
 
     indexing = False
     if all_meta:
-        # Group by source_path from ChromaDB
         files: dict[str, dict] = {}
         for meta in all_meta:
             path = meta.get("source_path", "")
@@ -347,16 +239,13 @@ def list_bucket_files(
             files[path]["chunk_count"] += 1
         file_list = sorted(files.values(), key=lambda f: f["path"])
     else:
-        # ChromaDB empty — scan source paths to show files during indexing
         indexing = record["chunk_count"] > 0
-        import json as _json
-        from pathlib import Path as _Path
-        sources = _json.loads(record.get("sources", "[]"))
+        sources = json.loads(record.get("sources", "[]"))
         file_list = []
         for src in sources:
             path = src.get("path", "")
             glob_pattern = src.get("glob", "**/*.md")
-            resolved = _Path(path).resolve()
+            resolved = Path(path).resolve()
             if resolved.is_file() and resolved.suffix == ".md":
                 file_list.append({"path": str(resolved), "title": "", "chunk_count": 0})
             elif resolved.is_dir():
@@ -380,9 +269,7 @@ def read_bucket_file(
     Reconstructs the document from stored chunks, ordered by chunk_index.
     Works for both filesystem-sourced and pushed (virtual) documents.
     """
-    record = svc.db.resolve(bucket_id)
-    if not record:
-        raise HTTPException(status_code=404, detail="Bucket not found")
+    record = _resolve_bucket(svc, bucket_id)
     store = svc.get_store(record["id"])
     result = store._collection.get(
         where={"source_path": path},
@@ -391,13 +278,11 @@ def read_bucket_file(
     if not result["ids"]:
         raise HTTPException(status_code=404, detail=f"File not found in bucket: {path}")
 
-    # Sort by chunk_index and reconstruct
     chunks = sorted(
         zip(result["documents"], result["metadatas"]),
         key=lambda x: x[1].get("chunk_index", 0),
     )
 
-    # Strip breadcrumb prefix from each chunk to get clean content
     parts = []
     for doc, _meta in chunks:
         lines = doc.split("\n", 2)
@@ -427,12 +312,7 @@ def delete_bucket(
     """Delete a bucket and its vector data."""
     try:
         result = svc.delete(bucket_id)
-        # Recalculate which mount paths are still needed and update settings.
-        if in_docker():
-            still_needed = _collect_bucket_mount_paths(svc)
-            settings.set_bucket_mounts(still_needed)
-            settings.save()
-            _sync_bucket_compose(settings, svc)
+        prune_mounts_after_delete(settings, svc)
         return result
     except ValueError as e:
         logger.warning("Bucket delete: %s", e)
@@ -449,9 +329,7 @@ def search_bucket(
     settings: Settings = Depends(get_settings),
 ):
     """Search within a bucket."""
-    record = svc.db.resolve(bucket_id)
-    if not record:
-        raise HTTPException(status_code=404, detail="Bucket not found")
+    record = _resolve_bucket(svc, bucket_id)
     if record.get("expired"):
         raise HTTPException(status_code=410, detail="Bucket has expired — delete it or extend its expiry")
     try:
@@ -471,9 +349,7 @@ def chat_bucket(
     settings: Settings = Depends(get_settings),
 ):
     """RAG chat scoped to a bucket."""
-    record = svc.db.resolve(bucket_id)
-    if not record:
-        raise HTTPException(status_code=404, detail="Bucket not found")
+    record = _resolve_bucket(svc, bucket_id)
     if record.get("expired"):
         raise HTTPException(status_code=410, detail="Bucket has expired — delete it or extend its expiry")
     try:
@@ -495,9 +371,7 @@ def reindex_bucket(
     Useful when a bucket was created before its source path was mounted in Docker.
     Skips files already present in the bucket.
     """
-    record = svc.db.resolve(bucket_id)
-    if not record:
-        raise HTTPException(status_code=404, detail="Bucket not found")
+    record = _resolve_bucket(svc, bucket_id)
     if record.get("expired"):
         raise HTTPException(status_code=410, detail="Bucket has expired — delete it or extend its expiry")
     sources = json.loads(record.get("sources", "[]"))
@@ -568,9 +442,7 @@ def rename_bucket_document(
     Only virtual documents (paths starting with ``bucket://``) can be renamed.
     Filesystem-sourced files must be renamed on disk and reindexed.
     """
-    record = svc.db.resolve(bucket_id)
-    if not record:
-        raise HTTPException(status_code=404, detail="Bucket not found")
+    record = _resolve_bucket(svc, bucket_id)
     if not req.old_path.startswith("bucket://"):
         raise HTTPException(status_code=400, detail="Only virtual documents can be renamed via this endpoint")
     bucket_name = record["name"]
@@ -589,8 +461,6 @@ def rename_bucket_document(
 # Export / Import / Promote
 # ---------------------------------------------------------------------------
 
-_EXPORT_FORMAT_VERSION = 1
-
 
 @router.get("/buckets/{bucket_id}/export")
 @limiter.limit(STANDARD)
@@ -599,18 +469,8 @@ def export_bucket(
     bucket_id: str,
     svc: BucketService = Depends(_get_bucket_service),
 ):
-    """Export a bucket as a portable zip archive.
-
-    The archive contains:
-    - ``manifest.json`` — bucket metadata (name, description, color, sources,
-      chunk count, export timestamp, format version).
-    - ``chunks.json`` — all chunk documents, embeddings, and metadata. These
-      are stored with their pre-computed embeddings so the bucket can be
-      re-imported without re-embedding.
-    """
-    record = svc.db.resolve(bucket_id)
-    if not record:
-        raise HTTPException(status_code=404, detail="Bucket not found")
+    """Export a bucket as a portable zip archive."""
+    record = _resolve_bucket(svc, bucket_id)
 
     store = svc.get_store(record["id"])
     data = store.get_all_with_embeddings()
@@ -661,11 +521,7 @@ async def import_bucket(
     svc: BucketService = Depends(_get_bucket_service),
     settings: Settings = Depends(get_settings),
 ):
-    """Import a bucket from a previously exported zip archive.
-
-    Uses pre-computed embeddings from the archive — no re-embedding is performed.
-    If the bucket name already exists, a numeric suffix is appended.
-    """
+    """Import a bucket from a previously exported zip archive."""
     if not file.filename or not file.filename.endswith(".zip"):
         raise HTTPException(status_code=400, detail="Expected a .zip file")
 
@@ -685,7 +541,6 @@ async def import_bucket(
     if manifest.get("format_version") != _EXPORT_FORMAT_VERSION:
         raise HTTPException(status_code=400, detail=f"Unsupported archive format version: {manifest.get('format_version')}")
 
-    # Resolve name collision
     base_name = manifest.get("name", "imported-bucket")
     name = base_name
     suffix = 1
@@ -693,7 +548,6 @@ async def import_bucket(
         name = f"{base_name}-{suffix}"
         suffix += 1
 
-    # Auto-assign color if not in manifest
     color = manifest.get("color")
     if not color:
         existing = svc.db.list_all()
@@ -718,7 +572,6 @@ async def import_bucket(
         store = svc.get_store(bucket_id)
         store.add(ids, docs, embeddings, metadatas)
 
-        # Count unique source files
         file_paths = {m.get("source_path", "") for m in metadatas if m.get("source_path")}
         svc.db.update(bucket_id, file_count=len(file_paths), chunk_count=len(ids))
         record = svc.db.get(bucket_id)
@@ -735,15 +588,8 @@ def promote_bucket(
     svc: BucketService = Depends(_get_bucket_service),
     settings: Settings = Depends(get_settings),
 ):
-    """Promote bucket source paths to permanent watched directories.
-
-    Adds each of the bucket's source paths to the main ``sources`` list in
-    settings so the FileWatcher indexes them into the main knowledge base.
-    The bucket itself is not modified or deleted.
-    """
-    record = svc.db.resolve(bucket_id)
-    if not record:
-        raise HTTPException(status_code=404, detail="Bucket not found")
+    """Promote bucket source paths to permanent watched directories."""
+    record = _resolve_bucket(svc, bucket_id)
 
     sources = json.loads(record.get("sources", "[]"))
     if not sources:

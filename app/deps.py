@@ -70,6 +70,26 @@ def get_tagdb(request: Request):
     return getattr(request.app.state, "tagdb", None)
 
 
+def get_bucket_service(request: Request):
+    """Return the BucketService instance, or None if the buckets plugin is disabled."""
+    return getattr(request.app.state, "bucket_service", None)
+
+
+def get_kgdb(request: Request):
+    """Return the knowledge-graph DB, or None if the plugin is disabled."""
+    return getattr(request.app.state, "kgdb", None)
+
+
+def get_wikidb(request: Request):
+    """Return the wiki DB, or None if the wiki_compile plugin is disabled."""
+    return getattr(request.app.state, "wikidb", None)
+
+
+def get_versioning_manager(request: Request):
+    """Return the versioning manager, or None if versioning is disabled."""
+    return getattr(request.app.state, "versioning_manager", None)
+
+
 def get_task_registry(request: Request):
     """Return the shared background :class:`TaskRegistry`."""
     return request.app.state.task_registry

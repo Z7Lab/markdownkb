@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.deps import get_chatdb
 from app.ratelimit import STANDARD, limiter
-from app.schemas import RenameThreadRequest
+from app.schemas.chat import RenameThreadRequest
 from app.storage.chatdb import ChatDB
 
 router = APIRouter(prefix="/api/v1", tags=["threads"])

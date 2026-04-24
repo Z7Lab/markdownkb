@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.config import Settings
-from app.deps import get_settings
+from app.deps import get_settings, get_versioning_manager
 from app.ratelimit import STANDARD, limiter
 
 logger = logging.getLogger(__name__)
@@ -82,6 +82,7 @@ def create_document(
     request: Request,
     req: CreateDocumentRequest,
     settings: Settings = Depends(get_settings),
+    manager=Depends(get_versioning_manager),
 ):
     """Create or update a markdown document in a watched source directory.
 
@@ -155,7 +156,6 @@ def create_document(
 
     # Best-effort version commit — never blocks the write.
     from app.versioning.hooks import try_commit
-    manager = getattr(request.app.state, "versioning_manager", None)
     verb = "update" if req.overwrite else "create"
     commit_sha = try_commit(
         settings, manager, target_dir,
@@ -179,6 +179,7 @@ def delete_document(
     path: str,
     source: str = "",
     settings: Settings = Depends(get_settings),
+    manager=Depends(get_versioning_manager),
 ):
     """Delete a markdown document from a watched source directory."""
     relative = _validate_path(path)
@@ -227,7 +228,6 @@ def delete_document(
 
     # Best-effort version commit — records the deletion.
     from app.versioning.hooks import try_commit
-    manager = getattr(request.app.state, "versioning_manager", None)
     commit_sha = try_commit(
         settings, manager, target_dir,
         paths=[relative],

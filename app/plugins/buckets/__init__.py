@@ -165,7 +165,7 @@ def _sync_missing_bucket_mounts(svc, settings) -> None:
     if changed:
         settings.save()
         try:
-            project_root = settings._path.resolve().parent.parent
+            project_root = settings.project_root
             all_configs = (
                 settings.source_configs
                 + settings.project_root_source_configs

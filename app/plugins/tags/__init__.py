@@ -13,7 +13,7 @@ __all__ = ["FEATURE_FLAG", "router", "on_startup", "on_shutdown"]
 
 def on_startup(app) -> None:
     """Initialize TagDB, migrate data from TrackingDB, register hooks."""
-    from app import tag_utils
+    from app.domains import tag_registry
     from app.plugins.tags.tagdb import TagDB
 
     settings = app.state.settings
@@ -59,11 +59,11 @@ def on_startup(app) -> None:
         logger.warning("Failed to sync tags from ChromaDB: %s", e)
 
     # Register hooks so core can resolve tags without importing this plugin
-    tag_utils.register_resolver(tagdb.get_paths_for_tags)
-    tag_utils.register_tag_lister(tagdb.get_all_tags)
-    tag_utils.register_file_tags_lister(tagdb.get_all_file_tags)
-    tag_utils.register_tags_hook(tagdb.update_tags)
-    tag_utils.register_delete_hook(tagdb.remove_file)
+    tag_registry.register_resolver(tagdb.get_paths_for_tags)
+    tag_registry.register_tag_lister(tagdb.get_all_tags)
+    tag_registry.register_file_tags_lister(tagdb.get_all_file_tags)
+    tag_registry.register_tags_hook(tagdb.update_tags)
+    tag_registry.register_delete_hook(tagdb.remove_file)
 
 
 def on_shutdown(app) -> None:

@@ -19,7 +19,7 @@ from app.embeddings.embedder import unload_model
 from app.embeddings.registry import MODELS
 from app.ingestion.indexer import run_index
 from app.ratelimit import INDEXING, STANDARD, limiter
-from app.schemas import EmbeddingModelRequest, IndexRequest
+from app.schemas.embeddings import EmbeddingModelRequest, IndexRequest
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 

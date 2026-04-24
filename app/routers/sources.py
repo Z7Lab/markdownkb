@@ -6,18 +6,10 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.config import Settings
-from app.deps import get_settings, get_store, get_tracking, get_watcher
+from app.deps import get_settings, get_store, get_tracking, get_versioning_manager, get_watcher
 from app.config.docker import in_docker, write_compose_override
 from app.ratelimit import STANDARD, limiter
-from app.schemas import (
-    AddProjectRootRequest,
-    AddSourceRequest,
-    IgnorePatternRequest,
-    RemoveProjectRootRequest,
-    RemoveSourceRequest,
-    UpdateProjectRootRequest,
-    UpdateSourceRequest,
-)
+from app.schemas.sources import AddProjectRootRequest, AddSourceRequest, IgnorePatternRequest, RemoveProjectRootRequest, RemoveSourceRequest, UpdateProjectRootRequest, UpdateSourceRequest
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +34,7 @@ def _watch_and_index(watcher, path: str):
 def _sync_compose_override(settings: Settings):
     """Regenerate compose.override.yml from source, project root, and bucket mount configs."""
     try:
-        project_root = settings._path.resolve().parent.parent
+        project_root = settings.project_root
         all_configs = (
             settings.source_configs
             + settings.project_root_source_configs
@@ -148,6 +140,7 @@ def update_source(
     request: Request,
     req: UpdateSourceRequest,
     settings: Settings = Depends(get_settings),
+    manager=Depends(get_versioning_manager),
 ):
     """Update a source's writable/versioned flags.
 
@@ -167,13 +160,11 @@ def update_source(
     settings.save()
     _sync_compose_override(settings)
     # Best-effort repo init when the user just turned versioning on.
-    if req.versioned:
-        manager = getattr(request.app.state, "versioning_manager", None)
-        if manager is not None:
-            try:
-                manager.ensure_repo(entry["path"])
-            except Exception:
-                logger.debug("Could not init managed repo", exc_info=True)
+    if req.versioned and manager is not None:
+        try:
+            manager.ensure_repo(entry["path"])
+        except Exception:
+            logger.debug("Could not init managed repo", exc_info=True)
     return entry
 
 

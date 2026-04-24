@@ -80,7 +80,7 @@ def _index_file(fi: FileInfo, settings: Settings,
 
     tracking.mark_complete(fi.path, len(chunks))
     if file_tags:
-        from app.tag_utils import notify_tags_extracted
+        from app.domains.tag_registry import notify_tags_extracted
         notify_tags_extracted(fi.path, file_tags)
     return len(chunks)
 
@@ -116,7 +116,7 @@ def run_index(
     )
     for path in removed:
         store.delete_by_source(path)
-        from app.tag_utils import notify_file_deleted
+        from app.domains.tag_registry import notify_file_deleted
         notify_file_deleted(path)
         event_bus.publish(IndexEvent(
             type="deleted", path=path, filename=Path(path).name,

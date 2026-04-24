@@ -6,7 +6,7 @@ import threading
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.config import Settings
-from app.deps import get_settings
+from app.deps import get_kgdb, get_settings
 from app.ratelimit import STANDARD, limiter
 
 logger = logging.getLogger(__name__)
@@ -15,8 +15,8 @@ router = APIRouter(prefix="/api/v1/knowledge-graph", tags=["knowledge_graph"])
 
 
 def _get_kgdb(request: Request):
-    """Get KnowledgeGraphDB from app.state (plugin-owned)."""
-    kgdb = getattr(request.app.state, "kgdb", None)
+    """Get KnowledgeGraphDB, raising 503 if the plugin isn't initialized."""
+    kgdb = get_kgdb(request)
     if kgdb is None:
         raise HTTPException(503, "Knowledge graph not initialized")
     return kgdb
@@ -205,9 +205,8 @@ def kg_path(
 
 @router.get("/stats")
 @limiter.limit(STANDARD)
-def kg_stats(request: Request):
+def kg_stats(request: Request, kgdb=Depends(get_kgdb)):
     """Return knowledge graph statistics."""
-    kgdb = getattr(request.app.state, "kgdb", None)
     if kgdb is None:
         return {"initialized": False, "entity_mentions": 0, "unique_entities": 0, "relationships": 0, "source_files": 0, "cached_chunks": 0}
     stats = kgdb.get_stats()
@@ -217,9 +216,8 @@ def kg_stats(request: Request):
 
 @router.get("/file-entity-counts")
 @limiter.limit(STANDARD)
-def kg_file_entity_counts(request: Request):
+def kg_file_entity_counts(request: Request, kgdb=Depends(get_kgdb)):
     """Return entity counts per file: {path: count}."""
-    kgdb = getattr(request.app.state, "kgdb", None)
     if kgdb is None:
         return {"counts": {}}
     return {"counts": kgdb.get_entity_counts_by_file()}

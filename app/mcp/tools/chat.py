@@ -46,7 +46,7 @@ def handler(message: str, scope_id: str | None = None,
     # Thread support: create or reuse thread when ChatDB is available
     actual_thread_id = thread_id
     if chatdb and not actual_thread_id:
-        from app.utils import short_title
+        from app.text import short_title
         title = short_title(message)
         actual_thread_id = chatdb.create_thread(title)
 

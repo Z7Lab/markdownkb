@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.config import Settings
-from app.deps import get_settings, get_retriever
+from app.deps import get_retriever, get_settings, get_wikidb
 from app.ratelimit import LLM, STANDARD, limiter
 from app.plugins.lint.service import (
     PASS_ORDER, build_report, run_lint, write_report,
@@ -40,6 +40,7 @@ def run(
     req: RunLintRequest,
     settings: Settings = Depends(get_settings),
     retriever=Depends(get_retriever),
+    wikidb=Depends(get_wikidb),
 ):
     """Run the wiki lint. Returns findings + a markdown report.
 
@@ -53,7 +54,6 @@ def run(
 
     # Gather all managed wiki paths for pass 1's log.md scan.
     wiki_paths: list[Path] = []
-    wikidb = getattr(request.app.state, "wikidb", None)
     if wikidb is not None:
         try:
             wiki_paths = [Path(w["path"]).resolve() for w in wikidb.list_all()]
@@ -96,6 +96,7 @@ def run(
 def list_reports(
     request: Request,
     settings: Settings = Depends(get_settings),
+    wikidb=Depends(get_wikidb),
 ):
     """List previously-generated lint reports sorted newest-first."""
     default_root = Path(settings.data_directory) / "lint-reports" / "lint"
@@ -117,7 +118,6 @@ def list_reports(
             })
 
     _collect(default_root)
-    wikidb = getattr(request.app.state, "wikidb", None)
     if wikidb is not None:
         try:
             for w in wikidb.list_all():

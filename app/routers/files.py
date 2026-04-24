@@ -7,13 +7,13 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.config import Settings
-from app.deps import get_retriever, get_settings, get_store, get_tagdb, get_tracking
+from app.deps import get_bucket_service, get_retriever, get_settings, get_store, get_tagdb, get_tracking
 from app.events import IndexEvent, event_bus
 from app.ingestion.indexer import ReindexError, reindex_file
 from app.ingestion.scanner import discover_sources
 from app.rag.retriever import Retriever
 from app.ratelimit import HEAVY, STANDARD, limiter
-from app.schemas import FileActionRequest, FileSearchRequest, SourceActionRequest, ToggleRagRequest
+from app.schemas.files import FileActionRequest, FileSearchRequest, SourceActionRequest, ToggleRagRequest
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 
@@ -51,6 +51,7 @@ def list_files(
     settings: Settings = Depends(get_settings),
     tracking: TrackingDB = Depends(get_tracking),
     tagdb=Depends(get_tagdb),
+    bucket_service=Depends(get_bucket_service),
 ):
     """List all discovered files, merging tracking DB info when available.
 
@@ -70,11 +71,10 @@ def list_files(
     tracked_map = {f["path"]: f for f in tracking.get_all_files()}
 
     # Build tag lookup from TagDB (if tags plugin is active)
-    from app.tag_utils import get_all_file_tags
+    from app.domains.tag_registry import get_all_file_tags
     tag_map = {ft["path"]: ft["tags"] for ft in get_all_file_tags()}
 
     # Build bucket membership map (path → [bucket_ids]) — empty when plugin inactive
-    bucket_service = getattr(request.app.state, "bucket_service", None)
     bucketed_path_map: dict[str, list[str]] = (
         bucket_service.db.get_bucketed_path_map() if bucket_service else {}
     )
@@ -208,6 +208,7 @@ def read_file(
     page: int | None = Query(None, ge=1, description="Page number (1-based)"),
     page_size: int = Query(5000, ge=100, le=50000, description="Lines per page"),
     settings: Settings = Depends(get_settings),
+    bucket_service=Depends(get_bucket_service),
 ):
     """Read file content, validating path is within configured sources.
 
@@ -228,15 +229,13 @@ def read_file(
     # bucket documents — buckets track their own source paths independently.
     # Allow reads of any path that a bucket knows about; the bucket plugin
     # already validated those paths when the bucket was created.
-    if not allowed:
-        bucket_service = getattr(request.app.state, "bucket_service", None)
-        if bucket_service is not None:
-            try:
-                bucketed = bucket_service.db.get_bucketed_paths()
-                if str(p) in bucketed or path in bucketed:
-                    allowed = True
-            except Exception:
-                pass
+    if not allowed and bucket_service is not None:
+        try:
+            bucketed = bucket_service.db.get_bucketed_paths()
+            if str(p) in bucketed or path in bucketed:
+                allowed = True
+        except Exception:
+            pass
     if not allowed:
         logger.warning("Access denied: %s is outside configured sources", p)
         raise HTTPException(

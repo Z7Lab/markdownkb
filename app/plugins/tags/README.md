@@ -47,12 +47,12 @@ AI endpoints require `plugins.tags.ai_generation: true` in settings. This allows
 
 The plugin uses lifecycle hooks to initialize after core services are ready:
 
-- **`on_startup(app)`**: Creates TagDB, runs one-time migration from TrackingDB (if TagDB is empty), registers resolver hooks with `app/tag_utils.py`
+- **`on_startup(app)`**: Creates TagDB, runs one-time migration from TrackingDB (if TagDB is empty), registers resolver hooks with `app/domains/tag_registry.py`
 - **`on_shutdown(app)`**: Closes TagDB connection
 
 ## Tag Resolution Protocol
 
-Core code never imports this plugin directly. Instead, `app/tag_utils.py` provides a dispatcher with module-level hooks:
+Core code never imports this plugin directly. Instead, `app/domains/tag_registry.py` provides a dispatcher with module-level hooks:
 
 - `register_resolver(fn)` — called at startup, enables `resolve_tag_paths()` for scope/ad-hoc tag filtering
 - `register_tag_lister(fn)` — enables `get_all_tags()` for the files list and tag filter UI
@@ -67,6 +67,6 @@ On first startup with the tags plugin enabled, `on_startup` checks if TagDB is e
 
 ## Dependencies
 
-- `app.tag_utils` — dispatcher hooks for core integration
+- `app.domains.tag_registry` — dispatcher hooks for core integration
 - `app.rag.retriever` — similar document lookup (AI generation only)
 - `app.lib.tag_generator` — LLM-based tag generation and file modification (AI generation only)

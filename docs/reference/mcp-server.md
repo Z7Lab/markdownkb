@@ -623,10 +623,10 @@ To add a new MCP tool, create a new `.py` file in `app/mcp/tools/` following the
 
 ### Resources and Prompts
 
-Resources and prompts are registered in `app/mcp/server.py` at startup via two functions:
+Resources and prompts live in dedicated modules and are registered at startup:
 
-- **`_register_resources(server, settings)`** — defines all MCP resources. Each resource is a URI + function that returns content when a client reads it. Add a new `@server.resource(...)` block here to expose additional content.
-- **`_register_prompts(server, settings)`** — defines MCP prompt templates (the shortcuts that appear in the prompt picker). Add a `@server.prompt(...)` block here to add new templates.
+- **`register_resources(server, settings)`** in `app/mcp/resources.py` — defines all MCP resources. Each resource is a URI + function that returns content when a client reads it. Add a new `@server.resource(...)` block here to expose additional content.
+- **`register_prompts(server, settings)`** in `app/mcp/prompts.py` — defines MCP prompt templates (the shortcuts that appear in the prompt picker). Add a `@server.prompt(...)` block here to add new templates.
 
 The **server instructions** (shown in browser clients as "Server instructions") are set via the `instructions=` argument to `FastMCP(...)` in `app/mcp/server.py`. This is the first thing a client-side model reads about what MarkdownKB is and how to use it.
 
@@ -636,7 +636,7 @@ Resources and prompts are registered at server startup from the values in `setti
 
 The `search`, `search_documents`, `chat`, `plan`, and `deep_research` tools accept an optional `scope_id` parameter. Scopes are named filter presets (folder paths + tags) managed via `POST /api/v1/scopes`. Use the `list_scopes` tool to discover available scopes.
 
-Scope resolution is handled by `app/mcp/scope.py`, which resolves the scope ID to `folders_filter` and `allowed_paths` parameters for the Retriever. Tag resolution calls `TagDB.get_paths_for_tags()` directly (not through the `tag_utils` callback which is only registered in the FastAPI process).
+Scope resolution is handled by `app/mcp/scope.py`, which resolves the scope ID to `folders_filter` and `allowed_paths` parameters for the Retriever. Tag resolution calls `TagDB.get_paths_for_tags()` directly (not through the `app.domains.tag_registry` callback which is only registered in the FastAPI process).
 
 ## Authentication
 

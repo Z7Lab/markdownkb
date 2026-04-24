@@ -5,20 +5,12 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.config import Settings
-from app.deps import get_presetsdb, get_settings
+from app.deps import get_presetsdb, get_settings, get_versioning_manager
 from app.services.settings_service import build_settings_response
 from app.storage.presetsdb import PresetsDB
 from app.ratelimit import STANDARD, limiter
-from app.schemas import (
-    CreatePresetRequest,
-    FeatureToggleRequest,
-    McpToolConfigRequest,
-    PluginConfigRequest,
-    RetrievalSettingsRequest,
-    SearchSummaryPromptRequest,
-    SystemPromptRequest,
-    UpdatePresetRequest,
-)
+from app.schemas.mcp import McpToolConfigRequest
+from app.schemas.settings import CreatePresetRequest, FeatureToggleRequest, PluginConfigRequest, RetrievalSettingsRequest, SearchSummaryPromptRequest, SystemPromptRequest, UpdatePresetRequest
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +49,7 @@ def toggle_core(
     request: Request,
     req: FeatureToggleRequest,
     settings: Settings = Depends(get_settings),
+    versioning_manager=Depends(get_versioning_manager),
 ):
     """Toggle a core behaviour flag."""
     if req.name not in _KNOWN_CORE_FLAGS:
@@ -66,16 +59,15 @@ def toggle_core(
     # Side-effect: lazy-init the versioning manager so the toggle takes
     # effect without a restart. Other flags are runtime-checked and need
     # no side-effects here.
-    if req.name == "versioning" and req.enabled:
-        if getattr(request.app.state, "versioning_manager", None) is None:
-            try:
-                from pathlib import Path
-                from app.versioning import GitManager
-                request.app.state.versioning_manager = GitManager(
-                    Path(settings.versioning_root)
-                )
-            except Exception:
-                logger.warning("Could not init GitManager on toggle", exc_info=True)
+    if req.name == "versioning" and req.enabled and versioning_manager is None:
+        try:
+            from pathlib import Path
+            from app.versioning import GitManager
+            request.app.state.versioning_manager = GitManager(
+                Path(settings.versioning_root)
+            )
+        except Exception:
+            logger.warning("Could not init GitManager on toggle", exc_info=True)
     return {"status": "saved"}
 
 

@@ -6,13 +6,20 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from app.config import Settings
-from app.deps import get_plandb, get_retriever, get_scopedb, get_settings, get_tracking
+from app.deps import (
+    get_bucket_service,
+    get_kgdb,
+    get_plandb,
+    get_retriever,
+    get_scopedb,
+    get_settings,
+    get_tracking,
+)
 from app.rag.retriever import Retriever
 from app.ratelimit import LLM, STANDARD, limiter
-from app.schemas import PlanRequest
-from app.scope_utils import parse_scope_ids, resolve_scopes
-from app.tag_utils import resolve_tag_paths
+from app.plugins.planner.schemas import PlanRequest
 from app.services.planner_service import list_skills, run_planner, stream_planner
+from app.services.scope_service import resolve_request_scope
 from app.storage.plandb import PlanDB
 from app.storage.scopedb import ScopeDB
 from app.storage.trackingdb import TrackingDB
@@ -31,25 +38,24 @@ def plan(
     settings: Settings = Depends(get_settings),
     scopedb: ScopeDB = Depends(get_scopedb),
     tracking: TrackingDB = Depends(get_tracking),
+    bucket_service=Depends(get_bucket_service),
+    kgdb=Depends(get_kgdb),
 ):
     """Generate an implementation plan using MCTS."""
-    ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
-    scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
-    allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
-
-    # Bucket-scoped planning: resolve one or more bucket retrievers
-    bucket_retrievers: list = []
-    bucket_ids = parse_scope_ids(req.bucket_ids)
-    if bucket_ids:
-        bucket_service = getattr(request.app.state, "bucket_service", None)
-        if bucket_service:
-            for bid in bucket_ids:
-                record = bucket_service.db.resolve(bid)
-                if record:
-                    bucket_retrievers.append(bucket_service.get_retriever(record["id"], settings))
-
-    has_scope = bool(scope_folders or allowed)
-    bucket_only = bool(bucket_retrievers) and not has_scope
+    bundle = resolve_request_scope(
+        bucket_service=bucket_service,
+        scope_ids=req.scope_ids,
+        scope_id=req.scope_id,
+        bucket_ids=req.bucket_ids,
+        ad_hoc_tags=req.ad_hoc_tags,
+        settings=settings,
+        scopedb=scopedb,
+    )
+    scope_folders = bundle.scope_folders
+    allowed = bundle.allowed_paths
+    exclude_patterns = bundle.exclude_patterns
+    bucket_retrievers = bundle.bucket_retrievers
+    bucket_only = bundle.bucket_only
 
     # Planner uses a single secondary retriever; first bucket is primary in bucket_only mode
     first_bucket = bucket_retrievers[0] if bucket_retrievers else None
@@ -65,7 +71,7 @@ def plan(
             allowed_paths=allowed if not bucket_only else None,
             exclude_patterns=exclude_patterns if not bucket_only else None,
             bucket_retriever=first_bucket if not bucket_only else None,
-            kgdb=getattr(request.app.state, "kgdb", None),
+            kgdb=kgdb,
         )
     except RuntimeError as e:
         logger.error("Planner error: %s", e)
@@ -82,25 +88,24 @@ def plan_stream(
     settings: Settings = Depends(get_settings),
     scopedb: ScopeDB = Depends(get_scopedb),
     tracking: TrackingDB = Depends(get_tracking),
+    bucket_service=Depends(get_bucket_service),
+    kgdb=Depends(get_kgdb),
 ):
     """Stream plan generation progress as SSE events."""
-    ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
-    scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
-    allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
-
-    # Bucket-scoped planning: resolve one or more bucket retrievers
-    bucket_retrievers_s: list = []
-    bucket_ids_s = parse_scope_ids(req.bucket_ids)
-    if bucket_ids_s:
-        bucket_service = getattr(request.app.state, "bucket_service", None)
-        if bucket_service:
-            for bid in bucket_ids_s:
-                record = bucket_service.db.resolve(bid)
-                if record:
-                    bucket_retrievers_s.append(bucket_service.get_retriever(record["id"], settings))
-
-    has_scope = bool(scope_folders or allowed)
-    bucket_only = bool(bucket_retrievers_s) and not has_scope
+    bundle = resolve_request_scope(
+        bucket_service=bucket_service,
+        scope_ids=req.scope_ids,
+        scope_id=req.scope_id,
+        bucket_ids=req.bucket_ids,
+        ad_hoc_tags=req.ad_hoc_tags,
+        settings=settings,
+        scopedb=scopedb,
+    )
+    scope_folders = bundle.scope_folders
+    allowed = bundle.allowed_paths
+    exclude_patterns = bundle.exclude_patterns
+    bucket_retrievers_s = bundle.bucket_retrievers
+    bucket_only = bundle.bucket_only
     first_bucket_s = bucket_retrievers_s[0] if bucket_retrievers_s else None
 
     def generate():
@@ -116,11 +121,11 @@ def plan_stream(
                 allowed_paths=allowed if not bucket_only else None,
                 exclude_patterns=exclude_patterns if not bucket_only else None,
                 bucket_retriever=first_bucket_s if not bucket_only else None,
-                kgdb=getattr(request.app.state, "kgdb", None),
+                kgdb=kgdb,
             )
         except RuntimeError as e:
             logger.error("Planner stream error: %s", e)
-            from app.utils import sse
+            from app.transport import sse
             yield sse("error", {"message": "Plan generation failed. Check server logs for details."})
 
     return StreamingResponse(generate(), media_type="text/event-stream")

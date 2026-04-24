@@ -6,12 +6,12 @@ import threading
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.config import Settings
-from app.deps import get_retriever, get_scopedb, get_settings, get_tracking
+from app.deps import get_bucket_service, get_retriever, get_scopedb, get_settings, get_tracking
 from app.events import event_bus
 from app.rag.retriever import Retriever
 from app.ratelimit import STANDARD, limiter
-from app.scope_utils import apply_exclude_patterns, parse_scope_ids, resolve_scopes
-from app.tag_utils import resolve_tag_paths
+from app.domains.scope_resolution import apply_exclude_patterns, parse_scope_ids, resolve_scopes
+from app.domains.tag_registry import resolve_tag_paths
 from app.services.graph_service import compute_cross_edges_fused, compute_edge_detail, compute_graph, graph_progress
 from app.storage.scopedb import ScopeDB
 from app.storage.trackingdb import TrackingDB
@@ -44,6 +44,7 @@ def graph_data(
     settings: Settings = Depends(get_settings),
     scopedb: ScopeDB = Depends(get_scopedb),
     tracking: TrackingDB = Depends(get_tracking),
+    bucket_service=Depends(get_bucket_service),
 ):
     """Return the document similarity map (nodes, edges, clusters, word clouds)."""
     ids = parse_scope_ids(scope_ids) or ([scope_id] if scope_id else None)
@@ -98,13 +99,11 @@ def graph_data(
 
     # Resolve all bucket records up front
     bucket_records: list[dict] = []
-    if all_bucket_ids:
-        bucket_service = getattr(request.app.state, "bucket_service", None)
-        if bucket_service:
-            for bid in all_bucket_ids:
-                rec = bucket_service.db.resolve(bid)
-                if rec:
-                    bucket_records.append(rec)
+    if all_bucket_ids and bucket_service:
+        for bid in all_bucket_ids:
+            rec = bucket_service.db.resolve(bid)
+            if rec:
+                bucket_records.append(rec)
 
     with _cache_lock:
         if key in _graph_cache:
@@ -121,7 +120,6 @@ def graph_data(
     total_cross_edges = 0
     total_bucket_docs = 0
     if bucket_records:
-        bucket_service = request.app.state.bucket_service
         # Expand scope folders into allowed set once for cross-edge filtering
         cross_allowed = allowed
         if cross_allowed is None and scope_folders:
@@ -262,6 +260,7 @@ def edge_detail(
     top_k: int = 5,
     bucket_id: str | None = None,
     retriever: Retriever = Depends(get_retriever),
+    bucket_service=Depends(get_bucket_service),
 ):
     """Return chunk-level similarity detail for a single document pair.
 
@@ -272,7 +271,6 @@ def edge_detail(
     """
     if not source or not target:
         raise HTTPException(status_code=400, detail="source and target are required")
-    bucket_service = getattr(request.app.state, "bucket_service", None)
     bucket_store = _bucket_store_for(bucket_service, bucket_id) if bucket_id else None
     return compute_edge_detail(retriever.store, source, target, top_k, target_store=bucket_store)
 
@@ -339,6 +337,7 @@ def edge_explain(
     refresh: bool = False,
     retriever: Retriever = Depends(get_retriever),
     settings: Settings = Depends(get_settings),
+    bucket_service=Depends(get_bucket_service),
 ):
     """Generate a one-sentence explanation of why two docs are connected.
 
@@ -348,8 +347,6 @@ def edge_explain(
     """
     if not source or not target:
         raise HTTPException(status_code=400, detail="source and target are required")
-
-    bucket_service = getattr(request.app.state, "bucket_service", None)
 
     src = _load_doc_for_explain(source, retriever, bucket_service, bucket_id)
     tgt = _load_doc_for_explain(target, retriever, bucket_service, bucket_id)

@@ -6,21 +6,29 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from app.config import Settings
-from app.deps import get_chatdb, get_conversation_history, get_retriever, get_scopedb, get_settings, get_tracking
+from app.deps import (
+    get_bucket_service,
+    get_chatdb,
+    get_conversation_history,
+    get_kgdb,
+    get_retriever,
+    get_scopedb,
+    get_settings,
+    get_tracking,
+)
 from app.rag.retriever import Retriever
 from app.ratelimit import LLM, STANDARD, limiter
-from app.schemas import ChatRequest, SavePlanRequest, StreamChatRequest
-from app.scope_utils import parse_scope_ids, resolve_scopes
-from app.tag_utils import resolve_tag_paths
+from app.schemas.chat import ChatRequest, SavePlanRequest, StreamChatRequest
 from app.services.chat_service import (
     chat_respond,
-    resolve_chat_scope,
     save_last_response_as_plan,
 )
+from app.services.scope_service import resolve_request_scope
 from app.storage.chatdb import ChatDB
 from app.storage.scopedb import ScopeDB
 from app.storage.trackingdb import TrackingDB
-from app.utils import short_title, sse
+from app.text import short_title
+from app.transport import sse
 
 logger = logging.getLogger(__name__)
 
@@ -71,9 +79,11 @@ def chat_stream(
     scopedb: ScopeDB = Depends(get_scopedb),
     tracking: TrackingDB = Depends(get_tracking),
     conv_history=Depends(get_conversation_history),
+    bucket_service=Depends(get_bucket_service),
+    kgdb=Depends(get_kgdb),
 ):
-    chat_scope = resolve_chat_scope(
-        app_state=request.app.state,
+    bundle = resolve_request_scope(
+        bucket_service=bucket_service,
         scope_ids=req.scope_ids,
         scope_id=req.scope_id,
         bucket_ids=req.bucket_ids,
@@ -81,10 +91,10 @@ def chat_stream(
         settings=settings,
         scopedb=scopedb,
     )
-    scope_folders = chat_scope.scope_folders
-    allowed = chat_scope.allowed_paths
-    exclude_patterns = chat_scope.exclude_patterns
-    bucket_retrievers = chat_scope.bucket_retrievers
+    scope_folders = bundle.scope_folders
+    allowed = bundle.allowed_paths
+    exclude_patterns = bundle.exclude_patterns
+    bucket_retrievers = bundle.bucket_retrievers
 
     if req.thread_id:
         thread_id = req.thread_id
@@ -99,11 +109,7 @@ def chat_stream(
         sources: list[str] = []
         source_map: dict[str, str] = {}
         last_yielded = ""
-        # Retrieval mode (computed once by resolve_chat_scope):
-        # - bucket only (no scope): use bucket retriever, no filters
-        # - scope only (no bucket): use main retriever with scope filters
-        # - both: use main retriever with scope filters + bucket retrievers merged
-        bucket_only = chat_scope.bucket_only
+        bucket_only = bundle.bucket_only
 
         bucket_allowed_paths = set(req.bucket_file_paths) if req.bucket_file_paths else None
 
@@ -121,7 +127,7 @@ def chat_stream(
             sources_out=sources,
             source_map_out=source_map,
             conversation_history=conv_history,
-            kgdb=getattr(request.app.state, "kgdb", None),
+            kgdb=kgdb,
         )
         try:
             try:

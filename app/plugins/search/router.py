@@ -1,27 +1,32 @@
 """Search endpoints with history and AI summary."""
 
 import logging
-import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
 from app.config import Settings
-from app.deps import get_retriever, get_scopedb, get_searchdb, get_settings, get_tracking
+from app.deps import (
+    get_bucket_service,
+    get_retriever,
+    get_scopedb,
+    get_searchdb,
+    get_settings,
+    get_tracking,
+)
 from app.rag.llm import get_streaming_completion
 from app.rag.prompts import format_context, get_search_summary_user
 from app.rag.retriever import Retriever
 from app.ratelimit import HEAVY, LLM, STANDARD, limiter
-from app.schemas import RenameSearchRequest, SearchRequest, SummarizeRequest
-from app.scope_utils import parse_scope_ids, resolve_scopes
-from app.tag_utils import resolve_tag_paths
+from app.plugins.search.schemas import RenameSearchRequest, SearchRequest, SummarizeRequest
 from app.services.chat_service import strip_thinking, extract_unique_sources
 from app.services.query_service import build_enhanced_search_query, enhance_query
+from app.services.scope_service import resolve_request_scope
+from app.plugins.search.service import extract_exact_phrases, get_search_config, perform_search
 from app.storage.scopedb import ScopeDB
 from app.storage.trackingdb import TrackingDB
 from app.storage.searchdb import SearchDB
-from app.utils import sse
-from app.plugins.search.service import get_search_config, group_results_by_file
+from app.transport import sse
 
 logger = logging.getLogger(__name__)
 
@@ -39,86 +44,33 @@ def search(
     scopedb: ScopeDB = Depends(get_scopedb),
     settings: Settings = Depends(get_settings),
     tracking: TrackingDB = Depends(get_tracking),
+    bucket_service=Depends(get_bucket_service),
 ):
     """Search the vector database with optional intelligent query enhancement."""
-    cfg = get_search_config(settings)
-    ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
-    scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
-    allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
+    bundle = resolve_request_scope(
+        bucket_service=bucket_service,
+        scope_ids=req.scope_ids,
+        scope_id=req.scope_id,
+        bucket_ids=req.bucket_ids,
+        ad_hoc_tags=req.ad_hoc_tags,
+        settings=settings,
+        scopedb=scopedb,
+    )
 
-    # Resolve bucket retrievers
-    bucket_retrievers: list = []
-    bucket_ids = parse_scope_ids(req.bucket_ids)
-    if bucket_ids:
-        bucket_service = getattr(request.app.state, "bucket_service", None)
-        if bucket_service is None:
-            raise HTTPException(status_code=503, detail="Buckets plugin not initialized")
-        for bid in bucket_ids:
-            record = bucket_service.db.resolve(bid)
-            if not record:
-                raise HTTPException(status_code=404, detail=f"Bucket not found: {bid}")
-            bucket_retrievers.append(bucket_service.get_retriever(record["id"], settings))
+    outcome = perform_search(
+        query=req.query,
+        top_k=req.top_k,
+        retriever=retriever,
+        bucket_retrievers=bundle.bucket_retrievers,
+        bucket_only=bundle.bucket_only,
+        scope_folders=bundle.scope_folders,
+        allowed_paths=bundle.allowed_paths,
+        exclude_patterns=bundle.exclude_patterns,
+        settings=settings,
+    )
+    grouped_results = outcome.grouped_results
+    llm_offline = outcome.llm_offline
 
-    has_scope = bool(scope_folders or allowed)
-    bucket_only = bool(bucket_retrievers) and not has_scope
-    # Extract "quoted phrases" for exact post-filtering when enabled
-    exact_phrases: list[str] = []
-    if cfg["exact_phrase_matching"]:
-        exact_phrases = [m.lower() for m in re.findall(r'"([^"]+)"', req.query)]
-    search_query = req.query.replace('"', '') if exact_phrases else req.query
-    llm_offline = False
-    top_k = req.top_k if req.top_k is not None else settings.top_k
-
-    # Optionally enhance query with LLM
-    if settings.intelligent_search_enabled:
-        enhanced = enhance_query(search_query, settings)
-        if enhanced.error:
-            logger.warning("Intelligent search failed, using original query: %s", enhanced.error)
-            llm_offline = True
-        else:
-            # Build enhanced query from LLM extraction
-            search_query = build_enhanced_search_query(enhanced)
-            logger.info("Enhanced query: %s -> %s", req.query, search_query)
-
-    # Fetch more chunks to ensure file diversity
-    multiplier = cfg["exact_phrase_multiplier"] if exact_phrases else cfg["chunk_multiplier"]
-    chunk_fetch_limit = top_k * multiplier
-
-    def _search_buckets(brs, query, limit):
-        results = []
-        for br in brs:
-            for r in br.search(query, top_k=limit):
-                r.metadata["_bucket"] = "true"
-                results.append(r)
-        return results
-
-    if bucket_only:
-        chunk_results = _search_buckets(bucket_retrievers, search_query, chunk_fetch_limit)
-    else:
-        chunk_results = retriever.search(
-            search_query,
-            top_k=chunk_fetch_limit,
-            folders_filter=scope_folders or None,
-            allowed_paths=allowed,
-            exclude_patterns=exclude_patterns or None,
-        )
-        if bucket_retrievers:
-            bucket_chunks = _search_buckets(bucket_retrievers, search_query, chunk_fetch_limit)
-            chunk_results = sorted(chunk_results + bucket_chunks, key=lambda r: r.score, reverse=True)
-
-    # Post-filter: if quoted phrases were used, only keep chunks containing them
-    if exact_phrases:
-        filtered = [r for r in chunk_results if all(p in r.document.lower() for p in exact_phrases)]
-        logger.info("Exact phrase filter: %d -> %d chunks", len(chunk_results), len(filtered))
-        chunk_results = filtered
-
-    # Group chunks by file for cleaner results
-    grouped_results = group_results_by_file(chunk_results)
-
-    # Limit to top_k files (not chunks)
-    grouped_results = grouped_results[:top_k]
-
-    # Extract result metadata for history preservation (file-level)
     result_paths = [r["metadata"].get("source_path", "") for r in grouped_results]
     result_count = len(grouped_results)
     result_details = [
@@ -238,28 +190,18 @@ def compare_historical_search(
     if not search_record:
         raise HTTPException(status_code=404, detail="Search not found")
 
-    cfg = get_search_config(settings)
-    # Re-run search with current KB state for comparison
-    raw_query = search_record["query"]
-    cmp_phrases: list[str] = []
-    if cfg["exact_phrase_matching"]:
-        cmp_phrases = [m.lower() for m in re.findall(r'"([^"]+)"', raw_query)]
-    search_query = raw_query.replace('"', '') if cmp_phrases else raw_query
-    if settings.intelligent_search_enabled:
-        enhanced = enhance_query(search_query, settings)
-        if not enhanced.error:
-            search_query = build_enhanced_search_query(enhanced)
-
-    multiplier = cfg["exact_phrase_multiplier"] if cmp_phrases else cfg["chunk_multiplier"]
-    chunk_fetch_limit = settings.top_k * multiplier
-    chunk_results = retriever.search(
-        search_query,
-        top_k=chunk_fetch_limit,
+    outcome = perform_search(
+        query=search_record["query"],
+        top_k=None,
+        retriever=retriever,
+        bucket_retrievers=[],
+        bucket_only=False,
+        scope_folders=None,
+        allowed_paths=None,
+        exclude_patterns=[],
+        settings=settings,
     )
-    if cmp_phrases:
-        chunk_results = [r for r in chunk_results if all(p in r.document.lower() for p in cmp_phrases)]
-    current_grouped_results = group_results_by_file(chunk_results)
-    current_grouped_results = current_grouped_results[:settings.top_k]
+    current_grouped_results = outcome.grouped_results
 
     # Compare stored vs current for change detection
     current_paths = set(r["metadata"].get("source_path", "") for r in current_grouped_results)
@@ -352,9 +294,18 @@ def summarize_search(
 ):
     """Generate AI summary of search results with streaming response."""
     cfg = get_search_config(settings)
-    ids = parse_scope_ids(req.scope_ids) or ([req.scope_id] if req.scope_id else None)
-    scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
-    allowed = resolve_tag_paths(scope_tags, req.ad_hoc_tags)
+    bundle = resolve_request_scope(
+        bucket_service=None,
+        scope_ids=req.scope_ids,
+        scope_id=req.scope_id,
+        bucket_ids=None,
+        ad_hoc_tags=req.ad_hoc_tags,
+        settings=settings,
+        scopedb=scopedb,
+    )
+    scope_folders = bundle.scope_folders
+    allowed = bundle.allowed_paths
+    exclude_patterns = bundle.exclude_patterns
     top_k = req.top_k if req.top_k is not None else settings.top_k
 
     # Deep research mode — delegate to MCTS pipeline
@@ -394,10 +345,7 @@ def summarize_search(
         return StreamingResponse(deep_generate(), media_type="text/event-stream")
 
     # Strip quotes for vector search, keep original for LLM prompt
-    sum_phrases: list[str] = []
-    if cfg["exact_phrase_matching"]:
-        sum_phrases = [m.lower() for m in re.findall(r'"([^"]+)"', req.query)]
-    sum_search_q = req.query.replace('"', '') if sum_phrases else req.query
+    sum_search_q, sum_phrases = extract_exact_phrases(req.query, cfg)
 
     results = retriever.search(
         sum_search_q,

@@ -9,7 +9,7 @@ import anthropic
 import openai
 
 from app.config import Settings
-from app.utils import parse_model as _parse_model
+from app.text import parse_model as _parse_model
 
 logger = logging.getLogger(__name__)
 

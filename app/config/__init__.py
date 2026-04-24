@@ -6,15 +6,15 @@ The Settings class is composed from domain-specific mixins:
 - RetrievalMixin: top_k, thresholds, hybrid search, BM25
 - PromptsMixin: prompt template loading, caching, overrides
 - MCPMixin: MCP tool configuration CRUD
+- EmbeddingsMixin: embedding model, provider, chunking
+- StorageMixin: data dir, ChromaDB persistence, collection name
+- PluginsMixin: plugin and shared-service config CRUD
 
 Settings layout (post-migration)::
 
     core:        # behaviour toggles that aren't plugins
-    mcp:         # MCP tool enable flags (read_only, save_document, etc.)
+    mcp:         # MCP tool enable flags
     plugins:     # each plugin: enabled + its config together
-      search:
-        enabled: true
-        chunk_multiplier: 10
     services:    # shared service config (deep_research, etc.)
 
 Legacy ``features:`` / flat ``plugins:`` layouts are auto-migrated on
@@ -25,15 +25,17 @@ import logging
 import os
 import threading
 from pathlib import Path
-from typing import Any
 
 import yaml
 
+from app.config.embeddings import EmbeddingsMixin
 from app.config.llm import LLMMixin
 from app.config.mcp import MCPMixin
+from app.config.plugins import PluginsMixin
 from app.config.prompts import PromptsMixin
 from app.config.retrieval import RetrievalMixin
 from app.config.sources import SourcesMixin
+from app.config.storage import StorageMixin
 from app.config._migrations import migrate_num_ctx, migrate_settings
 from app.config._paths import (
     DEFAULT_CONFIG_PATH as _DEFAULT_CONFIG_PATH,
@@ -55,19 +57,32 @@ _migrate_settings = migrate_settings
 _migrate_num_ctx = migrate_num_ctx
 
 
-class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
+class Settings(
+    SourcesMixin,
+    LLMMixin,
+    RetrievalMixin,
+    PromptsMixin,
+    MCPMixin,
+    EmbeddingsMixin,
+    StorageMixin,
+    PluginsMixin,
+):
     """Singleton settings manager backed by YAML config file.
 
     Environment variable substitution (``${VAR}`` in ``settings.yaml``) is
-    performed at ``__init__`` and ``reload()`` time only — see
-    :func:`_resolve_env_recursive` for details. A small number of properties
-    (``cors_origins``, ``server_host``) read ``os.environ`` directly and
-    therefore do reflect changes per request; everything else requires
+    performed at ``__init__`` and ``reload()`` time only. A small number of
+    properties (``cors_origins``, ``server_host``) read ``os.environ``
+    directly and reflect changes per request; everything else requires
     ``reload()`` to pick up env-var mutations.
     """
 
     _instance: "Settings | None" = None
     _class_lock = threading.Lock()
+
+    # Core-feature defaults for keys that should default to True when missing.
+    CORE_FEATURE_DEFAULTS: dict[str, bool] = {
+        "versioning": True,
+    }
 
     def __init__(self, config_path: str | Path | None = None):
         path = Path(config_path) if config_path else _DEFAULT_CONFIG_PATH
@@ -87,16 +102,12 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
         self._prompt_cache: dict[str, str] = {}
         self._mcp_dir = self._path.parent / "mcp"
 
-        # Auto-migrate legacy settings layout
         migrated = _migrate_settings(self._data)
         if _migrate_num_ctx(self._data):
             migrated = True
         if migrated:
             self.save()
 
-        # Validate scalar types / ranges so misconfigured YAML fails loudly
-        # at startup instead of at first-use deep inside the LLM or search
-        # code paths.
         _validate_settings(self._data)
 
     @property
@@ -119,11 +130,7 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
             cls._instance = None
 
     def reload(self):
-        """Re-read settings.yaml from disk and update the live instance.
-
-        Preserves the singleton identity — all existing references to this
-        object see the updated values immediately.
-        """
+        """Re-read settings.yaml from disk and update the live instance."""
         with self._lock:
             if self._path.exists():
                 with open(self._path, encoding="utf-8") as f:
@@ -143,10 +150,7 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
         with self._lock:
             self._path.parent.mkdir(parents=True, exist_ok=True)
             with open(self._path, "w", encoding="utf-8") as f:
-                yaml.dump(
-                    self._data, f,
-                    default_flow_style=False, sort_keys=False,
-                )
+                yaml.dump(self._data, f, default_flow_style=False, sort_keys=False)
 
     def _resolve_path(self, p: str) -> str:
         """Resolve a relative path against the project root."""
@@ -155,141 +159,7 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
             path = self._project_root / path
         return str(path.resolve())
 
-    # --- Embeddings ---
-    @property
-    def embedding_model(self) -> str:
-        """Return the configured embedding model name."""
-        return self._data.get("embeddings", {}).get(
-            "model", "all-MiniLM-L6-v2"
-        )
-
-    @embedding_model.setter
-    def embedding_model(self, value: str):
-        """Set the embedding model name."""
-        self._data.setdefault("embeddings", {})["model"] = value
-
-    @property
-    def embedding_provider(self) -> str:
-        """Return 'local' (ONNX) or 'remote' (Ollama/OpenAI-compatible)."""
-        return self._data.get("embeddings", {}).get("provider", "local")
-
-    @embedding_provider.setter
-    def embedding_provider(self, value: str):
-        self._data.setdefault("embeddings", {})["provider"] = value
-
-    @property
-    def embedding_remote_config(self) -> dict | None:
-        """Return remote embedding config or None if provider is local."""
-        if self.embedding_provider != "remote":
-            return None
-        emb = self._data.get("embeddings", {})
-        api_base = emb.get("api_base", "")
-        if not api_base:
-            return None
-        # Resolve API key: check secrets, then env, then config
-        api_type = emb.get("api_type", "ollama")
-        api_key = ""
-        if api_type == "openai":
-            api_key = self.resolve_provider_key("embedding") or emb.get("api_key", "")
-        return {
-            "model": emb.get("remote_model", "nomic-embed-text"),
-            "api_base": api_base,
-            "api_type": api_type,
-            "api_key": api_key,
-        }
-
-    def update_embedding_remote_config(self, api_base: str, remote_model: str, api_type: str) -> None:
-        """Set remote embedding provider fields (api_base, remote_model, api_type)."""
-        emb = self._data.setdefault("embeddings", {})
-        emb["api_base"] = api_base
-        emb["remote_model"] = remote_model
-        emb["api_type"] = api_type
-
-    # Fallback model definitions used when settings.yaml has no models list
-    _DEFAULT_MODELS = [
-        {
-            "model_id": "all-MiniLM-L6-v2",
-            "display_name": "MiniLM L6 v2",
-            "huggingface_repo": "sentence-transformers/all-MiniLM-L6-v2",
-            "dimensions": 384,
-            "max_seq_length": 256,
-            "description": "Fast, lightweight (23MB). Good general purpose.",
-        },
-        {
-            "model_id": "all-MiniLM-L12-v2",
-            "display_name": "MiniLM L12 v2",
-            "huggingface_repo": "sentence-transformers/all-MiniLM-L12-v2",
-            "dimensions": 384,
-            "max_seq_length": 256,
-            "description": "Higher quality than L6, slightly slower (33MB).",
-        },
-        {
-            "model_id": "bge-small-en-v1.5",
-            "display_name": "BGE Small EN v1.5",
-            "huggingface_repo": "BAAI/bge-small-en-v1.5",
-            "dimensions": 384,
-            "max_seq_length": 512,
-            "description": "Best retrieval quality (133MB). 512 token context.",
-            "query_prefix": "Represent this sentence for searching relevant passages: ",
-        },
-    ]
-
-    @property
-    def model_configs(self) -> list[dict]:
-        """Return embedding model definitions from config, with built-in fallback."""
-        return self._data.get("embeddings", {}).get("models", self._DEFAULT_MODELS)
-
-    @property
-    def chunk_size(self) -> int:
-        """Return the maximum chunk size in characters."""
-        return self._data.get("embeddings", {}).get("chunk_size", 512)
-
-    @property
-    def chunk_overlap(self) -> int:
-        """Return the overlap between consecutive chunks."""
-        return self._data.get("embeddings", {}).get("chunk_overlap", 50)
-
-    # --- Storage ---
-    @property
-    def data_directory(self) -> str:
-        """Return the data directory for all persistent state.
-
-        Resolution order:
-        1. ``storage.data_directory`` in settings.yaml (explicit override)
-        2. ``MARKDOWNKB_DATA_DIR`` environment variable (Docker sets this)
-        3. ``platformdirs.user_data_dir("markdownkb")`` OS-appropriate default:
-           - Linux:   ``~/.local/share/markdownkb``
-           - macOS:   ``~/Library/Application Support/markdownkb``
-           - Windows: ``%APPDATA%\\markdownkb``
-        """
-        raw = self._data.get("storage", {}).get("data_directory", "")
-        if raw:
-            return self._resolve_path(raw)
-        return default_data_dir()
-
-    @property
-    def persist_directory(self) -> str:
-        """Return the resolved path for ChromaDB persistence."""
-        raw = self._data.get("storage", {}).get("persist_directory", "")
-        if raw:
-            return self._resolve_path(raw)
-        return str(Path(self.data_directory) / "chromadb")
-
-    @property
-    def collection_name(self) -> str:
-        """Return the ChromaDB collection name."""
-        return self._data.get("storage", {}).get(
-            "collection_name", "markdownkb"
-        )
-
-    # --- Core ---
-
-    # Defaults for known core flags. Anything missing from settings.yaml
-    # falls back to the value here when the flag is read. Keys that should
-    # default to True live here; everything else defaults to False.
-    CORE_FEATURE_DEFAULTS: dict[str, bool] = {
-        "versioning": True,
-    }
+    # --- Core features ---
 
     @property
     def core_features(self) -> dict[str, bool]:
@@ -306,15 +176,15 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
             return bool(core[name])
         return self.CORE_FEATURE_DEFAULTS.get(name, False)
 
+    def set_core(self, name: str, enabled: bool) -> None:
+        """Set a core feature flag."""
+        self._data.setdefault("core", {})[name] = enabled
+
     # --- Versioning ---
 
     @property
     def versioning_enabled(self) -> bool:
-        """Global kill-switch for git-based versioning of writable sources.
-
-        Lives under ``core.versioning`` for consistency with other toggles
-        (file_watcher, rag_chat, etc.). Defaults to True.
-        """
+        """Global kill-switch for git-based versioning of writable sources."""
         return self.core_enabled("versioning")
 
     @property
@@ -325,11 +195,7 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
             return self._resolve_path(override)
         return str(Path(self.data_directory) / "versioning")
 
-    def set_core(self, name: str, enabled: bool) -> None:
-        """Set a core feature flag."""
-        self._data.setdefault("core", {})[name] = enabled
-
-    # --- MCP ---
+    # --- MCP flags ---
 
     @property
     def mcp_features(self) -> dict[str, bool]:
@@ -356,59 +222,18 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
         """Set the per-key request rate cap. 0 disables rate limiting."""
         self._data.setdefault("mcp", {})["rate_limit_per_minute"] = max(0, int(per_minute))
 
-    # --- Plugin Configuration ---
+    # --- Auth / Server / CORS ---
 
-    def plugin_enabled(self, name: str) -> bool:
-        """Check whether plugin *name* is enabled via ``plugins.<name>.enabled``."""
-        cfg = self._data.get("plugins", {}).get(name)
-        if not isinstance(cfg, dict):
-            return bool(cfg) if cfg is not None else False
-        return cfg.get("enabled", False)
-
-    def set_plugin_enabled(self, name: str, enabled: bool) -> None:
-        """Set ``plugins.<name>.enabled``."""
-        self._data.setdefault("plugins", {}).setdefault(name, {})["enabled"] = enabled
-
-    def get_plugin_config(self, plugin_name: str) -> dict:
-        """Return the config dict for a plugin, excluding ``enabled``."""
-        cfg = dict(self._data.get("plugins", {}).get(plugin_name, {}))
-        cfg.pop("enabled", None)
-        return cfg
-
-    def set_plugin_config(self, plugin_name: str, config: dict) -> None:
-        """Merge *config* into ``plugins.<name>`` (shallow update)."""
-        plugins = self._data.setdefault("plugins", {})
-        existing = plugins.setdefault(plugin_name, {})
-        existing.update(config)
-
-    def remove_plugin_config(self, plugin_name: str) -> None:
-        """Remove a plugin's configuration section entirely."""
-        self._data.get("plugins", {}).pop(plugin_name, None)
-
-    # --- Service Configuration ---
-
-    def get_service_config(self, service_name: str) -> dict:
-        """Return config for a shared service from ``services.<name>``."""
-        return dict(self._data.get("services", {}).get(service_name, {}))
-
-    def set_service_config(self, service_name: str, config: dict) -> None:
-        """Merge *config* into ``services.<name>``."""
-        services = self._data.setdefault("services", {})
-        existing = services.setdefault(service_name, {})
-        existing.update(config)
-
-    # --- Auth ---
     @property
     def api_key(self) -> str:
         """Return the API key for header-based authentication.
 
         Checked in order: Docker secret ``markdownkb_api_key`` >
-        ``MARKDOWNKB_API_KEY`` env var.  Empty string means authentication
+        ``MARKDOWNKB_API_KEY`` env var. Empty string means authentication
         is disabled.
         """
         return _read_secret("markdownkb_api_key") or os.environ.get("MARKDOWNKB_API_KEY", "")
 
-    # --- Server ---
     @property
     def server_host(self) -> str:
         """Return the server bind host (SERVER_HOST env var > settings.yaml > 127.0.0.1)."""
@@ -427,14 +252,9 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
                 raise
         return self._data.get("server", {}).get("port", 9713)
 
-    # --- CORS ---
     @property
     def cors_origins(self) -> list[str]:
-        """Return allowed CORS origins.
-
-        CORS_ORIGINS env var (comma-separated) > server.cors_origins in
-        settings.yaml > default based on FRONTEND_PORT.
-        """
+        """Return allowed CORS origins (env var > settings > default)."""
         env_val = os.environ.get("CORS_ORIGINS", "")
         if env_val:
             return [o.strip() for o in env_val.split(",") if o.strip()]
@@ -444,7 +264,8 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
         frontend_port = os.environ.get("FRONTEND_PORT", "9714")
         return [f"http://localhost:{frontend_port}"]
 
-    # --- Plans ---
+    # --- Misc ---
+
     @property
     def plans_save_directory(self) -> str:
         """Return the resolved path for saving plans."""
@@ -453,13 +274,29 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
             return self._resolve_path(raw)
         return str(Path(self.data_directory) / "plans")
 
-    # --- UI ---
     @property
     def file_list_limit(self) -> int:
         """Return the maximum number of files to return in file listings."""
         return self._data.get("ui", {}).get("file_list_limit", 5000)
 
+    # --- Project layout ---
+
+    @property
+    def project_root(self) -> Path:
+        """Absolute project root derived from the config file location."""
+        return self._path.resolve().parent.parent
+
+    @property
+    def config_path(self) -> Path:
+        """Path of the loaded settings.yaml — read-only public accessor."""
+        return self._path
+
     # --- Bucket mounts ---
+
+    @property
+    def bucket_mounts(self) -> list[str]:
+        """Return a copy of the configured bucket mount paths."""
+        return list(self._data.get("bucket_mounts", []))
 
     @property
     def bucket_mount_configs(self) -> list[dict]:
@@ -486,6 +323,7 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
         self._data["bucket_mounts"] = paths
 
     # --- Logging ---
+
     @property
     def log_level(self) -> str:
         """Return the configured log level (INFO or DEBUG)."""
@@ -497,6 +335,7 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
         self._data.setdefault("logging", {})["level"] = value
 
     # --- Dashboard Widgets ---
+
     @property
     def dashboard_widgets(self) -> dict[str, bool]:
         """Return the dashboard widget visibility preferences."""
@@ -511,15 +350,8 @@ class Settings(SourcesMixin, LLMMixin, RetrievalMixin, PromptsMixin, MCPMixin):
         return self._data.get("dashboard_widgets", {}).get(widget_name, True)
 
     # --- Raw access ---
+
     @property
     def raw(self) -> dict:
         """Return the raw configuration dictionary."""
         return self._data
-
-    def set(self, key_path: str, value: Any):
-        """Set a value using dot-separated key path."""
-        keys = key_path.split(".")
-        d = self._data
-        for k in keys[:-1]:
-            d = d.setdefault(k, {})
-        d[keys[-1]] = value

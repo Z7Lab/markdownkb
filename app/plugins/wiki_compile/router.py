@@ -23,7 +23,7 @@ from pydantic import BaseModel, Field
 
 from app.config import Settings
 from app.config.docker import in_docker, write_compose_override
-from app.deps import get_retriever, get_settings
+from app.deps import get_retriever, get_settings, get_versioning_manager
 from app.rag.retriever import Retriever
 from app.ratelimit import LLM, STANDARD, limiter
 from app.plugins.wiki_compile.service import WikiCompileError, ingest
@@ -74,7 +74,7 @@ def _sync_wiki_compose(settings: Settings, wikidb: WikiDB) -> bool:
     if not in_docker():
         return False
     try:
-        project_root = settings._path.resolve().parent.parent
+        project_root = settings.project_root
         wiki_configs = _wiki_mount_configs(wikidb)
         all_configs = (
             settings.source_configs
@@ -155,8 +155,7 @@ def create_wiki(
     # — so we append the dict directly, matching how existing sources are
     # written in settings.yaml).
     if str(path) not in settings.explicit_sources:
-        raw_sources = settings._data.setdefault("sources", [])
-        raw_sources.append({"path": str(path), "writable": True})
+        settings.add_source({"path": str(path), "writable": True})
         settings.save()
 
     docker_restart_required = _sync_wiki_compose(settings, wikidb)
@@ -184,9 +183,7 @@ def delete_wiki(
 
     # Remove the path from configured sources.
     if wiki["path"] in settings.explicit_sources:
-        new_sources = [s for s in settings._data.get("sources", [])
-                       if settings._resolve_path(settings._source_entry(s)["path"]) != wiki["path"]]
-        settings._data["sources"] = new_sources
+        settings.remove_source(wiki["path"])
         settings.save()
 
     docker_restart_required = _sync_wiki_compose(settings, wikidb)
@@ -210,6 +207,7 @@ def ingest_endpoint(
     settings: Settings = Depends(get_settings),
     retriever: Retriever = Depends(get_retriever),
     wikidb: WikiDB = Depends(_get_wikidb),
+    versioning_manager=Depends(get_versioning_manager),
 ):
     """Run one ingest pass (read source + LLM summary + index/log update).
 
@@ -221,7 +219,6 @@ def ingest_endpoint(
     if not wiki:
         raise HTTPException(status_code=404, detail=f"Wiki not found: {req.wiki}")
 
-    versioning_manager = getattr(request.app.state, "versioning_manager", None)
     try:
         result = ingest(
             source_path=req.source_path,

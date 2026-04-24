@@ -13,7 +13,7 @@ from collections.abc import Iterator
 
 import httpx
 
-from app.utils import validate_api_base
+from app.security import validate_api_base
 
 logger = logging.getLogger(__name__)
 

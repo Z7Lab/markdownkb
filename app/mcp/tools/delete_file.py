@@ -71,7 +71,7 @@ def handler(path: str) -> dict:
     tracking.remove_file(resolved)
 
     # Notify tag system if available
-    from app.tag_utils import notify_file_deleted
+    from app.domains.tag_registry import notify_file_deleted
     notify_file_deleted(resolved)
 
     logger.info("Document deleted via MCP: %s", resolved)

@@ -7,7 +7,8 @@ import anthropic
 import httpx
 import openai
 
-from app.utils import parse_model as _parse_model, validate_api_base
+from app.text import parse_model as _parse_model
+from app.security import validate_api_base
 
 logger = logging.getLogger(__name__)
 

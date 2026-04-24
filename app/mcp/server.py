@@ -30,6 +30,10 @@ from app.config import Settings
 from app.embeddings.registry import load_models
 from app.ingestion.indexer import run_index
 from app.logbuffer import log_buffer
+from app.mcp import _state
+from app.mcp.http_middleware import default_allowed_hosts, run_http_with_auth
+from app.mcp.prompts import register_prompts
+from app.mcp.resources import register_resources
 from app.mcp.tools import register_tools
 from app.rag.retriever import Retriever
 from app.storage.chatdb import ChatDB
@@ -52,333 +56,6 @@ logging.basicConfig(
 logging.getLogger().addHandler(log_buffer)
 logger = logging.getLogger(__name__)
 
-# Guard against FastMCP's streamable-HTTP session manager calling the lifespan
-# context for every new session.  We only want to initialize resources and
-# register tools once — subsequent sessions reuse the cached resources so
-# the per-session lifespan returns immediately instead of re-running the full
-# (expensive) setup: model loading, VectorStore, ChromaDB collections, etc.
-_tools_registered = False
-_cached_resources: dict | None = None
-
-
-# -- Resources -----------------------------------------------------------------
-
-def _slugify(name: str) -> str:
-    """Convert a name to a URI-safe slug."""
-    import re
-    return re.sub(r"[^a-zA-Z0-9._-]+", "-", name).strip("-") or "unnamed"
-
-
-def _register_resources(server: FastMCP, settings) -> None:
-    """Register MCP resources: overview, source-directory listings, scopes, buckets, file template."""
-    from pathlib import Path
-
-    # Overview resource: live KB summary — useful to attach to context in clients
-    # like the llama.cpp browser chat before asking questions.
-    @server.resource(
-        "markdownkb://overview",
-        name="Knowledge Base Overview",
-        description="Live summary of the knowledge base: file count, chunks, sources, scopes, and buckets.",
-        mime_type="text/plain",
-    )
-    def _overview() -> str:
-        from app.storage.trackingdb import TrackingDB
-        from app.storage.scopedb import ScopeDB
-
-        # Prefer already-initialized instances from the lifespan cache to avoid
-        # re-opening ChromaDB on every resource read.
-        cached = _cached_resources or {}
-        tracking_owned = cached.get("tracking") is None
-        scopedb_owned = True
-
-        tracking = cached.get("tracking") or TrackingDB(settings.data_directory)
-        store = cached.get("store")
-        scopedb = ScopeDB(settings.data_directory)
-        try:
-            file_count = tracking.file_count()
-            chunk_count = store.count if store else 0
-            scopes = scopedb.list_scopes()
-            recent = tracking.get_all_files(limit=10)
-        finally:
-            if tracking_owned:
-                tracking.close()
-            if scopedb_owned:
-                scopedb.close()
-
-        lines = ["# MarkdownKB Knowledge Base Overview", ""]
-        lines.append(f"Indexed: {file_count} files, {chunk_count} chunks")
-        lines.append(f"Watch directories: {len(settings.sources)}")
-        lines.append(f"Named scopes: {len(scopes)}")
-
-        if settings.plugin_enabled("buckets"):
-            from app.plugins.buckets.bucketdb import BucketDB
-            bucketdb = BucketDB(settings.data_directory)
-            try:
-                buckets = bucketdb.list_all()
-            finally:
-                bucketdb.close()
-            lines.append(f"Buckets: {len(buckets)}")
-
-        if settings.sources:
-            lines.append("")
-            lines.append("## Watch Directories")
-            for src in settings.sources:
-                p = Path(src)
-                count = len(list(p.rglob("*.md"))) if p.is_dir() else (1 if p.is_file() else 0)
-                lines.append(f"- {src} ({count} files)")
-
-        if scopes:
-            lines.append("")
-            lines.append("## Named Scopes")
-            for sc in scopes:
-                desc = sc["name"]
-                if sc.get("folders"):
-                    desc += f" — {', '.join(sc['folders'])}"
-                if sc.get("tags"):
-                    desc += f" [tags: {', '.join(sc['tags'])}]"
-                lines.append(f"- {desc}")
-
-        if recent:
-            lines.append("")
-            lines.append("## Recently Indexed Files")
-            for f in recent:
-                name = Path(f["path"]).name
-                ts = (f.get("indexed_at") or "")[:10]
-                lines.append(f"- {name}" + (f" ({ts})" if ts else ""))
-
-        return "\n".join(lines)
-
-    # Static resources: one per configured source directory so clients can
-    # browse the top-level structure without listing every file.
-    # Use a factory to close over loop variables without adding function
-    # parameters (any params on a resource fn → FastMCP treats it as a template).
-    def _make_listing(source_path: str, source_name: str):
-        def _listing() -> str:
-            src = Path(source_path)
-            if not src.exists():
-                return f"Source directory not found: {source_path}"
-            files = sorted(src.rglob("*.md"))
-            lines = [f"# Source: {source_name}", f"Path: {source_path}", ""]
-            lines += [str(f.relative_to(src)) for f in files[:500]]
-            if len(files) > 500:
-                lines.append(f"... and {len(files) - 500} more")
-            return "\n".join(lines)
-        return _listing
-
-    for source_path in settings.sources:
-        p = Path(source_path)
-        uri = f"markdownkb://watch-directories/{p.name}"
-        server.resource(
-            uri,
-            name=p.name,
-            description=f"Watched directory: {source_path}",
-            mime_type="text/plain",
-        )(_make_listing(source_path, p.name))
-
-    # Scope resources: one per named scope, listing files from its folders.
-    from app.storage.scopedb import ScopeDB
-
-    def _make_scope_listing(scope_id: str, scope_name: str, folders: list[str], tags: list[str]):
-        def _listing() -> str:
-            # Re-read scope live in case it was updated since registration
-            scopedb = ScopeDB(settings.data_directory)
-            try:
-                scope = scopedb.get(scope_id)
-            finally:
-                scopedb.close()
-            if scope is None:
-                return f"Scope '{scope_name}' no longer exists."
-            current_folders = scope["folders"]
-            current_tags = scope["tags"]
-            lines = [f"# Scope: {scope_name}"]
-            if current_folders:
-                lines.append(f"Folders: {', '.join(current_folders)}")
-            if current_tags:
-                lines.append(f"Tags: {', '.join(current_tags)}")
-            lines.append("")
-            files = []
-            for folder in current_folders:
-                p = Path(folder)
-                if p.is_dir():
-                    files.extend(sorted(p.rglob("*.md")))
-            if not files:
-                lines.append("(no files found in scope folders)")
-            else:
-                lines += [str(f) for f in files[:500]]
-                if len(files) > 500:
-                    lines.append(f"... and {len(files) - 500} more")
-            return "\n".join(lines)
-        return _listing
-
-    try:
-        _scopedb = ScopeDB(settings.data_directory)
-        _scopes = _scopedb.list_scopes()
-        _scopedb.close()
-    except Exception:
-        logger.exception("Failed to load scopes for MCP resource registration; scope resources will be unavailable")
-        _scopes = []
-
-    for scope in _scopes:
-        _sid = scope["id"]
-        _sname = scope["name"]
-        _folders = scope.get("folders", [])
-        _tags = scope.get("tags", [])
-        _desc = f"Scope '{_sname}'"
-        if _folders:
-            _desc += f" — folders: {', '.join(_folders)}"
-        if _tags:
-            _desc += f" — tags: {', '.join(_tags)}"
-        server.resource(
-            f"markdownkb://scopes/{_slugify(_sname)}",
-            name=_sname,
-            description=_desc,
-            mime_type="text/plain",
-        )(_make_scope_listing(_sid, _sname, _folders, _tags))
-
-    # Bucket resources: one per bucket, listing its indexed files.
-    if settings.plugin_enabled("buckets"):
-        from app.plugins.buckets.bucketdb import BucketDB
-        import json as _json
-
-        def _make_bucket_listing(bucket_id: str, bucket_name: str):
-            def _listing() -> str:
-                bucketdb = BucketDB(settings.data_directory)
-                try:
-                    bucket = bucketdb.get(bucket_id)
-                finally:
-                    bucketdb.close()
-                if bucket is None:
-                    return f"Bucket '{bucket_name}' no longer exists."
-                sources = _json.loads(bucket.get("sources", "[]"))
-                lines = [
-                    f"# Bucket: {bucket_name}",
-                    f"Files: {bucket['file_count']}  Chunks: {bucket['chunk_count']}",
-                    "",
-                ]
-                for src in sources:
-                    path = src.get("path", "")
-                    glob = src.get("glob", "**/*.md")
-                    lines.append(f"Source: {path}  ({glob})")
-                    p = Path(path)
-                    if p.is_dir():
-                        files = sorted(p.glob(glob))
-                        lines += [f"  {f}" for f in files[:200]]
-                        if len(files) > 200:
-                            lines.append(f"  ... and {len(files) - 200} more")
-                    elif p.is_file():
-                        lines.append(f"  {path}")
-                return "\n".join(lines)
-            return _listing
-
-        try:
-            _bucketdb = BucketDB(settings.data_directory)
-            _buckets = _bucketdb.list_all()
-            _bucketdb.close()
-        except Exception:
-            logger.exception("Failed to load buckets for MCP resource registration; bucket resources will be unavailable")
-            _buckets = []
-
-        for bucket in _buckets:
-            _bid = bucket["id"]
-            _bname = bucket["name"]
-            server.resource(
-                f"markdownkb://buckets/{_slugify(_bname)}",
-                name=_bname,
-                description=f"Temporary bucket '{_bname}' — {bucket['file_count']} files, {bucket['chunk_count']} chunks",
-                mime_type="text/plain",
-            )(_make_bucket_listing(_bid, _bname))
-
-    # Resource template: read any indexed file by path.
-    @server.resource(
-        "markdownkb://file/{path}",
-        name="File",
-        description="Read the content of any indexed markdown file. Use search or list_files to find paths.",
-        mime_type="text/markdown",
-    )
-    def _file_resource(path: str) -> str:
-        """Read a file from the knowledge base by its relative or absolute path."""
-        from pathlib import Path as _Path
-
-        # Support both relative (from any source root) and absolute paths
-        resolved: str | None = None
-        for src in settings.sources:
-            candidate = _Path(src) / path
-            if candidate.exists():
-                resolved = str(candidate.resolve())
-                break
-
-        if resolved is None:
-            abs_candidate = _Path(path)
-            if abs_candidate.is_absolute() and abs_candidate.exists():
-                resolved = str(abs_candidate.resolve())
-
-        if resolved is None:
-            return f"File not found: {path}"
-
-        in_source = any(
-            resolved.startswith(str(_Path(s).resolve()) + "/")
-            for s in settings.sources
-        )
-        if not in_source:
-            return "Access denied: path is outside configured sources"
-
-        try:
-            return _Path(resolved).read_text(encoding="utf-8", errors="replace")
-        except OSError as exc:
-            return f"Cannot read file: {exc}"
-
-
-# -- Prompts -------------------------------------------------------------------
-
-def _register_prompts(server: FastMCP, settings) -> None:
-    """Register built-in MCP prompt templates."""
-
-    @server.prompt(
-        name="ask-kb",
-        description="Ask a question and get an answer grounded in the knowledge base.",
-    )
-    def ask_kb(question: str) -> str:
-        """Ask a question against the knowledge base.
-
-        Args:
-            question: The question to ask.
-        """
-        return (
-            f"Use the `chat` tool to answer this question using the knowledge base:\n\n{question}"
-        )
-
-    @server.prompt(
-        name="summarize-topic",
-        description="Search the knowledge base and summarize what it says about a topic.",
-    )
-    def summarize_topic(topic: str) -> str:
-        """Summarize knowledge-base content about a topic.
-
-        Args:
-            topic: The topic to summarize.
-        """
-        return (
-            f"Use the `search_summarize` tool to find and summarize everything "
-            f"the knowledge base contains about: {topic}"
-        )
-
-    @server.prompt(
-        name="research-topic",
-        description="Run deep multi-angle research on a topic using the knowledge base.",
-    )
-    def research_topic(topic: str) -> str:
-        """Run comprehensive deep research on a topic.
-
-        Args:
-            topic: The topic to research thoroughly.
-        """
-        return (
-            f"Use the `deep_research` tool to run thorough multi-angle research "
-            f"on this topic using the knowledge base: {topic}"
-        )
-
-
-# -- Lifespan: initialize core services once at startup --------------------
 
 @asynccontextmanager
 async def lifespan(server: FastMCP):
@@ -386,13 +63,11 @@ async def lifespan(server: FastMCP):
 
     FastMCP's streamable-HTTP session manager calls this for every new client
     session.  All expensive work (model loading, VectorStore, ChromaDB, DBs)
-    runs only on the first call and is cached in _cached_resources.  Subsequent
-    sessions yield the cached dict immediately so the MCP handshake completes
-    in milliseconds instead of seconds.
+    runs only on the first call and is cached in ``_state.cached_resources``.
+    Subsequent sessions yield the cached dict immediately so the MCP handshake
+    completes in milliseconds instead of seconds.
     """
-    global _tools_registered, _cached_resources
-
-    if _cached_resources is None:
+    if _state.cached_resources is None:
         settings = Settings.get()
         load_models(settings.model_configs)
 
@@ -455,7 +130,7 @@ async def lifespan(server: FastMCP):
             searchdb = SearchDB(settings.data_directory)
             logger.info("MCP history tracking enabled (searches + chat threads)")
 
-        _cached_resources = {
+        _state.cached_resources = {
             "settings": settings,
             "store": store,
             "tracking": tracking,
@@ -471,9 +146,9 @@ async def lifespan(server: FastMCP):
             "versioning_manager": versioning_manager,
         }
 
-        if not _tools_registered:
+        if not _state.tools_registered:
             registered = register_tools(server, settings)
-            _tools_registered = True
+            _state.tools_registered = True
             logger.info(
                 "MCP server ready (%d documents indexed, %d tools: %s)",
                 store.count, len(registered), registered,
@@ -481,54 +156,7 @@ async def lifespan(server: FastMCP):
     else:
         logger.debug("MCP lifespan re-entered (new session) — reusing cached resources")
 
-    yield _cached_resources
-
-
-# -- Entry point -----------------------------------------------------------
-
-def _default_allowed_hosts(bind_host: str, port: int) -> list[str]:
-    """Reachable-by-default hostnames to seed the Host allowlist.
-
-    DNS rebinding protection rejects any Host header not on the allowlist,
-    which is a common cause of "Invalid Host header" 400s from legitimate
-    LAN or Docker-bridge clients. We seed the list with:
-      - localhost / 127.0.0.1 (always)
-      - host.docker.internal (common Docker-agent bridge name)
-      - the machine's hostname and ``<hostname>.local`` (mDNS)
-      - the machine's LAN IPs (best-effort via socket lookup)
-      - the explicit bind host when it's a specific IP
-
-    The user can tighten this by setting ``mcp.allowed_hosts`` in
-    settings.yaml, or loosen it further with ``*``.  Each entry is expanded
-    to both ``name:*`` (wildcard port) and ``name:<bind-port>`` so clients
-    hitting either the default MCP port or a remapped one both work.
-    """
-    import socket
-
-    names: list[str] = ["localhost", "127.0.0.1", "host.docker.internal"]
-    try:
-        hostname = socket.gethostname()
-        if hostname:
-            names.append(hostname)
-            names.append(f"{hostname}.local")
-    except OSError:
-        pass
-    try:
-        _, _, lan_ips = socket.gethostbyname_ex(socket.gethostname())
-        names.extend(lan_ips)
-    except OSError:
-        pass
-    if bind_host not in ("0.0.0.0", "::", "127.0.0.1", "::1", "localhost"):
-        names.append(bind_host)
-
-    entries: list[str] = []
-    seen: set[str] = set()
-    for name in names:
-        for pattern in (f"{name}:*", f"{name}:{port}"):
-            if pattern not in seen:
-                seen.add(pattern)
-                entries.append(pattern)
-    return entries
+    yield _state.cached_resources
 
 
 def _create_mcp(bind_host: str = "127.0.0.1", bind_port: int = 9715) -> FastMCP:
@@ -556,10 +184,8 @@ def _create_mcp(bind_host: str = "127.0.0.1", bind_port: int = 9715) -> FastMCP:
             enable_dns_rebinding_protection=False,
         )
     else:
-        # Merge user-configured entries with the default reachable-host set.
-        # User entries come first (take precedence in log/debug output).
         merged = [str(h) for h in configured_hosts]
-        for h in _default_allowed_hosts(bind_host, bind_port):
+        for h in default_allowed_hosts(bind_host, bind_port):
             if h not in merged:
                 merged.append(h)
         transport_security = TransportSecuritySettings(
@@ -586,137 +212,10 @@ def _create_mcp(bind_host: str = "127.0.0.1", bind_port: int = 9715) -> FastMCP:
 
     # Resources and prompts are static — register at creation time so they
     # are available immediately, not deferred to the first lifespan call.
-    _register_resources(mcp, settings)
-    _register_prompts(mcp, settings)
+    register_resources(mcp, settings)
+    register_prompts(mcp, settings)
 
     return mcp
-
-
-def _run_http_with_auth(mcp: FastMCP, host: str, port: int):
-    """Run Streamable HTTP transport with optional API key middleware.
-
-    Middleware stack (outermost → innermost):
-      CORSMiddleware        — adds CORS headers; handles OPTIONS preflight
-      McpApiKeyMiddleware   — rejects requests without valid key (if configured)
-      _WithUtilityRoutes    — intercepts /logs and /log-level
-      mcp_asgi              — FastMCP with DNS rebinding protection on /mcp
-
-    CORS must be outermost so OPTIONS preflight responses are served without
-    hitting auth middleware, which is standard browser CORS behaviour.
-    """
-    import anyio
-    import uvicorn
-    from starlette.middleware.cors import CORSMiddleware
-    from starlette.requests import Request
-    from starlette.responses import JSONResponse
-
-    async def _serve():
-        mcp.settings.host = host
-        mcp.settings.port = port
-        mcp_asgi = mcp.streamable_http_app()
-
-        class _WithUtilityRoutes:
-            """Thin ASGI wrapper: intercepts /logs and /log-level; forwards everything
-            else (including lifespan) to the inner MCP app unchanged."""
-
-            def __init__(self, inner):
-                self._inner = inner
-
-            async def __call__(self, scope, receive, send):
-                if scope["type"] == "http":
-                    path = scope.get("path", "")
-                    if path == "/logs":
-                        await self._handle_logs(scope, receive, send)
-                        return
-                    if path == "/log-level":
-                        await self._handle_log_level(scope, receive, send)
-                        return
-                await self._inner(scope, receive, send)
-
-            async def _handle_logs(self, scope, receive, send):
-                request = Request(scope, receive)
-                if request.method == "DELETE":
-                    log_buffer.clear()
-                    response = JSONResponse({"status": "cleared"})
-                else:
-                    since = int(request.query_params.get("since", 0))
-                    entries, seq = log_buffer.get_entries(since)
-                    response = JSONResponse({"entries": entries, "seq": seq})
-                await response(scope, receive, send)
-
-            async def _handle_log_level(self, scope, receive, send):
-                request = Request(scope, receive)
-                if request.method == "PUT":
-                    body = await request.json()
-                    level_str = body.get("level", "INFO").upper()
-                    level = 60 if level_str == "OFF" else getattr(logging, level_str, logging.INFO)
-                    logging.getLogger().setLevel(level)
-                    if level_str != "OFF":
-                        logger.info("MCP log level changed to %s", level_str)
-                    response = JSONResponse({"level": level_str})
-                else:
-                    current = logging.getLogger().level
-                    level_name = "OFF" if current >= 60 else logging.getLevelName(current)
-                    response = JSONResponse({"level": level_name})
-                await response(scope, receive, send)
-
-        combined_app = _WithUtilityRoutes(mcp_asgi)
-
-        settings = Settings.get()
-        api_key = settings.api_key
-
-        # Auth middleware — wraps utility routes + MCP app
-        if api_key:
-            from app.mcp.auth import McpApiKeyMiddleware
-            combined_app = McpApiKeyMiddleware(combined_app, api_key)
-            logger.info(
-                "MCP auth enabled (accepts Authorization: Bearer or X-MarkdownKB-Key)"
-            )
-        else:
-            logger.info("MCP auth disabled (no API key configured)")
-
-        # Rate limit — outside auth so 429s don't require a valid key, but
-        # inside CORS so OPTIONS preflight isn't counted.
-        per_minute = settings.mcp_features.get("rate_limit_per_minute", 0) or 0
-        try:
-            per_minute = int(per_minute)
-        except (TypeError, ValueError):
-            per_minute = 0
-        if per_minute > 0:
-            from app.mcp.ratelimit import McpRateLimitMiddleware
-            rate_limiter = McpRateLimitMiddleware(combined_app, per_minute=per_minute)
-            combined_app = rate_limiter
-            logger.info("MCP rate limit enabled: %d requests per minute per key/IP", per_minute)
-        else:
-            logger.info("MCP rate limit disabled (mcp.rate_limit_per_minute is 0)")
-
-        # CORS — outermost so OPTIONS preflight is answered before auth.
-        # Derive allowed origins from settings: '*' → allow all.
-        allowed_origins_setting = settings.mcp_features.get("allowed_origins", []) or []
-        allowed_hosts_setting = settings.mcp_features.get("allowed_hosts", []) or []
-        if "*" in allowed_origins_setting or "*" in allowed_hosts_setting:
-            cors_origins = ["*"]
-        elif allowed_origins_setting:
-            cors_origins = [str(o) for o in allowed_origins_setting]
-        else:
-            cors_origins = ["*"]  # default permissive for LAN deployments
-        combined_app = CORSMiddleware(
-            combined_app,
-            allow_origins=cors_origins,
-            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            allow_headers=["*"],
-            expose_headers=["*"],
-        )
-        logger.info("MCP CORS enabled (origins: %s)", cors_origins)
-
-        config = uvicorn.Config(
-            combined_app, host=host, port=port,
-            log_level="info",
-        )
-        server = uvicorn.Server(config)
-        await server.serve()
-
-    anyio.run(_serve)
 
 
 def main():
@@ -739,7 +238,7 @@ def main():
 
     if args.http:
         logger.info("Starting MCP server (Streamable HTTP) on %s:%d", args.host, args.port)
-        _run_http_with_auth(mcp, args.host, args.port)
+        run_http_with_auth(mcp, args.host, args.port)
     else:
         logger.info("Starting MCP server (stdio)")
         mcp.run(transport="stdio")

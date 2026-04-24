@@ -9,8 +9,8 @@ from app.config import Settings
 from app.deps import get_chatdb, get_searchdb, get_settings, get_store, get_tracking
 from app.ratelimit import HEAVY, STANDARD, limiter
 from app.logbuffer import log_buffer
-from app.schemas import LogLevelRequest
-from app.utils import get_path_size
+from app.schemas.misc import LogLevelRequest
+from app.text import get_path_size
 
 logger = logging.getLogger(__name__)
 

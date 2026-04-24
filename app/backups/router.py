@@ -28,7 +28,7 @@ router = APIRouter(prefix="/api/v1/backups", tags=["backups"])
 
 # Read app version from FastAPI app instance (set in api.create_app).
 def _manager(request: Request, settings: Settings) -> BackupManager:
-    project_root = Path(settings._path).resolve().parent.parent
+    project_root = settings.project_root
     app_version = getattr(request.app, "version", "0.0.0")
     return BackupManager(
         data_dir=Path(settings.data_directory),

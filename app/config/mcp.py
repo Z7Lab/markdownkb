@@ -4,6 +4,8 @@ import logging
 
 import yaml
 
+from app.config._paths import resolve_env_recursive as _resolve_env_recursive
+
 logger = logging.getLogger(__name__)
 
 
@@ -29,7 +31,6 @@ class MCPMixin:
                     logger.warning("Failed to load MCP config %s: %s", tool_config_file, e)
 
             # Overlay user overrides from config/mcp/{tool_name}.yaml
-            from app.config import _resolve_env_recursive
             user_config_file = self._mcp_dir / f"{tool_name}.yaml"
             if user_config_file.exists():
                 try:

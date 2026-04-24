@@ -59,14 +59,13 @@ def handler(name: str, path: str | None = None) -> dict:
     record = wikidb.create(name, str(target))
 
     if str(target) not in settings.explicit_sources:
-        raw_sources = settings._data.setdefault("sources", [])
-        raw_sources.append({"path": str(target), "writable": True})
+        settings.add_source({"path": str(target), "writable": True})
         settings.save()
 
     docker_restart_required = False
     if in_docker():
         try:
-            project_root = settings._path.resolve().parent.parent
+            project_root = settings.project_root
             wiki_configs = [{"path": w["path"], "writable": True} for w in wikidb.list_all()]
             all_configs = (
                 settings.source_configs

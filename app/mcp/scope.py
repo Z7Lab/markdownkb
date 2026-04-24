@@ -6,14 +6,14 @@ Resolves a ``scope_id`` from an MCP tool call into the
 
 Uses :func:`resolve_scopes_raw` (raises ``ValueError``, not
 ``HTTPException``) and calls ``TagDB.get_paths_for_tags`` directly
-rather than going through ``tag_utils`` (whose resolver callback is
-only registered by the FastAPI tags plugin startup, not the MCP
-lifespan).
+rather than going through ``app.domains.tag_registry`` (whose resolver
+callback is only registered by the FastAPI tags plugin startup, not
+the MCP lifespan).
 """
 
 from typing import Any
 
-from app.scope_utils import resolve_scopes_raw
+from app.domains.scope_resolution import resolve_scopes_raw
 from app.storage.scopedb import ScopeDB
 
 

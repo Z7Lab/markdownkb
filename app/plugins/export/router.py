@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Request
 
 from app.deps import get_conversation_history
 from app.ratelimit import STANDARD, limiter
-from app.schemas import ExportRequest
+from app.schemas.misc import ExportRequest
 
 router = APIRouter(prefix="/api/v1", tags=["export"])
 

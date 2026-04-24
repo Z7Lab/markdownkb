@@ -13,15 +13,8 @@ from app.plugins.catalogs.ollama.catalog import (
     is_reachable as ollama_is_reachable,
     pull_model as ollama_pull_model,
 )
-from app.schemas import (
-    LlmParamsRequest,
-    ModelInfoRequest,
-    OllamaPullRequest,
-    ProviderSettingsRequest,
-    RefreshModelsRequest,
-    TestConnectionRequest,
-    TestPromptRequest,
-)
+from app.schemas.embeddings import OllamaPullRequest
+from app.schemas.settings import LlmParamsRequest, ModelInfoRequest, ProviderSettingsRequest, RefreshModelsRequest, TestConnectionRequest, TestPromptRequest
 from app.services.llm_service import (
     build_model_list,
     get_model_capabilities,
@@ -29,7 +22,7 @@ from app.services.llm_service import (
     stream_test_prompt,
     test_llm_connection,
 )
-from app.utils import sse
+from app.transport import sse
 
 logger = logging.getLogger(__name__)
 

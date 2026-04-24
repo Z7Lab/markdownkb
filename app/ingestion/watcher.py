@@ -38,7 +38,7 @@ def reindex_file(
         logger.info("File deleted, removing from index: %s", filepath)
         store.delete_by_source(filepath)
         tracking.remove_file(filepath)
-        from app.tag_utils import notify_file_deleted
+        from app.domains.tag_registry import notify_file_deleted
         notify_file_deleted(filepath)
         event_bus.publish(IndexEvent(
             type="deleted", path=filepath, filename=_filename(filepath),
@@ -176,7 +176,7 @@ class MarkdownHandler(FileSystemEventHandler):
             logger.info("File renamed away from .md: %s → %s", src, dest)
             self._store.delete_by_source(src)
             self._tracking.remove_file(src)
-            from app.tag_utils import notify_file_deleted
+            from app.domains.tag_registry import notify_file_deleted
             notify_file_deleted(src)
             return
 
@@ -203,7 +203,7 @@ class MarkdownHandler(FileSystemEventHandler):
             logger.info("File moved outside watched dirs: %s → %s", src, dest)
             self._store.delete_by_source(src)
             self._tracking.remove_file(src)
-            from app.tag_utils import notify_file_deleted
+            from app.domains.tag_registry import notify_file_deleted
             notify_file_deleted(src)
             return
 
@@ -229,7 +229,7 @@ class MarkdownHandler(FileSystemEventHandler):
             logger.info("File deleted: %s", resolved)
             self._store.delete_by_source(resolved)
             self._tracking.remove_file(resolved)
-            from app.tag_utils import notify_file_deleted
+            from app.domains.tag_registry import notify_file_deleted
             notify_file_deleted(resolved)
             event_bus.publish(IndexEvent(
                 type="deleted", path=resolved,

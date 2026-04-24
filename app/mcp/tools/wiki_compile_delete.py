@@ -51,17 +51,13 @@ def handler(name: str) -> dict:
 
     # Drop the path from configured sources.
     if record["path"] in settings.explicit_sources:
-        new_sources = [
-            s for s in settings._data.get("sources", [])
-            if settings._resolve_path(settings._source_entry(s)["path"]) != record["path"]
-        ]
-        settings._data["sources"] = new_sources
+        settings.remove_source(record["path"])
         settings.save()
 
     docker_restart_required = False
     if in_docker():
         try:
-            project_root = settings._path.resolve().parent.parent
+            project_root = settings.project_root
             wiki_configs = [{"path": w["path"], "writable": True} for w in wikidb.list_all()]
             all_configs = (
                 settings.source_configs

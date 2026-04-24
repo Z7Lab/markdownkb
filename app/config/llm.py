@@ -3,13 +3,9 @@
 import logging
 import os
 
+from app.config._paths import read_secret as _read_secret
+
 logger = logging.getLogger(__name__)
-
-
-def _read_secret(name: str) -> str:
-    """Read a Docker secret by name (imported from package root at runtime)."""
-    from app.config import _read_secret as _rs
-    return _rs(name)
 
 
 class LLMMixin:
