@@ -226,7 +226,7 @@ export function BucketDetailPanel({
 
   return (
     <>
-    <div className="relative flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden">
       <ScrollArea className="flex-1 min-h-0">
         <div className="p-6 space-y-4">
           {/* Header */}
@@ -251,6 +251,18 @@ export function BucketDetailPanel({
                   </Badge>
                 )}
               </h2>
+              {!bucket.expired && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                  onClick={() => setChatOpen(true)}
+                  aria-label="Chat with bucket"
+                  title="Chat with this bucket"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                </Button>
+              )}
             </div>
 
             {/* Stats + action toolbar */}
@@ -587,17 +599,6 @@ export function BucketDetailPanel({
         </div>
       </ScrollArea>
 
-      {/* FAB — chat with bucket */}
-      {!bucket.expired && (
-        <button
-          className="absolute bottom-6 right-6 z-10 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl hover:bg-primary/90 flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-          onClick={() => setChatOpen(true)}
-          aria-label="Chat with bucket"
-          title="Chat with this bucket"
-        >
-          <MessageSquare className="h-5 w-5" />
-        </button>
-      )}
     </div>
     <BucketChatDrawer
       open={chatOpen}
