@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useLocation } from "wouter"
 import { useBuckets } from "@/hooks/use-buckets"
 import { setVisibilityInterval } from "@/lib/polling"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -8,9 +9,15 @@ import { BucketCreateForm } from "./bucket-create-form"
 import { BucketDetailPanel } from "./bucket-detail-panel"
 import { BucketsEmptyState } from "./buckets-empty-state"
 
-export function BucketsTab() {
+interface BucketsTabProps {
+  /** Bucket ID from the URL (/buckets/:bucketId). Selects that bucket on mount. */
+  defaultBucketId?: string
+}
+
+export function BucketsTab({ defaultBucketId }: BucketsTabProps) {
   const { buckets, createBucket, updateBucket, deleteBucket, exportBucket, importBucket, promoteBucket, refresh } = useBuckets()
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [, setLocation] = useLocation()
+  const [selectedId, setSelectedId] = useState<string | null>(defaultBucketId ?? null)
   const [creating, setCreating] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [viewing, setViewing] = useState<{ path: string; bucketId: string } | null>(null)
@@ -21,23 +28,31 @@ export function BucketsTab() {
     return setVisibilityInterval(refresh, anyIndexing ? 3000 : 15000)
   }, [refresh, anyIndexing])
 
-  // If selected bucket was deleted, deselect it
+  // Sync URL param → local state (browser back/forward, direct link).
   useEffect(() => {
-    if (selectedId && !buckets.find((b) => b.id === selectedId)) {
+    setSelectedId(defaultBucketId ?? null)
+  }, [defaultBucketId])
+
+  // If selected bucket was deleted, deselect it and drop the URL param.
+  useEffect(() => {
+    if (selectedId && buckets.length > 0 && !buckets.find((b) => b.id === selectedId)) {
       setSelectedId(null)
+      setLocation("/buckets")
     }
-  }, [buckets, selectedId])
+  }, [buckets, selectedId, setLocation])
 
   const selectedBucket = buckets.find((b) => b.id === selectedId) ?? null
 
   function handleSelectBucket(id: string) {
     setCreating(false)
     setSelectedId(id)
+    setLocation(`/buckets/${id}`)
   }
 
   function handleNewBucket() {
     setSelectedId(null)
     setCreating(true)
+    setLocation("/buckets")
   }
 
   async function handleDelete() {
@@ -58,6 +73,7 @@ export function BucketsTab() {
           if (bucket) {
             setCreating(false)
             setSelectedId(bucket.id)
+            setLocation(`/buckets/${bucket.id}`)
           }
         }}
       />
@@ -69,6 +85,7 @@ export function BucketsTab() {
             onCreated={(id) => {
               setCreating(false)
               setSelectedId(id)
+              setLocation(`/buckets/${id}`)
             }}
             onCancel={() => setCreating(false)}
           />

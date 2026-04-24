@@ -56,10 +56,10 @@ routeToTab["/settings"] = "settings"
 tabToRoute["settings"] = "/settings"
 
 // Tab content components — keyed by tab value. Entries without a component
-// use eager-loaded paths or have special rendering below (chat, search, planner, settings).
+// use eager-loaded paths or have special rendering below (chat, search,
+// planner, buckets, settings).
 const TAB_COMPONENTS: Record<string, ComponentType<Record<string, never>>> = {
   files: FilesTab,
-  buckets: BucketsTab,
   wiki: WikiTab,
 }
 
@@ -88,9 +88,10 @@ export function App() {
   const [isSettingsSection, settingsParams] = useRoute<{ section: string }>("/settings/:section")
   const [isSearchResult, searchParams] = useRoute<{ searchId: string }>("/search/:searchId")
   const [isPlannerSession, plannerParams] = useRoute<{ planId: string }>("/planner/:planId")
+  const [isBucketDetail, bucketParams] = useRoute<{ bucketId: string }>("/buckets/:bucketId")
 
   const pathname = location.split("?")[0] ?? "/"
-  const isKnownRoute = pathname in routeToTab || isChatThread || isSettingsSection || isSearchResult || isPlannerSession
+  const isKnownRoute = pathname in routeToTab || isChatThread || isSettingsSection || isSearchResult || isPlannerSession || isBucketDetail
   const activeTab = isChatThread
     ? "chat"
     : isSettingsSection
@@ -99,6 +100,8 @@ export function App() {
     ? "search"
     : isPlannerSession
     ? "planner"
+    : isBucketDetail
+    ? "buckets"
     : routeToTab[pathname] ?? null
 
   // Show 404 for unknown routes instead of silent redirect
@@ -164,6 +167,15 @@ export function App() {
                       </ErrorBoundary>
                     </TabsContent>
                   ))}
+
+                  {/* Buckets tab — has deep-link routing for individual buckets */}
+                  <TabsContent value="buckets" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
+                    <ErrorBoundary fallbackMessage="Buckets encountered an error">
+                      <Suspense fallback={<TabFallback />}>
+                        <BucketsTab defaultBucketId={bucketParams?.bucketId} />
+                      </Suspense>
+                    </ErrorBoundary>
+                  </TabsContent>
 
                   {/* Visualization tabs share the same lazy component with different modes */}
                   <TabsContent value="docmap" className="flex-1 mt-0 overflow-hidden data-[state=inactive]:hidden">
