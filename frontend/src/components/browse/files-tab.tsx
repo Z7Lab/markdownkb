@@ -21,7 +21,8 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable"
-import { ArrowDown, ArrowUp, FileDown, FileText, FileX, Loader2, RefreshCw, Search, Tag, Wand2, X } from "lucide-react"
+import { FileDown, FileText, FileX, Loader2, RefreshCw, Search, Tag, Wand2, X } from "lucide-react"
+import { SortButton } from "@/components/ui/table"
 import type { TrackedFile } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
@@ -35,41 +36,8 @@ const KG_LAYOUT: Record<string, number> = {
   file: 18, folder: 18, tags: 11, rag: 7, status: 7, chunks: 5, entities: 6, indexed: 11, actions: 17,
 }
 
-function SortHeader({
-  sortKey,
-  activeSortKey,
-  sortDir,
-  onSort,
-  children,
-  className,
-}: {
-  sortKey: string
-  activeSortKey: string | null
-  sortDir: "asc" | "desc"
-  onSort: (key: string) => void
-  children: React.ReactNode
-  className?: string
-}) {
-  const active = activeSortKey === sortKey
-  return (
-    <button
-      type="button"
-      onClick={() => onSort(sortKey)}
-      className={cn(
-        "flex items-center gap-1 px-2 h-full text-sm font-medium text-foreground cursor-pointer select-none whitespace-nowrap overflow-hidden",
-        className,
-      )}
-      aria-label={active ? `Sort by ${sortKey}, ${sortDir === "asc" ? "ascending" : "descending"}` : `Sort by ${sortKey}`}
-    >
-      {children}
-      {active &&
-        (sortDir === "asc" ? (
-          <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
-        ) : (
-          <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
-        ))}
-    </button>
-  )
+function SortHeader(props: React.ComponentProps<typeof SortButton>) {
+  return <SortButton {...props} className={cn("px-2 h-full text-sm", props.className)} />
 }
 
 /** Virtualized file list — only renders visible rows for large file sets */

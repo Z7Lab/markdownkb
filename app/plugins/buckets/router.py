@@ -244,6 +244,7 @@ def list_bucket_files(
                     "path": path,
                     "title": meta.get("title", ""),
                     "chunk_count": 0,
+                    "indexed_at": meta.get("indexed_at"),
                 }
             files[path]["chunk_count"] += 1
         file_list = sorted(files.values(), key=lambda f: f["path"])

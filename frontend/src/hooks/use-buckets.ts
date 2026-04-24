@@ -38,6 +38,7 @@ export interface BucketFile {
   path: string
   title: string
   chunk_count: number
+  indexed_at: string | null
 }
 
 export function useBucketFiles(bucketId: string | null) {

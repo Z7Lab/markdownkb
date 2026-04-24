@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react"
+import React, { useCallback, useRef, useState } from "react"
 import { type Bucket, type useBuckets, useBucketFiles } from "@/hooks/use-buckets"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, SortableTableHead } from "@/components/ui/table"
 import {
   Pencil, Trash2, FileText, Loader2, Clock, Check, X as XIcon,
   Infinity as InfinityIcon, RefreshCw, Link, Upload, Download, FolderInput, MessageSquare,
@@ -71,6 +71,13 @@ export function BucketDetailPanel({
   const [renamingPath, setRenamingPath] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState("")
   const [renaming, setRenaming] = useState(false)
+  const [sortKey, setSortKey] = useState<"path" | "chunk_count" | "indexed_at">("path")
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
+
+  function handleSort(key: "path" | "chunk_count" | "indexed_at") {
+    if (sortKey === key) setSortDir((d) => d === "asc" ? "desc" : "asc")
+    else { setSortKey(key); setSortDir(key === "indexed_at" ? "desc" : "asc") }
+  }
 
   // Import state
   const [clipUrl, setClipUrl] = useState("")
@@ -452,13 +459,22 @@ export function BucketDetailPanel({
               </p>
             )}
 
-            {!loadingFiles && files.length > 0 && (
+            {!loadingFiles && files.length > 0 && (() => {
+              const sortedFiles = [...files].sort((a, b) => {
+                let cmp = 0
+                if (sortKey === "path") cmp = (a.title || a.path).localeCompare(b.title || b.path)
+                else if (sortKey === "chunk_count") cmp = a.chunk_count - b.chunk_count
+                else cmp = (a.indexed_at ?? "").localeCompare(b.indexed_at ?? "")
+                return sortDir === "asc" ? cmp : -cmp
+              })
+              return (
               <div className="border rounded-md overflow-hidden">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-xs h-8 px-3">File</TableHead>
-                      <TableHead className="text-xs h-8 px-3">Chunks</TableHead>
+                      <SortableTableHead sortKey="path" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} className="text-xs h-8 px-3">File</SortableTableHead>
+                      <SortableTableHead sortKey="chunk_count" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} className="text-xs h-8 px-3">Chunks</SortableTableHead>
+                      <SortableTableHead sortKey="indexed_at" activeSortKey={sortKey} sortDir={sortDir} onSort={handleSort} className="text-xs h-8 px-3">Last indexed</SortableTableHead>
                       <TableHead className="text-xs h-8 px-3">
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -467,11 +483,11 @@ export function BucketDetailPanel({
                           <TooltipContent>Include in retrieval scope — only checked files are searched when this bucket is active</TooltipContent>
                         </Tooltip>
                       </TableHead>
-                      <TableHead className="h-8 w-6 px-3" />
+                      <TableHead className="h-8 w-6 px-3">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {files.map((f) => {
+                    {sortedFiles.map((f) => {
                       const allPaths = files.map((x) => x.path)
                       const isVirtual = f.path.startsWith("bucket://")
                       const display = f.title || f.path.split("/").pop() || f.path
@@ -480,7 +496,7 @@ export function BucketDetailPanel({
                       return (
                         <TableRow key={f.path} className="text-xs">
                           {isRenaming ? (
-                            <TableCell colSpan={4} className="px-3 py-1.5">
+                            <TableCell colSpan={5} className="px-3 py-1.5">
                               <div className="flex items-center gap-1 min-w-0">
                                 <Input
                                   value={renameValue}
@@ -525,6 +541,9 @@ export function BucketDetailPanel({
                                 </button>
                               </TableCell>
                               <TableCell className="px-3 py-1.5 text-muted-foreground tabular-nums">{f.chunk_count}</TableCell>
+                              <TableCell className="px-3 py-1.5 text-muted-foreground whitespace-nowrap">
+                                {f.indexed_at ? relativeTime(f.indexed_at) : "—"}
+                              </TableCell>
                               <TableCell className="px-3 py-1.5">
                                 <input
                                   type="checkbox"
@@ -561,7 +580,8 @@ export function BucketDetailPanel({
                   </TableBody>
                 </Table>
               </div>
-            )}
+              )
+            })()}
           </div>
         </div>
       </ScrollArea>

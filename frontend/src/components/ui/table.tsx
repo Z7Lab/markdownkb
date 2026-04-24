@@ -1,4 +1,5 @@
 import * as React from "react"
+import { ArrowUp, ArrowDown } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -102,6 +103,45 @@ function TableCaption({
   )
 }
 
+interface SortProps {
+  sortKey: string
+  activeSortKey: string | null
+  sortDir: "asc" | "desc"
+  onSort: (key: string) => void
+  children: React.ReactNode
+  className?: string
+}
+
+/** Standalone sort button — use inside any container (div, th, etc.) */
+function SortButton({ sortKey, activeSortKey, sortDir, onSort, children, className }: SortProps) {
+  const active = activeSortKey === sortKey
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(sortKey)}
+      className={cn(
+        "flex items-center gap-1 font-medium text-foreground cursor-pointer select-none whitespace-nowrap overflow-hidden",
+        className,
+      )}
+      aria-label={active ? `Sort by ${sortKey}, ${sortDir === "asc" ? "ascending" : "descending"}` : `Sort by ${sortKey}`}
+    >
+      {children}
+      {active && (sortDir === "asc"
+        ? <ArrowUp className="h-3 w-3" aria-hidden="true" />
+        : <ArrowDown className="h-3 w-3" aria-hidden="true" />)}
+    </button>
+  )
+}
+
+/** TableHead with an embedded SortButton — use inside a Table component */
+function SortableTableHead({ className, ...props }: SortProps) {
+  return (
+    <TableHead className={className}>
+      <SortButton {...props} className="h-full w-full" />
+    </TableHead>
+  )
+}
+
 export {
   Table,
   TableHeader,
@@ -111,4 +151,6 @@ export {
   TableRow,
   TableCell,
   TableCaption,
+  SortButton,
+  SortableTableHead,
 }

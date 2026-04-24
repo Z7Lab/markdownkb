@@ -53,7 +53,7 @@ The **Buckets tab** is the primary UI for managing buckets. It has a left sideba
 
 **Sidebar header:** The **New Bucket** button creates a fresh bucket. The **Import** button (upload icon) restores a bucket from a previously exported zip file.
 
-**Files table:** Lists all files indexed in the bucket with their chunk counts. Click a file to open it in the viewer. Each row has a **Scope** checkbox — uncheck files to exclude them from retrieval. Unchecked files remain in the bucket but are not searched when the bucket is active in chat, search, planner, or doc map. By default all files are in scope (null scope = all). This saved scope is the authoritative filter: the chat drawer no longer has a per-session file picker, and any other part of the app that uses this bucket respects the same scope automatically.
+**Files table:** Lists all files indexed in the bucket with sortable columns: **File**, **Chunks**, and **Last indexed** (time since the file was last embedded — null for files ingested before this field was added). Click a file to open it in the viewer. Each row has a **Scope** checkbox — uncheck files to exclude them from retrieval. Unchecked files remain in the bucket but are not searched when the bucket is active in chat, search, planner, or doc map. By default all files are in scope (null scope = all). This saved scope is the authoritative filter: the chat drawer no longer has a per-session file picker, and any other part of the app that uses this bucket respects the same scope automatically.
 
 ## Creating a Bucket
 
@@ -154,7 +154,7 @@ Concrete examples:
 
 The chat session is ephemeral — it doesn't persist between drawer opens. It's designed for the active working session: open, investigate, close. If you want to save a useful exchange, use the download button in the drawer header to export the transcript.
 
-**File scoping:** Below the drawer header, a row shows how many files are active ("All 12 files" or "3 of 12 files"). Click it to expand a checklist and select exactly which files the chat draws from. Deselecting files narrows retrieval — useful when one video dominates results and you want the LLM to focus on the others.
+**File scoping:** Retrieval scope is configured in the bucket's **Files** tab. Each file has a **Scope** checkbox — checked files are included in all retrieval (chat, search, planner, Doc Map); unchecked files are excluded. By default all files are in scope. Changes persist on the bucket and apply globally across all features, not just chat.
 
 ## Using a Bucket (Search, Planner, Doc Map)
 

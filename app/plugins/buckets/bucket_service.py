@@ -15,6 +15,12 @@ from .bucketdb import BucketDB
 logger = logging.getLogger(__name__)
 
 
+def _stamp_indexed_at(metas: list[dict]) -> list[dict]:
+    """Inject the current UTC timestamp into each chunk's metadata."""
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    return [{**m, "indexed_at": ts} for m in metas]
+
+
 class BucketService:
     """Manages bucket lifecycle: create, search, chat, delete, cleanup."""
 
@@ -120,7 +126,7 @@ class BucketService:
         if all_docs:
             embeddings = embed_texts(all_docs, self._embedding_model, remote_config=self._remote_config)
             store = self.get_store(bucket_id)
-            store.add(all_ids, all_docs, embeddings, all_metas)
+            store.add(all_ids, all_docs, embeddings, _stamp_indexed_at(all_metas))
             logger.info(
                 "Bucket '%s' created: %d files, %d chunks",
                 name, file_count, len(all_ids),
@@ -195,7 +201,7 @@ class BucketService:
 
         if all_docs:
             embeddings = embed_texts(all_docs, self._embedding_model, remote_config=self._remote_config)
-            store.add(all_ids, all_docs, embeddings, all_metas)
+            store.add(all_ids, all_docs, embeddings, _stamp_indexed_at(all_metas))
 
         # Update membership records for newly added files
         if new_file_paths:
@@ -290,7 +296,7 @@ class BucketService:
 
         if all_docs:
             embeddings = embed_texts(all_docs, self._embedding_model, remote_config=self._remote_config)
-            store.add(all_ids, all_docs, embeddings, all_metas)
+            store.add(all_ids, all_docs, embeddings, _stamp_indexed_at(all_metas))
 
         new_file_count = record["file_count"] + added_files
         new_chunk_count = record["chunk_count"] + len(all_ids)
