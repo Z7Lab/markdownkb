@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   Pencil, Trash2, FileText, Loader2, Clock, Check, X as XIcon,
   Infinity as InfinityIcon, RefreshCw, Link, Upload, Download, FolderInput, MessageSquare,
@@ -453,101 +454,112 @@ export function BucketDetailPanel({
 
             {!loadingFiles && files.length > 0 && (
               <div className="border rounded-md overflow-hidden">
-                <div className="grid grid-cols-[1fr_auto_auto_auto] text-xs font-medium text-muted-foreground bg-muted/30 px-3 py-1.5 border-b">
-                  <span>File</span>
-                  <span className="pr-3">Chunks</span>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="pr-3 cursor-default">Scope</span>
-                    </TooltipTrigger>
-                    <TooltipContent>Include in retrieval scope — only checked files are searched when this bucket is active</TooltipContent>
-                  </Tooltip>
-                  <span />
-                </div>
-                <div className="divide-y">
-                  {files.map((f) => {
-                    const allPaths = files.map((x) => x.path)
-                    const isVirtual = f.path.startsWith("bucket://")
-                    const display = f.title || f.path.split("/").pop() || f.path
-                    const isRenaming = renamingPath === f.path
-                    const inScope = !bucket.scope_paths || bucket.scope_paths.includes(f.path)
-                    return (
-                      <div
-                        key={f.path}
-                        className="grid grid-cols-[1fr_auto_auto_auto] items-center px-3 py-1.5 text-xs hover:bg-accent transition-colors"
-                      >
-                        {isRenaming ? (
-                          <div className="flex items-center gap-1 min-w-0 col-span-4">
-                            <Input
-                              value={renameValue}
-                              onChange={(e) => setRenameValue(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") void commitRename()
-                                if (e.key === "Escape") cancelRename()
-                              }}
-                              className="h-6 text-xs flex-1"
-                              autoFocus
-                              disabled={renaming}
-                            />
-                            <span className="text-[10px] text-muted-foreground">.md</span>
-                            <button
-                              className="p-0.5 hover:text-green-600 disabled:opacity-50"
-                              onClick={() => void commitRename()}
-                              disabled={renaming || !renameValue.trim()}
-                              aria-label="Confirm rename"
-                            >
-                              {renaming ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
-                            </button>
-                            <button
-                              className="p-0.5 hover:text-destructive"
-                              onClick={cancelRename}
-                              disabled={renaming}
-                              aria-label="Cancel rename"
-                            >
-                              <XIcon className="h-3 w-3" />
-                            </button>
-                          </div>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              className="flex items-center gap-2 min-w-0 text-left py-0.5"
-                              onClick={() => onViewFile(f.path)}
-                            >
-                              <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
-                              <span className="truncate">{display}</span>
-                            </button>
-                            <span className="text-muted-foreground tabular-nums pr-3">{f.chunk_count}</span>
-                            <input
-                              type="checkbox"
-                              className="mr-3 cursor-pointer"
-                              checked={inScope}
-                              onChange={() => void handleScopeToggle(f.path, allPaths)}
-                              aria-label={`${inScope ? "Remove from" : "Add to"} scope`}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                            <Tooltip>
-                              <TooltipTrigger asChild>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs h-8 px-3">File</TableHead>
+                      <TableHead className="text-xs h-8 px-3">Chunks</TableHead>
+                      <TableHead className="text-xs h-8 px-3">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-default">Scope</span>
+                          </TooltipTrigger>
+                          <TooltipContent>Include in retrieval scope — only checked files are searched when this bucket is active</TooltipContent>
+                        </Tooltip>
+                      </TableHead>
+                      <TableHead className="h-8 w-6 px-3" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {files.map((f) => {
+                      const allPaths = files.map((x) => x.path)
+                      const isVirtual = f.path.startsWith("bucket://")
+                      const display = f.title || f.path.split("/").pop() || f.path
+                      const isRenaming = renamingPath === f.path
+                      const inScope = !bucket.scope_paths || bucket.scope_paths.includes(f.path)
+                      return (
+                        <TableRow key={f.path} className="text-xs">
+                          {isRenaming ? (
+                            <TableCell colSpan={4} className="px-3 py-1.5">
+                              <div className="flex items-center gap-1 min-w-0">
+                                <Input
+                                  value={renameValue}
+                                  onChange={(e) => setRenameValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") void commitRename()
+                                    if (e.key === "Escape") cancelRename()
+                                  }}
+                                  className="h-6 text-xs flex-1"
+                                  autoFocus
+                                  disabled={renaming}
+                                />
+                                <span className="text-[10px] text-muted-foreground">.md</span>
+                                <button
+                                  className="p-0.5 hover:text-green-600 disabled:opacity-50"
+                                  onClick={() => void commitRename()}
+                                  disabled={renaming || !renameValue.trim()}
+                                  aria-label="Confirm rename"
+                                >
+                                  {renaming ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                                </button>
+                                <button
+                                  className="p-0.5 hover:text-destructive"
+                                  onClick={cancelRename}
+                                  disabled={renaming}
+                                  aria-label="Cancel rename"
+                                >
+                                  <XIcon className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </TableCell>
+                          ) : (
+                            <>
+                              <TableCell className="px-3 py-1.5">
                                 <button
                                   type="button"
-                                  className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
-                                  onClick={() => isVirtual && startRename(f.path, display)}
-                                  disabled={!isVirtual}
-                                  aria-label={isVirtual ? "Rename document" : "Edit the file on disk and reindex to rename it"}
+                                  className="flex items-center gap-2 min-w-0 text-left w-full"
+                                  onClick={() => onViewFile(f.path)}
                                 >
-                                  <Pencil className="h-3 w-3" />
+                                  <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
+                                  <span className="truncate">{display}</span>
                                 </button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {isVirtual ? "Rename document" : "Edit the file on disk and reindex to rename it"}
-                              </TooltipContent>
-                            </Tooltip>
-                          </>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
+                              </TableCell>
+                              <TableCell className="px-3 py-1.5 text-muted-foreground tabular-nums">{f.chunk_count}</TableCell>
+                              <TableCell className="px-3 py-1.5">
+                                <input
+                                  type="checkbox"
+                                  className="cursor-pointer"
+                                  checked={inScope}
+                                  onChange={() => void handleScopeToggle(f.path, allPaths)}
+                                  aria-label={`${inScope ? "Remove from" : "Add to"} scope`}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </TableCell>
+                              <TableCell className="px-3 py-1.5">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      type="button"
+                                      className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+                                      onClick={() => isVirtual && startRename(f.path, display)}
+                                      disabled={!isVirtual}
+                                      aria-label={isVirtual ? "Rename document" : "Edit the file on disk and reindex to rename it"}
+                                    >
+                                      <Pencil className="h-3 w-3" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {isVirtual ? "Rename document" : "Edit the file on disk and reindex to rename it"}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TableCell>
+                            </>
+                          )}
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
               </div>
             )}
           </div>
