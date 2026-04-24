@@ -8,6 +8,7 @@ error-handling semantics:
 - bucket id unknown     → 404
 """
 
+import json
 from dataclasses import dataclass
 
 from fastapi import HTTPException
@@ -40,12 +41,31 @@ def parse_scope_id_fallback(
     return parse_scope_ids(scope_ids) or ([scope_id] if scope_id else None)
 
 
+class BucketRetriever:
+    """Wraps a Retriever and applies a bucket's saved scope_paths to every search.
+
+    Explicit ``allowed_paths`` passed at call time take priority over the saved
+    scope, so programmatic callers (MCP, API) can still override per-request.
+    """
+
+    def __init__(self, retriever, scope_paths: set[str] | None):
+        self._retriever = retriever
+        self.scope_paths = scope_paths
+
+    def search(self, query: str, top_k: int = 5, allowed_paths: set[str] | None = None, **kwargs):
+        effective = allowed_paths if allowed_paths is not None else self.scope_paths
+        return self._retriever.search(query, top_k=top_k, allowed_paths=effective, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._retriever, name)
+
+
 def resolve_bucket_retrievers(
     bucket_service,
     bucket_ids: list[str] | None,
     settings: Settings,
 ) -> list:
-    """Resolve bucket IDs into retriever instances.
+    """Resolve bucket IDs into BucketRetriever instances (with saved scope applied).
 
     Raises:
         HTTPException(503): bucket_ids provided but plugin not initialized
@@ -60,7 +80,10 @@ def resolve_bucket_retrievers(
         record = bucket_service.db.resolve(bid)
         if not record:
             raise HTTPException(status_code=404, detail=f"Bucket not found: {bid}")
-        retrievers.append(bucket_service.get_retriever(record["id"], settings))
+        raw_scope = record.get("scope_paths")
+        scope_paths = set(json.loads(raw_scope)) if raw_scope else None
+        retriever = bucket_service.get_retriever(record["id"], settings)
+        retrievers.append(BucketRetriever(retriever, scope_paths))
     return retrievers
 
 

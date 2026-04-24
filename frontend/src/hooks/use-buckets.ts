@@ -15,6 +15,7 @@ export interface Bucket {
   expired: boolean
   color: string | null
   description: string | null
+  scope_paths: string[] | null
 }
 
 export interface CreateBucketParams {
@@ -30,6 +31,7 @@ export interface UpdateBucketParams {
   expires_in?: number | null
   color?: string | null
   description?: string | null
+  scope_paths?: string[] | null
 }
 
 export interface BucketFile {

@@ -43,6 +43,7 @@ class UpdateBucketRequest(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=200, description="New bucket name")
     color: str | None = Field(None, max_length=20, description="Hex color")
     description: str | None = Field(None, max_length=1000, description="Optional description")
+    scope_paths: list[str] | None = Field(None, description="Paths to include in retrieval scope (null = all files)")
 
 
 class RenameDocumentRequest(BaseModel):

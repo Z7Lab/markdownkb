@@ -191,6 +191,20 @@ export function BucketDetailPanel({
     setRenameValue("")
   }, [])
 
+  const handleScopeToggle = useCallback(async (path: string, allPaths: string[]) => {
+    const current = (bucket.scope_paths && bucket.scope_paths.length > 0) ? bucket.scope_paths : allPaths
+    const next = current.includes(path)
+      ? current.filter((p) => p !== path)
+      : [...current, path]
+    const newScope = next.length === allPaths.length ? null : next
+    try {
+      await api.patch(`/api/v1/buckets/${bucket.id}`, { scope_paths: newScope })
+      await refresh()
+    } catch (err) {
+      toast.error(`Failed to update scope: ${(err as Error).message}`)
+    }
+  }, [bucket.id, bucket.scope_paths, refresh])
+
   const sources = (() => {
     try { return JSON.parse(bucket.sources) as { path: string; glob?: string }[] }
     catch (err) {
@@ -439,23 +453,31 @@ export function BucketDetailPanel({
 
             {!loadingFiles && files.length > 0 && (
               <div className="border rounded-md overflow-hidden">
-                <div className="grid grid-cols-[1fr_auto_auto] text-xs font-medium text-muted-foreground bg-muted/30 px-3 py-1.5 border-b">
+                <div className="grid grid-cols-[1fr_auto_auto_auto] text-xs font-medium text-muted-foreground bg-muted/30 px-3 py-1.5 border-b">
                   <span>File</span>
-                  <span className="pr-6">Chunks</span>
+                  <span className="pr-3">Chunks</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="pr-3 cursor-default">Scope</span>
+                    </TooltipTrigger>
+                    <TooltipContent>Include in retrieval scope — only checked files are searched when this bucket is active</TooltipContent>
+                  </Tooltip>
                   <span />
                 </div>
                 <div className="divide-y">
                   {files.map((f) => {
+                    const allPaths = files.map((x) => x.path)
                     const isVirtual = f.path.startsWith("bucket://")
                     const display = f.title || f.path.split("/").pop() || f.path
                     const isRenaming = renamingPath === f.path
+                    const inScope = !bucket.scope_paths || bucket.scope_paths.includes(f.path)
                     return (
                       <div
                         key={f.path}
-                        className="grid grid-cols-[1fr_auto_auto] items-center px-3 py-1.5 text-xs hover:bg-accent transition-colors"
+                        className="grid grid-cols-[1fr_auto_auto_auto] items-center px-3 py-1.5 text-xs hover:bg-accent transition-colors"
                       >
                         {isRenaming ? (
-                          <div className="flex items-center gap-1 min-w-0 col-span-3">
+                          <div className="flex items-center gap-1 min-w-0 col-span-4">
                             <Input
                               value={renameValue}
                               onChange={(e) => setRenameValue(e.target.value)}
@@ -495,7 +517,15 @@ export function BucketDetailPanel({
                               <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
                               <span className="truncate">{display}</span>
                             </button>
-                            <span className="text-muted-foreground tabular-nums pr-2">{f.chunk_count}</span>
+                            <span className="text-muted-foreground tabular-nums pr-3">{f.chunk_count}</span>
+                            <input
+                              type="checkbox"
+                              className="mr-3 cursor-pointer"
+                              checked={inScope}
+                              onChange={() => void handleScopeToggle(f.path, allPaths)}
+                              aria-label={`${inScope ? "Remove from" : "Add to"} scope`}
+                              onClick={(e) => e.stopPropagation()}
+                            />
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <button

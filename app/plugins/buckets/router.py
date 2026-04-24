@@ -200,11 +200,20 @@ def update_bucket(
     if "description" in req.model_fields_set:
         updates["description"] = req.description
 
+    if "scope_paths" in req.model_fields_set:
+        updates["scope_paths"] = json.dumps(req.scope_paths) if req.scope_paths else None
+
     if updates:
         svc.db.update(record["id"], **updates)
 
     updated = svc.db.get(record["id"])
-    return {"status": "updated", **{k: updated.get(k) for k in ("name", "expires_at", "expired", "color", "description")}}
+    scope_paths_raw = updated.get("scope_paths")
+    scope_paths = json.loads(scope_paths_raw) if scope_paths_raw else None
+    return {
+        "status": "updated",
+        **{k: updated.get(k) for k in ("name", "expires_at", "expired", "color", "description")},
+        "scope_paths": scope_paths,
+    }
 
 
 @router.get("/buckets/{bucket_id}/files")

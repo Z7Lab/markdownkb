@@ -53,7 +53,7 @@ The **Buckets tab** is the primary UI for managing buckets. It has a left sideba
 
 **Sidebar header:** The **New Bucket** button creates a fresh bucket. The **Import** button (upload icon) restores a bucket from a previously exported zip file.
 
-**Files table:** Lists all files indexed in the bucket with their chunk counts. Click a file to open it in the viewer.
+**Files table:** Lists all files indexed in the bucket with their chunk counts. Click a file to open it in the viewer. Each row has a **Scope** checkbox — uncheck files to exclude them from retrieval. Unchecked files remain in the bucket but are not searched when the bucket is active in chat, search, planner, or doc map. By default all files are in scope (null scope = all). This saved scope is the authoritative filter: the chat drawer no longer has a per-session file picker, and any other part of the app that uses this bucket respects the same scope automatically.
 
 ## Creating a Bucket
 

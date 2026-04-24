@@ -46,6 +46,8 @@ _MIGRATIONS: list[tuple[int, str, str]] = [
      """),
     (4, "add description column to buckets",
      "ALTER TABLE buckets ADD COLUMN description TEXT"),
+    (5, "add scope_paths column to buckets",
+     "ALTER TABLE buckets ADD COLUMN scope_paths TEXT"),
 ]
 
 
@@ -113,7 +115,7 @@ class BucketDB:
 
     _UPDATABLE_COLUMNS = frozenset({
         "name", "sources", "file_count", "chunk_count",
-        "expires_at", "expired", "color", "description",
+        "expires_at", "expired", "color", "description", "scope_paths",
     })
 
     def update(self, bucket_id: str, **fields) -> bool:

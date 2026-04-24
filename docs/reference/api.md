@@ -426,6 +426,7 @@ Temporary scoped document collections with independent vector storage. Each buck
 | GET | `/api/v1/buckets` | List all buckets with metadata |
 | POST | `/api/v1/buckets` | Create a new bucket from source paths |
 | GET | `/api/v1/buckets/{id}` | Get bucket details |
+| PATCH | `/api/v1/buckets/{id}` | Update bucket metadata. Accepts any subset of: `name`, `expires_in`, `color`, `description`, `scope_paths`. `scope_paths` is a list of file paths to restrict retrieval to (null = all files). |
 | DELETE | `/api/v1/buckets/{id}` | Delete a bucket and its vector data |
 | POST | `/api/v1/buckets/{id}/search` | Search within a bucket. Returns 410 if the bucket is expired. |
 | POST | `/api/v1/buckets/{id}/chat` | RAG chat scoped to a bucket. Returns 410 if the bucket is expired. |
