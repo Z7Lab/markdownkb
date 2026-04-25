@@ -14,6 +14,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Clock, Infinity as InfinityIcon } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { Badge } from "@/components/ui/badge"
 import { BucketPathStatus } from "./bucket-path-status"
 
 // Color palette — must match _BUCKET_COLORS in backend router.py
@@ -51,13 +54,14 @@ export function BucketCreateForm({
   const [expiresIn, setExpiresIn] = useState<number | null>(null)
   const [color, setColor] = useState<string | null>(null)
   const [description, setDescription] = useState("")
+  const [virtual, setVirtual] = useState(false)
   const [pendingRestartId, setPendingRestartId] = useState<string | null>(null)
 
   async function handleCreate() {
-    if (!name.trim() || !path.trim()) return
+    if (!name.trim() || (!virtual && !path.trim())) return
     const res = await createBucket({
       name: name.trim(),
-      sources: [{ path: path.trim(), glob: glob.trim() || "**/*.md" }],
+      sources: virtual ? [] : [{ path: path.trim(), glob: glob.trim() || "**/*.md" }],
       expires_in: expiresIn,
       color: color ?? undefined,
       description: description.trim() || null,
@@ -98,30 +102,54 @@ export function BucketCreateForm({
             maxLength={1000}
           />
         </div>
-        <div>
-          <label htmlFor="bucket-create-path" className="text-sm font-medium">Source path</label>
-          <Input
-            id="bucket-create-path"
-            value={path}
-            onChange={(e) => setPath(e.target.value)}
-            placeholder="Absolute path to file or directory"
-            className="mt-1"
-          />
-          {basePath && path.startsWith(basePath) && (
-            <p className="text-[11px] text-muted-foreground mt-1">Under base path — no Docker restart needed after first mount.</p>
-          )}
-          <BucketPathStatus path={path} />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">Virtual bucket</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-muted-foreground cursor-help text-xs underline decoration-dotted">what's this?</span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                A virtual bucket has no source directory. Add documents by uploading files, clipping URLs, or pushing content via the API or MCP tools. Documents are stored as virtual paths (bucket://…) — no files on disk required.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <Switch checked={virtual} onCheckedChange={setVirtual} />
         </div>
-        <div>
-          <label htmlFor="bucket-create-glob" className="text-sm font-medium">Glob pattern</label>
-          <Input
-            id="bucket-create-glob"
-            value={glob}
-            onChange={(e) => setGlob(e.target.value)}
-            placeholder="**/*.md"
-            className="mt-1"
-          />
-        </div>
+
+        {virtual ? (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted text-sm text-muted-foreground">
+            <Badge variant="secondary">Virtual</Badge>
+            <span>No source directory — documents pushed via API</span>
+          </div>
+        ) : (
+          <>
+            <div>
+              <label htmlFor="bucket-create-path" className="text-sm font-medium">Source path</label>
+              <Input
+                id="bucket-create-path"
+                value={path}
+                onChange={(e) => setPath(e.target.value)}
+                placeholder="Absolute path to file or directory"
+                className="mt-1"
+              />
+              {basePath && path.startsWith(basePath) && (
+                <p className="text-[11px] text-muted-foreground mt-1">Under base path — no Docker restart needed after first mount.</p>
+              )}
+              <BucketPathStatus path={path} />
+            </div>
+            <div>
+              <label htmlFor="bucket-create-glob" className="text-sm font-medium">Glob pattern</label>
+              <Input
+                id="bucket-create-glob"
+                value={glob}
+                onChange={(e) => setGlob(e.target.value)}
+                placeholder="**/*.md"
+                className="mt-1"
+              />
+            </div>
+          </>
+        )}
         <div>
           <span id="bucket-create-expires-label" className="text-sm font-medium">Expires in</span>
           <Select
@@ -175,7 +203,7 @@ export function BucketCreateForm({
           <Button
             size="sm"
             onClick={handleCreate}
-            disabled={!name.trim() || !path.trim()}
+            disabled={!name.trim() || (!virtual && !path.trim())}
           >
             Create
           </Button>

@@ -61,8 +61,10 @@ The **Buckets tab** is the primary UI for managing buckets. It has a left sideba
 
 1. Go to the **Buckets tab**
 2. Click **New Bucket** in the left sidebar
-3. Enter a name, optional description, source path, glob pattern, expiration, and optional color
-4. Click **Create**
+3. Enter a name and optional description
+4. **Source bucket (default):** enter a source path and glob pattern — files are scanned and indexed on creation
+5. **Virtual bucket:** toggle **Virtual bucket** on — the source path fields disappear. The bucket is created empty; add documents later via upload, URL clip, API push, or MCP tools. Documents land as virtual paths (`bucket://…`) with no files on disk.
+6. Set expiration and optional color, then click **Create**
 
 ### From the API
 
