@@ -139,6 +139,7 @@ def _build_plugin_response(entry: dict, settings: Settings) -> dict:
         "endpoints": manifest.get("endpoints", []),
         "config_schema": manifest.get("config", {}),
         "config": settings.get_plugin_config(entry["name"]),
+        "logging_overrides": manifest.get("logging_overrides", {}),
         "requires": manifest.get("requires", []),
         "has_manifest": bool(manifest),
         "system_dependencies": dep_status,

@@ -163,9 +163,11 @@ async def lifespan(app: FastAPI):
     from app.plugins import init_plugins
     init_plugins(app)
 
-    # Restore persisted log level
+    # Restore persisted log level then apply per-logger overrides
+    from app.log_overrides import apply_log_overrides
     log_level = getattr(logging, settings.log_level, logging.INFO)
     logging.getLogger().setLevel(log_level)
+    apply_log_overrides(settings)
 
     # Rate limiting: explicit opt-in via core flag, or auto-enabled when the
     # server binds to a non-localhost address (0.0.0.0 / :: / explicit LAN IP).

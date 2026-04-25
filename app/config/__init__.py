@@ -344,6 +344,15 @@ class Settings(
         """Set the log level."""
         self._data.setdefault("logging", {})["level"] = value
 
+    @property
+    def logger_overrides(self) -> dict[str, str]:
+        """Return user-defined per-logger level overrides."""
+        return dict(self._data.get("logging", {}).get("logger_overrides", {}))
+
+    @logger_overrides.setter
+    def logger_overrides(self, value: dict[str, str]) -> None:
+        self._data.setdefault("logging", {})["logger_overrides"] = dict(value)
+
     # --- Dashboard Widgets ---
 
     @property

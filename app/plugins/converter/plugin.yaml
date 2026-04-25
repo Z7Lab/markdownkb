@@ -23,3 +23,6 @@ endpoints:
     description: Cancel running conversion
 
 config: {}
+
+logging_overrides:
+  pdfminer: WARNING

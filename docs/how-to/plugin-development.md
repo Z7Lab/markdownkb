@@ -103,6 +103,16 @@ Plugin enablement drives dependencies — the base image stays lean. If your plu
 
 Prefer pure Python libraries over system binaries. For example, the converter plugin uses Microsoft's `markitdown` (Python) instead of pandoc (system binary). This avoids Docker image bloat and works out of the box.
 
+If your plugin uses a third-party library that emits noisy logs at DEBUG level, declare the loggers to silence in the manifest:
+
+```yaml
+logging_overrides:
+  pdfminer: WARNING        # silence per-token PDF parsing noise
+  some.verbose.lib: ERROR  # only show errors
+```
+
+These overrides are applied automatically when the plugin is enabled and are visible (and overridable) in Settings > Logging > Logger Overrides. The user always takes precedence over the plugin default.
+
 If your plugin absolutely requires a system binary, declare it in the manifest so the UI can warn users:
 
 ```yaml

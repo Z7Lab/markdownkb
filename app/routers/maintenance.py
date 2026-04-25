@@ -9,7 +9,7 @@ from app.config import Settings
 from app.deps import get_chatdb, get_searchdb, get_settings, get_store, get_tracking
 from app.ratelimit import HEAVY, STANDARD, limiter
 from app.logbuffer import log_buffer
-from app.schemas.misc import LogLevelRequest
+from app.schemas.misc import LoggerOverridesRequest, LogLevelRequest
 from app.text import get_path_size
 
 logger = logging.getLogger(__name__)
@@ -155,12 +155,40 @@ def set_log_level(
     settings: Settings = Depends(get_settings),
 ):
     """Set the logging level (INFO, DEBUG, or OFF) and persist to config."""
+    from app.log_overrides import apply_log_overrides
     level = 60 if req.level == "OFF" else getattr(logging, req.level, logging.INFO)
     logging.getLogger().setLevel(level)
     settings.log_level = req.level
     settings.save()
+    apply_log_overrides(settings)
     logger.info("Log level changed to %s", req.level)
     return {"status": "saved", "level": req.level}
+
+
+@router.get("/settings/log-overrides")
+@limiter.limit(STANDARD)
+def get_log_overrides(request: Request, settings: Settings = Depends(get_settings)):
+    """Return plugin-declared logging defaults and user-defined overrides."""
+    from app.log_overrides import get_plugin_defaults
+    return {
+        "user": settings.logger_overrides,
+        "plugin_defaults": get_plugin_defaults(),
+    }
+
+
+@router.put("/settings/log-overrides")
+@limiter.limit(STANDARD)
+def set_log_overrides(
+    request: Request,
+    req: LoggerOverridesRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """Persist user-defined per-logger overrides and apply them immediately."""
+    from app.log_overrides import apply_log_overrides
+    settings.logger_overrides = req.overrides
+    settings.save()
+    apply_log_overrides(settings)
+    return {"status": "saved"}
 
 
 @router.get("/settings/logs")
