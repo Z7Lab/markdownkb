@@ -239,7 +239,7 @@ Core endpoints (always available). Return downloads, not JSON.
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/v1/export/markdown` | Download a `.zip` of all indexed `.md` files — sources, bucket documents (reconstructed from ChromaDB), and wiki_compile output |
-| GET | `/api/v1/export/snapshot` | Download a full snapshot `.tar.gz` — databases, ChromaDB, config, plus a `markdown/` subtree identical to the archive above |
+| GET | `/api/v1/export/snapshot` | Download a full snapshot `.tar.gz` — databases, ChromaDB, config, plus a `markdown/` subtree (same as the archive above). Equivalent to `POST /api/v1/backups/create` with `include_markdown: true`. |
 
 ## Backups
 

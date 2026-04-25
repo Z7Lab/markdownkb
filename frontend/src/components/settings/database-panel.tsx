@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { api } from "@/lib/api"
+import { formatBytes } from "@/lib/utils"
 import { toast } from "sonner"
 import { Database, Trash2, RefreshCw, PackageMinus } from "lucide-react"
 
@@ -23,13 +24,6 @@ interface DatabaseStats {
   plugin_databases?: Array<{ name: string; path: string; size_bytes: number }>
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B"
-  const k = 1024
-  const sizes = ["B", "KB", "MB", "GB"]
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`
-}
 
 export function DatabasePanel() {
   const [stats, setStats] = useState<DatabaseStats | null>(null)

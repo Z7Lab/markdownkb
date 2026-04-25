@@ -76,6 +76,7 @@ class CreateBackupQuery(BaseModel):
     include_config: bool = True
     include_sources: bool = False
     include_chromadb: bool = True
+    include_markdown: bool = False
 
 
 @router.post("/create")
@@ -86,11 +87,19 @@ def create_backup(
     settings: Settings = Depends(get_settings),
 ):
     """Build a backup archive and stream it back as a download."""
+    import os
+    from app.export.markdown_archive import MarkdownArchiveBuilder
+
     mgr = _manager(request, settings)
     fd, tmp = tempfile.mkstemp(prefix="mdkb-backup-", suffix=".tar.gz")
-    import os
     os.close(fd)
     dest = Path(tmp)
+
+    staging_hook = None
+    if body.include_markdown:
+        bucket_svc = getattr(request.app.state, "bucket_service", None)
+        staging_hook = MarkdownArchiveBuilder(settings, bucket_service=bucket_svc).add_to_staging
+
     try:
         sources = [Path(s) for s in settings.sources] if body.include_sources else []
         manifest = mgr.create(
@@ -102,6 +111,7 @@ def create_backup(
             ),
             sources=sources,
             embedding_model=settings.embedding_model,
+            staging_hook=staging_hook,
         )
     except BackupError as exc:
         dest.unlink(missing_ok=True)

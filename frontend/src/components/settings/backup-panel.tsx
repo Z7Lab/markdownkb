@@ -4,9 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import { Separator } from "@/components/ui/separator"
 import { api } from "@/lib/api"
+import { formatBytes } from "@/lib/utils"
 import { toast } from "sonner"
-import { Archive, Camera, Download, Upload, RefreshCw, AlertTriangle, CheckCircle2 } from "lucide-react"
+import { Archive, Download, Upload, RefreshCw, AlertTriangle, CheckCircle2 } from "lucide-react"
 
 interface BackupStatus {
   data_dir: string
@@ -23,6 +25,13 @@ interface BackupStatus {
   } | null
 }
 
+interface DatabaseStats {
+  chat_history: { path: string; size_bytes: number }
+  search_history: { path: string; size_bytes: number }
+  vector_database: { size_bytes: number; data_directory: string }
+  plugin_databases?: Array<{ name: string; path: string; size_bytes: number }>
+}
+
 interface BackupManifest {
   format_version: number
   mdkb_version: string
@@ -34,23 +43,40 @@ interface BackupManifest {
   data_dir: string
 }
 
-function formatBytes(bytes: number): string {
-  if (!bytes) return "0 B"
-  const k = 1024
-  const sizes = ["B", "KB", "MB", "GB", "TB"]
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`
+function SectionHeading({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="space-y-1 pb-2">
+      <h3 className="text-base font-semibold">{title}</h3>
+      <p className="text-sm text-muted-foreground">{description}</p>
+    </div>
+  )
+}
+
+async function triggerDownload(res: Response, fallbackName: string) {
+  const blob = await res.blob()
+  const cd = res.headers.get("content-disposition") ?? ""
+  const match = /filename=([^;]+)/.exec(cd)
+  const filename = match ? match[1]!.replace(/"/g, "") : fallbackName
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
 
 
 export function BackupPanel() {
   const [status, setStatus] = useState<BackupStatus | null>(null)
+  const [dbStats, setDbStats] = useState<DatabaseStats | null>(null)
   const [includeConfig, setIncludeConfig] = useState(true)
   const [includeSources, setIncludeSources] = useState(false)
   const [includeChromadb, setIncludeChromadb] = useState(true)
+  const [includeMarkdown, setIncludeMarkdown] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [downloadingMarkdown, setDownloadingMarkdown] = useState(false)
-  const [downloadingSnapshot, setDownloadingSnapshot] = useState(false)
   const [previewing, setPreviewing] = useState(false)
   const [restoring, setRestoring] = useState(false)
   const [pendingRestore, setPendingRestore] = useState<{ file: File; manifest: BackupManifest } | null>(null)
@@ -60,8 +86,12 @@ export function BackupPanel() {
 
   const loadStatus = useCallback(async () => {
     try {
-      const res = await api.get<BackupStatus>("/api/v1/backups/status")
-      setStatus(res)
+      const [s, d] = await Promise.all([
+        api.get<BackupStatus>("/api/v1/backups/status"),
+        api.get<DatabaseStats>("/api/v1/settings/database-stats").catch(() => null),
+      ])
+      setStatus(s)
+      setDbStats(d)
     } catch (err) {
       void err
     }
@@ -71,51 +101,13 @@ export function BackupPanel() {
     loadStatus()
   }, [loadStatus])
 
-  const handleDownload = async () => {
-    setDownloading(true)
-    try {
-      const res = await api.fetchRaw(
-        "POST",
-        "/api/v1/backups/create",
-        JSON.stringify({ include_config: includeConfig, include_sources: includeSources, include_chromadb: includeChromadb }),
-        { "Content-Type": "application/json" },
-      )
-      const blob = await res.blob()
-      const cd = res.headers.get("content-disposition") ?? ""
-      const match = /filename=([^;]+)/.exec(cd)
-      const filename = match ? match[1]!.replace(/"/g, "") : "mdkb-backup.tar.gz"
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-      toast.success("Backup downloaded")
-    } catch (err) {
-      toast.error(`Backup failed: ${(err as Error).message}`)
-    } finally {
-      setDownloading(false)
-    }
-  }
+  // ── Downloads ──────────────────────────────────────────────────────────
 
   const handleDownloadMarkdown = async () => {
     setDownloadingMarkdown(true)
     try {
       const res = await api.fetchRaw("GET", "/api/v1/export/markdown")
-      const blob = await res.blob()
-      const cd = res.headers.get("content-disposition") ?? ""
-      const match = /filename=([^;]+)/.exec(cd)
-      const filename = match ? match[1]!.replace(/"/g, "") : "mdkb-markdown.zip"
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      await triggerDownload(res, "mdkb-markdown.zip")
       toast.success("Markdown archive downloaded")
     } catch (err) {
       toast.error(`Export failed: ${(err as Error).message}`)
@@ -124,29 +116,30 @@ export function BackupPanel() {
     }
   }
 
-  const handleDownloadSnapshot = async () => {
-    setDownloadingSnapshot(true)
+  const handleDownloadBackup = async () => {
+    setDownloading(true)
     try {
-      const res = await api.fetchRaw("GET", "/api/v1/export/snapshot")
-      const blob = await res.blob()
-      const cd = res.headers.get("content-disposition") ?? ""
-      const match = /filename=([^;]+)/.exec(cd)
-      const filename = match ? match[1]!.replace(/"/g, "") : "mdkb-snapshot.tar.gz"
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-      toast.success("Snapshot downloaded")
+      const res = await api.fetchRaw(
+        "POST",
+        "/api/v1/backups/create",
+        JSON.stringify({
+          include_config: includeConfig,
+          include_sources: includeSources,
+          include_chromadb: includeChromadb,
+          include_markdown: includeMarkdown,
+        }),
+        { "Content-Type": "application/json" },
+      )
+      await triggerDownload(res, "mdkb-backup.tar.gz")
+      toast.success("System backup downloaded")
     } catch (err) {
-      toast.error(`Snapshot failed: ${(err as Error).message}`)
+      toast.error(`Backup failed: ${(err as Error).message}`)
     } finally {
-      setDownloadingSnapshot(false)
+      setDownloading(false)
     }
   }
+
+  // ── Restore ────────────────────────────────────────────────────────────
 
   const handleFilePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -193,13 +186,22 @@ export function BackupPanel() {
     }
   }
 
+  // ── Size summary ────────────────────────────────────────────────────────
+
+  const sizeRows: { label: string; bytes: number }[] = dbStats ? [
+    { label: "Chat history", bytes: dbStats.chat_history.size_bytes },
+    { label: "Search history", bytes: dbStats.search_history.size_bytes },
+    { label: "Vector store", bytes: dbStats.vector_database.size_bytes },
+    ...( dbStats.plugin_databases?.map(d => ({ label: d.name, bytes: d.size_bytes })) ?? []),
+  ] : []
+  const totalBytes = sizeRows.reduce((s, r) => s + r.bytes, 0)
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold mb-1">Backup &amp; Restore</h2>
         <p className="text-sm text-muted-foreground">
-          Export your full MarkdownKB state — databases, vector store, plugin data — as a portable archive.
-          Restore on another machine or after a disaster.
+          Export your knowledge as plain files or a full system backup. Restore a previous state after upgrades or data loss.
         </p>
       </div>
 
@@ -235,26 +237,86 @@ export function BackupPanel() {
         </Card>
       )}
 
+      {/* ── Quick Export ─────────────────────────────────────────────── */}
+
+      <SectionHeading
+        title="Quick Export"
+        description="Download every indexed markdown file as a portable zip — source files, bucket documents, and wiki output. No databases or vector embeddings. Use this to pull your content without taking a full system backup."
+      />
+
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Archive className="h-4 w-4" />
+            Markdown Archive
+          </CardTitle>
+          <CardDescription className="mt-1">
+            A <code>.zip</code> organised into three folders: <code>sources/</code> (files from your watched directories),{" "}
+            <code>buckets/</code> (bucket documents, including those uploaded directly — read from the database),{" "}
+            and <code>wikis/</code> (wiki_compile output, if enabled).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" onClick={handleDownloadMarkdown} disabled={downloadingMarkdown}>
+            <Archive className="h-3.5 w-3.5 mr-1.5" />
+            {downloadingMarkdown ? "Building archive…" : "Download Markdown Archive"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      {/* ── System Backups ────────────────────────────────────────────── */}
+
+      <SectionHeading
+        title="System Backups"
+        description="Portable archives that capture the full application state — databases, vector embeddings, and configuration. Both formats below are restorable via the Restore section."
+      />
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between gap-4">
             <div>
               <CardTitle className="text-base flex items-center gap-2">
                 <Download className="h-4 w-4" />
-                Create Backup
+                Create System Backup
               </CardTitle>
               <CardDescription className="mt-1">
-                Downloads a single .tar.gz with all databases, vector embeddings, and plugin data.
+                A <code>.tar.gz</code> containing all SQLite databases (chats, searches, plans, tags, scopes),
+                the ChromaDB vector store, and optionally your configuration.
+                Restoring this archive recovers your full conversation history, search history,
+                plans, scopes, buckets, tags, and all indexed vectors.
                 Secrets and embedding model weights are never included.
               </CardDescription>
             </div>
-            <div className="text-right">
-              <p className="text-sm font-medium">{status ? formatBytes(status.data_size_bytes) : "—"}</p>
-              <p className="text-xs text-muted-foreground">data dir size</p>
-            </div>
+            {status && (
+              <div className="text-right shrink-0">
+                <p className="text-sm font-medium">{formatBytes(status.data_size_bytes)}</p>
+                <p className="text-xs text-muted-foreground">data dir total</p>
+              </div>
+            )}
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {sizeRows.length > 0 && (
+            <div className="rounded-md border text-sm">
+              <table className="w-full">
+                <tbody>
+                  {sizeRows.map((row) => (
+                    <tr key={row.label} className="border-b last:border-0">
+                      <td className="px-3 py-1.5 text-muted-foreground">{row.label}</td>
+                      <td className="px-3 py-1.5 text-right font-mono">{formatBytes(row.bytes)}</td>
+                    </tr>
+                  ))}
+                  <tr className="bg-muted/40 font-medium">
+                    <td className="px-3 py-1.5">Total (estimated backup size)</td>
+                    <td className="px-3 py-1.5 text-right font-mono">{formatBytes(totalBytes)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+
           <div className="space-y-2">
             <div className="flex items-start gap-2">
               <Checkbox
@@ -267,7 +329,7 @@ export function BackupPanel() {
                   Include configuration
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  settings.yaml and Docker mount overrides — recommended unless restoring on a machine with different paths
+                  settings.yaml and Docker mount overrides — skip if restoring on a machine with different paths
                 </p>
               </div>
             </div>
@@ -282,7 +344,7 @@ export function BackupPanel() {
                   Include vector embeddings
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  the ChromaDB vector store — usually the largest part of the backup; skip if you plan to re-index after restoring
+                  the ChromaDB vector store — usually the largest part; skip if you plan to re-index after restoring
                 </p>
               </div>
             </div>
@@ -297,56 +359,43 @@ export function BackupPanel() {
                   Include source files
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  copies all watched directories into the archive — usually large; only enable for &quot;moving machines&quot; or sharing a complete KB
+                  copies all watched directories — usually large; only enable when moving machines or sharing a complete KB
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id="include-markdown"
+                checked={includeMarkdown}
+                onCheckedChange={(v) => setIncludeMarkdown(v === true)}
+              />
+              <div className="grid gap-0.5 leading-none">
+                <Label htmlFor="include-markdown" className="text-sm font-normal">
+                  Include markdown content
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  adds a <code>markdown/</code> subtree of every indexed file (sources, bucket documents, wiki output) —
+                  useful for archival or migration; not applied during restore
                 </p>
               </div>
             </div>
           </div>
-          <Button onClick={handleDownload} disabled={downloading}>
+
+          <Button onClick={handleDownloadBackup} disabled={downloading}>
             <Download className="h-3.5 w-3.5 mr-1.5" />
-            {downloading ? "Building backup…" : "Download Backup"}
+            {downloading ? "Building backup…" : "Download System Backup"}
           </Button>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Archive className="h-4 w-4" />
-            Markdown Archive
-          </CardTitle>
-          <CardDescription className="mt-1">
-            Download every indexed markdown file as a single .zip — source files, bucket documents,
-            and wiki output. No databases or embeddings. The quickest way to pull all your content.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button variant="outline" onClick={handleDownloadMarkdown} disabled={downloadingMarkdown}>
-            <Archive className="h-3.5 w-3.5 mr-1.5" />
-            {downloadingMarkdown ? "Building archive…" : "Download Markdown Archive"}
-          </Button>
-        </CardContent>
-      </Card>
+      <Separator />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Camera className="h-4 w-4" />
-            Full Snapshot
-          </CardTitle>
-          <CardDescription className="mt-1">
-            Everything in one archive: all databases, vector embeddings, configuration, and a
-            markdown/ subtree of every indexed file. Use this before a major upgrade or when
-            moving to a new machine.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button variant="outline" onClick={handleDownloadSnapshot} disabled={downloadingSnapshot}>
-            <Camera className="h-3.5 w-3.5 mr-1.5" />
-            {downloadingSnapshot ? "Building snapshot…" : "Download Full Snapshot"}
-          </Button>
-        </CardContent>
-      </Card>
+      {/* ── Restore ───────────────────────────────────────────────────── */}
+
+      <SectionHeading
+        title="Restore"
+        description="Apply a system backup or full snapshot. All current databases and vector data will be replaced. You'll need to restart the container after restoring."
+      />
 
       <Card>
         <CardHeader>
@@ -355,8 +404,8 @@ export function BackupPanel() {
             Restore from Backup
           </CardTitle>
           <CardDescription className="mt-1">
-            Upload a .tar.gz produced by &quot;Create Backup&quot;. Existing data will be replaced.
-            You&apos;ll need to restart the container after restoring.
+            Upload a <code>.tar.gz</code> produced by &quot;Create System Backup&quot; or &quot;Download Full Snapshot&quot;.
+            The manifest is shown for confirmation before any data is changed.
           </CardDescription>
         </CardHeader>
         <CardContent>

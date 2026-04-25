@@ -129,16 +129,11 @@ Two dedicated export actions are available under **Settings → Backup & Restore
 
 No databases, no embeddings, no config — just the markdown content. This is the fastest way to get all your knowledge into a portable form.
 
-### Full Snapshot
+### System Backup with markdown content
 
-**Download Full Snapshot** combines everything into one `.tar.gz`:
+The **Create System Backup** card has an **Include markdown content** checkbox. When enabled, the backup gains a `markdown/` subtree identical to the Markdown Archive above, alongside the databases and configuration. The archive is still fully restorable — the `markdown/` directory is supplemental and not applied during restore.
 
-- All databases (SQLite)
-- ChromaDB vector store
-- Configuration (`settings.yaml`, Docker override)
-- A `markdown/` subtree identical to the Markdown Archive above
-
-Use this before a major upgrade or when moving to a new machine. The snapshot is also restorable via the standard **Restore from Backup** flow.
+Use this when you want a single portable archive that contains both the system state (for recovery) and all readable content (for archival or migration).
 
 
 

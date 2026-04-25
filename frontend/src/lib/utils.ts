@@ -102,6 +102,14 @@ export function slugifyFilename(text: string): string {
     .replace(/-+$/, "")
 }
 
+export function formatBytes(bytes: number): string {
+  if (!bytes || bytes === 0) return "0 B"
+  const k = 1024
+  const sizes = ["B", "KB", "MB", "GB", "TB"]
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`
+}
+
 export function downloadMarkdown(content: string, filename: string): void {
   const blob = new Blob([content], { type: "text/markdown" })
   const url = URL.createObjectURL(blob)
