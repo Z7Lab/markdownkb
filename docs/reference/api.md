@@ -232,6 +232,27 @@ Requires the `export` feature flag. Plugin: `app/plugins/export/`.
 |--------|------|-------------|
 | POST | `/api/v1/export` | Export conversations as markdown or JSON |
 
+## Markdown Export
+
+Core endpoints (always available). Return downloads, not JSON.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/export/markdown` | Download a `.zip` of all indexed `.md` files — sources, bucket documents (reconstructed from ChromaDB), and wiki_compile output |
+| GET | `/api/v1/export/snapshot` | Download a full snapshot `.tar.gz` — databases, ChromaDB, config, plus a `markdown/` subtree identical to the archive above |
+
+## Backups
+
+Core endpoints (always available). Return downloads or accept uploads.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/backups/status` | Restart-pending state, data-dir size, running version |
+| POST | `/api/v1/backups/create` | Build and stream a `.tar.gz` backup (`include_config`, `include_sources`, `include_chromadb` flags) |
+| POST | `/api/v1/backups/preview` | Read the manifest from an uploaded archive without applying it (multipart file upload) |
+| POST | `/api/v1/backups/restore` | Apply an uploaded backup; writes a restart-required marker on success |
+| DELETE | `/api/v1/backups/restart-marker` | Acknowledge a completed restore and clear the restart banner |
+
 ## Documents (Write API)
 
 Requires the `write_api` feature flag. Plugin: `app/plugins/write_api/`.

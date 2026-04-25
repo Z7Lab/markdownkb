@@ -93,12 +93,21 @@ class BackupManager:
         options: BackupOptions,
         sources: Iterable[Path] = (),
         embedding_model: str = "",
+        staging_hook=None,
     ) -> dict:
-        """Build a .tar.gz at ``dest``.  Returns the manifest dict."""
+        """Build a .tar.gz at ``dest``.  Returns the manifest dict.
+
+        ``staging_hook``, if provided, is called with the staging directory
+        after all standard content has been written.  Use it to inject extra
+        files (e.g. a markdown/ subtree) without coupling the manager to any
+        specific plugin.
+        """
         dest = Path(dest)
         staging = Path(tempfile.mkdtemp(prefix="mdkb-backup-"))
         try:
             self._stage(staging, options, sources)
+            if staging_hook is not None:
+                staging_hook(staging)
             manifest = self._write_manifest(staging, options, sources, embedding_model)
             self._make_tarball(staging, dest)
             return manifest

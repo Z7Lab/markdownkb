@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
-import { Download, Upload, RefreshCw, AlertTriangle, CheckCircle2 } from "lucide-react"
+import { Archive, Camera, Download, Upload, RefreshCw, AlertTriangle, CheckCircle2 } from "lucide-react"
 
 interface BackupStatus {
   data_dir: string
@@ -49,6 +49,8 @@ export function BackupPanel() {
   const [includeSources, setIncludeSources] = useState(false)
   const [includeChromadb, setIncludeChromadb] = useState(true)
   const [downloading, setDownloading] = useState(false)
+  const [downloadingMarkdown, setDownloadingMarkdown] = useState(false)
+  const [downloadingSnapshot, setDownloadingSnapshot] = useState(false)
   const [previewing, setPreviewing] = useState(false)
   const [restoring, setRestoring] = useState(false)
   const [pendingRestore, setPendingRestore] = useState<{ file: File; manifest: BackupManifest } | null>(null)
@@ -95,6 +97,54 @@ export function BackupPanel() {
       toast.error(`Backup failed: ${(err as Error).message}`)
     } finally {
       setDownloading(false)
+    }
+  }
+
+  const handleDownloadMarkdown = async () => {
+    setDownloadingMarkdown(true)
+    try {
+      const res = await api.fetchRaw("GET", "/api/v1/export/markdown")
+      const blob = await res.blob()
+      const cd = res.headers.get("content-disposition") ?? ""
+      const match = /filename=([^;]+)/.exec(cd)
+      const filename = match ? match[1]!.replace(/"/g, "") : "mdkb-markdown.zip"
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast.success("Markdown archive downloaded")
+    } catch (err) {
+      toast.error(`Export failed: ${(err as Error).message}`)
+    } finally {
+      setDownloadingMarkdown(false)
+    }
+  }
+
+  const handleDownloadSnapshot = async () => {
+    setDownloadingSnapshot(true)
+    try {
+      const res = await api.fetchRaw("GET", "/api/v1/export/snapshot")
+      const blob = await res.blob()
+      const cd = res.headers.get("content-disposition") ?? ""
+      const match = /filename=([^;]+)/.exec(cd)
+      const filename = match ? match[1]!.replace(/"/g, "") : "mdkb-snapshot.tar.gz"
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast.success("Snapshot downloaded")
+    } catch (err) {
+      toast.error(`Snapshot failed: ${(err as Error).message}`)
+    } finally {
+      setDownloadingSnapshot(false)
     }
   }
 
@@ -255,6 +305,45 @@ export function BackupPanel() {
           <Button onClick={handleDownload} disabled={downloading}>
             <Download className="h-3.5 w-3.5 mr-1.5" />
             {downloading ? "Building backup…" : "Download Backup"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Archive className="h-4 w-4" />
+            Markdown Archive
+          </CardTitle>
+          <CardDescription className="mt-1">
+            Download every indexed markdown file as a single .zip — source files, bucket documents,
+            and wiki output. No databases or embeddings. The quickest way to pull all your content.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" onClick={handleDownloadMarkdown} disabled={downloadingMarkdown}>
+            <Archive className="h-3.5 w-3.5 mr-1.5" />
+            {downloadingMarkdown ? "Building archive…" : "Download Markdown Archive"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Camera className="h-4 w-4" />
+            Full Snapshot
+          </CardTitle>
+          <CardDescription className="mt-1">
+            Everything in one archive: all databases, vector embeddings, configuration, and a
+            markdown/ subtree of every indexed file. Use this before a major upgrade or when
+            moving to a new machine.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" onClick={handleDownloadSnapshot} disabled={downloadingSnapshot}>
+            <Camera className="h-3.5 w-3.5 mr-1.5" />
+            {downloadingSnapshot ? "Building snapshot…" : "Download Full Snapshot"}
           </Button>
         </CardContent>
       </Card>
