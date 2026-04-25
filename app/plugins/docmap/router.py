@@ -110,7 +110,7 @@ def graph_data(
         if key in _graph_cache:
             return _graph_cache[key]
 
-    excluded = set(tracking.get_rag_excluded_paths())
+    excluded = set(tracking.get_excluded_paths())
     result = compute_graph(
         retriever.store, scope_folders, top_k,
         word_clouds=word_clouds, min_weight=min_weight,
@@ -411,7 +411,7 @@ def _invalidation_worker(subscription):
         event = subscription.get()
         if event is None:
             break
-        if event.type in ("indexed", "deleted", "rag_toggled"):
+        if event.type in ("indexed", "deleted", "index_toggled"):
             with _cache_lock:
                 _graph_cache.clear()
             with _explain_cache_lock:

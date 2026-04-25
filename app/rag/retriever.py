@@ -118,9 +118,9 @@ class Retriever:
                 )
             ]
 
-        # Exclude files where include_rag is toggled off
+        # Exclude files where include_in_index is toggled off
         if self._tracking:
-            excluded = self._tracking.get_rag_excluded_paths()
+            excluded = self._tracking.get_excluded_paths()
             if excluded:
                 results = [
                     r for r in results

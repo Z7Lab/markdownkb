@@ -45,8 +45,8 @@ def reindex_file(
         ))
         return
 
-    if filepath in tracking.get_rag_excluded_paths():
-        logger.debug("File excluded from RAG, skipping: %s", filepath)
+    if filepath in tracking.get_excluded_paths():
+        logger.debug("File excluded from index, skipping: %s", filepath)
         return
 
     current_hash = compute_file_hash(filepath)

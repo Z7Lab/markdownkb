@@ -29,7 +29,7 @@ class TestTrackingRename:
             "/old/path.md", "/old", "hash123", 512, 1700000000.0,
             status="complete", chunk_count=5,
         )
-        tracking.set_include_rag("/old/path.md", False)
+        tracking.set_include_in_index("/old/path.md", False)
 
         result = tracking.rename_file("/old/path.md", "/new/path.md", "/new")
         assert result is True
@@ -44,7 +44,7 @@ class TestTrackingRename:
         assert new["file_size"] == 512
         assert new["chunk_count"] == 5
         assert new["status"] == "complete"
-        assert new["include_rag"] == 0  # preserved exclusion
+        assert new["include_in_index"] == 0  # preserved exclusion
 
     def test_rename_nonexistent_returns_false(self, tracking):
         result = tracking.rename_file("/nope.md", "/new.md", "/new")

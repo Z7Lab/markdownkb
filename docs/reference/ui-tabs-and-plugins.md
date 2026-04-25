@@ -14,7 +14,7 @@ The primary interface. Ask questions about your knowledge base and get AI-powere
 
 ### Files
 
-Browse, search, and manage all indexed documents. View file contents, edit tags, toggle RAG inclusion, trigger re-indexing, and see indexing status.
+Browse, search, and manage all indexed documents. View file contents, edit tags, toggle index inclusion, trigger re-indexing, and see indexing status.
 
 **Sidebar:** None — full-width file table.
 

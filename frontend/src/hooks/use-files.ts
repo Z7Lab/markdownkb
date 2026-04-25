@@ -81,10 +81,10 @@ export function useFiles() {
     })
   }, [refresh])
 
-  const toggleRag = useCallback(async (path: string, include: boolean) => {
+  const toggleIndex = useCallback(async (path: string, include: boolean) => {
     addBusy(path)
     try {
-      await api.put("/api/v1/files/rag", { path, include })
+      await api.put("/api/v1/files/include", { path, include })
       await refresh()
     } catch (err) {
       toast.error(`Failed to toggle RAG: ${(err as Error).message}`)
@@ -185,5 +185,5 @@ export function useFiles() {
     }
   }, [refresh, addBusy, removeBusy])
 
-  return { files, busyPaths, error, refresh, toggleRag, unindexFile, indexFile, reindexFile, indexAll, unindexSource, updateTags, bulkUpdateTags, extractEntities }
+  return { files, busyPaths, error, refresh, toggleIndex, unindexFile, indexFile, reindexFile, indexAll, unindexSource, updateTags, bulkUpdateTags, extractEntities }
 }

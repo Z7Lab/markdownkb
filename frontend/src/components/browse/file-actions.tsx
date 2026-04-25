@@ -1,16 +1,15 @@
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { Plus, RefreshCw, Trash2, Wand2 } from "lucide-react"
+import { Plus, RefreshCw, Wand2 } from "lucide-react"
 
 interface FileActionsProps {
   status: string
-  includeRag: boolean
+  includeInIndex: boolean
   busy?: boolean
-  onToggleRag: (checked: boolean) => void
+  onToggleIndex: (checked: boolean) => void
   onIndexFile: () => void
   onReindexFile: () => void
-  onUnindexFile: () => void
   onExtractEntities?: () => void
   kgEnabled?: boolean
   variant?: "toggle-only" | "buttons-only" | "full"
@@ -19,12 +18,11 @@ interface FileActionsProps {
 
 export function FileActions({
   status,
-  includeRag,
+  includeInIndex,
   busy = false,
-  onToggleRag,
+  onToggleIndex,
   onIndexFile,
   onReindexFile,
-  onUnindexFile,
   onExtractEntities,
   kgEnabled = false,
   variant = "full",
@@ -42,27 +40,27 @@ export function FileActions({
 
   return (
     <div className={containerClass} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} role="toolbar">
-      {/* Include RAG Toggle */}
+      {/* Include in Index Toggle */}
       {showToggle && (
         <Tooltip>
           <TooltipTrigger asChild>
             <div className={layout === "column" ? "flex items-center justify-between p-3 border rounded-lg" : "flex items-center"}>
               {layout === "column" && (
-                <span className="text-sm font-medium">Include in RAG</span>
+                <span className="text-sm font-medium">Include in Index</span>
               )}
               <Switch
-                checked={includeRag}
+                checked={includeInIndex}
                 disabled={busy || status === "not_indexed"}
-                onCheckedChange={onToggleRag}
+                onCheckedChange={onToggleIndex}
               />
             </div>
           </TooltipTrigger>
           <TooltipContent>
             {status === "not_indexed"
-              ? "Index the file first to include in RAG"
-              : includeRag
-                ? "File is included in RAG search results"
-                : "File is excluded from RAG search results"}
+              ? "File not yet tracked"
+              : includeInIndex
+                ? "File is indexed — toggle off to remove from index"
+                : "File is excluded from indexing — toggle on to re-include"}
           </TooltipContent>
         </Tooltip>
       )}
@@ -70,7 +68,7 @@ export function FileActions({
       {/* Action Buttons */}
       {showButtons && (
         <div className={layout === "column" ? "flex gap-2" : "flex gap-1"}>
-          {isNotIndexed && includeRag && (
+          {isNotIndexed && includeInIndex && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -83,7 +81,7 @@ export function FileActions({
                   <Plus className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Index this file</TooltipContent>
+              <TooltipContent>Index this file now</TooltipContent>
             </Tooltip>
           )}
           {isIndexed && (
@@ -100,22 +98,6 @@ export function FileActions({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Re-index this file</TooltipContent>
-            </Tooltip>
-          )}
-          {(isIndexed || status === "error") && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-destructive hover:text-destructive"
-                  disabled={busy}
-                  onClick={onUnindexFile}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Remove from index</TooltipContent>
             </Tooltip>
           )}
           {kgEnabled && isIndexed && onExtractEntities && (

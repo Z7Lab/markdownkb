@@ -25,13 +25,13 @@ CREATE TABLE IF NOT EXISTS indexed_files (
     error_msg   TEXT,
     indexed_at  TEXT,
     updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
-    include_rag INTEGER NOT NULL DEFAULT 1,
+    include_in_index INTEGER NOT NULL DEFAULT 1,
     tags        TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS file_metadata (
     path        TEXT PRIMARY KEY,
-    include_rag INTEGER NOT NULL DEFAULT 1,
+    include_in_index INTEGER NOT NULL DEFAULT 1,
     tags        TEXT NOT NULL DEFAULT '',
     updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -116,11 +116,24 @@ def _migrate_v4_to_v5(conn: sqlite3.Connection):
         )
 
 
+def _migrate_v5_to_v6(conn: sqlite3.Connection):
+    """Rename include_rag → include_in_index in both tables."""
+    for table in ("indexed_files", "file_metadata"):
+        cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
+        if "include_rag" in cols:
+            conn.execute(
+                f"ALTER TABLE {table} RENAME COLUMN include_rag TO include_in_index"
+            )
+    conn.commit()
+    logger.info("Migrated schema v5 → v6: renamed include_rag to include_in_index")
+
+
 _MIGRATIONS = [
     (1, "add include_rag column + reset excluded", _migrate_v1_to_v2),
     (2, "add tags column", _migrate_v2_to_v3),
     (3, "create file_metadata table", _migrate_v3_to_v4),
     (4, "backfill indexed_at", _migrate_v4_to_v5),
+    (5, "rename include_rag to include_in_index", _migrate_v5_to_v6),
 ]
 
 
@@ -176,12 +189,12 @@ class TrackingDB:
     def get_file(self, path: str) -> dict | None:
         """Return the tracked state for a single file, or None.
 
-        Merges include_rag from file_metadata table (authoritative for RAG prefs).
+        Merges include_in_index from file_metadata table (authoritative for index prefs).
         """
         with self._lock:
             row = self._conn.execute(
                 """SELECT f.*,
-                    COALESCE(m.include_rag, f.include_rag) AS include_rag
+                    COALESCE(m.include_in_index, f.include_in_index) AS include_in_index
                 FROM indexed_files f
                 LEFT JOIN file_metadata m ON m.path = f.path
                 WHERE f.path = ?""",
@@ -205,11 +218,11 @@ class TrackingDB:
     ) -> list[dict]:
         """Return tracked files ordered by path, with optional pagination.
 
-        Merges include_rag from file_metadata table.
+        Merges include_in_index from file_metadata table.
         """
         with self._lock:
             sql = """SELECT f.*,
-                COALESCE(m.include_rag, f.include_rag) AS include_rag
+                COALESCE(m.include_in_index, f.include_in_index) AS include_in_index
             FROM indexed_files f
             LEFT JOIN file_metadata m ON m.path = f.path
             ORDER BY f.path"""
@@ -270,21 +283,21 @@ class TrackingDB:
     ):
         """Insert or update a file's tracking record.
 
-        On insert after a clear(), restores include_rag from file_metadata
+        On insert after a clear(), restores include_in_index from file_metadata
         so user preferences survive model switches.
         """
         with self._lock:
-            # Restore include_rag from metadata if this is a re-insert after clear()
+            # Restore include_in_index from metadata if this is a re-insert after clear()
             meta = self._conn.execute(
-                "SELECT include_rag FROM file_metadata WHERE path = ?",
+                "SELECT include_in_index FROM file_metadata WHERE path = ?",
                 (path,),
             ).fetchone()
-            include_rag = meta["include_rag"] if meta else 1
+            include_in_index = meta["include_in_index"] if meta else 1
 
             self._conn.execute(
                 """INSERT INTO indexed_files
                     (path, source_root, content_hash, file_size, mtime,
-                     chunk_count, status, include_rag, updated_at,
+                     chunk_count, status, include_in_index, updated_at,
                      indexed_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'),
                         CASE WHEN ? = 'complete' THEN datetime('now') ELSE NULL END)
@@ -304,7 +317,7 @@ class TrackingDB:
                     updated_at = datetime('now')
                 """,
                 (path, source_root, content_hash, file_size, mtime,
-                 chunk_count, status, include_rag, status),
+                 chunk_count, status, include_in_index, status),
             )
             self._conn.commit()
 
@@ -345,36 +358,36 @@ class TrackingDB:
             )
             self._conn.commit()
 
-    def set_include_rag(self, path: str, include: bool):
-        """Toggle whether a file is included in RAG search results."""
+    def set_include_in_index(self, path: str, include: bool):
+        """Toggle whether a file is included in the index."""
         val = 1 if include else 0
         with self._lock:
             self._conn.execute(
-                """INSERT INTO file_metadata (path, include_rag, updated_at)
+                """INSERT INTO file_metadata (path, include_in_index, updated_at)
                 VALUES (?, ?, datetime('now'))
                 ON CONFLICT(path) DO UPDATE SET
-                    include_rag = excluded.include_rag,
+                    include_in_index = excluded.include_in_index,
                     updated_at = excluded.updated_at""",
                 (path, val),
             )
             # Keep indexed_files in sync
             self._conn.execute(
-                "UPDATE indexed_files SET include_rag = ? WHERE path = ?",
+                "UPDATE indexed_files SET include_in_index = ? WHERE path = ?",
                 (val, path),
             )
             self._conn.commit()
 
-    def get_rag_excluded_paths(self) -> set[str]:
-        """Return paths of files excluded from RAG search.
+    def get_excluded_paths(self) -> set[str]:
+        """Return paths of files excluded from the index.
 
         Checks file_metadata (authoritative), union with indexed_files
         for rows not yet migrated.
         """
         with self._lock:
             rows = self._conn.execute(
-                """SELECT path FROM file_metadata WHERE include_rag = 0
+                """SELECT path FROM file_metadata WHERE include_in_index = 0
                 UNION
-                SELECT path FROM indexed_files WHERE include_rag = 0
+                SELECT path FROM indexed_files WHERE include_in_index = 0
                     AND path NOT IN (SELECT path FROM file_metadata)"""
             ).fetchall()
             return {r["path"] for r in rows}
@@ -382,8 +395,8 @@ class TrackingDB:
     def unindex_file(self, path: str):
         """Reset a file to un-indexed state (keeps tracking record).
 
-        Preserves include_rag preference — unindexing removes chunks
-        but doesn't change the user's RAG inclusion setting.
+        Preserves include_in_index preference — unindexing removes chunks
+        but doesn't change the user's index inclusion setting.
         """
         with self._lock:
             self._conn.execute(
@@ -400,7 +413,7 @@ class TrackingDB:
                     new_source_root: str) -> bool:
         """Move a tracking record to a new path, preserving all state.
 
-        Also updates file_metadata (include_rag) if present.
+        Also updates file_metadata (include_in_index) if present.
         Returns True if the old record was found and moved.
         """
         with self._lock:
@@ -417,14 +430,14 @@ class TrackingDB:
                 """INSERT INTO indexed_files
                     (path, source_root, content_hash, file_size, mtime,
                      chunk_count, status, error_msg, indexed_at,
-                     updated_at, include_rag)
+                     updated_at, include_in_index)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)""",
                 (new_path, new_source_root, rec["content_hash"],
                  rec["file_size"], rec["mtime"], rec["chunk_count"],
                  rec["status"], rec["error_msg"], rec["indexed_at"],
-                 rec["include_rag"]),
+                 rec["include_in_index"]),
             )
-            # Move include_rag metadata if present
+            # Move include_in_index metadata if present
             meta = self._conn.execute(
                 "SELECT * FROM file_metadata WHERE path = ?", (old_path,),
             ).fetchone()
@@ -433,9 +446,9 @@ class TrackingDB:
                     "DELETE FROM file_metadata WHERE path = ?", (old_path,),
                 )
                 self._conn.execute(
-                    """INSERT INTO file_metadata (path, include_rag, updated_at)
+                    """INSERT INTO file_metadata (path, include_in_index, updated_at)
                     VALUES (?, ?, datetime('now'))""",
-                    (new_path, meta["include_rag"]),
+                    (new_path, meta["include_in_index"]),
                 )
             self._conn.commit()
             return True
@@ -506,7 +519,7 @@ class TrackingDB:
             self._conn.execute(
                 "UPDATE indexed_files SET content_hash = '', "
                 "updated_at = datetime('now') "
-                "WHERE include_rag = 1"
+                "WHERE include_in_index = 1"
             )
             self._conn.commit()
             logger.info("All content hashes cleared (force reindex)")
@@ -516,7 +529,7 @@ class TrackingDB:
 
         Used when switching embedding models.  Deletes all indexing records
         from indexed_files so every file is re-scanned, but file_metadata
-        (tags, include_rag) is kept intact.
+        (tags, include_in_index) is kept intact.
         """
         with self._lock:
             self._conn.execute("DELETE FROM indexed_files")

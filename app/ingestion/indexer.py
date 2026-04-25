@@ -22,7 +22,7 @@ BATCH_SIZE = 500
 def _classify_files(files, tracking, incomplete):
     """Split files into (to_index, skipped_count) based on hash comparison."""
     hash_map = tracking.get_hash_map()
-    excluded = tracking.get_rag_excluded_paths()
+    excluded = tracking.get_excluded_paths()
     to_index = []
     skipped = 0
 

@@ -63,7 +63,7 @@ Supports Google-style quoted phrases: `"exact phrase"` requires literal match in
 | GET | `/api/v1/file` | Read full content of a file by `?path=`. Must be under a configured source root or tracked by a bucket; other paths return 403. |
 | GET | `/api/v1/file/status` | Get indexing status of a single file by `?path=` |
 | GET | `/api/v1/folders` | List unique folders from indexed documents |
-| PUT | `/api/v1/files/rag` | Toggle RAG inclusion for a file (excluded files stay indexed but are skipped during retrieval) |
+| PUT | `/api/v1/files/include` | Toggle index inclusion for a file — turning off deletes existing chunks and excludes the file from future indexing |
 | POST | `/api/v1/files/search` | Content-based file search (returns file paths). Supports quoted exact phrases. |
 | POST | `/api/v1/files/index` | Index a single file — parse, embed, store. File must be within a configured source directory. |
 | PUT | `/api/v1/files/index` | Re-embed a file's existing chunks (use after changing embedding model). |
@@ -315,7 +315,7 @@ Requires `plugins.docmap.enabled: true`. Plugin: `app/plugins/docmap/`.
 | GET | `/api/v1/docmap/edge-explain` | LLM-generated one-sentence explanation of why two docs are connected. Accepts `bucket_id` (for bucket cross-edges) and `refresh=true` (bypass cache). |
 | GET | `/api/v1/docmap/progress` | Current computation progress |
 
-Accepts optional `scope_ids`, `ad_hoc_tags[]`, `word_clouds`, `min_weight`, `bucket_ids`, `bucket_min_weight`, and `client_threshold` query parameters. Supports both scope and tag filtering. Filters out files with `include_rag=false`.
+Accepts optional `scope_ids`, `ad_hoc_tags[]`, `word_clouds`, `min_weight`, `bucket_ids`, `bucket_min_weight`, and `client_threshold` query parameters. Supports both scope and tag filtering. Filters out files with `include_in_index=false`.
 
 When `bucket_ids` is set (comma-separated bucket IDs or names), the response includes each bucket's documents merged into the graph with `_bucket: true` markers and the bucket's color. Bucket nodes always render even if they have no surviving edges — selecting a bucket should never make it invisible. The legacy `bucket_id` (single) parameter is still accepted for backwards compatibility.
 

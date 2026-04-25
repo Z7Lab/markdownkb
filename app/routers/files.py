@@ -13,7 +13,7 @@ from app.ingestion.indexer import ReindexError, reindex_file
 from app.ingestion.scanner import discover_sources
 from app.rag.retriever import Retriever
 from app.ratelimit import HEAVY, STANDARD, limiter
-from app.schemas.files import FileActionRequest, FileSearchRequest, SourceActionRequest, ToggleRagRequest
+from app.schemas.files import FileActionRequest, FileSearchRequest, SourceActionRequest, ToggleIndexRequest
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 
@@ -36,7 +36,7 @@ def get_file_status(
     return {
         "path": file["path"],
         "status": file["status"],
-        "include_rag": file.get("include_rag", 1),
+        "include_in_index": file.get("include_in_index", 1),
         "chunk_count": file.get("chunk_count", 0),
     }
 
@@ -110,7 +110,7 @@ def list_files(
                 "error_msg": None,
                 "indexed_at": None,
                 "updated_at": None,
-                "include_rag": 1,
+                "include_in_index": 1,
                 "tags": tag_map.get(d["path"], ""),
                 "bucket_ids": [],
             })
@@ -283,22 +283,30 @@ def read_file(
     return {"path": str(p), "content": content}
 
 
-@router.put("/files/rag")
+@router.put("/files/include")
 @limiter.limit(STANDARD)
-def toggle_rag(
+def toggle_index(
     request: Request,
-    req: ToggleRagRequest,
+    req: ToggleIndexRequest,
     tracking: TrackingDB = Depends(get_tracking),
+    store: VectorStore = Depends(get_store),
 ):
-    """Toggle whether a file is included in RAG search results."""
+    """Toggle whether a file is included in the index.
+
+    Turning off deletes existing chunks and prevents future indexing.
+    Turning on re-enables the file so the next scan will index it.
+    """
     record = tracking.get_file(req.path)
     if not record:
         raise HTTPException(status_code=404, detail="File not tracked")
-    tracking.set_include_rag(req.path, req.include)
+    if not req.include:
+        store.delete_by_source(req.path)
+        tracking.unindex_file(req.path)
+    tracking.set_include_in_index(req.path, req.include)
     event_bus.publish(IndexEvent(
-        type="rag_toggled", path=req.path, filename=Path(req.path).name,
+        type="index_toggled", path=req.path, filename=Path(req.path).name,
     ))
-    return {"status": "ok", "include_rag": req.include}
+    return {"status": "ok", "include_in_index": req.include}
 
 
 @router.delete("/files/index")
@@ -341,7 +349,7 @@ def index_file(
     store: VectorStore = Depends(get_store),
 ):
     """Index a single file that hasn't been indexed yet."""
-    tracking.set_include_rag(req.path, True)
+    tracking.set_include_in_index(req.path, True)
     try:
         result = reindex_file(req.path, settings, store, tracking)
     except ReindexError as e:

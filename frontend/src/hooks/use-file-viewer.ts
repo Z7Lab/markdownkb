@@ -14,11 +14,11 @@ interface FileReadResponse {
 
 interface FileStatus {
   status: string
-  include_rag: number
+  include_in_index: number
   chunk_count: number
 }
 
-const INITIAL_STATUS: FileStatus = { status: "not_indexed", include_rag: 1, chunk_count: 0 }
+const INITIAL_STATUS: FileStatus = { status: "not_indexed", include_in_index: 1, chunk_count: 0 }
 
 const PAGE_SIZE = 5000
 
@@ -38,7 +38,7 @@ export interface UseFileViewerReturn {
   copyingAll: boolean
   fetchPage: (filePath: string, pageNum: number, signal?: AbortSignal) => Promise<void>
   handleSaveTags: (newTags: string[], createBackup: boolean, shouldReindex: boolean) => Promise<void>
-  handleToggleRag: (checked: boolean) => Promise<void>
+  handleToggleIndex: (checked: boolean) => Promise<void>
   handleIndexFile: () => Promise<void>
   handleReindexFile: () => Promise<void>
   handleUnindexFile: () => Promise<void>
@@ -117,13 +117,13 @@ export function useFileViewer(path: string | null, bucketId?: string | null): Us
 
     if (!bucketId) {
       api
-        .get<{ path: string; status: string; include_rag: number; chunk_count: number }>(
+        .get<{ path: string; status: string; include_in_index: number; chunk_count: number }>(
           `/api/v1/file/status?path=${encodeURIComponent(path)}`,
           controller.signal,
         )
         .then((res) => {
           if (controller.signal.aborted) return
-          setFileStatus({ status: res.status, include_rag: res.include_rag, chunk_count: res.chunk_count })
+          setFileStatus({ status: res.status, include_in_index: res.include_in_index, chunk_count: res.chunk_count })
         })
         .catch(() => {
           if (controller.signal.aborted) return
@@ -136,10 +136,10 @@ export function useFileViewer(path: string | null, bucketId?: string | null): Us
 
   const refreshFileStatus = async () => {
     if (!path) return
-    const statusRes = await api.get<{ status: string; include_rag: number; chunk_count: number }>(
+    const statusRes = await api.get<{ status: string; include_in_index: number; chunk_count: number }>(
       `/api/v1/file/status?path=${encodeURIComponent(path)}`
     )
-    setFileStatus({ status: statusRes.status, include_rag: statusRes.include_rag, chunk_count: statusRes.chunk_count })
+    setFileStatus({ status: statusRes.status, include_in_index: statusRes.include_in_index, chunk_count: statusRes.chunk_count })
   }
 
   const withAction = async (fn: () => Promise<void>) => {
@@ -174,11 +174,15 @@ export function useFileViewer(path: string | null, bucketId?: string | null): Us
     }
   }
 
-  const handleToggleRag = async (checked: boolean) => {
+  const handleToggleIndex = async (checked: boolean) => {
+    if (!checked && fileStatus.status === "complete" && (fileStatus.chunk_count ?? 0) > 0) {
+      setPendingUnindex(true)
+      return
+    }
     await withAction(async () => {
-      await api.put("/api/v1/files/rag", { path, include: checked })
-      setFileStatus((prev) => ({ ...prev, include_rag: checked ? 1 : 0 }))
-      toast.success(checked ? "File included in RAG" : "File excluded from RAG")
+      await api.put("/api/v1/files/include", { path, include: checked })
+      setFileStatus((prev) => ({ ...prev, include_in_index: checked ? 1 : 0 }))
+      toast.success(checked ? "File included in index" : "File removed from index")
     })
   }
 
@@ -195,7 +199,8 @@ export function useFileViewer(path: string | null, bucketId?: string | null): Us
   const handleUnindexFile = async () => {
     setPendingUnindex(false)
     await withAction(async () => {
-      await api.del("/api/v1/files/index", { path })
+      await api.put("/api/v1/files/include", { path, include: false })
+      setFileStatus((prev) => ({ ...prev, include_in_index: 0 }))
       toast.success("File removed from index")
     })
   }
@@ -230,7 +235,7 @@ export function useFileViewer(path: string | null, bucketId?: string | null): Us
     editDialogOpen, setEditDialogOpen,
     pendingUnindex, setPendingUnindex,
     page, totalPages, totalLines, fileTags, copyingAll,
-    fetchPage, handleSaveTags, handleToggleRag,
+    fetchPage, handleSaveTags, handleToggleIndex,
     handleIndexFile, handleReindexFile, handleUnindexFile, handleCopyContent,
   }
 }

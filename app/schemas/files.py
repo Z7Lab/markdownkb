@@ -9,8 +9,8 @@ class FilePathRequest(BaseModel):
     path: str = Field(..., min_length=1, max_length=4096)
 
 
-class ToggleRagRequest(BaseModel):
-    """Request model for toggling RAG inclusion."""
+class ToggleIndexRequest(BaseModel):
+    """Request model for toggling index inclusion."""
 
     path: str = Field(..., min_length=1, max_length=4096)
     include: bool

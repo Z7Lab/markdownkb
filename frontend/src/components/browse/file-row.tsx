@@ -3,6 +3,7 @@ import { basename, dirname, utc } from "@/lib/utils"
 import { FileActions } from "./file-actions"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Input } from "@/components/ui/input"
 import { Tag, Plus, X } from "lucide-react"
 import type { TrackedFile } from "@/lib/types"
@@ -13,10 +14,9 @@ interface FileRowProps {
   gridTemplate: string
   selected?: boolean
   onToggleSelect?: (path: string) => void
-  onToggleRag: (path: string, checked: boolean) => void
+  onToggleIndex: (path: string, checked: boolean) => void
   onIndexFile: (path: string) => void
   onReindexFile: (path: string) => void
-  onUnindexFile: (path: string) => void
   onViewFile: (path: string) => void
   onUpdateTags: (path: string, tags: string[]) => void
   kgEnabled?: boolean
@@ -34,10 +34,9 @@ export const FileRow = React.memo(function FileRow({
   gridTemplate,
   selected,
   onToggleSelect,
-  onToggleRag,
+  onToggleIndex,
   onIndexFile,
   onReindexFile,
-  onUnindexFile,
   onViewFile,
   onUpdateTags,
   kgEnabled,
@@ -45,6 +44,15 @@ export const FileRow = React.memo(function FileRow({
 }: FileRowProps) {
   const [editingTags, setEditingTags] = useState(false)
   const [newTag, setNewTag] = useState("")
+  const [confirmExclude, setConfirmExclude] = useState(false)
+
+  function handleToggleIndex(checked: boolean) {
+    if (!checked && file.status === "complete" && (file.chunk_count ?? 0) > 0) {
+      setConfirmExclude(true)
+    } else {
+      onToggleIndex(file.path, checked)
+    }
+  }
   const tags = parseTags(file.tags)
 
   function addTag() {
@@ -60,6 +68,16 @@ export const FileRow = React.memo(function FileRow({
   }
 
   return (
+    <>
+    <ConfirmDialog
+      open={confirmExclude}
+      onOpenChange={setConfirmExclude}
+      title="Remove from index?"
+      description={`This will delete all ${file.chunk_count ?? 0} chunk${(file.chunk_count ?? 0) !== 1 ? "s" : ""} for "${basename(file.path)}" from the vector store. The file will be excluded from indexing until you toggle it back on.`}
+      confirmLabel="Remove from index"
+      variant="destructive"
+      onConfirm={() => { setConfirmExclude(false); onToggleIndex(file.path, false) }}
+    />
     <div
       className={`grid items-center border-b hover:bg-muted/50 cursor-pointer transition-colors text-sm ${selected ? "bg-primary/5" : ""}`}
       style={{ gridTemplateColumns: gridTemplate }}
@@ -151,12 +169,11 @@ export const FileRow = React.memo(function FileRow({
       <div className="px-2 py-2 flex justify-center">
         <FileActions
           status={file.status}
-          includeRag={file.include_rag === 1}
+          includeInIndex={file.include_in_index === 1}
           busy={busy}
-          onToggleRag={(checked) => onToggleRag(file.path, checked)}
+          onToggleIndex={handleToggleIndex}
           onIndexFile={() => onIndexFile(file.path)}
           onReindexFile={() => onReindexFile(file.path)}
-          onUnindexFile={() => onUnindexFile(file.path)}
           variant="toggle-only"
         />
       </div>
@@ -189,17 +206,17 @@ export const FileRow = React.memo(function FileRow({
       <div className="px-2 py-2">
         <FileActions
           status={file.status}
-          includeRag={file.include_rag === 1}
+          includeInIndex={file.include_in_index === 1}
           busy={busy}
-          onToggleRag={(checked) => onToggleRag(file.path, checked)}
+          onToggleIndex={handleToggleIndex}
           onIndexFile={() => onIndexFile(file.path)}
           onReindexFile={() => onReindexFile(file.path)}
-          onUnindexFile={() => onUnindexFile(file.path)}
           onExtractEntities={onExtractEntities ? () => onExtractEntities(file.path) : undefined}
           kgEnabled={kgEnabled}
           variant="buttons-only"
         />
       </div>
     </div>
+    </>
   )
 })

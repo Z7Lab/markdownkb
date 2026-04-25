@@ -40,30 +40,30 @@ async def test_read_file_traversal_dotdot(client):
 
 
 @pytest.mark.asyncio
-async def test_toggle_rag_on(client):
+async def test_toggle_index_on(client):
     resp = await client.put(
-        "/api/v1/files/rag",
+        "/api/v1/files/include",
         json={"path": "/tmp/test-source/doc.md", "include": True},
     )
     assert resp.status_code == 200
-    assert resp.json()["include_rag"] is True
+    assert resp.json()["include_in_index"] is True
 
 
 @pytest.mark.asyncio
-async def test_toggle_rag_off(client):
+async def test_toggle_index_off(client):
     resp = await client.put(
-        "/api/v1/files/rag",
+        "/api/v1/files/include",
         json={"path": "/tmp/test-source/doc.md", "include": False},
     )
     assert resp.status_code == 200
-    assert resp.json()["include_rag"] is False
+    assert resp.json()["include_in_index"] is False
 
 
 @pytest.mark.asyncio
-async def test_toggle_rag_not_tracked(client, app):
+async def test_toggle_index_not_tracked(client, app):
     app.state.tracking.get_file.return_value = None
     resp = await client.put(
-        "/api/v1/files/rag",
+        "/api/v1/files/include",
         json={"path": "/nonexistent", "include": True},
     )
     assert resp.status_code == 404

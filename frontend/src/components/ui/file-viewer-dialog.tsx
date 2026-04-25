@@ -37,7 +37,7 @@ export function FileViewerDialog({
     editDialogOpen, setEditDialogOpen,
     pendingUnindex, setPendingUnindex,
     page, totalPages, totalLines, fileTags, copyingAll,
-    fetchPage, handleSaveTags, handleToggleRag,
+    fetchPage, handleSaveTags, handleToggleIndex,
     handleIndexFile, handleReindexFile, handleUnindexFile, handleCopyContent,
   } = useFileViewer(path, bucketId)
 
@@ -137,12 +137,11 @@ export function FileViewerDialog({
                 )}
                 <FileActions
                   status={fileStatus.status}
-                  includeRag={fileStatus.include_rag === 1}
+                  includeInIndex={fileStatus.include_in_index === 1}
                   busy={actionLoading}
-                  onToggleRag={handleToggleRag}
+                  onToggleIndex={handleToggleIndex}
                   onIndexFile={handleIndexFile}
                   onReindexFile={handleReindexFile}
-                  onUnindexFile={() => setPendingUnindex(true)}
                   variant="full"
                   layout="row"
                 />
@@ -298,8 +297,8 @@ export function FileViewerDialog({
             open={pendingUnindex}
             onOpenChange={setPendingUnindex}
             title="Remove from index?"
-            description={`This will delete all chunks for "${path.split("/").pop()}" from the vector store and exclude it from RAG.`}
-            confirmLabel="Unindex"
+            description={`This will delete all ${fileStatus.chunk_count ?? 0} chunk${(fileStatus.chunk_count ?? 0) !== 1 ? "s" : ""} for "${path.split("/").pop()}" from the vector store. The file will be excluded from indexing until you toggle it back on.`}
+            confirmLabel="Remove from index"
             variant="destructive"
             onConfirm={handleUnindexFile}
           />

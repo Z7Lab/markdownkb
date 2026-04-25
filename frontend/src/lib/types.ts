@@ -92,7 +92,7 @@ export interface TrackedFile {
   content_hash: string
   file_size: number
   mtime: number
-  include_rag: number
+  include_in_index: number
   tags: string
   indexed_at: string | null
   entity_count?: number

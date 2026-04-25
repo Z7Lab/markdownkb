@@ -98,7 +98,7 @@ def compute_graph(
             if path in allowed_paths
         }
 
-    # Exclude files where include_rag is false
+    # Exclude files where include_in_index is false
     if excluded_paths:
         docs = {
             path: doc for path, doc in docs.items()

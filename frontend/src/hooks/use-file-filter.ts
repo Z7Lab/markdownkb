@@ -49,7 +49,7 @@ export const getValue = (f: TrackedFile, key: string): string | number | null =>
     case "file": return basename(f.path)
     case "folder": return dirname(f.path)
     case "tags": return f.tags || ""
-    case "rag": return f.include_rag
+    case "include": return f.include_in_index
     case "status": return f.status
     case "chunks": return f.chunk_count
     case "entities": return f.entity_count ?? 0

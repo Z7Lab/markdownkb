@@ -27,13 +27,13 @@ import type { TrackedFile } from "@/lib/types"
 import { cn } from "@/lib/utils"
 
 // Column IDs and default sizes as percentages (must sum to 100)
-const BASE_COL_IDS = ["file", "folder", "tags", "rag", "status", "chunks", "indexed", "actions"]
+const BASE_COL_IDS = ["file", "folder", "tags", "include", "status", "chunks", "indexed", "actions"]
 const BASE_LAYOUT: Record<string, number> = {
-  file: 20, folder: 20, tags: 12, rag: 8, status: 8, chunks: 6, indexed: 12, actions: 14,
+  file: 20, folder: 20, tags: 12, include: 8, status: 8, chunks: 6, indexed: 12, actions: 14,
 }
-const KG_COL_IDS = ["file", "folder", "tags", "rag", "status", "chunks", "entities", "indexed", "actions"]
+const KG_COL_IDS = ["file", "folder", "tags", "include", "status", "chunks", "entities", "indexed", "actions"]
 const KG_LAYOUT: Record<string, number> = {
-  file: 18, folder: 18, tags: 11, rag: 7, status: 7, chunks: 5, entities: 6, indexed: 11, actions: 17,
+  file: 18, folder: 18, tags: 11, include: 7, status: 7, chunks: 5, entities: 6, indexed: 11, actions: 17,
 }
 
 function SortHeader(props: React.ComponentProps<typeof SortButton>) {
@@ -48,10 +48,9 @@ function VirtualizedFileList({
   gridTemplate,
   selected,
   onToggleSelect,
-  onToggleRag,
+  onToggleIndex,
   onIndexFile,
   onReindexFile,
-  onUnindexFile,
   onViewFile,
   onUpdateTags,
   kgEnabled,
@@ -63,10 +62,9 @@ function VirtualizedFileList({
   gridTemplate: string
   selected: Set<string>
   onToggleSelect: (path: string) => void
-  onToggleRag: (path: string, checked: boolean) => void
+  onToggleIndex: (path: string, checked: boolean) => void
   onIndexFile: (path: string) => void
   onReindexFile: (path: string) => void
-  onUnindexFile: (path: string) => void
   onViewFile: (path: string) => void
   onUpdateTags: (path: string, tags: string[]) => Promise<void>
   kgEnabled: boolean
@@ -117,10 +115,9 @@ function VirtualizedFileList({
                 gridTemplate={gridTemplate}
                 selected={selected.has(f.path)}
                 onToggleSelect={onToggleSelect}
-                onToggleRag={onToggleRag}
+                onToggleIndex={onToggleIndex}
                 onIndexFile={onIndexFile}
                 onReindexFile={onReindexFile}
-                onUnindexFile={onUnindexFile}
                 onViewFile={onViewFile}
                 kgEnabled={kgEnabled}
                 onExtractEntities={onExtractEntities}
@@ -137,7 +134,7 @@ function VirtualizedFileList({
 // Refactor target: extract toolbar into sub-component, filtering into a hook,
 // and colocate dialog state with dialogs. Tracked in the frontend review backlog.
 export function FilesTab() {
-  const { files, busyPaths, refresh, toggleRag, unindexFile, indexFile, reindexFile, indexAll, unindexSource, updateTags, bulkUpdateTags, extractEntities } = useFiles()
+  const { files, busyPaths, refresh, toggleIndex, indexFile, reindexFile, indexAll, unindexSource, updateTags, bulkUpdateTags, extractEntities } = useFiles()
   const { settings } = useSettings()
   const kgEnabled = !!settings?.plugins_enabled?.knowledge_graph
   const COL_IDS = kgEnabled ? KG_COL_IDS : BASE_COL_IDS
@@ -157,7 +154,6 @@ export function FilesTab() {
   }, [lastIndexedAt, refresh])
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
   const [viewingPath, setViewingPath] = useUrlSearchParam("file")
-  const [pendingUnindex, setPendingUnindex] = useState<string | null>(null)
   const [confirmUnindexAll, setConfirmUnindexAll] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkTagOpen, setBulkTagOpen] = useState(false)
@@ -187,9 +183,9 @@ export function FilesTab() {
     })
   }, [])
 
-  const ragIncluded = files.filter((f) => f.include_rag === 1 && f.status === "complete").length
+  const indexIncluded = files.filter((f) => f.include_in_index === 1 && f.status === "complete").length
   const notIndexed = files.filter((f) => f.status === "not_indexed" || f.status === "pending").length
-  const ragExcluded = files.filter((f) => f.include_rag === 0).length
+  const indexExcluded = files.filter((f) => f.include_in_index === 0).length
   const errorCount = files.filter((f) => f.status === "error").length
 
   return (
@@ -302,7 +298,7 @@ export function FilesTab() {
                   : `Showing ${filteredFiles.length} of ${folderFiltered.length} files${searchMode === "content" ? " (by content)" : ""}`
                 : selectedFolder
                   ? `${folderFiltered.length} of ${files.length} files`
-                  : `${files.length} files — ${ragIncluded} in RAG, ${notIndexed} not indexed${ragExcluded > 0 ? `, ${ragExcluded} excluded` : ""}${errorCount > 0 ? `, ${errorCount} errored` : ""}`}
+                  : `${files.length} files — ${indexIncluded} indexed, ${notIndexed} not indexed${indexExcluded > 0 ? `, ${indexExcluded} excluded` : ""}${errorCount > 0 ? `, ${errorCount} errored` : ""}`}
             </p>
           </div>
         </div>
@@ -365,9 +361,9 @@ export function FilesTab() {
                 </SortHeader>
               </ResizablePanel>
               <ResizableHandle />
-              <ResizablePanel id="rag" defaultSize={DEFAULT_LAYOUT.rag} minSize={5}>
-                <SortHeader sortKey="rag" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort} className="justify-center">
-                  Include RAG
+              <ResizablePanel id="include" defaultSize={DEFAULT_LAYOUT.include} minSize={5}>
+                <SortHeader sortKey="include" activeSortKey={sortKey} sortDir={sortDir} onSort={onSort} className="justify-center">
+                  Include
                 </SortHeader>
               </ResizablePanel>
               <ResizableHandle />
@@ -415,10 +411,9 @@ export function FilesTab() {
             gridTemplate={gridTemplate}
             selected={selected}
             onToggleSelect={toggleSelect}
-            onToggleRag={toggleRag}
+            onToggleIndex={toggleIndex}
             onIndexFile={indexFile}
             onReindexFile={reindexFile}
-            onUnindexFile={setPendingUnindex}
             onViewFile={setViewingPath}
             onUpdateTags={updateTags}
             kgEnabled={kgEnabled}
@@ -427,21 +422,6 @@ export function FilesTab() {
         </div>
 
         <FileViewerDialog path={viewingPath} onClose={() => setViewingPath(null)} />
-        <ConfirmDialog
-          open={!!pendingUnindex}
-          onOpenChange={(open) => { if (!open) setPendingUnindex(null) }}
-          title="Remove from index?"
-          description={`This will delete all chunks for "${pendingUnindex?.split("/").pop()}" from the vector store and exclude it from RAG.`}
-          confirmLabel="Unindex"
-          variant="destructive"
-          onConfirm={async () => {
-            if (pendingUnindex) {
-              setPendingUnindex(null)
-              await unindexFile(pendingUnindex)
-            }
-          }}
-        />
-
         <ConfirmDialog
           open={confirmUnindexAll}
           onOpenChange={setConfirmUnindexAll}
