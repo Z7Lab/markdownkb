@@ -76,6 +76,8 @@ Supports Google-style quoted phrases: `"exact phrase"` requires literal match in
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/v1/settings` | Get full settings |
+| GET | `/api/v1/settings/status` | Returns `{"dirty": bool}` — true if `settings.yaml` has been modified on disk since it was last loaded. Polled by the UI to show the "Apply Updates" button. |
+| POST | `/api/v1/settings/reload` | Re-read `settings.yaml` from disk and apply to the live instance. Called on Settings page mount and when the user clicks "Apply Updates". |
 | GET | `/api/v1/sources` | List source directories |
 | POST | `/api/v1/sources` | Add source directory (immediately starts watching + indexing) |
 | DELETE | `/api/v1/sources` | Remove source directory (with optional `cleanup` to unindex files) |

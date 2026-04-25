@@ -13,11 +13,14 @@ import {
   Layers,
   MessageSquareText,
   Plug,
+  RefreshCw,
   ScrollText,
   Search,
   Shield,
   ToggleRight,
 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
 import { LlmConfig } from "./llm-config"
 import { SourcesPanel } from "./sources-panel"
 import { PluginsPanel } from "./plugins-panel"
@@ -111,6 +114,36 @@ export function SettingsTab({ initialSection }: { initialSection?: string } = {}
 
   const { errorCount, clearErrors } = useIndexEvents()
   const [availableTags, setAvailableTags] = useState<string[]>([])
+  const [dirty, setDirty] = useState(false)
+  const [applying, setApplying] = useState(false)
+
+  useEffect(() => {
+    api.post("/api/v1/settings/reload", {}).catch(() => { /* non-critical */ })
+  }, [])
+
+  useEffect(() => {
+    const check = () => {
+      api.get<{ dirty: boolean }>("/api/v1/settings/status")
+        .then((r) => setDirty(r.dirty))
+        .catch(() => { /* non-critical */ })
+    }
+    check()
+    const id = setInterval(check, 10_000)
+    return () => clearInterval(id)
+  }, [])
+
+  async function handleApply() {
+    setApplying(true)
+    try {
+      await api.post("/api/v1/settings/reload", {})
+      setDirty(false)
+      toast.success("Settings applied")
+    } catch {
+      toast.error("Failed to apply settings")
+    } finally {
+      setApplying(false)
+    }
+  }
 
   useEffect(() => {
     if (activeSection === "scopes") {
@@ -156,6 +189,19 @@ export function SettingsTab({ initialSection }: { initialSection?: string } = {}
               )}
             </button>
           ))}
+          {dirty && (
+            <div className="pt-2 px-1">
+              <Button
+                size="sm"
+                className="w-full gap-1.5"
+                onClick={handleApply}
+                disabled={applying}
+              >
+                <RefreshCw className={cn("h-3.5 w-3.5", applying && "animate-spin")} />
+                Apply Updates
+              </Button>
+            </div>
+          )}
         </nav>
       </AppSidebar>
       <div className="flex-1 min-w-0 min-h-0">

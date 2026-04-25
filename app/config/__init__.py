@@ -101,6 +101,7 @@ class Settings(
         self._mcp_cache: dict[str, dict] = {}
         self._prompt_cache: dict[str, str] = {}
         self._mcp_dir = self._path.parent / "mcp"
+        self._loaded_mtime: float = path.stat().st_mtime if path.exists() else 0.0
 
         migrated = _migrate_settings(self._data)
         if _migrate_num_ctx(self._data):
@@ -143,7 +144,15 @@ class Settings(
             _validate_settings(self._data)
             self._mcp_cache.clear()
             self._prompt_cache.clear()
+            self._loaded_mtime = self._path.stat().st_mtime if self._path.exists() else 0.0
             logger.info("Settings reloaded from %s", self._path)
+
+    @property
+    def is_dirty(self) -> bool:
+        """Return True if settings.yaml has been modified since it was last loaded."""
+        if not self._path.exists():
+            return False
+        return self._path.stat().st_mtime > self._loaded_mtime
 
     def save(self):
         """Write current configuration back to the YAML file."""
@@ -151,6 +160,7 @@ class Settings(
             self._path.parent.mkdir(parents=True, exist_ok=True)
             with open(self._path, "w", encoding="utf-8") as f:
                 yaml.dump(self._data, f, default_flow_style=False, sort_keys=False)
+            self._loaded_mtime = self._path.stat().st_mtime
 
     def _resolve_path(self, p: str) -> str:
         """Resolve a relative path against the project root."""
