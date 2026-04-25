@@ -92,13 +92,14 @@ class BackupManager:
         dest: Path,
         options: BackupOptions,
         sources: Iterable[Path] = (),
+        embedding_model: str = "",
     ) -> dict:
         """Build a .tar.gz at ``dest``.  Returns the manifest dict."""
         dest = Path(dest)
         staging = Path(tempfile.mkdtemp(prefix="mdkb-backup-"))
         try:
             self._stage(staging, options, sources)
-            manifest = self._write_manifest(staging, options, sources)
+            manifest = self._write_manifest(staging, options, sources, embedding_model)
             self._make_tarball(staging, dest)
             return manifest
         finally:
@@ -170,6 +171,7 @@ class BackupManager:
         staging: Path,
         options: BackupOptions,
         sources: Iterable[Path],
+        embedding_model: str = "",
     ) -> dict:
         contents = []
         for top in sorted(p.name for p in staging.iterdir()):
@@ -185,6 +187,7 @@ class BackupManager:
                 "include_sources": options.include_sources,
                 "include_chromadb": options.include_chromadb,
             },
+            "embedding_model": embedding_model,
             "sources": [str(Path(s)) for s in sources] if options.include_sources else [],
             "data_dir": str(self.data_dir),
         }
@@ -219,6 +222,7 @@ class BackupManager:
         self,
         archive: Path,
         options: RestoreOptions,
+        current_embedding_model: str = "",
     ) -> dict:
         """Stage, validate, and atomically swap the archive into place.
 
@@ -239,7 +243,7 @@ class BackupManager:
 
             with _restore_lock:
                 self._swap_into_place(staging, options)
-                self._write_restart_marker(manifest)
+                self._write_restart_marker(manifest, current_embedding_model)
             return manifest
         finally:
             shutil.rmtree(staging, ignore_errors=True)
@@ -332,13 +336,21 @@ class BackupManager:
             # Success — drop the stash.
             shutil.rmtree(backup_old, ignore_errors=True)
 
-    def _write_restart_marker(self, manifest: dict) -> None:
+    def _write_restart_marker(self, manifest: dict, current_embedding_model: str = "") -> None:
+        backup_model = manifest.get("embedding_model", "")
+        model_mismatch = bool(
+            backup_model and current_embedding_model
+            and backup_model != current_embedding_model
+        )
         marker = self.data_dir / RESTART_MARKER
         marker.write_text(json.dumps({
             "restored_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "from_backup_id": manifest.get("id"),
             "from_backup_created_at": manifest.get("created_at"),
             "from_mdkb_version": manifest.get("mdkb_version"),
+            "backup_embedding_model": backup_model,
+            "current_embedding_model": current_embedding_model,
+            "model_mismatch": model_mismatch,
         }, indent=2))
 
 

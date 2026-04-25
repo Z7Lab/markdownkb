@@ -101,6 +101,7 @@ def create_backup(
                 include_chromadb=body.include_chromadb,
             ),
             sources=sources,
+            embedding_model=settings.embedding_model,
         )
     except BackupError as exc:
         dest.unlink(missing_ok=True)
@@ -167,6 +168,7 @@ async def restore_backup(
         manifest = mgr.restore(
             archive,
             RestoreOptions(apply_config=apply_config, apply_sources=apply_sources),
+            current_embedding_model=settings.embedding_model,
         )
         return {
             "status": "restored",

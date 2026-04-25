@@ -257,6 +257,19 @@ def index(
     cancel_event: threading.Event = Depends(get_cancel_event),
 ):
     """Run indexing. With force=true, clears hashes and reindexes everything."""
+    if settings.embedding_provider == "local":
+        model_info = MODELS.get(settings.embedding_model)
+        if model_info:
+            stored_dims = store.get_stored_dimensions()
+            if stored_dims is not None and stored_dims != model_info.dimensions:
+                raise HTTPException(
+                    409,
+                    f"Vector dimension mismatch: the stored vectors are {stored_dims}-dimensional "
+                    f"(from a previous model), but '{settings.embedding_model}' produces "
+                    f"{model_info.dimensions}-dimensional vectors. "
+                    f"Go to Settings → Database and clear the vector store before indexing.",
+                )
+
     if req.force:
         with _switch_lock:
             if _switch_status["running"]:

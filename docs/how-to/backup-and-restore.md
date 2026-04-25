@@ -48,6 +48,15 @@ If the backup was created with **Include configuration** enabled, you can opt to
 
 If the backup was created with **Include source files** enabled, the source directories are unpacked into `data/restored-sources/`. You move them into place manually — your watch-dir paths on the new machine may differ from the original.
 
+## Embedding model mismatch
+
+Each backup records which embedding model was active when it was created. If the restored backup used a different model than the one currently configured (e.g. backup was `bge-small-en-v1.5` but you're now on `nomic-embed-text-v1.5`), the restart banner will show a warning explaining the mismatch.
+
+The stored vectors are incompatible — searching will return wrong results and indexing new files will be blocked with a 409 error until you resolve the conflict. You have two options:
+
+- **Re-index**: go to Settings → Database, clear the vector store, then trigger a full re-index with your current model.
+- **Switch back**: change your embedding model back to the one the backup was built with, then re-index.
+
 ## Version compatibility
 
 A restore refuses to apply a backup produced by a *newer* mdkb version than the one currently running — the schemas may not be readable. Restoring an *older* backup is allowed; forward-only schema migrations run on the next startup.

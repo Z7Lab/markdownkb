@@ -17,6 +17,9 @@ interface BackupStatus {
     from_backup_id?: string
     from_backup_created_at?: string
     from_mdkb_version?: string
+    backup_embedding_model?: string
+    current_embedding_model?: string
+    model_mismatch?: boolean
   } | null
 }
 
@@ -157,9 +160,20 @@ export function BackupPanel() {
               <AlertTriangle className="h-4 w-4" />
               Restart required
             </CardTitle>
-            <CardDescription>
-              A restore was applied at {status.restart_pending.restored_at}.
-              Run <code className="bg-muted px-1 rounded">make docker-restart</code> for the new data to take effect.
+            <CardDescription className="space-y-2">
+              <span className="block">
+                A restore was applied at {status.restart_pending.restored_at}.
+                Run <code className="bg-muted px-1 rounded">make docker-restart</code> for the new data to take effect.
+              </span>
+              {status.restart_pending.model_mismatch && (
+                <span className="block text-destructive font-medium">
+                  Embedding model mismatch: the backup was built with{" "}
+                  <code className="bg-muted px-1 rounded">{status.restart_pending.backup_embedding_model}</code>{" "}
+                  but you are currently using{" "}
+                  <code className="bg-muted px-1 rounded">{status.restart_pending.current_embedding_model}</code>.
+                  After restarting, go to Settings → Database and clear the vector store, then re-index — or switch back to the backup&apos;s model before indexing.
+                </span>
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent>

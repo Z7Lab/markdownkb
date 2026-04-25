@@ -34,6 +34,16 @@ class VectorStore:
         """Return the number of chunks in the collection."""
         return self._collection.count()
 
+    def get_stored_dimensions(self) -> int | None:
+        """Return the vector dimension of stored embeddings, or None if collection is empty."""
+        if self._collection.count() == 0:
+            return None
+        result = self._collection.get(include=["embeddings"], limit=1)
+        embs = result.get("embeddings")
+        if embs and embs[0]:
+            return len(embs[0])
+        return None
+
     def add(self, ids: list[str], documents: list[str],
             embeddings: list[list[float]], metadatas: list[dict] | None = None):
         """Add or update chunks in the vector store."""
