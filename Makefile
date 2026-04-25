@@ -68,17 +68,38 @@ docker-rebuild: ## Full clean rebuild (no cache) + restart — use after depende
 	@docker compose build --no-cache
 	@docker compose up -d
 
-# NOTE: explicit -f flags suppress Docker Compose's auto-loading of compose.override.yml,
-# so compose.override.yml (source directory mounts) must be listed explicitly here.
-# Omitting it causes sources to appear unmounted → scanner prunes all indexed files.
+# NOTE: explicit -f flags suppress both Docker Compose's auto-loading of compose.override.yml
+# AND the COMPOSE_FILE env var, so both override files must be listed explicitly here.
+# compose.override.yml    — written by the app when running on the host (dev mode)
+# config/compose.override.yml — written by the app when running inside Docker (bind-mounted)
+# Omitting either causes sources to appear unmounted → scanner prunes all indexed files.
+_COMPOSE_OVERRIDES := -f compose.yml -f compose.override.yml -f config/compose.override.yml
+_TOUCH_OVERRIDES   := @mkdir -p config && touch compose.override.yml config/compose.override.yml
+
 docker-build-full: ## Build 'full' image variant (includes YouTube transcripts + PDF/DOCX/XLSX/PPTX conversion) + restart
-	@docker compose -f compose.yml -f compose.override.yml -f compose.full.yml build
-	@docker compose -f compose.yml -f compose.override.yml -f compose.full.yml up -d
+	$(_TOUCH_OVERRIDES)
+	@docker compose $(_COMPOSE_OVERRIDES) -f compose.full.yml build
+	@docker compose $(_COMPOSE_OVERRIDES) -f compose.full.yml up -d
 
 docker-rebuild-full: ## Full clean rebuild of 'full' variant (no cache) + restart
-	@docker compose -f compose.yml -f compose.override.yml -f compose.full.yml build --no-cache
-	@docker compose -f compose.yml -f compose.override.yml -f compose.full.yml up -d
+	$(_TOUCH_OVERRIDES)
+	@docker compose $(_COMPOSE_OVERRIDES) -f compose.full.yml build --no-cache
+	@docker compose $(_COMPOSE_OVERRIDES) -f compose.full.yml up -d
 
+generate-compose: ## Generate compose.custom.yml from config/settings.yaml plugin config
+	@.venv/bin/python scripts/generate_compose.py
+
+docker-build-custom: ## Build custom image from compose.custom.yml + restart (run generate-compose first)
+	@test -f compose.custom.yml || (echo "Run 'make generate-compose' first"; exit 1)
+	$(_TOUCH_OVERRIDES)
+	@docker compose $(_COMPOSE_OVERRIDES) -f compose.custom.yml build
+	@docker compose $(_COMPOSE_OVERRIDES) -f compose.custom.yml up -d
+
+docker-rebuild-custom: ## Full clean rebuild of custom image (no cache) + restart
+	@test -f compose.custom.yml || (echo "Run 'make generate-compose' first"; exit 1)
+	$(_TOUCH_OVERRIDES)
+	@docker compose $(_COMPOSE_OVERRIDES) -f compose.custom.yml build --no-cache
+	@docker compose $(_COMPOSE_OVERRIDES) -f compose.custom.yml up -d
 
 docker-up: ## Start container (detached)
 	@mkdir -p data/chromadb data/plans

@@ -107,7 +107,7 @@ Some plugins have external dependencies:
 
 | Plugin | Dependency | Notes |
 |--------|-----------|-------|
-| `converter` | markitdown | Bundled in base image. PDF/DOCX/XLSX/PPTX conversion requires the `full` image (or manual install of `pdfminer.six`, `mammoth`, `openpyxl`, `python-pptx`). |
+| `converter` | markitdown | Bundled in base image. Each sub-converter (web/YouTube, office, pdf, misc) can be independently toggled in plugin settings. DOCX/XLSX/PPTX and PDF require the `full` image or a custom build (`make generate-compose && make docker-build-custom`). |
 | `knowledge_graph` | LLM provider | Entity extraction calls the configured LLM. |
 | `planner` | LLM provider | Plan generation calls the configured LLM. |
 | `tags` (AI generation) | LLM provider | Optional `ai_generation: true` sub-flag for AI-powered tagging. |

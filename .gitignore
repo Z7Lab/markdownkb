@@ -37,6 +37,7 @@ node_modules/
 frontend/dist/
 app/static/
 compose.override.yml
+compose.custom.yml
 
 # Docs site build output
 site/

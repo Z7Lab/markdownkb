@@ -99,7 +99,14 @@ volumes:
 
 **Security boundary:** Only mounted paths exist inside the container. Any path that isn't explicitly mounted is simply inaccessible — the container process cannot read or write to it, regardless of what an application or agent attempts. This means the blast radius of any write operation (including MCP write tools like `save_file`) is strictly bounded to the directories you've chosen to mount. See [MCP write tool security](../reference/mcp-server.md#write-tool-security).
 
-**Warning — explicit `-f` flags suppress override auto-loading:** Docker Compose automatically loads `compose.override.yml` only when you run `docker compose` without any `-f` flags. If you pass explicit `-f` flags (e.g. to use an image variant), `compose.override.yml` is silently ignored. This means your source directory mounts won't be present — on startup the scanner will see those paths as gone and **delete all their indexed files** from the database. Always include `-f compose.override.yml` explicitly when combining override files, or use the `make` targets which handle this correctly.
+**Two override files, one purpose:** MarkdownKB uses two override files for source mounts:
+
+- `compose.override.yml` (project root) — written by the app when running on the host (dev mode)
+- `config/compose.override.yml` — written by the app when running inside Docker (bind-mounted via `./config:/app/config`)
+
+Both are listed in `.env` as `COMPOSE_FILE=compose.yml:compose.override.yml:config/compose.override.yml`, so `docker compose up -d` (no `-f` flags) loads them both automatically.
+
+**Warning — explicit `-f` flags override `COMPOSE_FILE`:** When using variant builds (`-f compose.full.yml`, etc.), Docker ignores the `COMPOSE_FILE` env var entirely. Both override files must be listed explicitly, or source mounts will be missing and the scanner will prune all indexed files on startup. All `make docker-build-*` targets handle this correctly — if you run `docker compose` by hand, always include both: `-f compose.override.yml -f config/compose.override.yml`.
 
 ## Image variants
 
@@ -133,6 +140,17 @@ make docker-build-full
 ```
 
 This passes the extras build arg through `compose.full.yml`. Use `make docker-rebuild-full` for a clean no-cache build.
+
+### Building a custom image from your settings
+
+`compose.full.yml` is an all-or-nothing preset. If you only want some converter sub-converters (e.g. YouTube and DOCX but not PDF), generate a `compose.custom.yml` tailored to your `config/settings.yaml`:
+
+```bash
+make generate-compose    # reads config/settings.yaml, writes compose.custom.yml
+make docker-build-custom # builds and starts with only your enabled extras
+```
+
+`compose.custom.yml` is gitignored — regenerate it any time you change converter sub-converter settings.
 
 ### Note on YouTube ToS
 

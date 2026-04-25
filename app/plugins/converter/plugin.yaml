@@ -1,7 +1,7 @@
 name: converter
 display_name: File Converter
-description: Batch convert documents (DOCX, PDF, PPTX, XLSX, HTML, EPUB, CSV, etc.) to markdown using Microsoft's markitdown library. No system dependencies required.
-version: 2.0.0
+description: Convert documents and URLs to markdown. Each sub-converter can be independently enabled — only install the Python extras you actually need in your image.
+version: 2.1.0
 author: markdownkb
 icon: file-edit
 category: integration
@@ -9,20 +9,47 @@ feature_flag: converter
 requires: []
 
 endpoints:
-  - method: GET
-    path: /api/converter/formats
-    description: List supported input formats
   - method: POST
-    path: /api/converter/convert
+    path: /api/v1/converter/url
+    description: Convert a URL or YouTube video to markdown
+  - method: POST
+    path: /api/v1/converter/upload
+    description: Upload and convert a file to markdown
+  - method: GET
+    path: /api/v1/converter/formats
+    description: List enabled input formats
+  - method: POST
+    path: /api/v1/converter/convert
     description: Start batch conversion of files in a directory
   - method: GET
-    path: /api/converter/status
+    path: /api/v1/converter/status
     description: Current conversion progress
   - method: POST
-    path: /api/converter/cancel
+    path: /api/v1/converter/cancel
     description: Cancel running conversion
 
-config: {}
+config:
+  web_enabled:
+    type: boolean
+    default: true
+    label: Web & YouTube
+    description: Convert URLs and YouTube videos to markdown. Full YouTube transcripts require youtube_transcript_api in the image (full image variant).
+  office_enabled:
+    type: boolean
+    default: true
+    label: Office documents (DOCX, XLSX, PPTX)
+    description: Convert Word, Excel, and PowerPoint files via markitdown. Requires mammoth, openpyxl, python-pptx in the image (full image variant).
+  pdf_enabled:
+    type: boolean
+    default: true
+    label: PDF
+    description: Convert PDF files via pdfplumber. Requires pdfplumber in the image (full image variant). Note — text-layer extraction only; image-heavy PDFs yield sparse output.
+  misc_enabled:
+    type: boolean
+    default: true
+    label: Misc formats (HTML, EPUB, CSV, TXT, and more)
+    description: Convert HTML, EPUB, CSV, plain text, RST, RTF, ODT, Jupyter notebooks, and Outlook messages. No extra image dependencies required.
 
 logging_overrides:
   pdfminer: WARNING
+  pdfplumber: WARNING
