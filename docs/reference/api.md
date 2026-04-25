@@ -79,8 +79,10 @@ Supports Google-style quoted phrases: `"exact phrase"` requires literal match in
 | GET | `/api/v1/sources` | List source directories |
 | POST | `/api/v1/sources` | Add source directory (immediately starts watching + indexing) |
 | DELETE | `/api/v1/sources` | Remove source directory (with optional `cleanup` to unindex files) |
-| POST | `/api/v1/ignore-patterns` | Add a `global_ignore` glob pattern. Body: `{"pattern": "**/code_reviews/**"}`. Files matching it are skipped on the **next** scan — does not remove already-indexed files (use `DELETE /api/v1/files/index` for that). |
+| POST | `/api/v1/ignore-patterns` | Add a `global_ignore` glob pattern. Body: `{"pattern": "**/code_reviews/**"}`. Files matching it are skipped on the **next** scan — does not remove already-indexed files (use `DELETE /api/v1/files/stale-ignored` to purge them). |
 | DELETE | `/api/v1/ignore-patterns` | Remove a `global_ignore` glob pattern. Body: `{"pattern": "..."}` |
+| GET | `/api/v1/files/stale-ignored` | Return indexed files whose paths now match the active `global_ignore` patterns. Returns `{"count": N, "paths": [...]}`. Count > 0 means chunks exist in the vector store for files the scanner now ignores. |
+| DELETE | `/api/v1/files/stale-ignored` | Purge chunks and tracking records for all files matching active `global_ignore` patterns. Safe to call at any time — only removes files that are both indexed and ignored. Returns `{"status": "ok", "purged": N, "paths": [...]}`. |
 | GET | `/api/v1/project-roots` | List project root configurations |
 | POST | `/api/v1/project-roots` | Add project root (path + include/exclude patterns) |
 | PUT | `/api/v1/project-roots` | Update project root patterns |

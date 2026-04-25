@@ -10,7 +10,7 @@ from app.config import Settings
 from app.deps import get_bucket_service, get_retriever, get_settings, get_store, get_tagdb, get_tracking
 from app.events import IndexEvent, event_bus
 from app.ingestion.indexer import ReindexError, reindex_file
-from app.ingestion.scanner import discover_sources
+from app.ingestion.scanner import _matches_ignore, discover_sources
 from app.rag.retriever import Retriever
 from app.ratelimit import HEAVY, STANDARD, limiter
 from app.schemas.files import FileActionRequest, FileSearchRequest, SourceActionRequest, ToggleIndexRequest
@@ -307,6 +307,54 @@ def toggle_index(
         type="index_toggled", path=req.path, filename=Path(req.path).name,
     ))
     return {"status": "ok", "include_in_index": req.include}
+
+
+@router.get("/files/stale-ignored")
+@limiter.limit(STANDARD)
+def get_stale_ignored(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+    tracking: TrackingDB = Depends(get_tracking),
+):
+    """Return indexed files that now match the current global_ignore patterns.
+
+    These files were indexed before a pattern was added and still have chunks
+    in the vector store. Use DELETE /api/v1/files/stale-ignored to remove them.
+    """
+    patterns = settings.global_ignore
+    if not patterns:
+        return {"count": 0, "paths": []}
+    all_files = tracking.get_all_files()
+    stale = [
+        f["path"] for f in all_files
+        if f.get("chunk_count", 0) > 0 and _matches_ignore(f["path"], patterns)
+    ]
+    return {"count": len(stale), "paths": stale}
+
+
+@router.delete("/files/stale-ignored")
+@limiter.limit(STANDARD)
+def purge_stale_ignored(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+    tracking: TrackingDB = Depends(get_tracking),
+    store: VectorStore = Depends(get_store),
+):
+    """Remove chunks and tracking records for files matching current global_ignore patterns.
+
+    Safe to call at any time. Only affects files that have been indexed but now
+    match an ignore pattern — does not touch unindexed or non-matching files.
+    """
+    patterns = settings.global_ignore
+    if not patterns:
+        return {"status": "ok", "purged": 0, "paths": []}
+    all_files = tracking.get_all_files()
+    stale = [f["path"] for f in all_files if _matches_ignore(f["path"], patterns)]
+    for path in stale:
+        store.delete_by_source(path)
+        tracking.remove_file(path)
+        logger.info("Purged stale-ignored file: %s", path)
+    return {"status": "ok", "purged": len(stale), "paths": stale}
 
 
 @router.delete("/files/index")

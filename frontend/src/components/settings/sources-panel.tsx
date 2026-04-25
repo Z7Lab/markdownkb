@@ -9,7 +9,7 @@ import { usePathCheck } from "@/hooks/use-path-check"
 import { api } from "@/lib/api"
 import type { ProjectRoot, SourceConfig, VersioningStatus } from "@/lib/types"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { CheckCircle2, AlertCircle, Loader2, Trash2, FileText, Pencil, Plus, X, FolderGit2, GitBranch, HardDrive } from "lucide-react"
+import { CheckCircle2, AlertCircle, Loader2, Trash2, FileText, Pencil, Plus, X, FolderGit2, GitBranch, HardDrive, ShieldAlert } from "lucide-react"
 import { toast } from "sonner"
 import { VersioningSourceRow } from "./versioning-source-row"
 
@@ -268,6 +268,8 @@ export function SourcesPanel({
     files_error: number
     chunks_indexed: number
   } | null>(null)
+  const [staleIgnored, setStaleIgnored] = useState<{ count: number } | null>(null)
+  const [purgingStale, setPurgingStale] = useState(false)
   const { isIndexing, lastIndexedAt } = useIndexEvents()
   const [vstatus, setVStatus] = useState<VersioningStatus | null>(null)
 
@@ -284,6 +286,7 @@ export function SourcesPanel({
       files_error: number
       chunks_indexed: number
     }>("/api/v1/stats").then(setStats).catch(() => { /* stats are non-critical UI data */ })
+    api.get<{ count: number }>("/api/v1/files/stale-ignored").then(setStaleIgnored).catch(() => { /* non-critical */ })
   }, [lastIndexedAt])
 
   useEffect(() => {
@@ -294,6 +297,20 @@ export function SourcesPanel({
     if (!newPattern.trim()) return
     await onAddIgnore(newPattern.trim())
     setNewPattern("")
+    api.get<{ count: number }>("/api/v1/files/stale-ignored").then(setStaleIgnored).catch(() => {})
+  }
+
+  async function handlePurgeStale() {
+    setPurgingStale(true)
+    try {
+      const result = await api.del<{ purged: number }>("/api/v1/files/stale-ignored")
+      toast.success(`Purged ${result.purged} stale file${result.purged !== 1 ? "s" : ""} from the index`)
+      setStaleIgnored({ count: 0 })
+    } catch {
+      toast.error("Failed to purge stale files")
+    } finally {
+      setPurgingStale(false)
+    }
   }
 
   return (
@@ -330,6 +347,27 @@ export function SourcesPanel({
                 </div>
               )}
             </div>
+            {staleIgnored && staleIgnored.count > 0 && (
+              <div className="flex items-center justify-between mt-3 pt-3 border-t text-sm">
+                <div className="flex items-center gap-1.5 text-warning">
+                  <ShieldAlert className="h-4 w-4 shrink-0" />
+                  <span>
+                    <span className="font-medium">{staleIgnored.count}</span>
+                    <span className="text-muted-foreground ml-1">indexed {staleIgnored.count === 1 ? "file matches" : "files match"} an ignore pattern and still have chunks in the vector store</span>
+                  </span>
+                </div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handlePurgeStale}
+                  disabled={purgingStale}
+                  className="shrink-0 ml-4"
+                >
+                  {purgingStale ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Trash2 className="h-3.5 w-3.5 mr-1.5" />}
+                  Purge {staleIgnored.count} {staleIgnored.count === 1 ? "file" : "files"}
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
