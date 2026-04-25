@@ -209,7 +209,7 @@ SQLite databases use `PRAGMA user_version` for schema migrations. Each database 
 
 1. **Scanner** (`app/ingestion/scanner.py`) discovers markdown files across configured source directories, respecting ignore patterns.
 2. **Parser** (`app/ingestion/parser.py`) splits files into chunks by heading structure, with configurable size and overlap.
-3. **Embedder** (`app/embeddings/embedder.py`) generates vector embeddings using ONNX models (runs on CPU, no PyTorch). Three models are available — see [embedding-models.md](../how-to/embedding-models.md).
+3. **Embedder** (`app/embeddings/embedder.py`) generates vector embeddings using ONNX models (runs on CPU, no PyTorch). See [embedding-models.md](../how-to/embedding-models.md) for available models.
 4. **Indexer** (`app/ingestion/indexer.py`) orchestrates the pipeline: scan → parse → embed → store in ChromaDB + track in TrackingDB.
 5. **Watcher** (`app/ingestion/watcher.py`) uses `watchdog` to detect file changes and re-index incrementally. Runs in a background thread. The `FileWatcher` class supports adding directories at runtime — when a new source is added via the API, it starts watching immediately without a restart. The observer is cleanly stopped during application shutdown.
 6. **Event Bus** (`app/events.py`) — the watcher publishes `IndexEvent` objects (indexed, deleted, error) to an `IndexEventBus`. SSE clients subscribe via `GET /api/v1/index/events` to receive real-time notifications as files are processed.

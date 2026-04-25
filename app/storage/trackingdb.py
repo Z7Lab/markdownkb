@@ -221,10 +221,11 @@ class TrackingDB:
             return [dict(r) for r in rows]
 
     def get_hash_map(self) -> dict[str, str]:
-        """Return {path: content_hash} for all tracked files."""
+        """Return {path: content_hash} for successfully indexed files.
+        Error-status files are excluded so the indexer always retries them."""
         with self._lock:
             rows = self._conn.execute(
-                "SELECT path, content_hash FROM indexed_files"
+                "SELECT path, content_hash FROM indexed_files WHERE status != 'error'"
             ).fetchall()
             return {r["path"]: r["content_hash"] for r in rows}
 

@@ -114,7 +114,7 @@ class ONNXEmbedder:
         all_embeddings = []
         for i in range(0, len(texts), batch_size):
             batch = texts[i:i + batch_size]
-            encoded = [self._tokenizer.encode(t) for t in batch]
+            encoded = self._tokenizer.encode_batch(batch)
 
             input_ids = np.array([e.ids for e in encoded], dtype=np.int64)
             attention_mask = np.array(

@@ -40,7 +40,7 @@ class VectorStore:
             return None
         result = self._collection.get(include=["embeddings"], limit=1)
         embs = result.get("embeddings")
-        if embs and embs[0]:
+        if embs is not None and len(embs) > 0 and embs[0] is not None and len(embs[0]) > 0:
             return len(embs[0])
         return None
 
