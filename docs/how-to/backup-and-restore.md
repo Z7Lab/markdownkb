@@ -4,12 +4,14 @@ MarkdownKB can export its full state as a single portable archive — databases,
 
 ## What's in a backup
 
-| Always included            | Optional               | Never included         |
-| -------------------------- | ---------------------- | ---------------------- |
-| All SQLite databases       | `config/settings.yaml` | API keys / secrets     |
-| ChromaDB vector store      | `compose.override.yml` | Embedding model weights |
-| Plans (`plans/`)           | Source files           | Versioning git repos   |
-| Plugin data (`plugins/`)   |                        | Log files              |
+| Always included            | Optional (on by default)  | Optional (off by default) | Never included         |
+| -------------------------- | ------------------------- | ------------------------- | ---------------------- |
+| All SQLite databases       | ChromaDB vector store     | `config/settings.yaml`    | API keys / secrets     |
+| Plans (`plans/`)           |                           | `compose.override.yml`    | Embedding model weights |
+| Plugin data (`plugins/`)   |                           | Source files              | Versioning git repos   |
+|                            |                           |                           | Log files              |
+
+The vector store (ChromaDB) is the largest part of a backup — typically hundreds of MB for a large knowledge base. Uncheck **Include vector embeddings** to produce a much smaller archive that still preserves all your chats, searches, plans, scopes, buckets, and tags. You will need to re-index after restoring to rebuild the vectors.
 
 Databases are snapshotted with SQLite's online backup API, so the archive is consistent even while the app is running.
 
@@ -21,7 +23,7 @@ Behind the scenes:
 
 ```
 POST /api/v1/backups/create
-{ "include_config": true, "include_sources": false }
+{ "include_config": true, "include_chromadb": true, "include_sources": false }
 ```
 
 The response streams the archive directly to the client.

@@ -90,11 +90,12 @@ These ship in the default `settings.yaml`:
 
 | Model | Dimensions | Max Tokens | ~Max Chars | Size | Notes |
 |-------|-----------|------------|------------|------|-------|
-| all-MiniLM-L6-v2 | 384 | 256 | ~1000 | ~23 MB | Fast, good general quality. |
-| all-MiniLM-L12-v2 | 384 | 256 | ~1000 | ~33 MB | Better quality, same dimensions as L6. Slightly slower. |
-| bge-small-en-v1.5 | 384 | 512 | ~2000 | ~133 MB | Recommended. Best retrieval quality. Longer context window. |
+| all-MiniLM-L6-v2 | 384 | 256 | ~1000 | ~23 MB | Fast, lightweight. Good general quality. |
+| all-MiniLM-L12-v2 | 384 | 256 | ~1000 | ~33 MB | Better quality than L6, same dimensions. Slightly slower. |
+| bge-small-en-v1.5 | 384 | 512 | ~2000 | ~133 MB | Fast, good retrieval quality. 512 token context. |
+| nomic-embed-text-v1.5 | 768 | 8192 | ~32000 | ~130 MB | **Recommended.** Best retrieval quality (21% better MTEB than bge-small). 8192 token context handles long documents without truncation. |
 
-All three models output 384-dimensional vectors, so switching between them doesn't require schema changes — just a full reindex.
+MiniLM and BGE output 384-dimensional vectors and are interchangeable without schema changes (just re-index). Nomic uses 768-dimensional vectors — switching to or from it requires clearing the vector store and re-indexing.
 
 ## Chunk Size and Model Capacity
 
@@ -109,8 +110,9 @@ The `chunk_size` setting (in characters) controls how documents are split before
 |-------|-----------|----------------------|
 | MiniLM (L6/L12) | 256 | 800–1000 |
 | bge-small-en-v1.5 | 512 | 1200–1500 |
+| nomic-embed-text-v1.5 | 8192 | 1500–4000 |
 
-The default configuration uses `chunk_size: 1500` with `bge-small-en-v1.5`. If you switch to a MiniLM model, reduce `chunk_size` to 1000 or less to avoid silent truncation.
+The default configuration uses `chunk_size: 1500`. With nomic-embed-text-v1.5 you can increase this significantly — the model handles documents up to ~32,000 characters without truncation. If you switch to a MiniLM model, reduce `chunk_size` to 1000 or less to avoid silent truncation.
 
 ### How to tell if chunks are being truncated
 

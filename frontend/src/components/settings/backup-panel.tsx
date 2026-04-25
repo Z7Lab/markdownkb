@@ -44,6 +44,7 @@ export function BackupPanel() {
   const [status, setStatus] = useState<BackupStatus | null>(null)
   const [includeConfig, setIncludeConfig] = useState(true)
   const [includeSources, setIncludeSources] = useState(false)
+  const [includeChromadb, setIncludeChromadb] = useState(true)
   const [downloading, setDownloading] = useState(false)
   const [previewing, setPreviewing] = useState(false)
   const [restoring, setRestoring] = useState(false)
@@ -71,7 +72,7 @@ export function BackupPanel() {
       const res = await api.fetchRaw(
         "POST",
         "/api/v1/backups/create",
-        JSON.stringify({ include_config: includeConfig, include_sources: includeSources }),
+        JSON.stringify({ include_config: includeConfig, include_sources: includeSources, include_chromadb: includeChromadb }),
         { "Content-Type": "application/json" },
       )
       const blob = await res.blob()
@@ -203,6 +204,21 @@ export function BackupPanel() {
                 </Label>
                 <p className="text-xs text-muted-foreground">
                   settings.yaml and Docker mount overrides — recommended unless restoring on a machine with different paths
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Checkbox
+                id="include-chromadb"
+                checked={includeChromadb}
+                onCheckedChange={(v) => setIncludeChromadb(v === true)}
+              />
+              <div className="grid gap-0.5 leading-none">
+                <Label htmlFor="include-chromadb" className="text-sm font-normal">
+                  Include vector embeddings
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  the ChromaDB vector store — usually the largest part of the backup; skip if you plan to re-index after restoring
                 </p>
               </div>
             </div>

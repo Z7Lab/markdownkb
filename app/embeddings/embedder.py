@@ -44,9 +44,25 @@ class ONNXEmbedder:
         tok_path = _resolve(base, info.tokenizer_path)
         self._tokenizer = Tokenizer.from_file(str(tok_path))
         self._tokenizer.enable_truncation(max_length=self._max_seq_length)
-        self._tokenizer.enable_padding(
-            pad_id=0, pad_token="[PAD]", length=self._max_seq_length,
-        )
+
+        # Detect pad token from tokenizer_config.json — models like nomic use
+        # <pad>/id=1 instead of [PAD]/id=0. Pad to batch-max length (not
+        # max_seq_length) so large-context models like nomic don't create
+        # enormous tensors for short inputs.
+        pad_token, pad_id = "[PAD]", 0
+        tok_cfg = base / "tokenizer_config.json"
+        if tok_cfg.exists():
+            import json as _json
+            cfg = _json.loads(tok_cfg.read_text())
+            pt = cfg.get("pad_token")
+            if isinstance(pt, str):
+                pad_token = pt
+            elif isinstance(pt, dict):
+                pad_token = pt.get("content", "[PAD]")
+            vocab_id = self._tokenizer.token_to_id(pad_token)
+            if vocab_id is not None:
+                pad_id = vocab_id
+        self._tokenizer.enable_padding(pad_id=pad_id, pad_token=pad_token)
 
         # Load ONNX session (limit threads to avoid pegging CPU)
         _threads = int(_DEFAULT_THREADS)

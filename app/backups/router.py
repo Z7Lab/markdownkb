@@ -75,6 +75,7 @@ def clear_restart_marker(request: Request, settings: Settings = Depends(get_sett
 class CreateBackupQuery(BaseModel):
     include_config: bool = True
     include_sources: bool = False
+    include_chromadb: bool = True
 
 
 @router.post("/create")
@@ -97,6 +98,7 @@ def create_backup(
             BackupOptions(
                 include_config=body.include_config,
                 include_sources=body.include_sources,
+                include_chromadb=body.include_chromadb,
             ),
             sources=sources,
         )

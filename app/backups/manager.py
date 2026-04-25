@@ -59,6 +59,7 @@ class RestoreError(Exception):
 class BackupOptions:
     include_config: bool = True
     include_sources: bool = False
+    include_chromadb: bool = True
 
 
 @dataclass
@@ -118,9 +119,10 @@ class BackupManager:
 
         # ChromaDB directory — copy verbatim.  Includes its own sqlite +
         # parquet files; copying live is best-effort but acceptable for v1.
-        chroma = self.data_dir / "chromadb"
-        if chroma.is_dir():
-            shutil.copytree(chroma, staging / "chromadb")
+        if options.include_chromadb:
+            chroma = self.data_dir / "chromadb"
+            if chroma.is_dir():
+                shutil.copytree(chroma, staging / "chromadb")
 
         # Plans + plugin-owned data dirs.
         for sub in ("plans", "plugins"):
@@ -181,6 +183,7 @@ class BackupManager:
             "options": {
                 "include_config": options.include_config,
                 "include_sources": options.include_sources,
+                "include_chromadb": options.include_chromadb,
             },
             "sources": [str(Path(s)) for s in sources] if options.include_sources else [],
             "data_dir": str(self.data_dir),

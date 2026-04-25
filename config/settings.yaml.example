@@ -66,8 +66,22 @@ embeddings:
     huggingface_repo: BAAI/bge-small-en-v1.5
     dimensions: 384
     max_seq_length: 512
-    description: 'Best retrieval quality (133MB). 512 token context.'
+    description: 'Fast, good retrieval quality (133MB). 512 token context.'
     query_prefix: 'Represent this sentence for searching relevant passages: '
+  - model_id: nomic-embed-text-v1.5
+    display_name: Nomic Embed Text v1.5
+    huggingface_repo: nomic-ai/nomic-embed-text-v1.5
+    dimensions: 768
+    max_seq_length: 8192
+    description: 'Best retrieval quality, 8192 token context (130MB). Recommended.'
+    query_prefix: 'search_query: '
+    onnx_path: 'onnx/model_quantized.onnx'
+    files:
+    - 'onnx/model_quantized.onnx'
+    - 'tokenizer.json'
+    - 'tokenizer_config.json'
+    - 'special_tokens_map.json'
+    - 'config.json'
 
   # Example: custom model from HuggingFace
   # - model_id: my-custom-model
