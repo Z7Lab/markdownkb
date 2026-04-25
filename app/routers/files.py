@@ -30,6 +30,14 @@ def get_file_status(
     tracking: TrackingDB = Depends(get_tracking),
 ):
     """Get status of a single file (lightweight endpoint for file-viewer-dialog)."""
+    # Virtual bucket documents live in ChromaDB, not the tracking DB.
+    if path.startswith("bucket://"):
+        return {
+            "path": path,
+            "status": "complete",
+            "include_in_index": 1,
+            "chunk_count": 0,
+        }
     file = tracking.get_file(path)
     if not file:
         raise HTTPException(status_code=404, detail="File not found in tracking database")
@@ -215,6 +223,43 @@ def read_file(
     Supports optional pagination via ``page`` and ``page_size`` (in lines).
     When ``page`` is omitted the full content is returned.
     """
+    # Virtual bucket documents (bucket://name/file.md) live in ChromaDB.
+    # Reconstruct their content directly rather than touching the filesystem.
+    if path.startswith("bucket://"):
+        if bucket_service is None:
+            raise HTTPException(status_code=503, detail="Bucket service unavailable")
+        remainder = path[len("bucket://"):]
+        bucket_name, _, _ = remainder.partition("/")
+        record = bucket_service.db.resolve(bucket_name)
+        if not record:
+            raise HTTPException(status_code=404, detail=f"Bucket not found: {bucket_name}")
+        store = bucket_service.get_store(record["id"])
+        result = store._collection.get(
+            where={"source_path": path},
+            include=["documents", "metadatas"],
+        )
+        if not result["documents"]:
+            raise HTTPException(status_code=404, detail="Document not found in bucket")
+        chunks = sorted(
+            zip(result["documents"], result["metadatas"]),
+            key=lambda x: x[1].get("chunk_index", 0),
+        )
+        parts = []
+        for doc, meta in chunks:
+            lines = doc.split("\n", 2)
+            if lines[0].startswith("From:") and len(lines) > 2:
+                parts.append(lines[2])
+            else:
+                parts.append(doc)
+        content = "\n\n".join(parts)
+        return {
+            "content": content,
+            "page": 1,
+            "total_pages": 1,
+            "total_lines": len(content.splitlines()),
+            "page_size": page_size,
+        }
+
     p = Path(path).resolve()
     allowed = False
     for source in settings.sources:

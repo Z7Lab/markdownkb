@@ -60,8 +60,8 @@ Supports Google-style quoted phrases: `"exact phrase"` requires literal match in
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/v1/files` | List all indexed files with status, chunk count, and tags. Accepts `limit`/`offset` for pagination. Response key is `items`. |
-| GET | `/api/v1/file` | Read full content of a file by `?path=`. Must be under a configured source root or tracked by a bucket; other paths return 403. |
-| GET | `/api/v1/file/status` | Get indexing status of a single file by `?path=` |
+| GET | `/api/v1/file` | Read full content of a file by `?path=`. Accepts filesystem paths (must be under a configured source root) and `bucket://name/file.md` virtual paths (reconstructed from ChromaDB). Returns 403 for other paths. |
+| GET | `/api/v1/file/status` | Get indexing status of a single file by `?path=`. Returns synthetic `status: complete` for `bucket://` virtual paths (not tracked in the indexing DB). |
 | GET | `/api/v1/folders` | List unique folders from indexed documents |
 | PUT | `/api/v1/files/include` | Toggle index inclusion for a file — turning off deletes existing chunks and excludes the file from future indexing |
 | POST | `/api/v1/files/search` | Content-based file search (returns file paths). Supports quoted exact phrases. |

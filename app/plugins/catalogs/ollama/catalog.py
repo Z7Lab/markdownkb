@@ -132,9 +132,18 @@ def get_model_info(model_id: str, api_base: str = "") -> dict | None:
     """Return model details from Ollama's ``/api/show`` endpoint.
 
     Accepts both ``ollama/model-name`` and bare ``model-name`` formats.
+    Skips models with a non-ollama provider prefix (e.g. ``openai/``, ``venice/``)
+    to prevent hitting incompatible api_base URLs with the wrong path.
     """
     if not api_base:
         return None
+
+    # If the model has an explicit provider prefix that isn't "ollama", this
+    # isn't an Ollama model — don't blindly POST to /api/show on a foreign host.
+    if "/" in model_id:
+        prefix = model_id.split("/", 1)[0]
+        if prefix != "ollama":
+            return None
 
     try:
         validate_api_base(api_base)
