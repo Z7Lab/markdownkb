@@ -71,7 +71,7 @@ docker-rebuild: ## Full clean rebuild (no cache) + restart — use after depende
 # NOTE: explicit -f flags suppress Docker Compose's auto-loading of compose.override.yml,
 # so compose.override.yml (source directory mounts) must be listed explicitly here.
 # Omitting it causes sources to appear unmounted → scanner prunes all indexed files.
-docker-build-full: ## Build 'full' image variant (includes YouTube transcript extraction) + restart
+docker-build-full: ## Build 'full' image variant (includes YouTube transcripts + PDF/DOCX/XLSX/PPTX conversion) + restart
 	@docker compose -f compose.yml -f compose.override.yml -f compose.full.yml build
 	@docker compose -f compose.yml -f compose.override.yml -f compose.full.yml up -d
 

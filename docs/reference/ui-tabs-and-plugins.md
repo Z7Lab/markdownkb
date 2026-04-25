@@ -73,7 +73,7 @@ All plugins live in `app/plugins/<name>/` and are toggled via `plugins.<name>.en
 | `docmap` | on | Doc Map | Document similarity visualization (3D force graph) |
 | `catalogs` | on | — | Model catalog providers (Ollama, Venice) for the Settings model picker |
 | `export` | on | — | Export chat conversations as markdown or JSON |
-| `converter` | on | — | Batch convert DOCX, PDF, HTML to markdown via Pandoc |
+| `converter` | on | — | Batch convert DOCX, PDF, PPTX, XLSX, HTML, EPUB and more to markdown via markitdown |
 | `planner` | off | Planner | MCTS implementation planning with skill reviews |
 | `knowledge_graph` | off | Knowledge Graph | Entity extraction and relationship visualization |
 | `buckets` | off | — | Temporary scoped document collections with independent vector storage |
@@ -107,7 +107,7 @@ Some plugins have external dependencies:
 
 | Plugin | Dependency | Notes |
 |--------|-----------|-------|
-| `converter` | Pandoc | System package, not bundled in Docker image. Install separately. |
+| `converter` | markitdown | Bundled in base image. PDF/DOCX/XLSX/PPTX conversion requires the `full` image (or manual install of `pdfminer.six`, `mammoth`, `openpyxl`, `python-pptx`). |
 | `knowledge_graph` | LLM provider | Entity extraction calls the configured LLM. |
 | `planner` | LLM provider | Plan generation calls the configured LLM. |
 | `tags` (AI generation) | LLM provider | Optional `ai_generation: true` sub-flag for AI-powered tagging. |

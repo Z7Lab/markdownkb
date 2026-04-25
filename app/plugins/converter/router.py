@@ -191,6 +191,7 @@ async def convert_upload(request: Request, file: UploadFile = File(...)):
             shutil.copyfileobj(file.file, f)
         result = MarkItDown().convert_local(Path(tmp))
     except Exception as exc:
+        logger.error("converter/upload failed for %s: %s", file.filename, exc)
         raise HTTPException(400, f"Conversion failed: {exc}") from exc
     finally:
         Path(tmp).unlink(missing_ok=True)

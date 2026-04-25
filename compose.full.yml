@@ -14,9 +14,9 @@ services:
     build:
       context: .
       args:
-        EXTRAS: "youtube_transcript_api>=1.0.0,<2"
+        EXTRAS: "youtube_transcript_api>=1.0.0,<2 pdfminer.six mammoth openpyxl python-pptx"
   markdownkb-mcp:
     build:
       context: .
       args:
-        EXTRAS: "youtube_transcript_api>=1.0.0,<2"
+        EXTRAS: "youtube_transcript_api>=1.0.0,<2 pdfminer.six mammoth openpyxl python-pptx"

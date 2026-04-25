@@ -118,6 +118,8 @@ export function BucketDetailPanel({
     setUploading(true)
     setUploadProgress(files.map((f) => ({ name: f.name, done: false })))
 
+    let succeeded = 0
+    let failed = 0
     for (let i = 0; i < files.length; i++) {
       const file = files[i]!
       try {
@@ -127,9 +129,11 @@ export function BucketDetailPanel({
         const name = filenameFromContent(file.name, data.markdown)
         await pushDocument(name, data.markdown)
         setUploadProgress((prev) => prev.map((p, j) => j === i ? { ...p, done: true } : p))
+        succeeded++
       } catch (err) {
         const msg = (err as Error).message
         setUploadProgress((prev) => prev.map((p, j) => j === i ? { ...p, done: true, error: msg } : p))
+        failed++
       }
     }
 
@@ -137,9 +141,8 @@ export function BucketDetailPanel({
     setUploading(false)
     if (fileInputRef.current) fileInputRef.current.value = ""
 
-    const succeeded = uploadProgress.filter((p) => p.done && !p.error).length
-    const failed = uploadProgress.filter((p) => p.error).length
-    if (failed === 0) toast.success(`Imported ${files.length} file${files.length !== 1 ? "s" : ""}`)
+    if (failed === 0) toast.success(`Imported ${succeeded} file${succeeded !== 1 ? "s" : ""}`)
+    else if (succeeded === 0) toast.error(`Import failed for all ${failed} file${failed !== 1 ? "s" : ""}`)
     else toast.warning(`${succeeded} imported, ${failed} failed`)
   }, [pushDocument, reloadFiles, uploadProgress])
 
