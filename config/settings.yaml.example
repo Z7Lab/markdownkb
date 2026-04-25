@@ -29,6 +29,15 @@ global_ignore:
 - '**/__pycache__/**'
 - '**/build/**'
 - '**/dist/**'
+# Exclude internal planning and review artifacts — these pollute KB search
+# results with implementation notes rather than knowledge content.
+# - '**/planning_docs/**'
+# - '**/code_reviews/**'
+# - '**/code_reviews_plans/**'
+# - '**/docs/internal/**'
+# - '**/agent-reviewed-*.md'
+# - '**/skillsbot_*.md'
+# - '**/*_implementation_plan.md'
 
 # Embedding model settings
 embeddings:

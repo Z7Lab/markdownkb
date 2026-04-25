@@ -66,6 +66,15 @@ global_ignore:
 
 Patterns use glob syntax (`**` matches any depth). The API endpoints `POST /api/v1/ignore-patterns` and `DELETE /api/v1/ignore-patterns` add and remove patterns at runtime without a restart — changes take effect on the next scan. Already-indexed files matching a newly-added pattern are **not automatically removed** from the index; use `DELETE /api/v1/files` per-file or trigger a full reindex to clean up.
 
+**`global_ignore` vs. the versioning "Ignore Rules" field:** The Settings UI shows two separate exclusion controls that look similar but are completely independent:
+
+| UI control | Where it appears | What it controls |
+|---|---|---|
+| **Exclude Patterns** (Sources card) | Bottom of Settings → Sources | `global_ignore` in `settings.yaml` — controls **indexing**. Matching files are skipped by the scanner and never appear in the Files tab or search results. |
+| **Ignore Rules** (per versioned source) | Next to each versioned watched directory | Gitignore-syntax patterns written to `.git/info/exclude` inside the managed repo — controls **auto-commit only**. Matching files are not committed to the version history. Has no effect on indexing. |
+
+A file can be indexed but not versioned, versioned but not indexed, both, or neither — the two systems are independent.
+
 Each source is a dict with `path` (string, required), `writable` (boolean, optional — defaults to `true`), and `versioned` (boolean, optional — defaults to the value of `writable`). When `writable: false`, the Write API (`POST/DELETE /api/v1/documents`) and MCP write tools (`save_file`, `delete_file`) return **403 Forbidden** for that source. When `versioned: true` (the default for writable sources), every mdkb-authored write to that source is automatically committed to a per-source managed git repo — see [Versioning](#versioning) below. The bundled `./docs` directory defaults to `writable: false` in the example config to protect project documentation from accidental writes.
 
 ```yaml
@@ -109,6 +118,8 @@ project_roots:
 ```
 
 **Docker:** The project root path must be mounted into the container. When you add a project root via the UI, MarkdownKB adds it as a read-only mount in `config/compose.override.yml` automatically. Restart to apply: `make docker-restart`. If a path shows as inaccessible in the Settings UI after restarting, the host path is wrong or the mount failed — verify the path exists on the host.
+
+**Per-source excludes: `project_roots` only.** The `include`/`exclude` patterns above are a feature of `project_roots`, not regular `sources`. A regular `sources` entry has no per-source exclusion — it relies entirely on `global_ignore`. If you need to exclude a subdirectory from one source but not another, either use `global_ignore` with a path-specific pattern (e.g. `**/project_docs/planning_docs/**`) or convert the source to a `project_root` entry.
 
 ## Embeddings
 
