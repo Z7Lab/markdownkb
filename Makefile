@@ -30,14 +30,15 @@ help: ## Show this help
 		} \
 		/^[a-zA-Z_-]+:.*##/ { \
 			printf "    \033[36m%-16s\033[0m %s\n", $$1, $$2 \
-		}' $(MAKEFILE_LIST)
+		}' $(firstword $(MAKEFILE_LIST))
 	@echo ""
 	@echo "  \033[1mWhen to use what\033[0m"
 	@echo "    .env changes (ports, keys, bind)     docker-down && docker-up"
 	@echo "    Config files (mounted volumes)       docker-restart"
-	@echo "    Code changes (app/, frontend/)       docker-build (base) / docker-build-full (full)"
-	@echo "    Dependency changes (requirements,    docker-rebuild / docker-rebuild-full"
+	@echo "    Code changes (app/, frontend/)       docker-build / docker-build-full / docker-build-custom"
+	@echo "    Dependency changes (requirements,    docker-rebuild / docker-rebuild-full / docker-rebuild-custom"
 	@echo "      package-lock.json)"
+	@echo "    Custom image from settings.yaml      generate-compose && docker-build-custom"
 	@echo "    No changes — just start the app      docker-up"
 	@echo ""
 
