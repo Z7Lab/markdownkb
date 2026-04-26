@@ -6,7 +6,7 @@ MarkdownKB can require an API key on all `/api/v1/*` endpoints. This guide expla
 
 **Local-only use (default):** No key needed. MarkdownKB binds to localhost by default — only your machine can access it.
 
-**Network-exposed use:** Set a key. If you've changed `MARKDOWNKB_HOST=0.0.0.0` in `.env` to access MarkdownKB from other machines, anyone on your network can read, write, and delete from your knowledge base without a key.
+**Network-exposed use:** Set a key. If you've changed `SERVER_HOST=0.0.0.0` in `.env` to access MarkdownKB from other machines, anyone on your network can read, write, and delete from your knowledge base without a key.
 
 The MarkdownKB UI shows a banner when no API key is configured and the server is network-exposed. This is the situation that needs a key.
 

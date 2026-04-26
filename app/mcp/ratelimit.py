@@ -97,19 +97,3 @@ class McpRateLimitMiddleware:
         if client and len(client) >= 1:
             return f"ip:{client[0]}"
         return "ip:unknown"
-
-    def usage_snapshot(self) -> dict[str, dict]:
-        """Return a compact view of recent usage per key (for an admin endpoint)."""
-        with self._lock:
-            now = time.monotonic()
-            cutoff = now - _WINDOW_SECONDS
-            out: dict[str, dict] = {}
-            for key, window in self._buckets.items():
-                while window and window[0] < cutoff:
-                    window.popleft()
-                out[key] = {
-                    "current_window": len(window),
-                    "limit_per_minute": self.per_minute,
-                    "lifetime_requests": self._counts[key],
-                }
-        return out

@@ -39,19 +39,3 @@ def try_commit(
             source, len(paths), exc_info=True,
         )
         return None
-
-
-def source_for_path(settings: Settings, file_path: str | Path) -> str | None:
-    """Return the configured source directory that contains ``file_path``,
-    or None when no configured versioned source matches.
-    """
-    target = Path(file_path).resolve()
-    for cfg in settings.source_configs:
-        source = Path(cfg["path"]).resolve()
-        try:
-            target.relative_to(source)
-        except ValueError:
-            continue
-        if cfg.get("versioned"):
-            return str(source)
-    return None

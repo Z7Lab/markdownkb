@@ -35,10 +35,6 @@ def get_rag_user_template() -> str:
     return _get("rag_user")
 
 
-def get_planning_system_prompt() -> str:
-    return _get("planning_system")
-
-
 def get_planning_user_template() -> str:
     return _get("planning_user")
 
@@ -113,24 +109,6 @@ def build_rag_messages(
     })
 
     return messages, source_map
-
-
-def build_planning_messages(
-    request: str,
-    documents: list[str],
-    metadatas: list[dict],
-    exploration_context: str = "",
-) -> list[dict]:
-    """Build the message list for a planning request."""
-    context, _ = format_context(documents, metadatas)
-    return [
-        {"role": "system", "content": get_planning_system_prompt()},
-        {"role": "user", "content": get_planning_user_template().format(
-            context=context,
-            exploration_context=exploration_context or "N/A",
-            request=request,
-        )},
-    ]
 
 
 def build_skill_review_messages(

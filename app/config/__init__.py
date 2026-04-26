@@ -39,14 +39,12 @@ from app.config.storage import StorageMixin
 from app.config._migrations import migrate_num_ctx, migrate_settings
 from app.config._paths import (
     DEFAULT_CONFIG_PATH as _DEFAULT_CONFIG_PATH,
-    SECRETS_DIR as _SECRETS_DIR,
     data_secrets_dir as _data_secrets_dir,
     default_data_dir,
     read_secret as _read_secret,
-    resolve_env as _resolve_env,
     resolve_env_recursive as _resolve_env_recursive,
 )
-from app.config._validate import SettingsValidationError, validate as _validate_settings
+from app.config._validate import validate as _validate_settings
 
 logger = logging.getLogger(__name__)
 

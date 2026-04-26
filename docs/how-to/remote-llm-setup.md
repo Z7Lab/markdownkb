@@ -196,7 +196,7 @@ FRONTEND_PORT=9714
 OLLAMA_API_BASE=http://<your-server-ip>:11434
 
 # Expose to network (optional - defaults to localhost only)
-# MARKDOWNKB_HOST=0.0.0.0
+# SERVER_HOST=0.0.0.0
 ```
 
 **Note:** Environment variables override `settings.yaml` values.
@@ -214,7 +214,7 @@ make docker-build && make docker-up
 
 **Access MarkdownKB:**
 - Local: http://localhost:9713
-- Network (if MARKDOWNKB_HOST=0.0.0.0): http://<docker-host-ip>:9713
+- Network (if SERVER_HOST=0.0.0.0): http://<docker-host-ip>:9713
 
 ---
 

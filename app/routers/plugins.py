@@ -39,12 +39,6 @@ class UninstallPluginRequest(BaseModel):
 # -- Core feature metadata (non-plugin toggles) --
 
 _CORE_FEATURES = {
-    "rag_chat": {
-        "display_name": "RAG Chat",
-        "description": "Retrieval-augmented chat with your documents.",
-        "icon": "message-square",
-        "category": "core",
-    },
     "file_watcher": {
         "display_name": "File Watcher",
         "description": "Automatically re-index files when they change on disk.",
@@ -62,12 +56,6 @@ _CORE_FEATURES = {
         "description": "Custom skill scripts for the planner agent.",
         "icon": "wand-2",
         "category": "ai",
-    },
-    "diagnostics": {
-        "display_name": "Diagnostics",
-        "description": "Internal diagnostics and debug endpoints.",
-        "icon": "stethoscope",
-        "category": "advanced",
     },
     "rate_limiting": {
         "display_name": "Rate Limiting",

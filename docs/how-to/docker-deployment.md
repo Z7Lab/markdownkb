@@ -60,14 +60,14 @@ By default the container binds to `127.0.0.1` — only this machine can reach it
 
 ```
 # in .env
-MARKDOWNKB_HOST=0.0.0.0           # web UI on every interface
+SERVER_HOST=0.0.0.0                # web UI on every interface
 MARKDOWNKB_MCP_HOST=0.0.0.0       # MCP server on every interface
 ```
 
 For a tighter setup, bind to a specific IP instead of `0.0.0.0`:
 
 ```
-MARKDOWNKB_HOST=<your-server-ip>
+SERVER_HOST=<your-server-ip>
 MARKDOWNKB_MCP_HOST=<your-server-ip>
 ```
 

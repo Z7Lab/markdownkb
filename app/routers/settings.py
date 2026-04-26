@@ -40,8 +40,8 @@ def reload_settings(request: Request, settings: Settings = Depends(get_settings)
 
 
 _KNOWN_CORE_FLAGS = frozenset({
-    "rag_chat", "file_watcher", "rate_limiting",
-    "deep_research", "agent_skills", "diagnostics",
+    "file_watcher", "rate_limiting",
+    "deep_research", "agent_skills",
     "versioning",
 })
 

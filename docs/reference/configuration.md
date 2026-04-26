@@ -20,7 +20,7 @@ Docker secrets take highest priority, then environment variables, then `settings
 | Ollama URL | `llm.providers[].api_base` | `OLLAMA_API_BASE` |
 | LLM API keys | *(not supported)* | `secrets/<provider>_api_key` or `<PROVIDER>_API_KEY` env |
 | MarkdownKB API key | *(not supported)* | `secrets/markdownkb_api_key` or `MARKDOWNKB_API_KEY` env |
-| Bind address (web/API) | `server.host` | `MARKDOWNKB_HOST` (Docker) |
+| Bind address (web/API) | `server.host` | `SERVER_HOST` (Docker) |
 | Bind address (MCP) | *(n/a)* | `MARKDOWNKB_MCP_HOST` (Docker) |
 | CORS origins | `server.cors_origins` | `CORS_ORIGINS` (comma-separated) |
 
@@ -226,7 +226,7 @@ API key authentication protects all `/api/v1/*` endpoints (except `/api/v1/healt
 
 ### Setup options
 
-**Option 1: Web UI setup (easiest).** When the server is network-exposed (`MARKDOWNKB_HOST=0.0.0.0`) without a key, a setup banner appears in the UI. Click "Generate API Key" to create one. The key is written to `{data_directory}/secrets/markdownkb_api_key` and takes effect immediately.
+**Option 1: Web UI setup (easiest).** When the server is network-exposed (`SERVER_HOST=0.0.0.0`) without a key, a setup banner appears in the UI. Click "Generate API Key" to create one. The key is written to `{data_directory}/secrets/markdownkb_api_key` and takes effect immediately.
 
 **Option 2: Secret file (preferred for shared/production hosts).**
 
