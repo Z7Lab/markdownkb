@@ -275,27 +275,17 @@ export function BackupPanel() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Download className="h-4 w-4" />
-                Create System Backup
-              </CardTitle>
-              <CardDescription className="mt-1">
-                A <code>.tar.gz</code> containing all SQLite databases (chats, searches, plans, tags, scopes),
-                the ChromaDB vector store, and optionally your configuration.
-                Restoring this archive recovers your full conversation history, search history,
-                plans, scopes, buckets, tags, and all indexed vectors.
-                Secrets and embedding model weights are never included.
-              </CardDescription>
-            </div>
-            {status && (
-              <div className="text-right shrink-0">
-                <p className="text-sm font-medium">{formatBytes(status.data_size_bytes)}</p>
-                <p className="text-xs text-muted-foreground">data dir total</p>
-              </div>
-            )}
-          </div>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Download className="h-4 w-4" />
+            Create System Backup
+          </CardTitle>
+          <CardDescription className="mt-1">
+            A <code>.tar.gz</code> containing all SQLite databases (chats, searches, plans, tags, scopes),
+            the ChromaDB vector store, and optionally your configuration.
+            Restoring this archive recovers your full conversation history, search history,
+            plans, scopes, buckets, tags, and all indexed vectors.
+            Secrets and embedding model weights are never included.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {sizeRows.length > 0 && (
@@ -309,7 +299,7 @@ export function BackupPanel() {
                     </tr>
                   ))}
                   <tr className="bg-muted/40 font-medium">
-                    <td className="px-3 py-1.5">Total (estimated backup size)</td>
+                    <td className="px-3 py-1.5">Estimated backup size</td>
                     <td className="px-3 py-1.5 text-right font-mono">{formatBytes(totalBytes)}</td>
                   </tr>
                 </tbody>
