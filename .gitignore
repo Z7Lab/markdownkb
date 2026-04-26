@@ -7,6 +7,8 @@ planning_docs/
 .claude/
 .codex/
 .mcp.json
+.last_review_report
+.last_skillsbot_run_id
 .venv/
 __pycache__/
 *.pyc
