@@ -9,8 +9,7 @@ function applyTheme(dark: boolean) {
   localStorage.setItem("theme", dark ? "dark" : "light")
 }
 
-export function ThemeToggle() {
-  // Initialize dark mode from localStorage or system preference
+export function ThemeToggle({ compact }: { compact?: boolean } = {}) {
   const [dark, setDark] = useState(() => {
     const stored = localStorage.getItem("theme")
     if (stored === "dark" || stored === "light") {
@@ -23,6 +22,25 @@ export function ThemeToggle() {
       return sys
     }
   })
+
+  const toggle = () => {
+    setDark((d) => {
+      applyTheme(!d)
+      return !d
+    })
+  }
+
+  if (compact) {
+    return (
+      <button
+        onClick={toggle}
+        aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+        className="flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
+      >
+        {dark ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+      </button>
+    )
+  }
 
   return (
     <div className="flex items-center gap-1.5">

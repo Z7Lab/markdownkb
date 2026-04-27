@@ -10,6 +10,7 @@ import { ChatControls } from "./chat-controls";
 import { ChatInput } from "./chat-input";
 import { ChatMessageList } from "./chat-message-list";
 import { ChatSidebar } from "./chat-sidebar";
+import { MessageSquare } from "lucide-react";
 
 export function ChatTab({ defaultThreadId }: { defaultThreadId?: string }) {
   const [currentLocation, setLocation] = useLocation();
@@ -106,6 +107,14 @@ export function ChatTab({ defaultThreadId }: { defaultThreadId?: string }) {
         onBucketChange={handleBucketChange}
       />
       <div className="flex flex-col flex-1 min-w-0 min-h-0">
+        {messages.length > 0 && (
+          <div className="shrink-0 border-b px-4 py-3 flex items-center gap-2">
+            <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <h2 className="text-base font-semibold text-foreground truncate">
+              {threads.find(t => t.id === activeThreadId)?.title ?? "Chat"}
+            </h2>
+          </div>
+        )}
         <ChatMessageList
           messages={messages}
           isStreaming={isStreaming}

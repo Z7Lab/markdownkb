@@ -37,7 +37,7 @@ export function SidebarShell({
   return (
     <aside
       className={cn(
-        "shrink-0 border-r flex flex-col h-full bg-muted/20 transition-[width] duration-200 overflow-hidden",
+        "relative shrink-0 border-r flex flex-col h-full bg-muted/20 transition-[width] duration-200 overflow-hidden z-[60]",
         collapsed ? "w-14" : "w-52",
       )}
       aria-label="App navigation"
@@ -45,33 +45,29 @@ export function SidebarShell({
       {/* Logo row */}
       <div className={cn(
         "flex items-center gap-2 px-2 py-2.5 shrink-0",
-        collapsed ? "justify-center" : "justify-between",
+        collapsed ? "justify-center" : "",
       )}>
-        <button
-          onClick={onLogoClick}
-          className="flex items-center gap-2 hover:opacity-70 transition-opacity min-w-0"
-          aria-label="Go to dashboard"
-        >
-          <div className="shrink-0 h-7 w-7 rounded-md bg-primary/15 flex items-center justify-center text-primary font-bold text-sm select-none">
-            M
-          </div>
-          {!collapsed && (
-            <div className="min-w-0">
-              <div className="text-sm font-bold tracking-tight leading-tight truncate">MarkdownKB</div>
+        <div className="shrink-0 h-7 w-7 rounded-md bg-primary/15 flex items-center justify-center text-primary font-bold text-sm select-none">
+          M
+        </div>
+        {!collapsed && (
+          <button
+            onClick={onLogoClick}
+            className="flex-1 min-w-0 text-left hover:opacity-70 transition-opacity"
+            aria-label="Go to dashboard"
+          >
+            <div className="text-sm font-bold tracking-tight leading-tight truncate">MarkdownKB</div>
+            <div className="flex items-center gap-1.5 mt-0.5">
               {version && (
-                <div className="text-[10px] text-muted-foreground leading-tight">
+                <span className="text-[10px] text-muted-foreground leading-tight shrink-0">
                   v{version.current_version}
                   {version.install_method !== "native" && ` · ${version.install_method}`}
-                </div>
+                </span>
               )}
+              <IndexActivityIndicator />
+              <LLMStatusIndicator />
             </div>
-          )}
-        </button>
-        {!collapsed && (
-          <div className="flex items-center gap-1 shrink-0">
-            <IndexActivityIndicator />
-            <LLMStatusIndicator />
-          </div>
+          </button>
         )}
       </div>
 
@@ -94,7 +90,7 @@ export function SidebarShell({
               )}
               aria-current={isActive ? "page" : undefined}
             >
-              <route.icon className="h-4 w-4 shrink-0" />
+              <route.icon className="h-5 w-5 shrink-0" />
               {!collapsed && <span className="truncate">{route.label}</span>}
             </button>
           )
@@ -122,7 +118,7 @@ export function SidebarShell({
                 onClick={onSettingsClick}
                 className="w-full flex justify-center items-center p-2 rounded-md text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors"
               >
-                <Settings className="h-4 w-4" />
+                <Settings className="h-5 w-5" />
               </button>
             </TooltipTrigger>
             <TooltipContent side="right">Settings</TooltipContent>
@@ -142,7 +138,7 @@ export function SidebarShell({
           collapsed ? "justify-center" : "justify-between",
         )}>
           {!collapsed && <span className="text-xs text-muted-foreground">Theme</span>}
-          <ThemeToggle />
+          <ThemeToggle compact={collapsed} />
         </div>
 
         <Tooltip>

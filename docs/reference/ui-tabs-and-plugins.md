@@ -22,6 +22,8 @@ Browse, search, and manage all indexed documents. View file contents, edit tags,
 
 Configure everything: LLM provider, embedding model, sources, scopes, plugins, retrieval tuning, prompts, MCP tools, and system maintenance.
 
+**Appearance** (Settings > Appearance) lets you switch between two navigation layouts — Classic (horizontal tab bar across the top) and Sidebar (collapsible icon rail on the left). You can also toggle light/dark mode. Both preferences are saved locally in the browser.
+
 ## Plugin Tabs
 
 These tabs appear in the navigation bar only when their plugin is enabled in Settings > Plugins.
