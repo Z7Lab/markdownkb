@@ -13,7 +13,7 @@ API_PORT        ?= 9713
 FRONTEND_PORT   ?= 9714
 
 .DEFAULT_GOAL := help
-.PHONY: help install dev stop docker-build docker-rebuild docker-build-full docker-rebuild-full docker-up docker-down docker-restart docker-logs docker-ps docker-shell docker-clean docker-clean-all backend prod test lint status check-ports mcp audit typecheck
+.PHONY: help install dev stop docker-build docker-rebuild docker-build-full docker-rebuild-full docker-up docker-down docker-restart docker-logs docker-ps docker-shell docker-clean docker-clean-all backend prod test lint status check-ports mcp audit typecheck typecheck-frontend
 
 # ── Quick Start ──────────────────────────────────
 
@@ -40,6 +40,7 @@ help: ## Show this help
 	@echo "      package-lock.json)"
 	@echo "    Custom image from settings.yaml      generate-compose && docker-build-custom"
 	@echo "    No changes — just start the app      docker-up"
+	@echo "    Before committing frontend changes   typecheck-frontend  (catches TS errors before Docker does)"
 	@echo ""
 
 install: ## Install dependencies (Python venv + npm)
@@ -165,6 +166,9 @@ lint: ## Run pylint
 
 typecheck: ## Run mypy static type checker
 	@.venv/bin/mypy app/
+
+typecheck-frontend: ## Type-check frontend TypeScript (requires local node_modules — run make install first)
+	@cd frontend && npx tsc --noEmit
 
 audit: ## Scan locked runtime deps for known CVEs (pip-audit)
 	@.venv/bin/pip-audit -r requirements.lock --strict
