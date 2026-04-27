@@ -4,6 +4,10 @@ MarkdownKB's web UI has seven tabs. Some are always available (core), some only 
 
 ## Core Tabs (always available)
 
+### Home
+
+The landing page. Shows three live charts — indexing activity over the last 14 days (bar chart), document distribution by source directory (donut chart), and the most content-dense files by chunk count (horizontal bar). Below the charts: a feature-card grid linking to each enabled tab, and a recent activity list (threads, indexed files, recent searches). Charts are hidden until at least one file is indexed.
+
 ### Chat
 
 The primary interface. Ask questions about your knowledge base and get AI-powered answers with source citations. Supports streaming responses, conversation threads, and scoped filtering.
