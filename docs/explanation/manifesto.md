@@ -108,6 +108,22 @@ A local model querying a local knowledge base keeps your thinking where it belon
 
 This matters most for the people with the most valuable knowledge to query: researchers with unpublished findings, businesses with proprietary playbooks, developers with hard-won architectural decisions. The more valuable your knowledge base, the more reason to keep it under your own roof.
 
+## The Code That Touches Your Data
+
+Privacy doesn't end with where your documents are stored. It extends to what code runs against them.
+
+Every runtime dependency in this application is code that executes in the same process that reads your documents, handles your queries, and generates responses from your indexed content. A compromised package — one with a backdoor pushed by a malicious publisher — has the same access to your knowledge base that the application itself does. It can read documents, exfiltrate content over the network, or silently alter responses.
+
+This isn't a theoretical concern. Supply chain attacks on npm and PyPI have repeatedly shipped malware through widely-used packages: `event-stream`, `node-ipc`, `colors.js`, `ua-parser-js`, `ctx`, and others. The pattern is consistent: a maintainer burns out or transfers a package, a new publisher pushes a backdoored version, and millions of projects install it automatically. The packages that get targeted are the popular ones — high download counts signal high blast radius. Popularity is not a safety signal; in the current threat environment it's closer to the opposite.
+
+MarkdownKB keeps its dependency tree deliberately thin. The rule: use the platform before reaching for a library. If a browser API, Python stdlib, or existing framework primitive can do the job, it does the job. A library is only added when the alternative is genuinely unreasonable — not when it's slightly more convenient.
+
+This shows up in small decisions. The dashboard charts — a 14-day activity bar chart, a source-distribution donut, and a content-density ranking — are built with raw SVG and CSS custom properties. They use CSS variables already defined in the theme (no new design tokens) and respect light/dark mode automatically. A popular chart library would have produced smoother animations. It would also have pulled in roughly 30 transitive packages, including lodash — one of the highest-value supply chain targets on npm — running in the same process that reads your private documents. The tradeoff is animations versus a substantially larger trusted-code surface touching your data. The charts don't animate.
+
+The same logic applies to the backend. Core operations — HTTP, JSON, file I/O, subprocess handling — use stdlib where possible. External packages are added when they do something the stdlib genuinely can't (embeddings, vector search, LLM integration), not for ergonomics or to avoid writing a small function.
+
+The total effect is a smaller attack surface for a tool that runs on private data. Every package you don't include is a publisher you don't need to trust, an update you don't need to audit, and a vector that doesn't exist.
+
 ## Convert, Don't Connect
 
 A common pattern in RAG systems is to connect to external data sources — Notion, Google Drive, Slack, Confluence — and query them in place. The system becomes an adapter layer sitting on top of other people's platforms, borrowing their data at query time.

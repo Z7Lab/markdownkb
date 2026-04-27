@@ -4,6 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useNavigation } from "@/hooks/use-navigation"
+import { useLayout } from "@/lib/layout-context"
 import { Settings } from "lucide-react"
 
 export function AppSidebar({
@@ -18,6 +19,7 @@ export function AppSidebar({
   className?: string
 }) {
   const { setActiveTab } = useNavigation()
+  const { layout } = useLayout()
 
   return (
     <div className={cn("shrink-0 border-r flex flex-col min-h-0 overflow-hidden bg-muted/30", width, className)}>
@@ -30,19 +32,23 @@ export function AppSidebar({
       <ScrollArea className="flex-1 min-h-0">
         {children}
       </ScrollArea>
-      <Separator />
-      <div className="p-3 shrink-0 flex items-center justify-between">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="gap-1.5 text-muted-foreground hover:text-foreground"
-          onClick={() => setActiveTab("settings")}
-        >
-          <Settings className="h-4 w-4" />
-          Settings
-        </Button>
-        <ThemeToggle />
-      </div>
+      {layout === "classic" && (
+        <>
+          <Separator />
+          <div className="p-3 shrink-0 flex items-center justify-between">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-muted-foreground hover:text-foreground"
+              onClick={() => setActiveTab("settings")}
+            >
+              <Settings className="h-4 w-4" />
+              Settings
+            </Button>
+            <ThemeToggle />
+          </div>
+        </>
+      )}
     </div>
   )
 }

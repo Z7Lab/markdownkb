@@ -40,6 +40,7 @@ export function SidebarShell({
         "relative shrink-0 border-r flex flex-col h-full bg-muted/20 transition-[width] duration-200 overflow-hidden z-[60]",
         collapsed ? "w-14" : "w-52",
       )}
+      style={{ pointerEvents: "auto" }}
       aria-label="App navigation"
     >
       {/* Logo row */}
