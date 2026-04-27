@@ -107,10 +107,10 @@ export function SidebarItemList<T extends SidebarItem>({
       )}
       <div className="p-3 space-y-1" role="list">
         {filteredItems.map((item) => (
-          <button
+          <div
             key={item.id}
-            type="button"
-
+            role="listitem"
+            tabIndex={0}
             className={cn(
               "w-full text-left rounded-md px-3 py-2 text-sm cursor-pointer overflow-hidden hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               activeId === item.id && "bg-accent border-l-2 border-l-primary",
@@ -185,7 +185,7 @@ export function SidebarItemList<T extends SidebarItem>({
                 <Trash2 className="h-3 w-3" />
               </Button>
             </div>
-          </button>
+          </div>
         ))}
         {filteredItems.length === 0 && (
           <p className="text-xs text-muted-foreground text-center py-4">
@@ -193,6 +193,13 @@ export function SidebarItemList<T extends SidebarItem>({
           </p>
         )}
       </div>
+      {items.length > 0 && (
+        <p className="sticky bottom-0 px-3 py-2 text-[11px] text-muted-foreground/60 text-center bg-muted/30 backdrop-blur-sm border-t">
+          {filterText
+            ? `${filteredItems.length} of ${items.length}`
+            : `${items.length} ${items.length === 1 ? "item" : "items"}`}
+        </p>
+      )}
       <ConfirmDialog
         open={!!pendingDelete}
         onOpenChange={(open) => { if (!open) setPendingDelete(null) }}

@@ -52,23 +52,25 @@ export function SidebarShell({
           M
         </div>
         {!collapsed && (
-          <button
-            onClick={onLogoClick}
-            className="flex-1 min-w-0 text-left hover:opacity-70 transition-opacity"
-            aria-label="Go to dashboard"
-          >
-            <div className="text-sm font-bold tracking-tight leading-tight truncate">MarkdownKB</div>
-            <div className="flex items-center gap-1.5 mt-0.5">
+          <>
+            <button
+              onClick={onLogoClick}
+              className="flex-1 min-w-0 text-left hover:opacity-70 transition-opacity"
+              aria-label="Go to dashboard"
+            >
+              <div className="text-sm font-bold tracking-tight leading-tight truncate">MarkdownKB</div>
               {version && (
-                <span className="text-[10px] text-muted-foreground leading-tight shrink-0">
+                <span className="text-[10px] text-muted-foreground leading-tight">
                   v{version.current_version}
                   {version.install_method !== "native" && ` · ${version.install_method}`}
                 </span>
               )}
+            </button>
+            <div className="flex items-center gap-1 shrink-0">
               <IndexActivityIndicator />
               <LLMStatusIndicator />
             </div>
-          </button>
+          </>
         )}
       </div>
 

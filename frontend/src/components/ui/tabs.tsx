@@ -1,6 +1,6 @@
 import * as React from "react"
 import { type VariantProps } from "class-variance-authority"
-import { Tabs as TabsPrimitive } from "radix-ui"
+import * as TabsPrimitive from "@radix-ui/react-tabs"
 
 import { cn } from "@/lib/utils"
 import { tabsListVariants } from "./tabs-variants"
@@ -66,7 +66,7 @@ function TabsContent({
   return (
     <TabsPrimitive.Content
       data-slot="tabs-content"
-      className={cn("flex-1 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:rounded-sm", className)}
+      className={cn("flex-1 min-h-0 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:rounded-sm", className)}
       {...props}
     />
   )

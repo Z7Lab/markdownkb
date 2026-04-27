@@ -15,7 +15,6 @@ import { DeepResearchToggle } from "@/components/ui/deep-research-toggle"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Loader2, Search, RotateCcw, Clock, AlertCircle, History } from "lucide-react"
 import { useEffect, useState, type KeyboardEvent as ReactKeyboardEvent } from "react"
 import { useLocation } from "wouter"
@@ -168,14 +167,14 @@ export function SearchTab({ defaultSearchId }: { defaultSearchId?: string } = {}
 
         {/* Results area - show when loading or have results/summary */}
         {(results.length > 0 || summary || loading) && (
-          <ScrollArea className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
             <div className="space-y-3 p-4 pb-4" aria-live="polite" aria-busy={loading}>
             {/* Query header - show the search query prominently */}
             {query && (
-              <div className="flex flex-col gap-2 pb-2 border-b">
-                <div className="flex items-center gap-2">
-                  <Search className="h-4 w-4 text-muted-foreground" />
-                  <h2 className="text-base font-semibold text-foreground truncate max-w-[60ch]" title={query}>
+              <div className="flex flex-col gap-2 pb-2 border-b min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <h2 className="text-base font-semibold text-foreground truncate min-w-0 flex-1" title={query}>
                     {query.length > 200 ? `${query.slice(0, 200)}…` : query}
                   </h2>
 
@@ -357,7 +356,7 @@ export function SearchTab({ defaultSearchId }: { defaultSearchId?: string } = {}
               />
             ))}
             </div>
-          </ScrollArea>
+          </div>
         )}
       </div>
 
