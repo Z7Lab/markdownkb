@@ -341,7 +341,7 @@ export function SearchTab({ defaultSearchId }: { defaultSearchId?: string } = {}
             {/* Results list */}
             {results.map((r, i) => (
               <SearchResultCard
-                key={`${r.path}-${i}`}
+                key={`${r.document}-${i}`}
                 result={r}
                 isExpanded={expandedResults.has(i)}
                 onToggleExpanded={(e) => {
