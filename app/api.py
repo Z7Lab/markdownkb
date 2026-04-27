@@ -121,6 +121,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 from app.routers import (
     chat,
+    dashboard,
     embeddings,
     files,
     health,
@@ -174,6 +175,7 @@ def create_app(lifespan=None, settings_override=None) -> FastAPI:
         health, chat, threads, files,
         settings, setup, sources, llm, maintenance,
         embeddings, scopes, plugins, mcp, tasks,
+        dashboard,
     ):
         app.include_router(router_module.router)
     app.include_router(versioning_router)
