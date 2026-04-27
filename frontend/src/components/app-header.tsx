@@ -1,38 +1,11 @@
-import type { LucideIcon } from "lucide-react"
 import { TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { IndexActivityIndicator } from "@/components/index-activity-indicator"
 import { LLMStatusIndicator } from "@/components/llm-status-indicator"
-import { useSettings } from "@/hooks/use-settings"
 import { useAppVersion } from "@/hooks/use-app-version"
+import type { RouteEntry } from "@/lib/routes"
 
-interface PluginTabTriggerProps {
-  pluginKey: string
-  value: string
-  icon: LucideIcon
-  label: string
-}
-
-function PluginTabTrigger({ pluginKey, value, icon: Icon, label }: PluginTabTriggerProps) {
-  const { settings } = useSettings()
-  const plugins = settings?.plugins_enabled as Record<string, boolean> | undefined
-  if (!plugins?.[pluginKey]) return null
-  return (
-    <TabsTrigger value={value}>
-      <Icon className="h-4 w-4" />
-      {label}
-    </TabsTrigger>
-  )
-}
-
-interface TabDef {
-  value: string
-  icon: LucideIcon
-  label: string
-  pluginKey?: string
-}
-
-export function AppHeader({ tabs, onLogoClick }: {
-  tabs: TabDef[]
+export function AppHeader({ routes, onLogoClick }: {
+  routes: RouteEntry[]
   onLogoClick: () => void
 }) {
   const { version } = useAppVersion()
@@ -68,24 +41,14 @@ export function AppHeader({ tabs, onLogoClick }: {
         <IndexActivityIndicator />
         <LLMStatusIndicator />
         <nav aria-label="Main navigation">
-        <TabsList>
-          {tabs.map((tab) =>
-            tab.pluginKey ? (
-              <PluginTabTrigger
-                key={tab.value}
-                pluginKey={tab.pluginKey}
-                value={tab.value}
-                icon={tab.icon}
-                label={tab.label}
-              />
-            ) : (
-              <TabsTrigger key={tab.value} value={tab.value}>
-                <tab.icon className="h-4 w-4" />
-                {tab.label}
+          <TabsList>
+            {routes.map((route) => (
+              <TabsTrigger key={route.value} value={route.value}>
+                <route.icon className="h-4 w-4" />
+                {route.label}
               </TabsTrigger>
-            ),
-          )}
-        </TabsList>
+            ))}
+          </TabsList>
         </nav>
       </div>
     </header>

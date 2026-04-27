@@ -35,7 +35,8 @@ import { ScopesPanel } from "./scopes-panel"
 import { BucketsPanel } from "./buckets-panel"
 import { McpPanel } from "./mcp-panel"
 import { SecurityPanel } from "./security-panel"
-import { Library, Archive, HardDriveDownload, Info } from "lucide-react"
+import { AppearancePanel } from "./appearance-panel"
+import { Library, Archive, HardDriveDownload, Info, Palette } from "lucide-react"
 
 const sections = [
   { id: "llm", label: "Chat Model", icon: Cpu },
@@ -51,6 +52,7 @@ const sections = [
   { id: "database", label: "Database", icon: Database },
   { id: "backup", label: "Backup & Restore", icon: HardDriveDownload },
   { id: "logging", label: "Logging", icon: ScrollText },
+  { id: "appearance", label: "Appearance", icon: Palette },
   { id: "about", label: "About", icon: Info },
 ] as const
 
@@ -313,6 +315,9 @@ export function SettingsTab({ initialSection }: { initialSection?: string } = {}
                 logLevel={settings.log_level}
                 onSetLogLevel={setLogLevel}
               />
+            )}
+            {activeSection === "appearance" && (
+              <AppearancePanel />
             )}
             {activeSection === "about" && (
               <AboutPanel
