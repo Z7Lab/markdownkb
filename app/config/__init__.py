@@ -80,6 +80,7 @@ class Settings(
     # Core-feature defaults for keys that should default to True when missing.
     CORE_FEATURE_DEFAULTS: dict[str, bool] = {
         "versioning": True,
+        "update_check": True,
     }
 
     def __init__(self, config_path: str | Path | None = None):

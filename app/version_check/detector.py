@@ -109,7 +109,20 @@ def _check_native(current: str) -> UpdateInfo:
 
 def _check_docker(current: str) -> UpdateInfo:
     url = GITHUB_RELEASES_API.format(repo=GITHUB_REPO)
-    data = _fetch_json(url)
+    try:
+        data = _fetch_json(url)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return UpdateInfo(
+                install_method=InstallMethod.DOCKER,
+                current_version=current,
+                latest_version=None,
+                update_available=False,
+                release_url=None,
+                apply_command=_apply_command(InstallMethod.DOCKER),
+                error="No releases published yet",
+            )
+        raise
     latest = (data.get("tag_name") or "").lstrip("v") or None
     release_url = data.get("html_url")
     return UpdateInfo(
@@ -132,6 +145,9 @@ def _check_dev(current: str) -> UpdateInfo:
         data = _fetch_json(GITHUB_RELEASES_API.format(repo=GITHUB_REPO))
         latest = (data.get("tag_name") or "").lstrip("v") or None
         release_url = data.get("html_url")
+    except urllib.error.HTTPError as exc:
+        if exc.code != 404:
+            logger.debug("github release lookup failed in dev mode: %s", exc)
     except Exception as exc:
         logger.debug("github release lookup failed in dev mode: %s", exc)
     update_available = (behind is not None and behind > 0) or _is_newer(latest, current)
@@ -157,8 +173,11 @@ def _apply_command(method: InstallMethod) -> str:
 
 def _fetch_json(url: str) -> dict:
     req = urllib.request.Request(url, headers={"User-Agent": "markdownkb-update-check"})
-    with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        raise urllib.error.HTTPError(e.url, e.code, f"{e.reason} — {url}", e.headers, e.fp) from e
 
 
 def _git_ahead_behind(repo_root: Path) -> tuple[int | None, int | None]:

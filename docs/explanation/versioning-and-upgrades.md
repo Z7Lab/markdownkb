@@ -31,7 +31,7 @@ The `app/version_check/` module compares the running version against the latest 
 
 | Install method | Source                         | Comparison                                           |
 | -------------- | ------------------------------ | ---------------------------------------------------- |
-| Docker         | Docker Hub registry            | `latest` tag's image digest vs running image digest  |
+| Docker         | GitHub releases API            | latest tag version vs running `pyproject.toml` version |
 | Native (pip)   | PyPI JSON API                  | latest released version vs `pyproject.toml` version  |
 | Dev (git)      | `git rev-parse @{upstream}`    | local HEAD vs upstream tracking branch               |
 
@@ -45,7 +45,7 @@ The install method is auto-detected at startup:
 
 Update checks are anonymous — no telemetry beyond the version-check HTTP request. They time out quickly (5 seconds) and fail silently when offline; the Settings UI shows "could not check for updates" rather than blocking.
 
-Update checks are off by default and require explicit user opt-in via a Settings toggle. Once enabled, they run only when the user views the Settings panel — never in the background.
+Update checks are on by default and can be toggled off via **Settings → About → Check for updates automatically**. They run only when the user views the About panel — never in the background.
 
 ## Apply flow per install method
 

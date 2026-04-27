@@ -315,7 +315,10 @@ export function SettingsTab({ initialSection }: { initialSection?: string } = {}
               />
             )}
             {activeSection === "about" && (
-              <AboutPanel onEnableUpdateCheck={async () => { await toggleCore("update_check", true) }} />
+              <AboutPanel
+                onEnableUpdateCheck={async () => { await toggleCore("update_check", true) }}
+                onDisableUpdateCheck={async () => { await toggleCore("update_check", false) }}
+              />
             )}
           </div>
         </ScrollArea>

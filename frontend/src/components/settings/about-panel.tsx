@@ -2,9 +2,11 @@ import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
-import { CheckCircle2, Download, ExternalLink, Info, RefreshCw } from "lucide-react"
+import { Bell, CheckCircle2, ExternalLink, Info, RefreshCw } from "lucide-react"
 
 interface VersionResponse {
   current_version: string
@@ -31,7 +33,10 @@ const METHOD_LABEL: Record<string, string> = {
   dev: "Development (git)",
 }
 
-export function AboutPanel({ onEnableUpdateCheck }: { onEnableUpdateCheck: () => Promise<void> }) {
+export function AboutPanel({ onEnableUpdateCheck, onDisableUpdateCheck }: {
+  onEnableUpdateCheck: () => Promise<void>
+  onDisableUpdateCheck: () => Promise<void>
+}) {
   const [version, setVersion] = useState<VersionResponse | null>(null)
   const [check, setCheck] = useState<UpdateCheckResponse | null>(null)
   const [checking, setChecking] = useState(false)
@@ -94,6 +99,22 @@ export function AboutPanel({ onEnableUpdateCheck }: { onEnableUpdateCheck: () =>
             <div className="font-mono">{version.current_version}</div>
             <div className="text-muted-foreground">Install method</div>
             <div>{METHOD_LABEL[version.install_method] ?? version.install_method}</div>
+            {check && !check.disabled && !check.error && (
+              <>
+                <div className="text-muted-foreground">Update</div>
+                <div>
+                  {check.update_available ? (
+                    <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400">
+                      {check.latest_version} available
+                    </Badge>
+                  ) : (
+                    <span className="text-success flex items-center gap-1">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Up to date
+                    </span>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -103,7 +124,7 @@ export function AboutPanel({ onEnableUpdateCheck }: { onEnableUpdateCheck: () =>
           <div className="flex items-center justify-between gap-3">
             <div>
               <CardTitle className="text-base flex items-center gap-2">
-                <Download className="h-4 w-4" />
+                <Bell className="h-4 w-4" />
                 Updates
               </CardTitle>
               <CardDescription className="mt-1">
@@ -121,17 +142,23 @@ export function AboutPanel({ onEnableUpdateCheck }: { onEnableUpdateCheck: () =>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {!version.update_check_enabled && (
-            <Button
-              onClick={async () => {
-                await onEnableUpdateCheck()
+          <div className="flex items-center gap-3">
+            <Switch
+              id="update-check-toggle"
+              checked={version.update_check_enabled}
+              onCheckedChange={async (checked) => {
+                if (checked) {
+                  await onEnableUpdateCheck()
+                } else {
+                  await onDisableUpdateCheck()
+                }
                 await loadVersion()
               }}
-            >
-              <Download className="h-3.5 w-3.5 mr-1.5" />
-              Enable update checking
-            </Button>
-          )}
+            />
+            <Label htmlFor="update-check-toggle" className="text-sm cursor-pointer">
+              Check for updates automatically
+            </Label>
+          </div>
 
           {check?.disabled && (
             <p className="text-sm text-muted-foreground">Update checking is currently disabled.</p>

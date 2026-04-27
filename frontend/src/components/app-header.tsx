@@ -3,6 +3,7 @@ import { TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { IndexActivityIndicator } from "@/components/index-activity-indicator"
 import { LLMStatusIndicator } from "@/components/llm-status-indicator"
 import { useSettings } from "@/hooks/use-settings"
+import { useAppVersion } from "@/hooks/use-app-version"
 
 interface PluginTabTriggerProps {
   pluginKey: string
@@ -34,6 +35,8 @@ export function AppHeader({ tabs, onLogoClick }: {
   tabs: TabDef[]
   onLogoClick: () => void
 }) {
+  const { version } = useAppVersion()
+
   return (
     <header className="shrink-0 z-20 bg-background border-b px-6 py-3 flex items-center justify-between">
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:px-3 focus:py-1.5 focus:bg-background focus:border focus:rounded focus:text-sm">
@@ -44,7 +47,19 @@ export function AppHeader({ tabs, onLogoClick }: {
         onClick={onLogoClick}
         aria-label="Go to dashboard"
       >
-        <h1 className="text-lg font-bold tracking-tight">MarkdownKB</h1>
+        <h1 className="text-lg font-bold tracking-tight">
+          MarkdownKB
+          {version && (
+            <span className="ml-2 text-xs font-normal text-muted-foreground">
+              v{version.current_version}
+              {version.install_method !== "native" && (
+                <span className="ml-1 px-1 py-0.5 rounded bg-muted text-muted-foreground font-mono">
+                  {version.install_method}
+                </span>
+              )}
+            </span>
+          )}
+        </h1>
         <p className="text-xs text-muted-foreground">
           Knowledge base assistant
         </p>
