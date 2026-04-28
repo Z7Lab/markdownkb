@@ -105,7 +105,7 @@ def run_index(
 
     logger.info("run_index starting with embedding_model=%s", settings.embedding_model)
     report(0.0, "Scanning source directories...")
-    files = scan_sources(settings.sources, settings.global_ignore)
+    files = scan_sources(settings.sources, settings.global_ignore, settings.source_file_filters)
 
     incomplete = set(tracking.recover_incomplete())
     if incomplete:
@@ -239,7 +239,9 @@ def index_directory(
     tracking: TrackingDB,
 ) -> str:
     """Index only files in a single directory (not all sources)."""
-    files = scan_sources([path], settings.global_ignore)
+    path_filters = settings.source_file_filters
+    per_path = {path: path_filters[path]} if path in path_filters else {}
+    files = scan_sources([path], settings.global_ignore, per_path)
     to_index, skipped = _classify_files(files, tracking, set())
 
     if not to_index:

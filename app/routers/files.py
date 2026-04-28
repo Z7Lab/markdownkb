@@ -88,7 +88,7 @@ def list_files(
     )
 
     # Discover all files across watch directories (lightweight, no hashing)
-    discovered = discover_sources(settings.sources, settings.global_ignore)
+    discovered = discover_sources(settings.sources, settings.global_ignore, settings.source_file_filters)
 
     # Merge: tracked data wins, untracked files get synthetic entries
     merged = []

@@ -102,6 +102,21 @@ Only mounted paths are accessible inside the container — unmounted paths canno
 
 Point MarkdownKB at a directory containing cloned repositories and it will automatically discover and index documentation matching your patterns. Each immediate subdirectory is treated as a project — if any files match the `include` patterns (minus `exclude`), that project is watched and indexed. New repos cloned into the root are picked up automatically (~60s).
 
+The `include`/`exclude` patterns apply at **two levels**:
+
+1. **Source discovery** — a subdirectory is only added as a watched source if at least one file matches the include patterns.
+2. **File indexing** — when files are scanned or a file event fires, individual files are filtered against the include/exclude patterns. Files not matching any include pattern are silently skipped; files matching any exclude pattern are also skipped.
+
+This means `tests/**` files are never indexed even if the `tests/` directory itself passes the include check for source discovery.
+
+**Pattern semantics:** `*` matches any character except `/`. `**` matches any number of path components. Patterns are matched against the file path relative to the project subdirectory.
+
+| Pattern | What it matches |
+|---------|----------------|
+| `*.md` | `.md` files at the root of each project |
+| `docs/**/*.md` | `.md` files anywhere under `docs/` |
+| `**/*.md` | all `.md` files anywhere in the project |
+
 **Via UI:** Settings → Sources → Project Directories → Add. Enter the parent path and configure include/exclude glob patterns.
 
 **Via `settings.yaml`:**
@@ -115,6 +130,7 @@ project_roots:
     exclude:
       - "CHANGELOG.md"
       - "LICENSE.md"
+      - "tests/**"
 ```
 
 **Docker:** The project root path must be mounted into the container. When you add a project root via the UI, MarkdownKB adds it as a read-only mount in `config/compose.override.yml` automatically. Restart to apply: `make docker-restart`. If a path shows as inaccessible in the Settings UI after restarting, the host path is wrong or the mount failed — verify the path exists on the host.

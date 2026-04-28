@@ -381,9 +381,11 @@ export function SourcesPanel({
                 Project Directories
               </CardTitle>
               <CardDescription>
-                Automatically discover and index documentation from project
-                repositories. Point to a directory containing cloned repos and
-                define which file patterns to index.
+                Index documentation from project repositories. Each immediate
+                subdirectory of the path is treated as a project. The include
+                patterns control which files within each project are indexed —
+                use exclude to skip test directories, build artifacts, or other
+                noise.
               </CardDescription>
             </div>
             {!showAddRoot && (

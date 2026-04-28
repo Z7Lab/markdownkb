@@ -2,6 +2,7 @@
 
 import fnmatch
 import logging
+import os
 import threading
 import time
 from pathlib import Path
@@ -13,7 +14,7 @@ from app.config import Settings
 from app.embeddings.embedder import embed_texts
 from app.events import IndexEvent, event_bus
 from app.ingestion.parser import parse_and_chunk
-from app.ingestion.scanner import compute_file_hash
+from app.ingestion.scanner import compute_file_hash, matches_source_include
 from app.storage.trackingdb import TrackingDB
 from app.storage.vectorstore import VectorStore
 
@@ -48,6 +49,15 @@ def reindex_file(
     if filepath in tracking.get_excluded_paths():
         logger.debug("File excluded from index, skipping: %s", filepath)
         return
+
+    # Check per-source include/exclude filters (project roots)
+    for source_path, filt in settings.source_file_filters.items():
+        if filepath.startswith(source_path + "/"):
+            rel = os.path.relpath(filepath, source_path)
+            if not matches_source_include(rel, filt.get("include", []), filt.get("exclude", [])):
+                logger.debug("File excluded by source filter, skipping: %s", filepath)
+                return
+            break
 
     current_hash = compute_file_hash(filepath)
     stored_hash = tracking.get_hash(filepath)

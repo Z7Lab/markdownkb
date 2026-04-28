@@ -196,6 +196,27 @@ class SourcesMixin:
             for r in self._data.get("project_roots", [])
         ]
 
+    @property
+    def source_file_filters(self) -> dict[str, dict]:
+        """Per-source include/exclude filters for project-root-derived sources.
+
+        Maps each expanded source directory path to the include/exclude
+        patterns declared on its project root.  Only project-root-derived
+        sources have entries; explicit sources are always scanned in full.
+        """
+        filters: dict[str, dict] = {}
+        for root_cfg in self._data.get("project_roots", []):
+            root_path = Path(self._resolve_path(root_cfg.get("path", "")))
+            if not root_path.is_dir():
+                continue
+            include = root_cfg.get("include", ["*.md", "docs/**/*.md"])
+            exclude = root_cfg.get("exclude", [])
+            for child in sorted(root_path.iterdir()):
+                if not child.is_dir() or child.name.startswith("."):
+                    continue
+                filters[str(child)] = {"include": include, "exclude": exclude}
+        return filters
+
     def _expand_project_roots(self) -> list[str]:
         """Expand project roots into individual project directories to watch.
 

@@ -10,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, SortableTableHead } from "@/components/ui/table"
 import {
   Pencil, Trash2, FileText, Loader2, Clock, Check, X as XIcon,
-  Infinity as InfinityIcon, RefreshCw, Link, Upload, Download, FolderInput, MessageSquare,
+  Infinity as InfinityIcon, RefreshCw, Link, Upload, Download, FolderInput, MessageSquare, FilePlus,
 } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { BucketEditForm } from "./bucket-edit-form"
@@ -87,6 +87,8 @@ export function BucketDetailPanel({
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{ name: string; done: boolean; error?: string }[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const mdInputRef = useRef<HTMLInputElement>(null)
+  const [addingMd, setAddingMd] = useState(false)
 
   const pushDocument = useCallback(async (name: string, markdown: string) => {
     await api.post(`/api/v1/buckets/${bucket.id}/documents`, {
@@ -150,6 +152,29 @@ export function BucketDetailPanel({
     e.preventDefault()
     if (e.dataTransfer.files.length) void handleFileUpload(e.dataTransfer.files)
   }, [handleFileUpload])
+
+  const handleMdUpload = useCallback(async (fileList: FileList) => {
+    const files = Array.from(fileList).filter((f) => f.name.endsWith(".md"))
+    if (!files.length) return
+    if (mdInputRef.current) mdInputRef.current.value = ""
+    setAddingMd(true)
+    let succeeded = 0
+    let failed = 0
+    for (const file of files) {
+      try {
+        const content = await file.text()
+        await pushDocument(file.name, content)
+        succeeded++
+      } catch {
+        failed++
+      }
+    }
+    reloadFiles()
+    setAddingMd(false)
+    if (failed === 0) toast.success(`Added ${succeeded} markdown file${succeeded !== 1 ? "s" : ""}`)
+    else if (succeeded === 0) toast.error("Failed to add markdown file(s)")
+    else toast.warning(`${succeeded} added, ${failed} failed`)
+  }, [pushDocument, reloadFiles])
 
   const handleReindex = useCallback(async () => {
     setReindexing(true)
@@ -391,6 +416,30 @@ export function BucketDetailPanel({
             ) : (
               <p className="text-xs text-muted-foreground">No local sources — add content via upload or URL clip.</p>
             )}
+          </div>
+
+          {/* Add Markdown */}
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Add Markdown</p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 w-full"
+              onClick={() => mdInputRef.current?.click()}
+              disabled={addingMd}
+            >
+              {addingMd
+                ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />Adding…</>
+                : <><FilePlus className="h-3.5 w-3.5 mr-1.5" />Upload .md file</>}
+            </Button>
+            <input
+              ref={mdInputRef}
+              type="file"
+              multiple
+              accept=".md"
+              className="hidden"
+              onChange={(e) => { if (e.target.files?.length) void handleMdUpload(e.target.files) }}
+            />
           </div>
 
           {/* Import */}

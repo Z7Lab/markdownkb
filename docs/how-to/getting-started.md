@@ -80,7 +80,7 @@ In Docker, newly added source paths must be mounted into the container. Markdown
 
 If your documents live across many repositories, use **Project Directories** instead of adding each repo individually. Point MarkdownKB at a parent directory containing cloned repos and it will discover and index matching docs in each subdirectory automatically.
 
-In **Settings → Sources → Project Directories**, click **Add**, enter the path (e.g. `/home/user/projects`), and configure include/exclude patterns. New repos cloned into that directory are picked up automatically within ~60 seconds.
+In **Settings → Sources → Project Directories**, click **Add**, enter the path (e.g. `/home/user/projects`), and configure include/exclude patterns. Include/exclude apply at two levels: which subdirectories to watch, and which individual files to index within each project. Use `exclude: ["tests/**"]` to keep test files and other noise out. New repos cloned into that directory are picked up automatically within ~60 seconds.
 
 In Docker, the project directory path must also be mounted — MarkdownKB adds it to `config/compose.override.yml` when you save, then restart: `make docker-restart`.
 

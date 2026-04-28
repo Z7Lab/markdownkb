@@ -10,7 +10,10 @@ sources:
   writable: false
 
 # Project roots — auto-discover docs in cloned repositories
-# Each entry scans immediate subdirectories for files matching include patterns.
+# Each immediate subdirectory is treated as a project. include/exclude patterns
+# apply at two levels: source discovery (which subdirs to watch) AND file
+# indexing (which individual files within each project to index).
+# * does not cross / boundaries; ** matches any number of path components.
 # New repos cloned into the root are picked up automatically (~60s).
 # project_roots:
 # - path: /home/user/projects
@@ -20,6 +23,7 @@ sources:
 #   exclude:
 #     - 'CHANGELOG.md'
 #     - 'LICENSE.md'
+#     - 'tests/**'          # Skip test directories
 
 # Glob patterns to skip during file scanning
 global_ignore:
