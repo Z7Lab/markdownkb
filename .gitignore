@@ -21,7 +21,7 @@ data/
 dist/
 build/
 .env
-secrets/
+secrets
 
 # Pip artifacts
 =*
@@ -44,3 +44,9 @@ compose.custom.yml
 # Docs site build output
 site/
 docs/nav.yaml
+
+# dispatcher sandbox artifacts
+.deliberative-token
+.claude/.sandbox-exit-code
+.claude/.sandbox-status.json
+.codex/.sandbox-status.json

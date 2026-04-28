@@ -196,9 +196,16 @@ def convert_url(
     """Convert a URL to markdown. Requires web sub-converter to be enabled."""
     from markitdown import MarkItDown
 
+    from app.security.validation import validate_api_base
+
     cfg = _plugin_config(settings)
     if not cfg.get("web_enabled", True):
         raise HTTPException(503, "Web/URL conversion is disabled. Enable 'web_enabled' in converter plugin settings.")
+
+    try:
+        validate_api_base(req.url)
+    except ValueError as exc:
+        raise HTTPException(400, f"URL not allowed: {exc}") from exc
 
     try:
         result = MarkItDown().convert(req.url)

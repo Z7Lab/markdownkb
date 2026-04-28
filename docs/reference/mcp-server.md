@@ -566,7 +566,7 @@ Open the resource browser (usually a paperclip or attachment icon) to see resour
 **Using prompts in a browser client:**  
 Open the prompt picker (usually a `/` shortcut or icon) to see the three built-in prompts: `ask-kb`, `summarize-topic`, and `research-topic`. Select one, fill in the argument, and it pre-populates the message with the right tool call instruction.
 
-> CORS is permissive by default so browser clients on any origin can connect. To restrict, set `mcp.allowed_origins` in `config/settings.yaml`.
+> CORS is restricted to localhost origins by default. To allow additional origins (e.g. a remote browser client), set `mcp.allowed_origins` in `config/settings.yaml`.
 
 ## Docker
 

@@ -90,6 +90,8 @@ make docker-clean-all  # stop container, remove image AND data volumes (destruct
 
 Edit `config/settings.yaml` or use the **Settings** tab in the UI. See [docs/reference/configuration.md](docs/reference/configuration.md) for the full reference (all settings, feature flags, `.env` vs `settings.yaml` precedence).
 
+**Advanced — symlink pattern:** If you manage multiple machines or want configs and secrets centrally backed up outside the repo, move `.env`, `config/settings.yaml`, and the `secrets/` directory to a gitignored location outside the project and symlink them back. Most users don't need this — plain files work fine.
+
 ## LLM Setup
 
 MarkdownKB calls LLMs over the network — it doesn't run them locally.

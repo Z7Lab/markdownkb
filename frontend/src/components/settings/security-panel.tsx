@@ -10,7 +10,6 @@ interface SecurityCheck {
   network_exposed: boolean
   api_key_strength: "none" | "weak" | "ok"
   data_dir_world_readable: boolean
-  data_dir: string
   mcp_enabled: boolean
 }
 
@@ -54,7 +53,7 @@ function buildChecklist(s: SecurityCheck): CheckItem[] {
 
   // Data directory permissions
   if (s.data_dir_world_readable) {
-    items.push({ label: "Data directory permissions", status: "warn", detail: `${s.data_dir} is world-readable. Consider restricting to the owning user only (chmod 700).` })
+    items.push({ label: "Data directory permissions", status: "warn", detail: "Data directory is world-readable. Consider restricting to the owning user only (chmod 700)." })
   } else {
     items.push({ label: "Data directory permissions", status: "pass", detail: "Data directory is not world-readable." })
   }

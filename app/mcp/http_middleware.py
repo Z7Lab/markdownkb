@@ -166,13 +166,20 @@ def run_http_with_auth(mcp: FastMCP, host: str, port: int):
         elif allowed_origins_setting:
             cors_origins = [str(o) for o in allowed_origins_setting]
         else:
-            cors_origins = ["*"]
+            # Default: restrict to localhost origins only (same conservative posture
+            # as the main API).  Users can widen this via mcp.allowed_origins in
+            # settings.yaml or by setting CORS_ORIGINS in the environment.
+            cors_origins = [
+                f"http://localhost:{port}",
+                "http://localhost",
+                "http://127.0.0.1",
+                f"http://127.0.0.1:{port}",
+            ]
         combined_app = CORSMiddleware(
             combined_app,
             allow_origins=cors_origins,
             allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            allow_headers=["*"],
-            expose_headers=["*"],
+            allow_headers=["Content-Type", "Accept", "Authorization", "X-MarkdownKB-Key"],
         )
         logger.info("MCP CORS enabled (origins: %s)", cors_origins)
 

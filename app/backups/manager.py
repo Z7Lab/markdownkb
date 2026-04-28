@@ -374,9 +374,28 @@ def _is_newer(a: str, b: str) -> bool:
 
 
 def _safe_extractall(tf: tarfile.TarFile, dest: Path) -> None:
-    """Extract a tarball, refusing path traversal."""
+    """Extract a tarball, refusing path traversal and symlink attacks.
+
+    Python 3.12+ provides tarfile.data_filter which blocks absolute paths,
+    ``..`` components, and symlinks pointing outside the destination — use it
+    when available.  On older Python the manual name check still runs as a
+    fallback, but symlinks are additionally rejected explicitly.
+    """
     dest = dest.resolve()
+
+    # Prefer the native filter introduced in Python 3.12 (PEP 706).
+    # filter='data' strips special files, blocks absolute/traversal paths,
+    # and prevents symlinks from pointing outside dest.
+    if hasattr(tarfile, "data_filter"):
+        tf.extractall(dest, filter="data")
+        return
+
+    # Fallback for Python < 3.12: manual checks + explicit symlink rejection.
     for member in tf.getmembers():
+        if member.issym() or member.islnk():
+            raise RestoreError(
+                f"archive contains symlink (not allowed): {member.name}"
+            )
         target = (dest / member.name).resolve()
         try:
             target.relative_to(dest)

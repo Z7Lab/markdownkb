@@ -72,7 +72,6 @@ def security_check(request: Request, settings: Settings = Depends(get_settings))
         "network_exposed": network_exposed,
         "api_key_strength": api_key_strength,
         "data_dir_world_readable": data_dir_world_readable,
-        "data_dir": data_dir,
         "mcp_enabled": mcp_enabled,
     }
 
