@@ -286,7 +286,39 @@ def some_service(query, ..., kgdb=None):
 |-----------|---------|
 | Core has a defined hook it must call (indexing, tagging, resolving paths) | Dispatcher callback |
 | Plugin adds optional richness to a response (extra context, annotations) | Optional dependency injection |
+| Plugin endpoint writes to core storage or triggers core indexing | Direct core import (see below) |
 | Plugin provides its own endpoints only, no core integration needed | Neither — just a router |
+
+### Pattern 3: Direct core import
+
+Use this when **a plugin endpoint needs to read or write core state** — for example, a plugin that converts a file and ingests it into the main knowledge base.
+
+Plugins may import from `app.deps`, `app.ingestion`, `app.storage`, and `app.events`. The rule is one-directional: **plugin → core is always fine; core → plugin is never allowed**.
+
+```python
+from app.deps import get_settings, get_store, get_tracking
+from app.events import IndexEvent, event_bus
+from app.ingestion.indexer import ReindexError, reindex_file
+from app.storage.trackingdb import TrackingDB
+from app.storage.vectorstore import VectorStore
+
+@router.post("/my-plugin/ingest")
+async def ingest(
+    request: Request,
+    file: UploadFile = File(...),
+    settings: Settings = Depends(get_settings),
+    tracking: TrackingDB = Depends(get_tracking),
+    store: VectorStore = Depends(get_store),
+):
+    # ... convert or process file ...
+    reindex_file(path_str, settings, store, tracking)
+    event_bus.publish(IndexEvent(type="file_imported", path=path_str, filename=dest_path.name))
+    return {"status": "ok", "path": path_str}
+```
+
+`get_tracking` and `get_store` from `app/deps.py` are available to any module — they are not restricted to core routers. The guidance to avoid `app/deps.py` in the Plugin-Owned Databases section refers to your **own plugin's state**, which should live on `app.state` (not in `app/deps.py`) so it can be cleanly initialized and shut down via lifecycle hooks.
+
+The converter plugin's `/ingest` endpoint is the canonical example of this pattern.
 
 ## MCP Tool Integration
 

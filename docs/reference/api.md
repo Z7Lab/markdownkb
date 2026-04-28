@@ -379,7 +379,8 @@ Requires `plugins.converter.enabled: true`. Plugin: `app/plugins/converter/`. Us
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/api/v1/converter/url` | Fetch a URL and convert to markdown (web pages, YouTube, etc.) |
-| POST | `/api/v1/converter/upload` | Upload a file and convert to markdown |
+| POST | `/api/v1/converter/upload` | Upload a file and convert to markdown (returns markdown, does not write to KB) |
+| POST | `/api/v1/converter/ingest` | Upload a file, convert, and import it directly into the main knowledge base |
 | GET | `/api/v1/converter/formats` | List supported input formats |
 | POST | `/api/v1/converter/convert` | Start batch conversion (source_dir → dest_dir) |
 | GET | `/api/v1/converter/status` | Conversion progress (running, files done/total, errors) |

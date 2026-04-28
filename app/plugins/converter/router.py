@@ -11,8 +11,12 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
 
 from app.config import Settings
-from app.deps import get_settings
+from app.deps import get_settings, get_store, get_tracking
+from app.events import IndexEvent, event_bus
+from app.ingestion.indexer import ReindexError, reindex_file
 from app.ratelimit import HEAVY, STANDARD, limiter
+from app.storage.trackingdb import TrackingDB
+from app.storage.vectorstore import VectorStore
 
 logger = logging.getLogger(__name__)
 
@@ -346,6 +350,82 @@ def start_conversion(
         daemon=True,
     ).start()
     return {"status": "started"}
+
+
+@router.post("/ingest")
+@limiter.limit(HEAVY)
+async def ingest_file(
+    request: Request,
+    file: UploadFile = File(...),
+    settings: Settings = Depends(get_settings),
+    tracking: TrackingDB = Depends(get_tracking),
+    store: VectorStore = Depends(get_store),
+):
+    """Convert a file and ingest it directly into the main knowledge base.
+
+    Writes the converted .md to the first writable source directory and
+    indexes it immediately. The file appears in the Files tab after import.
+    """
+    writable = settings.writable_sources
+    if not writable:
+        raise HTTPException(
+            status_code=422,
+            detail="No writable source directories configured.",
+        )
+
+    suffix = Path(file.filename or "upload").suffix.lower()
+    if suffix == ".md":
+        raise HTTPException(
+            status_code=400,
+            detail="Markdown files can be placed directly in a source directory — no conversion needed.",
+        )
+
+    fmt_name = _EXT_TO_FORMAT.get(suffix)
+    if fmt_name:
+        fmt_info = ALL_FORMATS[fmt_name]
+        sub = fmt_info["subconverter"]
+        cfg = _plugin_config(settings)
+        if not cfg.get(f"{sub}_enabled", True):
+            raise HTTPException(
+                status_code=503,
+                detail=f"{fmt_info['label']} conversion is disabled. Enable '{sub}_enabled' in converter plugin settings.",
+            )
+
+    stem = Path(file.filename or "upload").stem
+    dest_dir = Path(writable[0])
+
+    fd, tmp = tempfile.mkstemp(suffix=suffix)
+    try:
+        os.close(fd)
+        with open(tmp, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+        from markitdown import MarkItDown
+        result = MarkItDown().convert_local(Path(tmp))
+    except Exception as exc:
+        logger.error("converter/ingest failed for %s: %s", file.filename, exc)
+        raise HTTPException(status_code=400, detail=f"Conversion failed: {exc}") from exc
+    finally:
+        Path(tmp).unlink(missing_ok=True)
+
+    if not result.text_content:
+        raise HTTPException(status_code=422, detail="No content could be extracted from the file.")
+
+    dest_path = dest_dir / f"{stem}.md"
+    counter = 1
+    while dest_path.exists():
+        dest_path = dest_dir / f"{stem}_{counter}.md"
+        counter += 1
+
+    dest_path.write_text(result.text_content, encoding="utf-8")
+    path_str = str(dest_path)
+
+    try:
+        reindex_file(path_str, settings, store, tracking)
+    except ReindexError as e:
+        logger.warning("Ingest succeeded but indexing failed for %s: %s", path_str, e)
+
+    event_bus.publish(IndexEvent(type="file_imported", path=path_str, filename=dest_path.name))
+    return {"status": "ok", "path": path_str, "filename": dest_path.name}
 
 
 @router.post("/cancel")

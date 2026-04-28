@@ -18,7 +18,7 @@ The primary interface. Ask questions about your knowledge base and get AI-powere
 
 ### Files
 
-Browse, search, and manage all indexed documents. View file contents, edit tags, toggle index inclusion, trigger re-indexing, and see indexing status.
+Browse, search, and manage all indexed documents. View file contents, edit tags, toggle index inclusion, trigger re-indexing, and see indexing status. When the converter plugin is enabled, an **Import File** button appears in the toolbar — upload a PDF, DOCX, or other supported format and it is converted and indexed directly into the knowledge base.
 
 **Sidebar:** None — full-width file table.
 
@@ -79,7 +79,7 @@ All plugins live in `app/plugins/<name>/` and are toggled via `plugins.<name>.en
 | `docmap` | on | Doc Map | Document similarity visualization (3D force graph) |
 | `catalogs` | on | — | Model catalog providers (Ollama, Venice) for the Settings model picker |
 | `export` | on | — | Export chat conversations as markdown or JSON |
-| `converter` | on | — | Batch convert DOCX, PDF, PPTX, XLSX, HTML, EPUB and more to markdown via markitdown |
+| `converter` | on | — | Convert DOCX, PDF, PPTX, XLSX, HTML, EPUB and more to markdown via markitdown — supports batch directory conversion and direct KB ingestion from the Files tab |
 | `planner` | off | Planner | MCTS implementation planning with skill reviews |
 | `knowledge_graph` | off | Knowledge Graph | Entity extraction and relationship visualization |
 | `buckets` | off | — | Temporary scoped document collections with independent vector storage |
