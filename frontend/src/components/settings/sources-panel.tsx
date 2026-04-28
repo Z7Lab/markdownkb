@@ -115,11 +115,12 @@ function ProjectRootForm({
   submitLabel,
 }: {
   initial?: ProjectRoot
-  onSubmit: (path: string, include: string[], exclude: string[]) => void
+  onSubmit: (path: string, include: string[], exclude: string[], title?: string) => void
   onCancel: () => void
   submitLabel: string
 }) {
   const [path, setPath] = useState(initial?.path ?? "")
+  const [title, setTitle] = useState(initial?.title ?? "")
   const [includeInput, setIncludeInput] = useState("")
   const [excludeInput, setExcludeInput] = useState("")
   const [include, setInclude] = useState<string[]>(initial?.include ?? ["*.md", "docs/**/*.md"])
@@ -151,11 +152,18 @@ function ProjectRootForm({
             value={path}
             onChange={(e) => setPath(e.target.value)}
             placeholder="/home/user/projects"
-            onKeyDown={(e) => e.key === "Enter" && canSubmit && onSubmit(path.trim(), include, exclude)}
+            onKeyDown={(e) => e.key === "Enter" && canSubmit && onSubmit(path.trim(), include, exclude, title.trim() || undefined)}
           />
           <PathStatus path={path} />
         </div>
       )}
+      <Input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="Display name (optional, e.g. Work Projects)"
+        className="h-8 text-xs"
+        aria-label="Project root display name"
+      />
 
       <div>
         <p className="text-xs text-muted-foreground mb-1.5">Include patterns</p>
@@ -218,7 +226,7 @@ function ProjectRootForm({
         <Button variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
         <Button
           size="sm"
-          onClick={() => onSubmit(path.trim(), include, exclude)}
+          onClick={() => onSubmit(path.trim(), include, exclude, title.trim() || undefined)}
           disabled={!canSubmit}
         >
           {submitLabel}
@@ -252,9 +260,9 @@ export function SourcesPanel({
   onRemove: (path: string, cleanup: boolean) => Promise<void>
   onAddIgnore: (pattern: string) => Promise<void>
   onRemoveIgnore: (pattern: string) => Promise<void>
-  onAddProjectRoot: (path: string, include: string[], exclude: string[]) => Promise<{ docker_restart_required?: boolean; path_not_found?: boolean } | void>
+  onAddProjectRoot: (path: string, include: string[], exclude: string[], title?: string) => Promise<{ docker_restart_required?: boolean; path_not_found?: boolean } | void>
   onRemoveProjectRoot: (path: string, cleanup: boolean) => Promise<void>
-  onUpdateProjectRoot: (path: string, include: string[], exclude: string[]) => Promise<void>
+  onUpdateProjectRoot: (path: string, include: string[], exclude: string[], title?: string) => Promise<void>
   onReloadSettings: () => Promise<boolean> | void
 }) {
   const [newPattern, setNewPattern] = useState("")
@@ -401,15 +409,15 @@ export function SourcesPanel({
             <ProjectRootForm
               submitLabel="Add Project Root"
               onCancel={() => setShowAddRoot(false)}
-              onSubmit={async (path, include, exclude) => {
+              onSubmit={async (path, include, exclude, title) => {
                 setShowAddRoot(false)
-                const result = await onAddProjectRoot(path, include, exclude)
+                const result = await onAddProjectRoot(path, include, exclude, title)
                 if (result?.docker_restart_required) {
                   toast.warning(`Project root added — restart required to mount "${path}" into the container: make docker-down && make docker-up`)
                 } else if (result?.path_not_found) {
                   toast.warning(`Project root added but "${path}" does not exist — check the path`)
                 } else {
-                  toast.success(`Added project root "${path}" — scanning for projects`)
+                  toast.success(`Added project root "${title || path}" — scanning for projects`)
                 }
               }}
             />
@@ -422,17 +430,20 @@ export function SourcesPanel({
                   initial={root}
                   submitLabel="Save"
                   onCancel={() => setEditingRoot(null)}
-                  onSubmit={async (_path, include, exclude) => {
+                  onSubmit={async (_path, include, exclude, title) => {
                     setEditingRoot(null)
-                    await onUpdateProjectRoot(root.path, include, exclude)
-                    toast.success(`Updated patterns for "${root.path}"`)
+                    await onUpdateProjectRoot(root.path, include, exclude, title)
+                    toast.success(`Updated "${title || root.path}"`)
                   }}
                 />
               ) : (
                 <div className="rounded-md border p-3">
                   <div className="flex items-center gap-2 mb-2">
                     <PathBadge path={root.path} />
-                    <span className="font-mono text-sm flex-1 truncate">{root.path}</span>
+                    <div className="flex-1 min-w-0">
+                      {root.title && <p className="text-sm font-medium truncate">{root.title}</p>}
+                      <span className="font-mono text-xs text-muted-foreground truncate block">{root.path}</span>
+                    </div>
                     <Button
                       variant="ghost"
                       size="icon"

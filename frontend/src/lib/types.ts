@@ -121,6 +121,7 @@ export interface ProjectRoot {
   path: string
   include: string[]
   exclude: string[]
+  title?: string
 }
 
 export interface SourceConfig {

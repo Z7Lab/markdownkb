@@ -86,8 +86,8 @@ Supports Google-style quoted phrases: `"exact phrase"` requires literal match in
 | GET | `/api/v1/files/stale-ignored` | Return indexed files whose paths now match the active `global_ignore` patterns. Returns `{"count": N, "paths": [...]}`. Count > 0 means chunks exist in the vector store for files the scanner now ignores. |
 | DELETE | `/api/v1/files/stale-ignored` | Purge chunks and tracking records for all files matching active `global_ignore` patterns. Safe to call at any time — only removes files that are both indexed and ignored. Returns `{"status": "ok", "purged": N, "paths": [...]}`. |
 | GET | `/api/v1/project-roots` | List project root configurations |
-| POST | `/api/v1/project-roots` | Add project root (path + include/exclude patterns) |
-| PUT | `/api/v1/project-roots` | Update project root patterns |
+| POST | `/api/v1/project-roots` | Add project root (path, include/exclude patterns, optional title) |
+| PUT | `/api/v1/project-roots` | Update project root patterns and optional title |
 | DELETE | `/api/v1/project-roots` | Remove project root (with optional `cleanup` to unindex) |
 | PUT | `/api/v1/settings/provider` | Save LLM provider config (name, model, api_base, api_key) |
 | PUT | `/api/v1/settings/llm-params` | Save generation parameters (temperature, max_tokens, num_ctx) |

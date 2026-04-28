@@ -117,7 +117,7 @@ This means `tests/**` files are never indexed even if the `tests/` directory its
 | `docs/**/*.md` | `.md` files anywhere under `docs/` |
 | `**/*.md` | all `.md` files anywhere in the project |
 
-**Via UI:** Settings → Sources → Project Directories → Add. Enter the parent path and configure include/exclude glob patterns.
+**Via UI:** Settings → Sources → Project Directories → Add. Enter the parent path, an optional display title, and configure include/exclude glob patterns. The title appears in the project listing and the scope picker.
 
 **Via `settings.yaml`:**
 

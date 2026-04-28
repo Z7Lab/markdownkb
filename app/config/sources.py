@@ -251,7 +251,7 @@ class SourcesMixin:
         return dirs
 
     def add_project_root(self, path: str, include: list[str] | None = None,
-                         exclude: list[str] | None = None):
+                         exclude: list[str] | None = None, title: str | None = None):
         """Add a project root configuration."""
         with self._lock:
             roots = self._data.setdefault("project_roots", [])
@@ -264,6 +264,8 @@ class SourcesMixin:
                 entry["include"] = include
             if exclude:
                 entry["exclude"] = exclude
+            if title:
+                entry["title"] = title
             roots.append(entry)
 
     def remove_project_root(self, path: str):
@@ -277,8 +279,8 @@ class SourcesMixin:
             ]
 
     def update_project_root(self, path: str, include: list[str] | None = None,
-                            exclude: list[str] | None = None):
-        """Update include/exclude patterns for an existing project root."""
+                            exclude: list[str] | None = None, title: str | None = None):
+        """Update include/exclude patterns and optional title for an existing project root."""
         with self._lock:
             resolved = self._resolve_path(path)
             for r in self._data.get("project_roots", []):
@@ -287,6 +289,8 @@ class SourcesMixin:
                         r["include"] = include
                     if exclude is not None:
                         r["exclude"] = exclude
+                    if title is not None:
+                        r["title"] = title if title else None
                     return
             raise KeyError(f"Project root not found: {path}")
 

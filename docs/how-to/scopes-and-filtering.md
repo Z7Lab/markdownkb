@@ -6,7 +6,8 @@ Scopes let you focus your knowledge base on a subset of your documents. Instead 
 
 A scope is a named filter with three parts:
 
-- **Folders** — source directories to include (e.g. `/home/user/docs/project-a`)
+- **Project Directories** — select one or more project roots; all their indexed subdirectories are included
+- **Watch Directories** — individual source directories to include (e.g. `/home/user/docs/project-a`)
 - **Tags** — markdown frontmatter tags to include (e.g. `architecture`, `decisions`)
 - **Exclude patterns** — glob patterns for files to skip (e.g. `agent-reviewed-*`, `**/archive/**`)
 
@@ -17,7 +18,7 @@ When you select a scope, only documents matching the folder/tag criteria (minus 
 Go to **Settings > Scopes** and click **New Scope**:
 
 1. Give it a name (e.g. "Infrastructure Docs")
-2. Check the folders you want to include
+2. Check one or more Project Directories, or individual Watch Directories
 3. Optionally add tags (documents with any of these tags are included)
 4. Optionally add exclude patterns (files matching these are filtered out)
 5. Click **Create**

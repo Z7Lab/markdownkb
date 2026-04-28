@@ -31,6 +31,7 @@ class AddProjectRootRequest(BaseModel):
     path: str = Field(..., min_length=1, max_length=4096)
     include: list[str] = Field(default_factory=lambda: ["*.md", "docs/**/*.md"])
     exclude: list[str] = Field(default_factory=list)
+    title: str | None = Field(None, max_length=128)
 
 
 class UpdateProjectRootRequest(BaseModel):
@@ -39,6 +40,7 @@ class UpdateProjectRootRequest(BaseModel):
     path: str = Field(..., min_length=1, max_length=4096)
     include: list[str] | None = None
     exclude: list[str] | None = None
+    title: str | None = None
 
 
 class RemoveProjectRootRequest(BaseModel):

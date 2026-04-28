@@ -254,7 +254,7 @@ def add_project_root(
     includes a ``docker_restart_required`` flag when the path is not
     accessible, with instructions to restart.
     """
-    settings.add_project_root(req.path, req.include, req.exclude)
+    settings.add_project_root(req.path, req.include, req.exclude, req.title)
     settings.save()
     for source in settings.sources:
         _watch_and_index(watcher, source)
@@ -290,7 +290,7 @@ def update_project_root(
 ):
     """Update include/exclude patterns for a project root."""
     try:
-        settings.update_project_root(req.path, req.include, req.exclude)
+        settings.update_project_root(req.path, req.include, req.exclude, req.title)
     except KeyError:
         raise HTTPException(404, f"Project root not found: {req.path}")
     settings.save()

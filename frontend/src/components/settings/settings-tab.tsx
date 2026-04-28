@@ -263,7 +263,12 @@ export function SettingsTab({ initialSection }: { initialSection?: string } = {}
               />
             )}
             {activeSection === "scopes" && (
-              <ScopesPanel folders={settings.sources} availableTags={availableTags} />
+              <ScopesPanel
+                folders={settings.source_configs.map((s) => s.path)}
+                allSources={settings.sources}
+                projectRoots={settings.project_roots}
+                availableTags={availableTags}
+              />
             )}
             {activeSection === "buckets" && (
               <BucketsPanel />

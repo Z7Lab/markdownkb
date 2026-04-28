@@ -6,8 +6,26 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Plus, Pencil, Trash2, X, Check, Tag, Ban } from "lucide-react"
+import type { ProjectRoot } from "@/lib/types"
 
-export function ScopesPanel({ folders, availableTags }: { folders: string[]; availableTags: string[] }) {
+function getExpandedSources(root: ProjectRoot, allSources: string[]): string[] {
+  return allSources.filter((s) => {
+    if (!s.startsWith(root.path + "/")) return false
+    return !s.slice(root.path.length + 1).includes("/")
+  })
+}
+
+export function ScopesPanel({
+  folders,
+  allSources,
+  projectRoots,
+  availableTags,
+}: {
+  folders: string[]
+  allSources: string[]
+  projectRoots: ProjectRoot[]
+  availableTags: string[]
+}) {
   const { scopes, createScope, updateScope, deleteScope } = useScopes()
   const [isCreating, setIsCreating] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -80,6 +98,28 @@ export function ScopesPanel({ folders, availableTags }: { folders: string[]; ava
     })
   }
 
+  function toggleProjectRoot(root: ProjectRoot) {
+    const expanded = getExpandedSources(root, allSources)
+    const allSelected = expanded.length > 0 && expanded.every((s) => selectedFolders.has(s))
+    setSelectedFolders((prev) => {
+      const next = new Set(prev)
+      if (allSelected) expanded.forEach((s) => next.delete(s))
+      else expanded.forEach((s) => next.add(s))
+      return next
+    })
+  }
+
+  function projectRootChecked(root: ProjectRoot): boolean {
+    const expanded = getExpandedSources(root, allSources)
+    return expanded.length > 0 && expanded.every((s) => selectedFolders.has(s))
+  }
+
+  function projectRootIndeterminate(root: ProjectRoot): boolean {
+    const expanded = getExpandedSources(root, allSources)
+    const selected = expanded.filter((s) => selectedFolders.has(s))
+    return selected.length > 0 && selected.length < expanded.length
+  }
+
   function toggleTag(tag: string) {
     setSelectedTags((prev) => {
       const next = new Set(prev)
@@ -131,13 +171,33 @@ export function ScopesPanel({ folders, availableTags }: { folders: string[]; ava
               aria-label="Scope name"
               autoFocus
             />
+            {projectRoots.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs text-muted-foreground font-medium">Project Directories (optional):</p>
+                <div className="space-y-1 max-h-36 overflow-y-auto">
+                  {projectRoots.map((root) => (
+                    <label
+                      key={root.path}
+                      className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-accent cursor-pointer text-sm"
+                    >
+                      <Checkbox
+                        checked={projectRootChecked(root)}
+                        data-state={projectRootIndeterminate(root) ? "indeterminate" : undefined}
+                        onCheckedChange={() => toggleProjectRoot(root)}
+                      />
+                      <span className="truncate">{root.title || root.path.split("/").pop() || root.path}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="space-y-1.5">
               <p className="text-xs text-muted-foreground font-medium">
-                Folders (optional):
+                Watch Directories (optional):
               </p>
               {folders.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  No source folders configured.
+                  No watch directories configured.
                 </p>
               ) : (
                 <div className="space-y-1 max-h-36 overflow-y-auto">

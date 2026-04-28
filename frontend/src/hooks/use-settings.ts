@@ -126,9 +126,9 @@ function useSettingsInternal() {
   )
 
   const addProjectRoot = useCallback(
-    async (path: string, include: string[], exclude: string[]) => {
+    async (path: string, include: string[], exclude: string[], title?: string) => {
       const result = await api.post<{ docker_restart_required?: boolean; path_not_found?: boolean; message?: string }>(
-        "/api/v1/project-roots", { path, include, exclude }
+        "/api/v1/project-roots", { path, include, exclude, title: title || null }
       )
       await load()
       return result
@@ -145,8 +145,8 @@ function useSettingsInternal() {
   )
 
   const updateProjectRoot = useCallback(
-    async (path: string, include: string[], exclude: string[]) => {
-      await api.put("/api/v1/project-roots", { path, include, exclude })
+    async (path: string, include: string[], exclude: string[], title?: string) => {
+      await api.put("/api/v1/project-roots", { path, include, exclude, title: title ?? null })
       await load()
     },
     [load],
