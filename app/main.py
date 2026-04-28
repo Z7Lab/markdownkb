@@ -41,10 +41,50 @@ logger = logging.getLogger(__name__)
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
 
+def _migrate_collection_rename(persist_directory: str, target_name: str) -> None:
+    """Rename legacy 'mdkb' ChromaDB collection to the current collection name.
+
+    The collection was renamed from 'mdkb' to 'markdownkb' in code, but
+    existing data on disk kept the old name.  Every startup the stale-detection
+    logic sees an empty target collection and clears the tracking DB, forcing a
+    full re-index.  This migration runs once and is a no-op thereafter.
+    """
+    old_name = "mdkb"
+    if old_name == target_name:
+        return
+    try:
+        import chromadb
+        from chromadb.config import Settings as ChromaSettings
+        client = chromadb.PersistentClient(
+            path=persist_directory,
+            settings=ChromaSettings(anonymized_telemetry=False),
+        )
+        existing = {c.name for c in client.list_collections()}
+        if old_name not in existing:
+            return
+        old_col = client.get_collection(old_name)
+        if old_col.count() == 0:
+            return
+        if target_name in existing:
+            target_col = client.get_collection(target_name)
+            if target_col.count() > 0:
+                return
+            client.delete_collection(target_name)
+        old_col.modify(name=target_name)
+        logger.info(
+            "Migrated ChromaDB collection '%s' → '%s' (%d chunks)",
+            old_name, target_name, old_col.count(),
+        )
+    except Exception:
+        logger.exception("Collection rename migration failed — continuing without it")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize services on startup, clean up on shutdown."""
     settings = Settings.get()
+
+    _migrate_collection_rename(settings.persist_directory, settings.collection_name)
 
     store = VectorStore(
         settings.persist_directory, settings.collection_name,
