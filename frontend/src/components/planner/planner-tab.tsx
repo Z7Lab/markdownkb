@@ -13,12 +13,12 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Markdown } from "@/components/ui/markdown"
 import { SourceList } from "@/components/ui/source-badge"
 import { PlannerSkillReview } from "./planner-skill-review"
-import { Loader2, Lightbulb, Square, Save, Download, FileUp } from "lucide-react"
+import { Loader2, Lightbulb, Square, Save, FileUp } from "lucide-react"
 import { useEffect, useRef, useState, type KeyboardEvent } from "react"
 import { useLocation } from "wouter"
 import { EmptyHero } from "@/components/ui/empty-hero"
 import { PromoteDialog } from "@/components/wiki/promote-dialog"
-import { downloadMarkdown } from "@/lib/utils"
+import { DownloadButtons } from "@/components/ui/download-buttons"
 
 export function PlannerTab({ defaultPlanId }: { defaultPlanId?: string } = {}) {
   const [currentLocation, setLocation] = useLocation()
@@ -91,13 +91,9 @@ export function PlannerTab({ defaultPlanId }: { defaultPlanId?: string } = {}) {
     setInputQuery("")
   }
 
-  function handleDownload() {
-    const content = isRefined && refinedPlan ? refinedPlan : plan
-    if (!content) return
-    downloadMarkdown(content, `plan-${query.slice(0, 40).replace(/[^a-zA-Z0-9]+/g, "-")}`)
-  }
-
   const hasResults = plan || approaches.length > 0
+  const planContent = () => (isRefined && refinedPlan ? refinedPlan : plan) ?? ""
+  const planFilename = `plan-${query.slice(0, 40).replace(/[^a-zA-Z0-9]+/g, "-")}`
 
   return (
     <div className="flex flex-row h-full overflow-hidden">
@@ -163,10 +159,11 @@ export function PlannerTab({ defaultPlanId }: { defaultPlanId?: string } = {}) {
                           <Save className="h-3.5 w-3.5 mr-1" />
                           Save
                         </Button>
-                        <Button variant="outline" size="sm" className="h-7 px-2" onClick={handleDownload}>
-                          <Download className="h-3.5 w-3.5 mr-1" />
-                          Download
-                        </Button>
+                        <DownloadButtons
+                          content={planContent}
+                          filename={planFilename}
+                          buttonClassName="h-7 px-2"
+                        />
                       </>
                     )}
                   </div>

@@ -11,6 +11,7 @@ import { ChatInput } from "./chat-input";
 import { ChatMessageList } from "./chat-message-list";
 import { ChatSidebar } from "./chat-sidebar";
 import { MessageSquare } from "lucide-react";
+import { formatChatTranscript } from "@/lib/utils";
 
 export function ChatTab({ defaultThreadId }: { defaultThreadId?: string }) {
   const [currentLocation, setLocation] = useLocation();
@@ -35,7 +36,6 @@ export function ChatTab({ defaultThreadId }: { defaultThreadId?: string }) {
     stop,
     clear,
     continueChat,
-    savePlan,
     newChat,
     loadThread,
     renameThread,
@@ -124,7 +124,8 @@ export function ChatTab({ defaultThreadId }: { defaultThreadId?: string }) {
           <ChatControls
             onClear={clear}
             onContinue={continueChat}
-            onSavePlan={savePlan}
+            content={() => formatChatTranscript(threads.find(t => t.id === activeThreadId)?.title ?? "Chat", messages)}
+            filename="chat-transcript"
             hasMessages={messages.length > 0}
           />
           <ChatInput onSend={send} onStop={stop} isStreaming={isStreaming} />

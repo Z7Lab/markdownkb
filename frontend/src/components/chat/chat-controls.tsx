@@ -1,27 +1,20 @@
 import { Button } from "@/components/ui/button"
-import { Eraser, FastForward, FileDown } from "lucide-react"
-import { toast } from "sonner"
+import { DownloadButtons } from "@/components/ui/download-buttons"
+import { Eraser, FastForward } from "lucide-react"
 
 export function ChatControls({
   onClear,
   onContinue,
-  onSavePlan,
+  content,
+  filename,
   hasMessages,
 }: {
   onClear: () => void
   onContinue: () => void
-  onSavePlan: () => Promise<string>
+  content: string | (() => string)
+  filename: string
   hasMessages: boolean
 }) {
-  async function handleSave() {
-    try {
-      const result = await onSavePlan()
-      toast(result)
-    } catch (err) {
-      toast.error(`Save failed: ${(err as Error).message}`)
-    }
-  }
-
   return (
     <div className="flex gap-2 px-4 pb-3">
       <Button variant="outline" size="sm" onClick={onClear} disabled={!hasMessages}>
@@ -32,10 +25,7 @@ export function ChatControls({
         <FastForward className="h-3.5 w-3.5 mr-1.5" />
         Continue
       </Button>
-      <Button variant="outline" size="sm" onClick={handleSave} disabled={!hasMessages}>
-        <FileDown className="h-3.5 w-3.5 mr-1.5" />
-        Save MD
-      </Button>
+      <DownloadButtons content={content} filename={filename} disabled={!hasMessages} />
     </div>
   )
 }

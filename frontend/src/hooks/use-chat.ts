@@ -227,20 +227,9 @@ export function useChat(scopeIds?: string | null, adHocTags?: string[] | null, b
     send("Continue your previous response from where you left off.")
   }, [send])
 
-  const savePlan = useCallback(async () => {
-    try {
-      const res = await api.post<{ message: string }>("/api/v1/chat/save-plan", { history: messages })
-      return res.message
-    } catch (err) {
-      const msg = `Failed to save: ${(err as Error).message}`
-      toast.error(msg)
-      return msg
-    }
-  }, [messages])
-
   return {
     messages, isStreaming, threads, activeThreadId,
-    send, stop, clear, continueChat, savePlan,
+    send, stop, clear, continueChat,
     newChat, loadThread, renameThread, deleteThread,
   }
 }

@@ -154,7 +154,7 @@ Concrete examples:
 - Clip a vendor's overview video, their API docs page, and two comparison articles. Ask: "What are the real tradeoffs based on everything here?"
 - Build a research bucket with 10 articles. Ask: "What gaps in this field do these authors collectively identify?"
 
-The chat session is ephemeral — it doesn't persist between drawer opens. It's designed for the active working session: open, investigate, close. If you want to save a useful exchange, use the download button in the drawer header to export the transcript.
+The chat session is ephemeral — it doesn't persist between drawer opens. It's designed for the active working session: open, investigate, close. If you want to save a useful exchange, use the **Save MD** or **Save HTML** buttons in the drawer header — MD for a plain markdown transcript, HTML for a self-contained rendered version.
 
 **File scoping:** Retrieval scope is configured in the bucket's **Files** tab. Each file has a **Scope** checkbox — checked files are included in all retrieval (chat, search, planner, Doc Map); unchecked files are excluded. By default all files are in scope. Changes persist on the bucket and apply globally across all features, not just chat.
 

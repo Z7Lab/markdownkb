@@ -50,9 +50,9 @@ Resets the current conversation — removes all messages from the UI and clears 
 
 Sends "Continue your previous response from where you left off." Useful when the LLM's response was cut short by the `max_tokens` limit. The LLM picks up where it stopped because it has the conversation history.
 
-### Save MD
+### Save MD / Save HTML
 
-Exports the current conversation as a markdown file. The LLM reads the conversation and generates a structured plan/summary document, which is saved to the plans directory. Useful for capturing the outcome of a planning conversation as a permanent document.
+Downloads the current conversation as a file. **Save MD** downloads a plain markdown transcript. **Save HTML** downloads a self-contained HTML file with rendered markdown formatting — useful for sharing or archiving a formatted version that can be opened in any browser without tooling.
 
 ## Scoped Chat
 
