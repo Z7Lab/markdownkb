@@ -11,6 +11,7 @@ git clone <repo-url> markdownkb
 cd markdownkb
 cp .env.example .env
 cp config/settings.yaml.example config/settings.yaml
+make secrets-init          # create secrets/ dir and empty placeholder files
 make docker-build && make docker-up
 ```
 
@@ -26,7 +27,10 @@ You have two ways to hand keys to the container. Use one or the other; resolutio
 
 The `secrets/` directory at the repo root holds plain-text key files, one per provider. Compose mounts them into the container at `/run/secrets/<name>` — they never appear in `docker inspect` and never enter env-var process listings.
 
+On a fresh clone, run `make secrets-init` first to create the directory and empty placeholder files. Then write your keys:
+
 ```bash
+make secrets-init
 echo -n "sk-ant-PLACEHOLDER" > secrets/anthropic_api_key
 echo -n "sk-..."     > secrets/openai_api_key
 echo -n "..."        > secrets/venice_api_key
@@ -39,9 +43,7 @@ openssl rand -hex 16 > secrets/markdownkb_api_key
 # or click "Generate API Key" in the setup banner — it writes to this file too
 ```
 
-Run `make docker-restart` after writing or changing a secret.
-
-The list of recognized secret names is in [`secrets/README.md`](../../secrets/README.md). Add a new provider by creating `<provider>_api_key` and listing it under `secrets:` in `compose.yml`.
+Run `make docker-restart` after writing or changing a secret. Add a new provider by creating `<provider>_api_key` and listing it under `secrets:` in `compose.yml`.
 
 ### Env vars
 

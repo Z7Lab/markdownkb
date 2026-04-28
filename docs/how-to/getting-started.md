@@ -49,8 +49,9 @@ See [Local LLM Setup](local-llm-setup.md) for detailed instructions.
 ### Option B: Cloud API (Anthropic, OpenAI, Venice)
 
 1. Get an API key from your provider
-2. Create a secrets file: `echo -n "your-key" > secrets/<provider>_api_key`
-3. In MarkdownKB Settings > Chat Model, select the provider and Save
+2. Run `make secrets-init` if you haven't already (creates `secrets/` and empty placeholder files)
+3. Write your key: `echo -n "your-key" > secrets/<provider>_api_key`
+4. In MarkdownKB Settings > Chat Model, select the provider and Save
 
 ### Option C: Any OpenAI-compatible server
 

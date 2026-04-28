@@ -108,8 +108,8 @@ networks:
     driver: bridge
 
 # Docker secrets — create files in ./secrets/ with one key per file.
-# Only the secrets that exist will be mounted; missing files cause a
-# warning but don't prevent the container from starting.
+# Missing files cause a Docker Compose error and prevent startup.
+# Run 'make secrets-init' to create empty placeholder files.
 secrets:
   anthropic_api_key:
     file: ./secrets/anthropic_api_key

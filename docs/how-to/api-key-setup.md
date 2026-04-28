@@ -26,6 +26,8 @@ Without a key, all of these are open to anyone who can reach the server.
 ### Option 1: Docker Secret (recommended)
 
 ```bash
+make secrets-init   # create secrets/ dir if it doesn't exist yet
+
 # Generate a random key
 openssl rand -hex 16 > secrets/markdownkb_api_key
 

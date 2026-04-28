@@ -2,7 +2,6 @@
 # Configuration via .env file (see .env.example)
 
 -include .env
-export
 
 # Defaults (overridden by .env)
 MARKDOWNKB_CONTAINER ?= markdownkb
@@ -12,8 +11,11 @@ MARKDOWNKB_HOST      ?= 127.0.0.1
 API_PORT        ?= 9713
 FRONTEND_PORT   ?= 9714
 
+# Export only safe infra vars — never secrets or API keys
+export MARKDOWNKB_CONTAINER MARKDOWNKB_PORT MARKDOWNKB_MCP_PORT MARKDOWNKB_HOST API_PORT FRONTEND_PORT COMPOSE_FILE
+
 .DEFAULT_GOAL := help
-.PHONY: help install dev stop docker-build docker-rebuild docker-build-full docker-rebuild-full docker-up docker-down docker-restart docker-logs docker-ps docker-shell docker-clean docker-clean-all backend prod test lint status check-ports mcp audit typecheck typecheck-frontend
+.PHONY: help install dev stop docker-build docker-rebuild docker-build-full docker-rebuild-full docker-up docker-down docker-restart docker-logs docker-ps docker-shell docker-clean docker-clean-all backend prod test lint status check-ports mcp audit typecheck typecheck-frontend secrets-init
 
 # ── Quick Start ──────────────────────────────────
 
@@ -40,6 +42,7 @@ help: ## Show this help
 	@echo "      package-lock.json)"
 	@echo "    Custom image from settings.yaml      generate-compose && docker-build-custom"
 	@echo "    No changes — just start the app      docker-up"
+	@echo "    Fresh clone / missing secrets/       secrets-init"
 	@echo "    Before committing frontend changes   typecheck-frontend  (catches TS errors before Docker does)"
 	@echo ""
 
@@ -174,6 +177,21 @@ audit: ## Scan locked runtime deps for known CVEs (pip-audit)
 	@.venv/bin/pip-audit -r requirements.lock --strict
 
 # ── Utilities ────────────────────────────────────
+
+secrets-init: ## Create empty secrets/ placeholder files (safe to run on existing setup)
+	@mkdir -p secrets
+	@for f in anthropic_api_key openai_api_key venice_api_key markdownkb_api_key; do \
+		if [ ! -f secrets/$$f ]; then \
+			touch secrets/$$f; \
+			echo "  created secrets/$$f"; \
+		else \
+			echo "  exists  secrets/$$f (unchanged)"; \
+		fi; \
+	done
+	@if [ ! -f secrets/README.md ]; then \
+		printf '# Docker Secrets\n\nStore API keys as plain text files here (one key per file, no trailing newline).\n\n| File | Used for |\n|------|----------|\n| `anthropic_api_key` | Anthropic (Claude) |\n| `openai_api_key` | OpenAI |\n| `venice_api_key` | Venice |\n| `markdownkb_api_key` | MarkdownKB API auth (X-MarkdownKB-Key) |\n\n```bash\necho -n "sk-your-key" > secrets/anthropic_api_key\n```\n\nEmpty files are safe — treated as "no key configured".\nSee `.env.example` for the alternative env-var approach.\n' > secrets/README.md; \
+	fi
+	@echo "Done. Edit secrets/<name>_api_key files to add your keys (no newline at end)."
 
 status: ## Show dev server and Docker status
 	@echo ""

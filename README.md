@@ -31,7 +31,7 @@ Creates `.venv`, installs Python and Node dependencies if needed, starts both se
    ```bash
    echo -n "your-key" > secrets/venice_api_key    # or anthropic_api_key, openai_api_key
    ```
-   See `secrets/README.md` for details.
+   Run `make secrets-init` on a fresh clone to create `secrets/` and empty placeholder files.
 
 4. **Edit `.env`** (optional) — defaults work out of the box. Uncomment and set values only if you need to:
    - `OLLAMA_API_BASE` — if Ollama runs on a different machine
@@ -96,7 +96,7 @@ Edit `config/settings.yaml` or use the **Settings** tab in the UI. See [docs/ref
 
 MarkdownKB calls LLMs over the network — it doesn't run them locally.
 
-**Anthropic / OpenAI / Venice:** Add your API key to `secrets/<provider>_api_key` (see `secrets/README.md`) or set the `<PROVIDER>_API_KEY` environment variable.
+**Anthropic / OpenAI / Venice:** Add your API key to `secrets/<provider>_api_key` (run `make secrets-init` to scaffold the directory) or set the `<PROVIDER>_API_KEY` environment variable.
 
 **Ollama on another machine:** See [docs/thirdparty/ollama-remote-setup.md](docs/thirdparty/ollama-remote-setup.md).
 

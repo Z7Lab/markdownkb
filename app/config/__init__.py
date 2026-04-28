@@ -93,7 +93,7 @@ class Settings(
             logger.warning("Config file not found at %s — using built-in defaults", path)
             self._data = {}
             self._using_defaults = True
-        self._data = _resolve_env_recursive(self._data)
+        self._data = _resolve_env_recursive(self._data, skip_keys=frozenset({"api_key"}))
         self._path = path
         self._project_root = path.resolve().parent.parent
         self._lock = threading.Lock()
@@ -139,7 +139,7 @@ class Settings(
             else:
                 self._data = {}
                 self._using_defaults = True
-            self._data = _resolve_env_recursive(self._data)
+            self._data = _resolve_env_recursive(self._data, skip_keys=frozenset({"api_key"}))
             _validate_settings(self._data)
             self._mcp_cache.clear()
             self._prompt_cache.clear()

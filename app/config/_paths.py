@@ -72,16 +72,23 @@ def resolve_env(value: str) -> str:
     return value
 
 
-def resolve_env_recursive(obj: Any) -> Any:
+def resolve_env_recursive(obj: Any, skip_keys: frozenset[str] = frozenset()) -> Any:
     """Recursively apply :func:`resolve_env` across dicts/lists/strings.
 
     Resolution happens at ``Settings.__init__`` and ``Settings.reload()``
     time only — see ``Settings`` docstring for the timing contract.
+
+    Keys in ``skip_keys`` are left untouched — their values are never
+    interpolated.  Use this for fields like ``api_key`` that must always
+    resolve at use time via the secrets/env lookup chain, never from YAML.
     """
     if isinstance(obj, str):
         return resolve_env(obj)
     if isinstance(obj, dict):
-        return {k: resolve_env_recursive(v) for k, v in obj.items()}
+        return {
+            k: (v if k in skip_keys else resolve_env_recursive(v, skip_keys))
+            for k, v in obj.items()
+        }
     if isinstance(obj, list):
-        return [resolve_env_recursive(v) for v in obj]
+        return [resolve_env_recursive(v, skip_keys) for v in obj]
     return obj

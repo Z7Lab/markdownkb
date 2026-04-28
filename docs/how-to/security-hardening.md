@@ -22,6 +22,7 @@ MarkdownKB uses a single shared API key checked on all `/api/v1/*` requests. Wit
 **Set a key before opening any network access.** The full setup guide is in [API Key Setup](api-key-setup.md). Short version:
 
 ```bash
+make secrets-init   # create secrets/ dir if it doesn't exist yet
 openssl rand -hex 16 > secrets/markdownkb_api_key
 make restart
 ```

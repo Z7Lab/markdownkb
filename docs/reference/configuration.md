@@ -3,7 +3,7 @@
 MarkdownKB is configured through three sources:
 
 - **`config/settings.yaml`** — primary configuration (sources, LLM providers, retrieval tuning, feature flags, storage). Copy from `config/settings.yaml.example`.
-- **`secrets/`** — Docker secrets for API keys. One key per file, mounted at `/run/secrets/` inside the container. See `secrets/README.md`.
+- **`secrets/`** — Docker secrets for API keys. One key per file, mounted at `/run/secrets/` inside the container. Run `make secrets-init` to scaffold the directory on a fresh clone.
 - **`.env`** — environment variables for ports and Docker settings. Copy from `.env.example`.
 
 All three are gitignored. API keys go in `secrets/` files or `.env` — never in `settings.yaml`.
