@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, Request
 
 from app.config import Settings
-from app.deps import get_chatdb, get_searchdb, get_settings, get_store, get_tracking
+from app.deps import get_bucket_service, get_chatdb, get_searchdb, get_settings, get_store, get_tracking
 from app.ratelimit import HEAVY, STANDARD, limiter
 from app.logbuffer import log_buffer
 from app.schemas.misc import LoggerOverridesRequest, LogLevelRequest
@@ -26,6 +26,7 @@ def get_database_stats(
     settings: Settings = Depends(get_settings),
     tracking=Depends(get_tracking),
     store=Depends(get_store),
+    bucket_service=Depends(get_bucket_service),
 ):
     """Get statistics for all databases."""
     data_dir = Path(settings.data_directory)
@@ -49,8 +50,13 @@ def get_database_stats(
         },
     }
 
-    # Add index counts from tracking DB and vector store (via DI)
+    # Add index counts from tracking DB and vector store (via DI).
+    # Exclude bucket-assigned files — they appear in the Buckets tab, not Files tab,
+    # so the count here matches what the user sees in the Files tab.
     all_files = tracking.get_all_files()
+    if bucket_service:
+        bucketed = bucket_service.db.get_bucketed_paths()
+        all_files = [f for f in all_files if f["path"] not in bucketed]
     indexed_files = [f for f in all_files if f["status"] == "complete"]
     total_chunks = sum(f.get("chunk_count", 0) for f in indexed_files)
     stats["vector_database"]["indexed_files"] = len(indexed_files)

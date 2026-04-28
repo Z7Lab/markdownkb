@@ -12,7 +12,7 @@ from fastapi.responses import StreamingResponse
 
 from app.config import Settings
 from app.config.docker import in_docker
-from app.deps import get_settings
+from app.deps import get_settings, get_store, get_tracking
 from app.ratelimit import LLM, STANDARD, limiter
 
 from .bucket_service import BucketService
@@ -107,6 +107,24 @@ def set_base_path(
     }
 
 
+def _evict_from_main_index(svc: BucketService, bucket_id: str, main_store, tracking) -> None:
+    """Remove filesystem-sourced bucket files from the main index.
+
+    When files are added to a bucket they are embedded in the bucket's own
+    ChromaDB collection.  Any vectors they previously had in the main
+    collection should be removed, and their SQLite chunk_count reset to 0
+    so the Database tab's file count matches the Files tab.
+    """
+    path_map = svc.db.get_bucketed_path_map()
+    for path, bids in path_map.items():
+        if bucket_id not in bids:
+            continue
+        if path.startswith("bucket://"):
+            continue
+        main_store.delete_by_source(path)
+        tracking.clear_chunk_count(path)
+
+
 @router.get("/buckets")
 @limiter.limit(STANDARD)
 def list_buckets(
@@ -131,6 +149,8 @@ def create_bucket(
     req: CreateBucketRequest,
     svc: BucketService = Depends(_get_bucket_service),
     settings: Settings = Depends(get_settings),
+    main_store=Depends(get_store),
+    tracking=Depends(get_tracking),
 ):
     """Create a new bucket from source paths."""
     try:
@@ -141,6 +161,8 @@ def create_bucket(
 
         sources = [s.model_dump() for s in req.sources]
         record = svc.create(req.name, sources, req.expires_in, color=color, description=req.description)
+
+        _evict_from_main_index(svc, record["id"], main_store, tracking)
 
         docker_restart_required = ensure_mounts_for_sources(
             settings, svc, [s.path for s in req.sources],
@@ -401,11 +423,15 @@ def add_to_bucket(
     bucket_id: str,
     req: AddToBucketRequest,
     svc: BucketService = Depends(_get_bucket_service),
+    main_store=Depends(get_store),
+    tracking=Depends(get_tracking),
 ):
     """Add documents to an existing bucket. Files already present are skipped."""
     try:
         sources = [s.model_dump() for s in req.sources]
-        return svc.add_documents(bucket_id, sources)
+        result = svc.add_documents(bucket_id, sources)
+        _evict_from_main_index(svc, bucket_id, main_store, tracking)
+        return result
     except ValueError as e:
         logger.warning("Bucket add: %s", e)
         raise HTTPException(status_code=404, detail="Bucket not found")

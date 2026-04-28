@@ -276,4 +276,4 @@ plugins:
 
 ## Storage
 
-Each bucket gets its own ChromaDB collection (`bucket_{id}`), stored alongside the main collection. Bucket metadata (name, description, sources, expiration, color) is in `{data_directory}/buckets.db`. File membership records (which files belong to which bucket) are also stored there, used to exclude bucket files from the Files tab. Deleting a bucket removes the DB record, the file memberships, and the ChromaDB collection.
+Each bucket gets its own ChromaDB collection (`bucket_{id}`), stored alongside the main collection. Bucket metadata (name, description, sources, expiration, color) is in `{data_directory}/buckets.db`. File membership records (which files belong to which bucket) are also stored there, used to exclude bucket files from the Files tab. When filesystem-sourced files are added to a bucket, any existing vectors for those files are removed from the main collection so the main index stays consistent. Deleting a bucket removes the DB record, the file memberships, and the ChromaDB collection.

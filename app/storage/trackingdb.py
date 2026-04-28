@@ -392,6 +392,22 @@ class TrackingDB:
             ).fetchall()
             return {r["path"] for r in rows}
 
+    def clear_chunk_count(self, path: str):
+        """Set chunk_count to 0 without changing status or content_hash.
+
+        Used when a file's vectors are removed from the main collection
+        (e.g. when the file is assigned to a bucket) without triggering
+        a full re-index on the next scan.
+        """
+        with self._lock:
+            self._conn.execute(
+                """UPDATE indexed_files
+                SET chunk_count = 0, updated_at = datetime('now')
+                WHERE path = ?""",
+                (path,),
+            )
+            self._conn.commit()
+
     def unindex_file(self, path: str):
         """Reset a file to un-indexed state (keeps tracking record).
 
