@@ -8,10 +8,13 @@ export function BucketSelector({
   buckets,
   selectedBucketIds,
   onBucketChange,
+  defaultOpen = false,
 }: {
   buckets: Bucket[]
   selectedBucketIds: Set<string>
   onBucketChange: (ids: Set<string>) => void
+  /** When true, the section starts expanded (used inside the filter modal) */
+  defaultOpen?: boolean
 }) {
   const activeBuckets = buckets.filter((b) => !b.expired)
 
@@ -53,6 +56,7 @@ export function BucketSelector({
       label="Buckets"
       count={selectedBucketIds.size}
       summary={selectedNames || undefined}
+      defaultOpen={defaultOpen}
     >
       <div className="space-y-0.5 pl-2">
         {activeBuckets.map((b) => (

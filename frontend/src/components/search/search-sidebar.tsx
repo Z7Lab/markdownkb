@@ -4,8 +4,7 @@ import { SidebarItemList } from "@/components/ui/sidebar-item-list"
 import { Bot, Plus, Search } from "lucide-react"
 import type { SavedSearch, Scope } from "@/lib/types"
 import type { Bucket } from "@/hooks/use-buckets"
-import { ScopeTagFilter } from "@/components/scope-tag-filter"
-import { BucketSelector } from "@/components/bucket-selector"
+import { FilterPicker } from "@/components/filter-picker"
 
 export function SearchSidebar({
   searches,
@@ -53,16 +52,13 @@ export function SearchSidebar({
             New Search
           </Button>
 
-          <ScopeTagFilter
+          <FilterPicker
             scopes={scopes}
             selectedScopeIds={selectedScopeIds}
             onScopeChange={onScopeChange}
             availableTags={availableTags}
             selectedTags={selectedAdHocTags}
             onTagChange={onAdHocTagChange}
-            hasBucket={selectedBucketIds.size > 0}
-          />
-          <BucketSelector
             buckets={buckets}
             selectedBucketIds={selectedBucketIds}
             onBucketChange={onBucketChange}

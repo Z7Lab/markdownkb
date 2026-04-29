@@ -1,6 +1,5 @@
 import { AppSidebar } from "@/components/ui/app-sidebar"
-import { ScopeTagFilter } from "@/components/scope-tag-filter"
-import { BucketSelector } from "@/components/bucket-selector"
+import { FilterPicker } from "@/components/filter-picker"
 import type { Bucket } from "@/hooks/use-buckets"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
@@ -81,16 +80,13 @@ export function VisualizationSidebar({
         <div className="space-y-3">
           {mode === "similarity" && (
             <>
-              <ScopeTagFilter
+              <FilterPicker
                 scopes={scopes}
                 selectedScopeIds={selectedScopeIds}
                 onScopeChange={onScopeChange}
                 availableTags={availableTags}
                 selectedTags={selectedTags}
                 onTagChange={onTagChange}
-                hasBucket={selectedBucketIds.size > 0}
-              />
-              <BucketSelector
                 buckets={buckets}
                 selectedBucketIds={selectedBucketIds}
                 onBucketChange={onBucketChange}

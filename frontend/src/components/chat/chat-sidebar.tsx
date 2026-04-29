@@ -5,8 +5,7 @@ import { Bot, MessageSquare, Plus } from "lucide-react";
 import type { Scope, Thread } from "@/lib/types";
 import type { Bucket } from "@/hooks/use-buckets";
 import { ModelPicker } from "./model-picker";
-import { ScopeTagFilter } from "@/components/scope-tag-filter";
-import { BucketSelector } from "@/components/bucket-selector";
+import { FilterPicker } from "@/components/filter-picker";
 
 function isAgentThread(t: Thread): boolean {
   return t.title?.startsWith("[agent]") ?? false
@@ -63,16 +62,13 @@ export function ChatSidebar({
             New Chat
           </Button>
           <ModelPicker />
-          <ScopeTagFilter
+          <FilterPicker
             scopes={scopes}
             selectedScopeIds={selectedScopeIds}
             onScopeChange={onScopeChange}
             availableTags={availableTags}
             selectedTags={selectedTags}
             onTagChange={onTagChange}
-            hasBucket={selectedBucketIds.size > 0}
-          />
-          <BucketSelector
             buckets={buckets}
             selectedBucketIds={selectedBucketIds}
             onBucketChange={onBucketChange}

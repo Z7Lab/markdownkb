@@ -41,17 +41,19 @@ Exclude patterns are applied after folder and tag filtering. A file that matches
 
 ## Using Scopes in the Sidebar
 
-Every tab (Chat, Search, Planner, Doc Map) has a **Scopes** section in the sidebar:
+Every tab (Chat, Search, Planner, Doc Map) has a **filter picker** button in the sidebar. It shows a compact summary of what's active ("All sources", or the names/counts of selected scopes, tags, and buckets). A badge appears when any filter is active.
 
-- **All sources** is checked by default — no filtering, everything is included
-- Check one or more scopes to narrow results to those subsets
-- Scopes with exclude patterns show a count indicator (e.g. "1 excl.")
-- The Scopes label highlights and shows a badge when filtering is active
-- **Filter state persists** across tab switches and page refreshes via localStorage
+Click the button to open the filter dialog. It has three tabs:
+
+- **Scopes** — select which scopes to filter by. **All sources** (the default) means no scope filter. Scopes with exclude patterns show a count indicator (e.g. "1 excl.").
+- **Tags** — filter by markdown frontmatter tags extracted from your documents. "Clear all" appears at the top when any tags are selected.
+- **Buckets** — select a bucket to include its documents alongside (or instead of) your permanent knowledge base.
+
+**Filter state persists** across tab switches and page refreshes via localStorage.
 
 ## Markdown Tags
 
-Below Scopes, the sidebar shows **Markdown Tags** — these are ad-hoc tag filters extracted from your documents' YAML frontmatter:
+The **Tags** tab in the filter dialog shows ad-hoc tag filters extracted from your documents' YAML frontmatter:
 
 ```yaml
 ---

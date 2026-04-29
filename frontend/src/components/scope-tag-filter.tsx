@@ -13,6 +13,7 @@ export function ScopeTagFilter({
   selectedTags,
   onTagChange,
   hasBucket = false,
+  defaultOpen = false,
 }: {
   scopes: Scope[]
   selectedScopeIds: Set<string>
@@ -22,6 +23,8 @@ export function ScopeTagFilter({
   onTagChange: (tags: Set<string>) => void
   /** When true, adjusts "All sources" label to indicate bucket-only mode */
   hasBucket?: boolean
+  /** When true, sections start expanded (used inside the filter modal) */
+  defaultOpen?: boolean
 }) {
   const noScopesSelected = selectedScopeIds.size === 0
 
@@ -64,6 +67,7 @@ export function ScopeTagFilter({
         label="Scopes"
         count={selectedScopeIds.size}
         summary={scopeSummary}
+        defaultOpen={defaultOpen}
       >
         {scopes.length === 0 ? (
           <p className="text-[10px] text-muted-foreground pl-5">
@@ -111,6 +115,7 @@ export function ScopeTagFilter({
           label="Markdown Tags"
           count={selectedTags.size}
           summary={tagSummary}
+          defaultOpen={defaultOpen}
         >
           <ScrollArea
             className="pl-2"

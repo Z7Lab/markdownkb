@@ -4,8 +4,7 @@ import { SidebarItemList } from "@/components/ui/sidebar-item-list"
 import { Bot, Lightbulb, Plus } from "lucide-react"
 import type { SavedPlan, Scope } from "@/lib/types"
 import type { Bucket } from "@/hooks/use-buckets"
-import { ScopeTagFilter } from "@/components/scope-tag-filter"
-import { BucketSelector } from "@/components/bucket-selector"
+import { FilterPicker } from "@/components/filter-picker"
 
 function isAgentPlan(p: SavedPlan): boolean {
   return p.title?.startsWith("[agent]") ?? false
@@ -62,16 +61,13 @@ export function PlannerSidebar({
             <Plus className="h-4 w-4" />
             New Plan
           </Button>
-          <ScopeTagFilter
+          <FilterPicker
             scopes={scopes}
             selectedScopeIds={selectedScopeIds}
             onScopeChange={onScopeChange}
             availableTags={availableTags}
             selectedTags={selectedTags}
             onTagChange={onTagChange}
-            hasBucket={selectedBucketIds.size > 0}
-          />
-          <BucketSelector
             buckets={buckets}
             selectedBucketIds={selectedBucketIds}
             onBucketChange={onBucketChange}
