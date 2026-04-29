@@ -8,16 +8,12 @@ Python (FastAPI) backend + React (Vite + TypeScript + Shadcn/ui) frontend.
 
 ## Quick Start
 
-### Option A: Native
-
 ```bash
-cp config/settings.yaml.example config/settings.yaml  # first time only
-./run.sh
+git clone <repo-url>
+cd mdkb
 ```
 
-Creates `.venv`, installs Python and Node dependencies if needed, starts both services. Open `http://localhost:5173` (dev) or `http://localhost:9713` (production).
-
-### Option B: Docker
+### Option A: Docker (recommended)
 
 1. **Copy config files** (first time only):
    ```bash
@@ -44,6 +40,15 @@ Creates `.venv`, installs Python and Node dependencies if needed, starts both se
    ```
 
 Source directories are mounted individually into the container — `compose.override.yml` is auto-generated from your `settings.yaml` sources when you add or remove directories via the UI. Copy the example on first setup: `cp compose.override.yml.example compose.override.yml`. After adding sources, restart: `make docker-down && make docker-up`. The container binds to **localhost only** by default and runs as a non-root user.
+
+### Option B: Native
+
+```bash
+cp config/settings.yaml.example config/settings.yaml  # first time only
+./run.sh
+```
+
+Creates `.venv`, installs Python and Node dependencies if needed, starts both services. Open `http://localhost:5173` (dev) or `http://localhost:9713` (production).
 
 ## run.sh
 
@@ -225,3 +230,8 @@ Makefile                 # Build, run, test, Docker targets (make help)
 Dockerfile               # Multi-stage build (Node + Python), non-root, health check
 compose.yml              # Localhost-only binding, configurable source mounts
 ```
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+

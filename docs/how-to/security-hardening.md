@@ -63,7 +63,7 @@ Running inside Docker provides a meaningful containment boundary that goes beyon
 
 **Source directories are mounted individually.** When you add a source via the Settings UI, only that directory is mounted — not its parent, not your home directory. A watched source at `/home/user/docs/work` mounts only that subtree.
 
-**Buckets are mounted more precisely still.** A bucket pointing at `/home/user/docs/research` mounts only that path. Buckets are a good pattern for indexing content you're less certain about — the mount boundary limits what any operation can reach to just that bucket's directory, even if write tools are enabled. See [Buckets](../explanation/buckets.md#docker).
+**Buckets are mounted more precisely still.** A bucket pointing at `/home/user/docs/research` mounts only that path. Buckets are a good pattern for indexing content you're less certain about — the mount boundary limits what any operation can reach to just that bucket's directory, even if write tools are enabled. See [Buckets](../explanation/buckets.md).
 
 **Read-only mounts for read-only sources.** Sources with `writable: false` are mounted `:ro` — the container process cannot write to them even if application-level guards are bypassed.
 

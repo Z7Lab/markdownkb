@@ -144,6 +144,7 @@ This shifts the upgrade pain to the plugin (the plugin author bumps their declar
 
 ## See also
 
+- [Versioning](versioning.md) — git-backed write history for mdkb-authored documents (a different versioning system from the one described here)
 - [Backup and Restore](../how-to/backup-and-restore.md) — the rollback mechanism
 - [Plugin Development](../how-to/plugin-development.md) — plugin-owned schemas and the contract version range
 - [Configuration](../reference/configuration.md) — settings.yaml structure

@@ -70,6 +70,25 @@ The `mcp.read_only` flag (default `true`) blocks all MCP write tools regardless 
 
 The `write_api` plugin and MCP write tools validate paths to prevent directory traversal, restrict writes to configured source directories only, check the per-source `writable` flag (403 if read-only), and verify the directory is accessible on disk (422 if not mounted). Overwrites require an explicit `overwrite: true` flag.
 
+## Backup Archives
+
+`GET /api/v1/backups` exports a `.tar.gz` archive containing all SQLite databases, the ChromaDB vector store, plugin data, and optionally `config/settings.yaml`. This is a **full-state snapshot** — it is subject to the same API key requirement as all other `/api/v1/*` endpoints.
+
+**What the archive contains and what it implies:**
+
+- All SQLite databases (chat history, search history, plans, tags, scopes, etc.)
+- ChromaDB vector embeddings (derived from indexed markdown, not the source files themselves)
+- Plugin data directories
+- If the user opted in: `config/settings.yaml` — which does **not** contain API keys (those live in `secrets/` or env vars), but does contain source directory paths, LLM provider configuration, and feature flags
+
+**Mitigations in place:**
+
+- The download endpoint requires the `X-MarkdownKB-Key` header when an API key is configured.
+- API keys are never stored in `settings.yaml` and are therefore never included in a backup archive.
+- Archives are streamed inline — they are not staged to disk as intermediate files accessible at a predictable path.
+
+**User responsibility:** A backup archive contains all conversation history and search history and should be handled with the same care as the running data directory. Do not store backups in publicly accessible locations.
+
 ## Rate Limiting
 
 Optional rate limiting via slowapi can be enabled with the `rate_limiting` feature flag to prevent API abuse.

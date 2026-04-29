@@ -152,11 +152,11 @@ make generate-compose    # reads config/settings.yaml, writes compose.custom.yml
 make docker-build-custom # builds and starts with only your enabled extras
 ```
 
-`compose.custom.yml` is gitignored — regenerate it any time you change converter sub-converter settings.
+`compose.custom.yml` is gitignored — regenerate it any time you change converter sub-converter settings. The generator is `scripts/generate_compose.py` — run it directly with `python scripts/generate_compose.py` if needed outside of Make.
 
 ### Note on YouTube ToS
 
-`youtube_transcript_api` fetches transcripts via YouTube's public timedtext API. Including it in your image is fine (MIT license), but your use of it is subject to [YouTube's Terms of Service](https://www.youtube.com/t/terms). Use it for personal knowledge bases — not for bulk scraping.
+`youtube_transcript_api` fetches transcripts via YouTube's public timedtext API. The library itself is MIT-licensed and can be included in the image, but its use is subject to [YouTube's Terms of Service](https://www.youtube.com/t/terms). Intended for personal knowledge bases — not bulk scraping.
 
 ## Extending the base image
 

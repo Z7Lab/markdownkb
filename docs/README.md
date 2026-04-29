@@ -9,6 +9,7 @@ Task-oriented. Follow these when you're trying to get something done.
 | Document | Description |
 |----------|-------------|
 | [Getting Started](how-to/getting-started.md) | Install, configure, index your first docs, search and chat |
+| [Docker Deployment](how-to/docker-deployment.md) | Docker compose setup, secrets, persistent data, source mounts, image variants |
 | [Local LLM Setup](how-to/local-llm-setup.md) | Step-by-step Ollama install and model setup (macOS, Linux, Windows) |
 | [API Key Setup](how-to/api-key-setup.md) | When you need a key, how to set one, how to use it |
 | [Security Hardening](how-to/security-hardening.md) | Checklist for network-exposed deployments — auth, rate limiting, Docker isolation, MCP write tools, prompt injection |
@@ -18,6 +19,9 @@ Task-oriented. Follow these when you're trying to get something done.
 | [AI Tagging](how-to/ai-tagging.md) | LLM-powered tag generation — preview, apply, bulk, manual tagging |
 | [Compile Sources into a Wiki](how-to/compile-sources.md) | Turn dense source material into LLM-synthesized summary pages via the wiki_compile plugin |
 | [Plugin Development](how-to/plugin-development.md) | Build custom plugins — structure, manifest, databases, MCP tools |
+| [Using the API](how-to/using-markdownkb-api.md) | Search, chat, write documents, and manage buckets programmatically via REST or MCP |
+| [Writing Documents](how-to/writing-documents.md) | Write markdown files to your knowledge base via REST API or MCP tools |
+| [Backup and Restore](how-to/backup-and-restore.md) | Export full-state archives, restore on the same or a different machine |
 
 ## Third-Party Integration
 

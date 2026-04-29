@@ -4,6 +4,9 @@ scripts/internal/
 docs/internal/
 planning_docs/
 
+# Skillsbot review artifacts
+skillsbot_*.md
+
 .claude/
 .codex/
 .mcp.json
@@ -51,3 +54,6 @@ docs/nav.yaml
 .claude/.sandbox-exit-code
 .claude/.sandbox-status.json
 .codex/.sandbox-status.json
+
+# dispatcher sandbox artifacts
+.dispatcher/

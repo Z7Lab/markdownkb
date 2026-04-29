@@ -13,9 +13,10 @@ MarkdownKB is a chat-with-your-docs tool with a Python backend and React fronten
 ┌────────────────────────▼────────────────────────────────┐
 │  FastAPI Backend                                        │
 │  ┌──────────────────────────────────────────────────┐   │
-│  │  Core Routers (8 modules)                        │   │
-│  │  health │ chat │ threads │ files                 │   │
-│  │  settings │ embeddings │ scopes │ plugins         │   │
+│  │  Core Routers                                    │   │
+│  │  health │ chat │ threads │ files │ sources        │   │
+│  │  settings │ llm │ maintenance │ embeddings        │   │
+│  │  scopes │ backups                                │   │
 │  ├──────────────────────────────────────────────────┤   │
 │  │  Plugins (auto-discovered, feature-gated)        │   │
 │  │  search │ export │ docmap │ knowledge_graph │    │   │
@@ -93,6 +94,8 @@ Core is everything that loads regardless of plugin settings. Plugins add HTTP en
 | `embeddings` | Embedding model switching, download, status |
 | `scopes` | Named folder + tag filter presets |
 
+The backup and restore feature lives in `app/backups/` (`router.py` + `manager.py`) and is registered as a core router in `app/api.py` — it is not in `app/routers/` because it ships as a self-contained module. It provides `GET/POST /api/v1/backups` for export and restore.
+
 ### Services (`app/services/`)
 
 | Service | Description |
@@ -168,6 +171,8 @@ All files are relative to the data directory (see [Storage](#storage) below).
 | `app/deps.py` | FastAPI dependency injection (Depends providers) |
 | `app/embeddings/` | ONNX embedding model registry, CPU inference |
 | `app/events.py` | IndexEventBus for real-time SSE notifications |
+| `app/export/markdown_archive.py` | Markdown archive export — conversation threads exported as a structured `.md` bundle |
+| `app/log_overrides.py` | Per-module log-level overrides applied at startup to reduce noise from noisy third-party loggers |
 | `app/main.py` | Application entry point, lifespan context manager |
 | `app/api.py` | App factory, router registration, plugin discovery |
 

@@ -70,6 +70,7 @@ A source you version in your own git, with your own conventions, probably should
 
 ## Related
 
+- [Versioning and Upgrades](versioning-and-upgrades.md) — app version management, update detection, and schema migrations (a different versioning system from the one described here)
 - [Writing Documents](../how-to/writing-documents.md) — how the Write API and MCP tools trigger commits
 - [Wiki Compile](wiki-compile.md) — the plugin that produces the densest write traffic, and what one ingest's commit contains
 - [Configuration: Versioning](../reference/configuration.md#versioning) — the full config surface

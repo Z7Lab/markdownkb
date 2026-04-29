@@ -347,7 +347,7 @@ llama.cpp can serve embedding models via the same OpenAI-compatible API, making 
   --no-mmap
 ```
 
-### Critical: `-c` and `--ubatch-size` for Embedding Servers
+### Critical: ubatch-size for Embedding Servers
 
 Two flags must both be large enough — each causes a different error if too small:
 
@@ -363,9 +363,9 @@ MarkdownKB's default `chunk_size` is 1500 characters, calibrated for prose (~4 c
 1. **Breadcrumb prepending** — each chunk gets a "From: path > heading" prefix (~100 chars) before embedding, adding ~25–50 tokens
 2. **Code tokenizes denser** — underscores, hyphens, backticks each become separate tokens; `run_id` → `run`, `_`, `id` = 3 tokens for 6 chars (~2 chars/token); a 1500-char code chunk can produce 540+ tokens
 
-With `-c 2048`, the server accepts these inputs. Tokens beyond the model's training window (512) are handled by llama.cpp's context extension — embeddings may be slightly lower quality for content past token 512, but the request succeeds rather than failing entirely. For a switch to a model natively supporting longer contexts see [configuration.md](../reference/configuration.md#embedding-models).
+With `-c 2048`, the server accepts these inputs. Tokens beyond the model's training window (512) are handled by llama.cpp's context extension — embeddings may be slightly lower quality for content past token 512, but the request succeeds rather than failing entirely. For a switch to a model natively supporting longer contexts see [configuration.md](../reference/configuration.md#embeddings).
 
-### Configuring MarkdownKB to Use the Embedding Server
+### Configuring mdkb to Use the Embedding Server
 
 In `config/settings.yaml`:
 

@@ -321,7 +321,7 @@ MCP tool flags and transport security. Editable via **Settings → MCP** in the 
 | `mcp.allowed_hosts` | `[]` | Allowed `Host` header values for DNS rebinding protection. Use `*` to disable protection entirely, or `hostname:*` for wildcard port matching. Takes effect after MCP server restart. |
 | `mcp.allowed_origins` | `[]` | Allowed browser `Origin` header values for cross-origin access. Use `*` to allow all origins, or `http://hostname:*` for wildcard port matching. Takes effect after MCP server restart. |
 
-For LAN access from another machine's browser, add `*` to `allowed_hosts` (disables both host and origin checks) or configure specific entries in both lists. See the [MCP server reference](mcp-server.md#dns-rebinding-protection-and-allowed-hosts) for pattern details.
+For LAN access from another machine's browser, add `*` to `allowed_hosts` (disables both host and origin checks) or configure specific entries in both lists. See the [MCP server reference](mcp-server.md#binding-and-dns-rebinding-protection) for pattern details.
 
 ## Plugins
 

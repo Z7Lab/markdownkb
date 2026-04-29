@@ -102,6 +102,9 @@ This composability is intentional. MarkdownKB doesn't try to be the orchestrator
 | Local ONNX embeddings (3 models, no external API) | Built |
 | API key authentication (X-MarkdownKB-Key header) | Built |
 | Docker deployment | Built |
+| Git-backed versioning for mdkb-authored writes | Built |
+| Full-state backup and restore (databases, vectors, plugins) | Built |
+| In-app update detection (PyPI / Docker Hub / git) | Built |
 
 ### Plugins
 | Plugin | Description | Status |
@@ -114,14 +117,18 @@ This composability is intentional. MarkdownKB doesn't try to be the orchestrator
 | Buckets | Temporary scoped collections with independent vector storage | Built |
 | Export | Conversation export (markdown, JSON) | Built |
 | Write API | Document creation via HTTP | Built |
+| Wiki Compile | Karpathy-style synthesis — dense sources → managed LLM-written wikis | Built |
+| Converter | Batch file-to-markdown conversion via Pandoc (DOCX, PDF, YouTube, etc.) | Built |
+| Lint | Tiered knowledge-base health check — coverage, orphans, contradictions, tensions | Built |
 
 ### MCP Server
 | Feature | Status |
 |---|---|
-| 32 tools (search, chat, documents, tags, buckets, doc map, knowledge graph, planner) | Built |
+| 40+ tools (search, chat, documents, tags, buckets, doc map, knowledge graph, planner) | Built |
 | stdio + Streamable HTTP transports | Built |
 | Read-only mode, per-tool gating, plugin-aware tool registration | Built |
 | History tracking (MCP searches/chats appear in web UI sidebar) | Built |
+| Per-key MCP rate limiting | Built |
 
 ### Infrastructure
 | Feature | Status |
@@ -132,6 +139,7 @@ This composability is intentional. MarkdownKB doesn't try to be the orchestrator
 | Test suite (pytest, 128+ tests) | Built |
 | Model catalogs (Venice, Ollama) with in-app Ollama model pull | Built |
 | First-run LLM setup guidance (Ollama, llama.cpp, cloud providers) | Built |
+| Schema migration runner (`PRAGMA user_version` + ordered migration list) | Built |
 
 ---
 

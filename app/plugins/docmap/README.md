@@ -1,4 +1,4 @@
-# Knowledge Graph Plugin
+# Doc Map Plugin
 
 3D document similarity graph visualization with clustering, word clouds, and scope/tag filtering.
 
