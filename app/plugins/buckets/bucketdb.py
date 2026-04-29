@@ -30,6 +30,16 @@ CREATE TABLE IF NOT EXISTS file_memberships (
     bucket_id   TEXT NOT NULL,
     PRIMARY KEY (file_path, bucket_id)
 );
+
+CREATE TABLE IF NOT EXISTS pending_documents (
+    id            TEXT PRIMARY KEY,
+    bucket_id     TEXT NOT NULL,
+    virtual_path  TEXT NOT NULL,
+    content       TEXT NOT NULL,
+    content_hash  TEXT NOT NULL,
+    created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_pending_documents_bucket ON pending_documents(bucket_id);
 """
 
 _MIGRATIONS: list[tuple[int, str, str]] = [
@@ -48,6 +58,17 @@ _MIGRATIONS: list[tuple[int, str, str]] = [
      "ALTER TABLE buckets ADD COLUMN description TEXT"),
     (5, "add scope_paths column to buckets",
      "ALTER TABLE buckets ADD COLUMN scope_paths TEXT"),
+    (6, "create pending_documents table", """
+        CREATE TABLE IF NOT EXISTS pending_documents (
+            id           TEXT PRIMARY KEY,
+            bucket_id    TEXT NOT NULL,
+            virtual_path TEXT NOT NULL,
+            content      TEXT NOT NULL,
+            content_hash TEXT NOT NULL,
+            created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_pending_documents_bucket ON pending_documents(bucket_id)
+     """),
 ]
 
 
@@ -150,10 +171,13 @@ class BucketDB:
         return cursor.rowcount > 0
 
     def delete(self, bucket_id: str) -> bool:
-        """Delete a bucket by ID, including its file memberships."""
+        """Delete a bucket by ID, including its file memberships and pending documents."""
         with self._lock:
             self._conn.execute(
                 "DELETE FROM file_memberships WHERE bucket_id = ?", (bucket_id,)
+            )
+            self._conn.execute(
+                "DELETE FROM pending_documents WHERE bucket_id = ?", (bucket_id,)
             )
             cursor = self._conn.execute(
                 "DELETE FROM buckets WHERE id = ?", (bucket_id,)
@@ -171,6 +195,52 @@ class BucketDB:
             self._conn.executemany(
                 "INSERT OR IGNORE INTO file_memberships (file_path, bucket_id) VALUES (?, ?)",
                 [(p, bucket_id) for p in file_paths],
+            )
+            self._conn.commit()
+
+    # -- Pending documents (async embed queue) --------------------------------
+
+    def add_pending_documents(self, bucket_id: str, docs: list[dict]) -> list[str]:
+        """Insert pending virtual documents awaiting embedding. Returns their IDs."""
+        ids = [uuid.uuid4().hex[:16] for _ in docs]
+        with self._lock:
+            self._conn.executemany(
+                """INSERT OR IGNORE INTO pending_documents
+                   (id, bucket_id, virtual_path, content, content_hash)
+                   VALUES (?, ?, ?, ?, ?)""",
+                [
+                    (ids[i], bucket_id, doc["virtual_path"], doc["content"], doc["content_hash"])
+                    for i, doc in enumerate(docs)
+                ],
+            )
+            self._conn.commit()
+        return ids
+
+    def get_pending_documents(self, bucket_id: str) -> list[dict]:
+        """Return all pending documents for a bucket."""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT * FROM pending_documents WHERE bucket_id = ? ORDER BY created_at",
+                (bucket_id,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def remove_pending_documents(self, ids: list[str]) -> None:
+        """Delete pending document records by their IDs (called after successful embed)."""
+        if not ids:
+            return
+        placeholders = ",".join("?" * len(ids))
+        with self._lock:
+            self._conn.execute(
+                f"DELETE FROM pending_documents WHERE id IN ({placeholders})", ids
+            )
+            self._conn.commit()
+
+    def remove_all_pending_documents(self, bucket_id: str) -> None:
+        """Remove all pending documents for a bucket (e.g. on delete)."""
+        with self._lock:
+            self._conn.execute(
+                "DELETE FROM pending_documents WHERE bucket_id = ?", (bucket_id,)
             )
             self._conn.commit()
 

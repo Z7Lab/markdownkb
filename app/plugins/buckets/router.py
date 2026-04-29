@@ -253,8 +253,8 @@ def list_bucket_files(
     record = _resolve_bucket(svc, bucket_id)
     store = svc.get_store(record["id"])
     all_meta = store.get_all_metadatas()
+    pending = svc.db.get_pending_documents(record["id"])
 
-    indexing = False
     if all_meta:
         files: dict[str, dict] = {}
         for meta in all_meta:
@@ -269,9 +269,17 @@ def list_bucket_files(
                     "indexed_at": meta.get("indexed_at"),
                 }
             files[path]["chunk_count"] += 1
+        # Merge pending docs that haven't been embedded yet
+        for p in pending:
+            if p["virtual_path"] not in files:
+                files[p["virtual_path"]] = {
+                    "path": p["virtual_path"],
+                    "title": p["virtual_path"].split("/")[-1],
+                    "chunk_count": 0,
+                    "indexed_at": None,
+                }
         file_list = sorted(files.values(), key=lambda f: f["path"])
     else:
-        indexing = record["chunk_count"] > 0
         sources = json.loads(record.get("sources", "[]"))
         file_list = []
         for src in sources:
@@ -279,12 +287,21 @@ def list_bucket_files(
             glob_pattern = src.get("glob", "**/*.md")
             resolved = Path(path).resolve()
             if resolved.is_file() and resolved.suffix == ".md":
-                file_list.append({"path": str(resolved), "title": "", "chunk_count": 0})
+                file_list.append({"path": str(resolved), "title": "", "chunk_count": 0, "indexed_at": None})
             elif resolved.is_dir():
                 for match in sorted(resolved.glob(glob_pattern)):
                     if match.is_file() and match.suffix == ".md":
-                        file_list.append({"path": str(match), "title": "", "chunk_count": 0})
+                        file_list.append({"path": str(match), "title": "", "chunk_count": 0, "indexed_at": None})
+        # Also include any pending virtual documents
+        for p in pending:
+            file_list.append({
+                "path": p["virtual_path"],
+                "title": p["virtual_path"].split("/")[-1],
+                "chunk_count": 0,
+                "indexed_at": None,
+            })
 
+    indexing = bool(pending) or (not all_meta and record["chunk_count"] > 0)
     return {"files": file_list, "total": len(file_list), "indexing": indexing}
 
 
@@ -406,11 +423,33 @@ def reindex_bucket(
     record = _resolve_bucket(svc, bucket_id)
     if record.get("expired"):
         raise HTTPException(status_code=410, detail="Bucket has expired — delete it or extend its expiry")
-    sources = json.loads(record.get("sources", "[]"))
-    if not sources:
-        return {"added_files": 0, "added_chunks": 0, "message": "No sources configured"}
     try:
-        return svc.add_documents(bucket_id, sources)
+        # Re-embed any pending virtual documents (e.g. from a failed async push)
+        pending = svc.db.get_pending_documents(record["id"])
+        pending_embedded = 0
+        pending_chunks = 0
+        if pending:
+            from app.services.task_registry import run_tracked
+            store = svc.get_store(record["id"])
+            rows = [{"virtual_path": p["virtual_path"], "content": p["content"], "content_hash": p["content_hash"]} for p in pending]
+            ids = [p["id"] for p in pending]
+            task = run_tracked(
+                kind="bucket_push_embed",
+                target=lambda: svc._embed_pending_rows(record["id"], record["name"], store, rows, ids),
+                label=f"Re-embedding {len(pending)} pending files in '{record['name']}'",
+            )
+            pending_embedded = len(pending)
+            logger.info("Bucket '%s': triggered re-embed of %d pending docs (task %s)", record["name"], len(pending), task.id)
+
+        sources = json.loads(record.get("sources", "[]"))
+        if not sources:
+            if pending_embedded:
+                return {"added_files": 0, "added_chunks": 0, "pending_requeued": pending_embedded, "message": f"Re-queued {pending_embedded} pending files for embedding"}
+            return {"added_files": 0, "added_chunks": 0, "message": "No sources configured"}
+        result = svc.add_documents(bucket_id, sources)
+        if pending_embedded:
+            result["pending_requeued"] = pending_embedded
+        return result
     except Exception as e:
         logger.error("Bucket reindex failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Bucket reindex failed")
@@ -456,6 +495,10 @@ def push_documents(
     """
     try:
         docs = [d.model_dump() for d in req.documents]
+        if req.async_embed:
+            from fastapi.responses import JSONResponse
+            result = svc.push_documents_async(bucket_id, docs)
+            return JSONResponse(content=result, status_code=202)
         return svc.push_documents(bucket_id, docs)
     except ValueError as e:
         logger.warning("Bucket push: %s", e)

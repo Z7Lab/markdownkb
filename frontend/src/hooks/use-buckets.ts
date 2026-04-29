@@ -71,6 +71,13 @@ export function useBucketFiles(bucketId: string | null) {
     }
   }, [bucketId, load])
 
+  // Poll while embedding is in progress so files get their chunk counts once done
+  useEffect(() => {
+    if (!indexing) return
+    const timer = setInterval(() => { void load() }, 3000)
+    return () => clearInterval(timer)
+  }, [indexing, load])
+
   return { files, loading, indexing, reload: load }
 }
 

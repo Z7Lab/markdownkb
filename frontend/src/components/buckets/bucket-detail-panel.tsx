@@ -120,6 +120,13 @@ export function BucketDetailPanel({
     })
   }, [bucket.id])
 
+  const batchPushDocuments = useCallback(async (docs: { name: string; content: string }[]) => {
+    await api.post(`/api/v1/buckets/${bucket.id}/documents`, {
+      documents: docs,
+      async_embed: true,
+    })
+  }, [bucket.id])
+
   const handleClip = useCallback(async () => {
     const url = clipUrl.trim()
     if (!url) return
@@ -753,7 +760,7 @@ export function BucketDetailPanel({
     <GithubImportDialog
       open={githubOpen}
       onClose={() => setGithubOpen(false)}
-      onImport={pushDocument}
+      onBatchImport={batchPushDocuments}
       onDone={reloadFiles}
     />
     </>

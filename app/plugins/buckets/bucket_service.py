@@ -337,6 +337,169 @@ class BucketService:
             "total_chunks": new_chunk_count,
         }
 
+    # -- Push async (store immediately, embed in background) ------------------
+
+    def push_documents_async(
+        self,
+        bucket: str,
+        documents: list[dict],
+    ) -> dict:
+        """Store documents immediately; chunk and embed in a background thread.
+
+        Files appear in the bucket file list right away with chunk_count=0.
+        Embedding runs in a daemon thread tracked by the task registry.
+        If embedding fails (e.g. model unavailable), the pending records stay
+        and will be retried on the next Reindex.
+        """
+        from app.services.task_registry import run_tracked
+
+        record = self._db.resolve(bucket)
+        if not record:
+            raise ValueError(f"Bucket not found: {bucket}")
+
+        bucket_id = record["id"]
+        bucket_name = record["name"]
+
+        store = self.get_store(bucket_id)
+
+        # Collect existing hashes from ChromaDB and the pending queue
+        existing_hashes: set[str] = set()
+        existing_paths: set[str] = set()
+        for meta in store.get_all_metadatas():
+            p = meta.get("source_path", "")
+            if p:
+                existing_paths.add(p)
+            h = meta.get("content_hash", "")
+            if h:
+                existing_hashes.add(h)
+        for row in self._db.get_pending_documents(bucket_id):
+            existing_hashes.add(row["content_hash"])
+            existing_paths.add(row["virtual_path"])
+
+        added_files = 0
+        skipped_files = 0
+        pending_rows: list[dict] = []
+
+        for doc in documents:
+            name = doc.get("name", "")
+            content = doc.get("content", "")
+            if not name or not content:
+                continue
+            if not name.endswith(".md"):
+                name = f"{name}.md"
+
+            content_hash = hashlib.sha256(content.encode()).hexdigest()
+            if content_hash in existing_hashes:
+                skipped_files += 1
+                continue
+
+            # Resolve filename collision
+            stem = name[:-3]
+            candidate = name
+            counter = 1
+            while f"bucket://{bucket_name}/{candidate}" in existing_paths:
+                candidate = f"{stem}-{counter}.md"
+                counter += 1
+            name = candidate
+            virtual_path = f"bucket://{bucket_name}/{name}"
+
+            existing_hashes.add(content_hash)
+            existing_paths.add(virtual_path)
+            added_files += 1
+            pending_rows.append({
+                "virtual_path": virtual_path,
+                "content": content,
+                "content_hash": content_hash,
+            })
+
+        if not pending_rows:
+            return {
+                "bucket_id": bucket_id,
+                "bucket_name": bucket_name,
+                "added_files": 0,
+                "skipped_files": skipped_files,
+                "task_id": None,
+            }
+
+        # Persist raw content so files appear in the list before embedding
+        pending_ids = self._db.add_pending_documents(bucket_id, pending_rows)
+
+        # Update file_count immediately so the header counter is correct
+        new_file_count = record["file_count"] + added_files
+        self._db.update_counts(bucket_id, new_file_count, record["chunk_count"])
+
+        # Capture snapshots for the background closure
+        rows_snapshot = list(pending_rows)
+        ids_snapshot = list(pending_ids)
+
+        task = run_tracked(
+            kind="bucket_push_embed",
+            target=lambda: self._embed_pending_rows(
+                bucket_id, bucket_name, store, rows_snapshot, ids_snapshot
+            ),
+            label=f"Embedding {added_files} files in '{bucket_name}'",
+        )
+
+        logger.info(
+            "Bucket '%s': queued %d documents for async embedding (task %s)",
+            bucket_name, added_files, task.id,
+        )
+
+        return {
+            "bucket_id": bucket_id,
+            "bucket_name": bucket_name,
+            "added_files": added_files,
+            "skipped_files": skipped_files,
+            "task_id": task.id,
+        }
+
+    def _embed_pending_rows(
+        self,
+        bucket_id: str,
+        bucket_name: str,
+        store,
+        rows: list[dict],
+        pending_ids: list[str],
+    ) -> None:
+        """Chunk, embed, and store a batch of pending documents. Called from background thread."""
+        all_ids: list[str] = []
+        all_docs: list[str] = []
+        all_metas: list[dict] = []
+
+        for row in rows:
+            virtual_path = row["virtual_path"]
+            content = row["content"]
+            content_hash = row["content_hash"]
+
+            raw_chunks = parse_markdown_content(content, virtual_path, source_root=f"bucket://{bucket_name}")
+            global_idx = 0
+            for chunk in raw_chunks:
+                sub_texts = chunk_text(chunk.content, 1500, 150)
+                for sub in sub_texts:
+                    meta = dict(chunk.metadata)
+                    meta["chunk_index"] = global_idx
+                    meta["content_hash"] = content_hash
+                    chunk_id = f"bucket:{bucket_name}:{virtual_path}:{global_idx}"
+                    all_ids.append(chunk_id)
+                    all_docs.append(sub)
+                    all_metas.append(meta)
+                    global_idx += 1
+
+        if all_docs:
+            embeddings = embed_texts(all_docs, self._embedding_model, remote_config=self._remote_config)
+            store.add(all_ids, all_docs, embeddings, _stamp_indexed_at(all_metas))
+
+        # Remove from pending and update chunk count
+        self._db.remove_pending_documents(pending_ids)
+        current = self._db.get(bucket_id)
+        if current:
+            self._db.update_counts(bucket_id, current["file_count"], current["chunk_count"] + len(all_ids))
+
+        logger.info(
+            "Bucket '%s': async embed complete — %d docs, %d chunks",
+            bucket_name, len(rows), len(all_ids),
+        )
+
     # -- Search --------------------------------------------------------------
 
     def search(self, bucket: str, query: str, top_k: int, settings) -> dict:

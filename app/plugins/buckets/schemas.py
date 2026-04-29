@@ -35,7 +35,8 @@ class BucketDocument(BaseModel):
 
 
 class PushDocumentsRequest(BaseModel):
-    documents: list[BucketDocument] = Field(..., min_length=1, max_length=50)
+    documents: list[BucketDocument] = Field(..., min_length=1, max_length=2000)
+    async_embed: bool = Field(False, description="Store immediately and embed in background")
 
 
 class UpdateBucketRequest(BaseModel):

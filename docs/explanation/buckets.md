@@ -197,7 +197,7 @@ From the bucket detail panel, you can import content directly without any filesy
 - **URL clip** — paste a URL (article, YouTube video, documentation page) into the import field and click **Clip**. The converter plugin fetches and converts the page to markdown, then stores it in the bucket. Requires the `converter` plugin.
 - **File upload** — drag files into the drop zone or click to browse. The drop zone shows format availability: green chips are ready now, grey chips require enabling that subconverter in the converter plugin settings. Supported formats include PDF, Word, PowerPoint, Excel, EPUB, HTML, and more. Requires the `converter` plugin.
 - **Upload .md files** — select one or more `.md` files directly (no conversion needed). Accepts multi-select.
-- **GitHub import** — paste a GitHub repo URL (e.g. `https://github.com/owner/repo` or a subfolder URL like `https://github.com/owner/repo/tree/main/docs`). MarkdownKB fetches the file tree, shows a checklist of all `.md` and `.mdx` files found, and lets you filter by path and select/deselect before importing. MDX files have import/export statements and JSX component tags stripped automatically. No GitHub authentication required — public repos only.
+- **GitHub import** — paste a GitHub repo URL (e.g. `https://github.com/owner/repo` or a subfolder URL like `https://github.com/owner/repo/tree/main/docs`). MarkdownKB fetches the file tree, shows a checklist of all `.md` and `.mdx` files found, and lets you filter by path and select/deselect before importing. MDX files have import/export statements and JSX component tags stripped automatically. No GitHub authentication required — public repos only. Files are downloaded in the dialog, then stored immediately so they appear in the file list at once; embedding runs in the background. If the embedding model is unavailable, files stay listed with 0 chunks and are re-queued on the next Reindex.
 
 Uploaded and clipped documents are stored as **virtual documents** — they exist only as vectors in ChromaDB with paths like `bucket://bucket-name/filename.md`. There is no file on disk. They are permanent members of the bucket and survive reindexes. They do not require a source path or Docker mount.
 
@@ -217,6 +217,8 @@ POST /api/v1/buckets/{id}/documents
 ```
 
 Pushed documents work identically to UI uploads — virtual paths, no filesystem. Designed for remote agents and integrations. Also available via the `bucket_push` MCP tool.
+
+Add `"async_embed": true` to store documents immediately and embed in the background (returns HTTP 202). The documents appear in the file list at once with `chunk_count: 0`; a background task embeds them. Omit the field (or set it to `false`) for synchronous embedding — the response is returned only after all chunks are stored.
 
 ### Renaming virtual documents
 

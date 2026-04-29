@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2, Github, Check, AlertCircle, Search, X } from "lucide-react"
+import { Loader2, Github, AlertCircle, Search, X } from "lucide-react"
 import { toast } from "sonner"
 
 interface GithubFile {
@@ -14,7 +14,7 @@ interface GithubFile {
   selected: boolean
 }
 
-type Phase = "idle" | "loading" | "list" | "importing"
+type Phase = "idle" | "loading" | "list" | "downloading" | "uploading"
 
 function parseGithubUrl(raw: string): { owner: string; repo: string; branch?: string; pathPrefix?: string } | null {
   try {
@@ -57,12 +57,12 @@ function pathMatches(path: string, filter: string): boolean {
 export function GithubImportDialog({
   open,
   onClose,
-  onImport,
+  onBatchImport,
   onDone,
 }: {
   open: boolean
   onClose: () => void
-  onImport: (name: string, content: string) => Promise<void>
+  onBatchImport: (docs: { name: string; content: string }[]) => Promise<void>
   onDone?: () => void
 }) {
   const [repoUrl, setRepoUrl] = useState("")
@@ -70,7 +70,7 @@ export function GithubImportDialog({
   const [files, setFiles] = useState<GithubFile[]>([])
   const [repoInfo, setRepoInfo] = useState<{ owner: string; repo: string; branch: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [importProgress, setImportProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 })
+  const [downloadProgress, setDownloadProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 })
   const [filterText, setFilterText] = useState("")
 
   const visibleFiles = useMemo(
@@ -154,11 +154,12 @@ export function GithubImportDialog({
     const selected = files.filter((f) => f.selected)
     if (selected.length === 0) return
 
-    setPhase("importing")
-    setImportProgress({ done: 0, total: selected.length })
+    // Phase 1: download all files
+    setPhase("downloading")
+    setDownloadProgress({ done: 0, total: selected.length })
 
-    let succeeded = 0
-    let failed = 0
+    const collected: { name: string; content: string }[] = []
+    let downloadFailed = 0
 
     for (let i = 0; i < selected.length; i++) {
       const file = selected[i]!
@@ -169,26 +170,40 @@ export function GithubImportDialog({
         let content = await res.text()
         if (file.isMdx) content = stripMdx(content)
         const name = file.path.replace(/\//g, "_").replace(/\.mdx?$/i, "") + ".md"
-        await onImport(name, content)
-        succeeded++
+        collected.push({ name, content })
       } catch {
-        failed++
+        downloadFailed++
       }
-      setImportProgress({ done: i + 1, total: selected.length })
+      setDownloadProgress({ done: i + 1, total: selected.length })
     }
 
-    if (failed === 0) toast.success(`Imported ${succeeded} file${succeeded !== 1 ? "s" : ""} from GitHub`)
-    else if (succeeded === 0) toast.error("All imports failed")
-    else toast.warning(`${succeeded} imported, ${failed} failed`)
+    if (collected.length === 0) {
+      toast.error("All downloads failed — check your connection")
+      setPhase("list")
+      return
+    }
 
-    onDone?.()
-    onClose()
-    setRepoUrl("")
-    setFiles([])
-    setRepoInfo(null)
-    setFilterText("")
-    setPhase("idle")
-  }, [repoInfo, files, onImport, onClose, onDone])
+    // Phase 2: single batch upload
+    setPhase("uploading")
+    try {
+      await onBatchImport(collected)
+      if (downloadFailed === 0) {
+        toast.success(`Queued ${collected.length} file${collected.length !== 1 ? "s" : ""} for embedding`)
+      } else {
+        toast.warning(`${collected.length} queued, ${downloadFailed} download failure${downloadFailed !== 1 ? "s" : ""}`)
+      }
+      onDone?.()
+      onClose()
+      setRepoUrl("")
+      setFiles([])
+      setRepoInfo(null)
+      setFilterText("")
+      setPhase("idle")
+    } catch (err) {
+      toast.error(`Upload failed: ${(err as Error).message}`)
+      setPhase("list")
+    }
+  }, [repoInfo, files, onBatchImport, onClose, onDone])
 
   const closeAndReset = useCallback(() => {
     onClose()
@@ -200,9 +215,10 @@ export function GithubImportDialog({
   }, [onClose])
 
   const isFiltering = filterText.length > 0
+  const busy = phase === "loading" || phase === "downloading" || phase === "uploading"
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o && phase !== "importing") closeAndReset() }}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o && !busy) closeAndReset() }}>
       <DialogContent className="sm:max-w-2xl overflow-hidden" style={{ maxWidth: "min(42rem, calc(100vw - 2rem))" }}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-sm">
@@ -220,14 +236,14 @@ export function GithubImportDialog({
               onKeyDown={(e) => { if (e.key === "Enter" && (phase === "idle" || phase === "list")) void handleFetch() }}
               placeholder="github.com/owner/repo or owner/repo"
               className="h-8 text-xs"
-              disabled={phase === "loading" || phase === "importing"}
+              disabled={busy}
             />
             {phase === "loading" ? (
               <Button size="sm" variant="outline" className="h-8 shrink-0" disabled>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               </Button>
             ) : (
-              <Button size="sm" variant="outline" className="h-8 shrink-0" onClick={handleFetch} disabled={!repoUrl.trim() || phase === "importing"}>
+              <Button size="sm" variant="outline" className="h-8 shrink-0" onClick={handleFetch} disabled={!repoUrl.trim() || busy}>
                 {phase === "list" ? "Re-fetch" : "Fetch"}
               </Button>
             )}
@@ -326,20 +342,26 @@ export function GithubImportDialog({
             </>
           )}
 
-          {/* Import progress */}
-          {phase === "importing" && (
+          {/* Download progress */}
+          {phase === "downloading" && (
             <div className="space-y-2">
               <div className="h-2 rounded-full bg-muted overflow-hidden">
                 <div
                   className="h-full bg-primary transition-all duration-200"
-                  style={{ width: `${(importProgress.done / importProgress.total) * 100}%` }}
+                  style={{ width: `${(downloadProgress.done / downloadProgress.total) * 100}%` }}
                 />
               </div>
               <p className="text-xs text-muted-foreground text-center">
-                {importProgress.done === importProgress.total
-                  ? <><Check className="h-3 w-3 inline mr-1" />Done</>
-                  : `Importing ${importProgress.done} / ${importProgress.total}…`}
+                Downloading {downloadProgress.done} / {downloadProgress.total}…
               </p>
+            </div>
+          )}
+
+          {/* Uploading */}
+          {phase === "uploading" && (
+            <div className="flex items-center justify-center gap-2 py-2">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">Uploading…</p>
             </div>
           )}
         </div>
