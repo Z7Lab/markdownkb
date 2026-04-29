@@ -137,13 +137,19 @@ class MarkdownHandler(FileSystemEventHandler):
         self._debounce: dict[str, float] = {}
         self._debounce_lock = threading.Lock()
 
+    def _is_ignored(self, path: str) -> bool:
+        """Return True if path matches any global_ignore pattern."""
+        for pattern in self._settings.global_ignore:
+            if fnmatch.fnmatch(path, pattern):
+                return True
+        return False
+
     def _should_process(self, path: str) -> bool:
         """Check if a file event should trigger re-indexing."""
         if not path.endswith(".md"):
             return False
-        for pattern in self._settings.global_ignore:
-            if fnmatch.fnmatch(path, pattern):
-                return False
+        if self._is_ignored(path):
+            return False
         now = time.time()
         with self._debounce_lock:
             last = self._debounce.get(path, 0)
@@ -190,10 +196,11 @@ class MarkdownHandler(FileSystemEventHandler):
             notify_file_deleted(src)
             return
 
-        # Renamed to .md → treat as new file
+        # Renamed to .md → treat as new file (unless destination is ignored)
         if not src.endswith(".md") and dest.endswith(".md"):
-            logger.info("File renamed to .md: %s → %s", src, dest)
-            reindex_file(dest, self._settings, self._store, self._tracking)
+            if not self._is_ignored(dest):
+                logger.info("File renamed to .md: %s → %s", src, dest)
+                reindex_file(dest, self._settings, self._store, self._tracking)
             return
 
         # Both non-.md → ignore
@@ -218,8 +225,15 @@ class MarkdownHandler(FileSystemEventHandler):
             return
 
         # Move within/between watched dirs: try to preserve embeddings
+        # If the destination is ignored, treat as a delete rather than a rename.
         old_record = self._tracking.get_file(src)
-        if old_record and old_record["status"] == "complete":
+        if self._is_ignored(dest):
+            logger.info("File moved to ignored path, removing from index: %s → %s", src, dest)
+            self._store.delete_by_source(src)
+            self._tracking.remove_file(src)
+            from app.domains.tag_registry import notify_file_deleted
+            notify_file_deleted(src)
+        elif old_record and old_record["status"] == "complete":
             count = self._store.rename_source(src, dest, dest_source_root)
             self._tracking.rename_file(src, dest, dest_source_root)
             logger.info("File moved (preserved %d chunks): %s → %s",
