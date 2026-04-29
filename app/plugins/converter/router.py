@@ -291,6 +291,7 @@ def list_formats(request: Request, settings: Settings = Depends(get_settings)):
             for sub in _FORMATS_BY_SUBCONVERTER
         },
         "web_enabled": cfg.get("web_enabled", True),
+        "transcript_support": _has_transcript_support(),
     }
 
 

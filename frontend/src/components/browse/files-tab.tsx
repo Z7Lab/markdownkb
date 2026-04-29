@@ -145,6 +145,19 @@ export function FilesTab() {
   const [refreshing, setRefreshing] = useState(false)
   const [importing, setImporting] = useState(false)
   const importInputRef = useRef<HTMLInputElement>(null)
+  const [acceptedExtensions, setAcceptedExtensions] = useState<string>("")
+
+  useEffect(() => {
+    if (!converterEnabled) return
+    api.get<{ formats?: Record<string, { extensions: string[] }> }>("/api/v1/converter/formats")
+      .then((r) => {
+        if (r.formats) {
+          const exts = Object.values(r.formats).flatMap((f) => f.extensions)
+          setAcceptedExtensions(exts.join(","))
+        }
+      })
+      .catch(() => { /* non-critical */ })
+  }, [converterEnabled])
 
   const handleImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -288,6 +301,7 @@ export function FilesTab() {
                     ref={importInputRef}
                     type="file"
                     className="hidden"
+                    accept={acceptedExtensions || undefined}
                     onChange={handleImport}
                   />
                   <Button

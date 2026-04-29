@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react"
+import React, { useCallback, useEffect, useRef, useState } from "react"
 import { type Bucket, type useBuckets, useBucketFiles } from "@/hooks/use-buckets"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
@@ -17,7 +17,10 @@ import { BucketEditForm } from "./bucket-edit-form"
 import { BucketPathStatus } from "./bucket-path-status"
 import { BucketChatDrawer } from "./bucket-chat-drawer"
 
-const SUPPORTED_EXTENSIONS = ".pdf,.docx,.pptx,.xlsx,.xls,.epub,.html,.htm,.csv,.txt,.rst,.rtf,.odt,.ipynb,.msg"
+
+function isYouTubeUrl(url: string): boolean {
+  return /youtube\.com\/|youtu\.be\//.test(url)
+}
 
 function filenameFromContent(hint: string, markdown: string): string {
   const titleMatch = /^#{1,3} (.+)$/m.exec(markdown)
@@ -84,6 +87,20 @@ export function BucketDetailPanel({
   // Import state
   const [clipUrl, setClipUrl] = useState("")
   const [clipping, setClipping] = useState(false)
+  const [transcriptSupport, setTranscriptSupport] = useState<boolean | null>(null)
+  const [acceptedExtensions, setAcceptedExtensions] = useState<string>("")
+
+  useEffect(() => {
+    api.get<{ transcript_support?: boolean; formats?: Record<string, { extensions: string[] }> }>("/api/v1/converter/formats")
+      .then((r) => {
+        setTranscriptSupport(r.transcript_support ?? false)
+        if (r.formats) {
+          const exts = Object.values(r.formats).flatMap((f) => f.extensions)
+          setAcceptedExtensions(exts.join(","))
+        }
+      })
+      .catch(() => setTranscriptSupport(false))
+  }, [])
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{ name: string; done: boolean; error?: string }[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -468,6 +485,11 @@ export function BucketDetailPanel({
                 <span className="ml-1.5">{clipping ? "Clipping…" : "Clip"}</span>
               </Button>
             </div>
+            {transcriptSupport === false && isYouTubeUrl(clipUrl) && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                YouTube transcript extraction requires the <strong>full</strong> image — only page metadata will be captured.
+              </p>
+            )}
 
             {/* File drop zone */}
             <div
@@ -505,7 +527,7 @@ export function BucketDetailPanel({
               ref={fileInputRef}
               type="file"
               multiple
-              accept={SUPPORTED_EXTENSIONS}
+              accept={acceptedExtensions || undefined}
               className="hidden"
               onChange={(e) => { if (e.target.files?.length) void handleFileUpload(e.target.files) }}
             />
