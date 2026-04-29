@@ -274,22 +274,24 @@ async def convert_upload(
 @router.get("/formats")
 @limiter.limit(STANDARD)
 def list_formats(request: Request, settings: Settings = Depends(get_settings)):
-    """List enabled input formats, grouped by sub-converter."""
+    """List all known formats with availability status, plus enabled subset."""
     enabled = _enabled_formats(settings)
     cfg = _plugin_config(settings)
+    subconverter_enabled = {
+        sub: cfg.get(f"{sub}_enabled", True)
+        for sub in _FORMATS_BY_SUBCONVERTER
+    }
     return {
         "formats": {
             name: {
                 "label": info["label"],
                 "extensions": info["extensions"],
                 "subconverter": info["subconverter"],
+                "available": name in enabled,
             }
-            for name, info in enabled.items()
+            for name, info in ALL_FORMATS.items()
         },
-        "subconverters": {
-            sub: cfg.get(f"{sub}_enabled", True)
-            for sub in _FORMATS_BY_SUBCONVERTER
-        },
+        "subconverters": subconverter_enabled,
         "web_enabled": cfg.get("web_enabled", True),
         "transcript_support": _has_transcript_support(),
     }

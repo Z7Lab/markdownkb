@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { Database, Layers, SlidersHorizontal, Tag } from "lucide-react"
+import { Archive, Layers, SlidersHorizontal, Tag } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -134,7 +134,7 @@ export function FilterPicker({
                 {tabBadge(selectedTags.size)}
               </TabsTrigger>
               <TabsTrigger value="buckets" className="flex-1 gap-1">
-                <Database className="h-3.5 w-3.5" />
+                <Archive className="h-3.5 w-3.5" />
                 Buckets
                 {tabBadge(selectedBucketIds.size)}
               </TabsTrigger>

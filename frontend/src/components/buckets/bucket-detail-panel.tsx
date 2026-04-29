@@ -10,12 +10,13 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, SortableTableHead } from "@/components/ui/table"
 import {
   Pencil, Trash2, FileText, Loader2, Clock, Check, X as XIcon,
-  Infinity as InfinityIcon, RefreshCw, Link, Upload, Download, FolderInput, MessageSquare, FilePlus,
+  Infinity as InfinityIcon, RefreshCw, Link, Upload, Download, FolderInput, MessageSquare, FilePlus, Github,
 } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { BucketEditForm } from "./bucket-edit-form"
 import { BucketPathStatus } from "./bucket-path-status"
 import { BucketChatDrawer } from "./bucket-chat-drawer"
+import { GithubImportDialog } from "./github-import-dialog"
 
 
 function isYouTubeUrl(url: string): boolean {
@@ -89,13 +90,19 @@ export function BucketDetailPanel({
   const [clipping, setClipping] = useState(false)
   const [transcriptSupport, setTranscriptSupport] = useState<boolean | null>(null)
   const [acceptedExtensions, setAcceptedExtensions] = useState<string>("")
+  const [allFormats, setAllFormats] = useState<Record<string, { label: string; extensions: string[]; available: boolean }>>({})
+  const [githubOpen, setGithubOpen] = useState(false)
 
   useEffect(() => {
-    api.get<{ transcript_support?: boolean; formats?: Record<string, { extensions: string[] }> }>("/api/v1/converter/formats")
+    api.get<{
+      transcript_support?: boolean
+      formats?: Record<string, { label: string; extensions: string[]; available: boolean }>
+    }>("/api/v1/converter/formats")
       .then((r) => {
         setTranscriptSupport(r.transcript_support ?? false)
         if (r.formats) {
-          const exts = Object.values(r.formats).flatMap((f) => f.extensions)
+          setAllFormats(r.formats)
+          const exts = Object.values(r.formats).filter((f) => f.available).flatMap((f) => f.extensions)
           setAcceptedExtensions(exts.join(","))
         }
       })
@@ -438,17 +445,28 @@ export function BucketDetailPanel({
           {/* Add Markdown */}
           <div className="space-y-2">
             <p className="text-xs font-medium text-muted-foreground">Add Markdown</p>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 w-full"
-              onClick={() => mdInputRef.current?.click()}
-              disabled={addingMd}
-            >
-              {addingMd
-                ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />Adding…</>
-                : <><FilePlus className="h-3.5 w-3.5 mr-1.5" />Upload .md file</>}
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                className="w-full gap-1.5"
+                onClick={() => mdInputRef.current?.click()}
+                disabled={addingMd}
+              >
+                {addingMd
+                  ? <><Loader2 className="h-4 w-4 animate-spin" />Adding…</>
+                  : <><FilePlus className="h-4 w-4" />Upload .md</>}
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full gap-1.5"
+                onClick={() => setGithubOpen(true)}
+                disabled={addingMd}
+                title="Import .md/.mdx files from a GitHub repository"
+              >
+                <Github className="h-4 w-4" />
+                GitHub
+              </Button>
+            </div>
             <input
               ref={mdInputRef}
               type="file"
@@ -516,10 +534,28 @@ export function BucketDetailPanel({
                   ))}
                 </div>
               ) : (
-                <div className="flex flex-col items-center gap-1 text-muted-foreground pointer-events-none">
+                <div className="flex flex-col items-center gap-1.5 text-muted-foreground pointer-events-none">
                   <Upload className="h-4 w-4" />
                   <p className="text-xs">Drop files or click to browse</p>
-                  <p className="text-[10px]">PDF, Word, PowerPoint, Excel, EPUB and more</p>
+                  {Object.keys(allFormats).length > 0 ? (
+                    <div className="flex flex-wrap justify-center gap-1 mt-0.5">
+                      {Object.values(allFormats).map((f) => (
+                        <span
+                          key={f.label}
+                          className={`text-[10px] px-1.5 py-0.5 rounded border ${
+                            f.available
+                              ? "border-green-500/40 text-green-700 dark:text-green-400 bg-green-500/10"
+                              : "border-muted text-muted-foreground/50 bg-muted/30"
+                          }`}
+                          title={f.available ? `${f.extensions.join(", ")} — available` : `${f.extensions.join(", ")} — converter plugin disabled`}
+                        >
+                          {f.label}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[10px]">PDF, Word, PowerPoint, Excel, EPUB and more</p>
+                  )}
                 </div>
               )}
             </div>
@@ -713,6 +749,12 @@ export function BucketDetailPanel({
       onClose={() => setChatOpen(false)}
       bucketId={bucket.id}
       bucketName={bucket.name}
+    />
+    <GithubImportDialog
+      open={githubOpen}
+      onClose={() => setGithubOpen(false)}
+      onImport={pushDocument}
+      onDone={reloadFiles}
     />
     </>
   )

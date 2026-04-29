@@ -190,12 +190,14 @@ Set a **source path** when creating the bucket. MarkdownKB scans the path for ma
 
 Use this when the documents live on disk and you want the bucket to reflect the current state of that directory.
 
-### Via upload or URL clip (no local path needed)
+### Via upload, URL clip, or GitHub (no local path needed)
 
 From the bucket detail panel, you can import content directly without any filesystem path:
 
 - **URL clip** — paste a URL (article, YouTube video, documentation page) into the import field and click **Clip**. The converter plugin fetches and converts the page to markdown, then stores it in the bucket. Requires the `converter` plugin.
-- **File upload** — drag files into the drop zone or click to browse. Supported formats include PDF, Word, PowerPoint, Excel, EPUB, HTML, and more. Each file is converted to markdown and stored in the bucket. Requires the `converter` plugin.
+- **File upload** — drag files into the drop zone or click to browse. The drop zone shows format availability: green chips are ready now, grey chips require enabling that subconverter in the converter plugin settings. Supported formats include PDF, Word, PowerPoint, Excel, EPUB, HTML, and more. Requires the `converter` plugin.
+- **Upload .md files** — select one or more `.md` files directly (no conversion needed). Accepts multi-select.
+- **GitHub import** — paste a GitHub repo URL (e.g. `https://github.com/owner/repo` or a subfolder URL like `https://github.com/owner/repo/tree/main/docs`). MarkdownKB fetches the file tree, shows a checklist of all `.md` and `.mdx` files found, and lets you filter by path and select/deselect before importing. MDX files have import/export statements and JSX component tags stripped automatically. No GitHub authentication required — public repos only.
 
 Uploaded and clipped documents are stored as **virtual documents** — they exist only as vectors in ChromaDB with paths like `bucket://bucket-name/filename.md`. There is no file on disk. They are permanent members of the bucket and survive reindexes. They do not require a source path or Docker mount.
 

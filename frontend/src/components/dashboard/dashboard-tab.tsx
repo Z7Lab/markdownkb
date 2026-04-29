@@ -11,7 +11,7 @@ import {
   FolderOpen,
   Lightbulb,
   BookOpen,
-  Database,
+  Archive,
   Settings,
   HardDriveDownload,
 } from "lucide-react"
@@ -47,7 +47,7 @@ const FEATURE_CARDS: FeatureCard[] = [
   { label: "Search", description: "Semantic + keyword search with AI-generated summaries.", icon: Globe, route: "/search", pluginKey: "search" },
   { label: "Wiki", description: "Managed wikis — browse pages, ingest sources, run lint.", icon: BookOpen, route: "/wiki", pluginKey: "wiki_compile" },
   { label: "Planner", description: "MCTS-based implementation planning and skill reviews.", icon: Lightbulb, route: "/planner", pluginKey: "planner" },
-  { label: "Buckets", description: "Temporary scoped collections with independent vector storage.", icon: Database, route: "/buckets", pluginKey: "buckets" },
+  { label: "Buckets", description: "Temporary scoped collections with independent vector storage.", icon: Archive, route: "/buckets", pluginKey: "buckets" },
   { label: "Files", description: "Browse, read, and manage indexed files.", icon: FolderOpen, route: "/files", alwaysShow: true },
   { label: "Settings", description: "Configure models, sources, plugins, and retrieval.", icon: Settings, route: "/settings", alwaysShow: true },
 ]

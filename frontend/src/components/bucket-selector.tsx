@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react"
 import { SidebarSection } from "@/components/ui/sidebar-section"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Database } from "lucide-react"
+import { Archive } from "lucide-react"
 import type { Bucket } from "@/hooks/use-buckets"
 
 export function BucketSelector({
@@ -52,7 +52,7 @@ export function BucketSelector({
 
   return (
     <SidebarSection
-      icon={Database}
+      icon={Archive}
       label="Buckets"
       count={selectedBucketIds.size}
       summary={selectedNames || undefined}

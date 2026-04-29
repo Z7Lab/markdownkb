@@ -110,7 +110,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "script-src 'self'; "
             "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data:; "
-            "connect-src 'self'; "
+            "connect-src 'self' https://api.github.com https://raw.githubusercontent.com; "
             "font-src 'self'; "
             "frame-ancestors 'none'"
         )
