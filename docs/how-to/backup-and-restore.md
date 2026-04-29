@@ -145,6 +145,23 @@ This is the safety net that pairs with [release-gating and safe upgrades](../exp
 
 Restore is atomic. Existing data is moved aside before new data is written; if anything fails mid-restore the old data is moved back into place. The `.restart-required` marker is written only after a successful swap.
 
+## Routine database maintenance
+
+Over time the vector database can accumulate orphaned data: chunks whose source files were deleted, and HNSW segment directories left behind when buckets or collections are removed. These don't affect correctness but do waste disk space.
+
+**Settings → Database → Vector Database → Maintenance → Scan** inspects the database without modifying anything and reports:
+
+- **Orphaned chunks** — vectors whose source file no longer exists on disk
+- **Orphaned segment dirs** — UUID directories in the ChromaDB folder with no matching segment record
+- **VACUUM estimate** — SQLite free pages reclaimable by VACUUM
+
+After scanning, action buttons appear for any issues found:
+
+- **Cleanup Orphans** — deletes the orphaned vectors and removes the corresponding tracking rows
+- **Compact Vector DB** — deletes orphaned segment directories and runs `VACUUM` on `chroma.sqlite3`
+
+The orphan operations are safe to run while the app is running. VACUUM requires no active database writes; if it fails, the panel shows a recovery hint (`make docker-restart` in Docker, or restart the app in native mode).
+
 ## When to back up
 
 - Before upgrading mdkb to a new version

@@ -5,7 +5,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { api } from "@/lib/api"
 import { formatBytes } from "@/lib/utils"
 import { toast } from "sonner"
-import { Database, Trash2, RefreshCw, PackageMinus } from "lucide-react"
+import { Database, Trash2, RefreshCw, PackageMinus, ScanSearch } from "lucide-react"
 
 interface DatabaseStats {
   chat_history: { path: string; size_bytes: number }
@@ -24,10 +24,21 @@ interface DatabaseStats {
   plugin_databases?: Array<{ name: string; path: string; size_bytes: number }>
 }
 
+interface MaintenancePreview {
+  orphaned_chunks: number
+  orphaned_chunk_sources: number
+  orphaned_segment_dirs: number
+  orphaned_segment_dirs_bytes: number
+  vacuum_estimate_bytes: number
+  total_reclaimable_bytes: number
+}
+
 
 export function DatabasePanel() {
   const [stats, setStats] = useState<DatabaseStats | null>(null)
   const [loading, setLoading] = useState(false)
+  const [scanning, setScanning] = useState(false)
+  const [preview, setPreview] = useState<MaintenancePreview | null>(null)
   const [pendingAction, setPendingAction] = useState<{
     type: "chats" | "searches" | "vectors"
     title: string
@@ -116,9 +127,83 @@ export function DatabasePanel() {
     }
   }
 
+  const handleScanVectors = async () => {
+    setScanning(true)
+    setPreview(null)
+    try {
+      const res = await api.get<MaintenancePreview>("/api/v1/settings/database/maintenance-preview")
+      setPreview(res)
+    } catch (err) {
+      toast.error(`Scan failed: ${(err as Error).message}`)
+    } finally {
+      setScanning(false)
+    }
+  }
+
+  const handleCleanupOrphans = async () => {
+    setLoading(true)
+    try {
+      const res = await api.post<{ deleted_chunks: number; deleted_files: number }>(
+        "/api/v1/settings/database/cleanup-orphans", {}
+      )
+      if (res.deleted_chunks > 0) {
+        toast.success(`Removed ${res.deleted_chunks} orphaned chunks from ${res.deleted_files} deleted files`)
+      } else {
+        toast.success("No orphaned chunks found")
+      }
+      setPreview(null)
+      await loadStats()
+    } catch (err) {
+      toast.error(`Cleanup failed: ${(err as Error).message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCompactVectors = async () => {
+    setLoading(true)
+    try {
+      const res = await api.post<{
+        deleted_segment_dirs: number
+        segment_dirs_freed_bytes: number
+        vacuum_success: boolean
+        vacuum_freed_bytes: number
+        total_freed_bytes: number
+        is_docker: boolean
+      }>("/api/v1/settings/database/compact-vectors", {})
+      const parts: string[] = []
+      if (res.deleted_segment_dirs > 0)
+        parts.push(`${res.deleted_segment_dirs} orphaned segment dir${res.deleted_segment_dirs !== 1 ? "s" : ""} deleted`)
+      if (res.vacuum_success)
+        parts.push(`${formatBytes(res.vacuum_freed_bytes)} reclaimed by VACUUM`)
+      if (parts.length) {
+        toast.success(parts.join(", "))
+      } else if (!res.vacuum_success) {
+        toast.info("Nothing compacted — VACUUM couldn't acquire an exclusive lock.")
+      } else {
+        toast.success("Compaction complete")
+      }
+      if (!res.vacuum_success) {
+        const cmd = res.is_docker ? "`make docker-restart`" : "restarting the app"
+        toast.warning(
+          `VACUUM requires no active database writes. If it keeps failing, try ${cmd} to force it.`,
+          { duration: 8000 }
+        )
+      }
+      setPreview(null)
+      await loadStats()
+    } catch (err) {
+      toast.error(`Compact failed: ${(err as Error).message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   if (!stats) {
     return <div className="p-4 text-muted-foreground">Loading database stats...</div>
   }
+
+  const hasIssues = preview && (preview.orphaned_chunks > 0 || preview.orphaned_segment_dirs > 0 || preview.vacuum_estimate_bytes > 0)
 
   return (
     <div className="space-y-6">
@@ -262,25 +347,115 @@ export function DatabasePanel() {
               <div className="text-muted-foreground">Embedding model</div>
               <div>{stats.vector_database.embedding_model}</div>
             </div>
-            <p className="text-xs text-muted-foreground mb-3">
-              To back up, copy the entire <code className="bg-muted px-1 rounded">{stats.vector_database.data_directory}</code> directory.
-            </p>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() =>
-                setPendingAction({
-                  type: "vectors",
-                  title: "Clear Vector Database?",
-                  description:
-                    "This will permanently delete BOTH the vector embeddings (chromadb) AND the file tracking database (markdownkb.db). These databases are interdependent and must be cleared together to maintain consistency. You will need to reindex your files afterward. This action cannot be undone.",
-                })
-              }
-              disabled={loading}
-            >
-              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-              Clear Vector Database
-            </Button>
+
+            {/* Maintenance scan */}
+            <div className="border-t pt-3 mt-3">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium">Maintenance</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleScanVectors}
+                  disabled={scanning || loading}
+                >
+                  <ScanSearch className="h-3.5 w-3.5 mr-1.5" />
+                  {scanning ? "Scanning…" : "Scan"}
+                </Button>
+              </div>
+
+              {preview && (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm text-muted-foreground">
+                    <div>Orphaned chunks</div>
+                    <div className={preview.orphaned_chunks > 0 ? "text-foreground font-medium" : ""}>
+                      {preview.orphaned_chunks > 0
+                        ? `${preview.orphaned_chunks.toLocaleString()} (${preview.orphaned_chunk_sources} files)`
+                        : "None"}
+                    </div>
+                    <div>Orphaned segment dirs</div>
+                    <div className={preview.orphaned_segment_dirs > 0 ? "text-foreground font-medium" : ""}>
+                      {preview.orphaned_segment_dirs > 0
+                        ? `${preview.orphaned_segment_dirs} (${formatBytes(preview.orphaned_segment_dirs_bytes)})`
+                        : "None"}
+                    </div>
+                    <div>VACUUM estimate</div>
+                    <div className={preview.vacuum_estimate_bytes > 0 ? "text-foreground font-medium" : ""}>
+                      {preview.vacuum_estimate_bytes > 0
+                        ? `~${formatBytes(preview.vacuum_estimate_bytes)}`
+                        : "None"}
+                    </div>
+                    {hasIssues && (
+                      <>
+                        <div className="font-medium text-foreground">Total reclaimable</div>
+                        <div className="font-medium text-foreground">
+                          ~{formatBytes(preview.total_reclaimable_bytes)}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {hasIssues ? (
+                    <div className="flex gap-2 mt-3">
+                      {preview.orphaned_chunks > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCleanupOrphans}
+                          disabled={loading}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                          Cleanup Orphans
+                        </Button>
+                      )}
+                      {(preview.orphaned_segment_dirs > 0 || preview.vacuum_estimate_bytes > 0) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCompactVectors}
+                          disabled={loading}
+                          title="Delete orphaned segment directories and VACUUM chroma.sqlite3"
+                        >
+                          <PackageMinus className="h-3.5 w-3.5 mr-1.5" />
+                          Compact Vector DB
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Vector database is clean — nothing to reclaim.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {!preview && !scanning && (
+                <p className="text-xs text-muted-foreground">
+                  Scan to check for orphaned chunks and reclaimable disk space.
+                </p>
+              )}
+            </div>
+
+            <div className="border-t pt-3 mt-3">
+              <p className="text-xs text-muted-foreground mb-3">
+                To back up, copy the entire <code className="bg-muted px-1 rounded">{stats.vector_database.data_directory}</code> directory.
+              </p>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() =>
+                  setPendingAction({
+                    type: "vectors",
+                    title: "Clear Vector Database?",
+                    description:
+                      "This will permanently delete BOTH the vector embeddings (chromadb) AND the file tracking database (markdownkb.db). These databases are interdependent and must be cleared together to maintain consistency. You will need to reindex your files afterward. This action cannot be undone.",
+                  })
+                }
+                disabled={loading}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                Clear Vector Database
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

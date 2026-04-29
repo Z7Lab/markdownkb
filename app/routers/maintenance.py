@@ -122,6 +122,110 @@ def clear_vector_database(
     }
 
 
+# -- Vector Maintenance --
+
+@router.get("/settings/database/maintenance-preview")
+@limiter.limit(STANDARD)
+def get_maintenance_preview(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+    store=Depends(get_store),
+):
+    """Scan for reclaimable space without modifying anything.
+
+    Returns counts and byte estimates for:
+    - Orphaned ChromaDB chunks (source file deleted from disk)
+    - Orphaned HNSW segment directories (leftover from deleted collections/buckets)
+    - SQLite free pages reclaimable by VACUUM
+    """
+    from app.storage.chromadb_maintenance import (
+        estimate_vacuum_savings,
+        get_orphaned_chunk_info,
+        get_orphaned_segment_dirs,
+    )
+
+    chroma_dir = str(Path(settings.data_directory) / "chromadb")
+    orphan_ids, orphan_sources = get_orphaned_chunk_info(store._collection)
+    orphan_dirs = get_orphaned_segment_dirs(chroma_dir)
+    orphan_dirs_bytes = sum(size for _, size in orphan_dirs)
+    vacuum_estimate = estimate_vacuum_savings(chroma_dir)
+
+    return {
+        "orphaned_chunks": len(orphan_ids),
+        "orphaned_chunk_sources": len(orphan_sources),
+        "orphaned_segment_dirs": len(orphan_dirs),
+        "orphaned_segment_dirs_bytes": orphan_dirs_bytes,
+        "vacuum_estimate_bytes": vacuum_estimate,
+        "total_reclaimable_bytes": orphan_dirs_bytes + vacuum_estimate,
+    }
+
+
+@router.post("/settings/database/cleanup-orphans")
+@limiter.limit(HEAVY)
+def cleanup_orphan_chunks(
+    request: Request,
+    tracking=Depends(get_tracking),
+    store=Depends(get_store),
+):
+    """Delete ChromaDB chunks whose source files no longer exist on disk.
+
+    Also removes the corresponding tracking DB rows so file counts stay
+    consistent with what is actually indexed.
+    """
+    from app.storage.chromadb_maintenance import get_orphaned_chunk_info
+
+    orphan_ids, orphan_sources = get_orphaned_chunk_info(store._collection)
+    if orphan_ids:
+        batch_size = 500
+        for i in range(0, len(orphan_ids), batch_size):
+            store._collection.delete(ids=orphan_ids[i:i + batch_size])
+        for src in orphan_sources:
+            tracking.remove_file(src)
+        logger.info(
+            "Orphan cleanup: deleted %d chunks from %d source paths",
+            len(orphan_ids), len(orphan_sources),
+        )
+    return {
+        "status": "ok",
+        "deleted_chunks": len(orphan_ids),
+        "deleted_files": len(orphan_sources),
+    }
+
+
+@router.post("/settings/database/compact-vectors")
+@limiter.limit(HEAVY)
+def compact_vector_database(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+):
+    """VACUUM chroma.sqlite3 and delete orphaned HNSW segment directories.
+
+    Orphaned segment dirs are UUID directories left behind when collections
+    or buckets are deleted — ChromaDB never removes them automatically.
+    VACUUM reclaims SQLite free pages accumulated after bulk deletes.
+    """
+    from app.storage.chromadb_maintenance import delete_orphaned_segments, vacuum_chromadb
+    from app.config.docker import in_docker
+
+    chroma_dir = str(Path(settings.data_directory) / "chromadb")
+    deleted_dirs, dirs_freed = delete_orphaned_segments(chroma_dir)
+    vacuum_ok, vacuum_freed = vacuum_chromadb(chroma_dir)
+
+    logger.info(
+        "Vector compact: deleted %d orphaned segment dirs (%d bytes); vacuum=%s freed=%d bytes",
+        deleted_dirs, dirs_freed, vacuum_ok, vacuum_freed,
+    )
+    return {
+        "status": "ok",
+        "deleted_segment_dirs": deleted_dirs,
+        "segment_dirs_freed_bytes": dirs_freed,
+        "vacuum_success": vacuum_ok,
+        "vacuum_freed_bytes": vacuum_freed,
+        "total_freed_bytes": dirs_freed + vacuum_freed,
+        "is_docker": in_docker(),
+    }
+
+
 # -- Compact Operations --
 
 @router.post("/settings/database/compact-chats")

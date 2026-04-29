@@ -184,6 +184,9 @@ The plugin must contain `__init__.py` with `FEATURE_FLAG` and `router` exports. 
 | POST | `/api/v1/settings/database/clear-vectors` | Clear vector DB and file tracking |
 | POST | `/api/v1/settings/database/compact-chats` | Compact chat database |
 | POST | `/api/v1/settings/database/compact-searches` | Compact search database |
+| GET | `/api/v1/settings/database/maintenance-preview` | Scan for orphaned chunks, segment dirs, and VACUUM estimate |
+| POST | `/api/v1/settings/database/cleanup-orphans` | Delete ChromaDB chunks whose source files no longer exist |
+| POST | `/api/v1/settings/database/compact-vectors` | Delete orphaned HNSW segment dirs and VACUUM chroma.sqlite3 |
 
 ## Scopes
 
