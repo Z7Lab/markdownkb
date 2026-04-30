@@ -46,11 +46,11 @@ class UpdateProjectRootRequest(BaseModel):
 class RemoveProjectRootRequest(BaseModel):
     """Request model for removing a project root."""
 
-    path: str
+    path: str = Field(..., min_length=1, max_length=4096)
     cleanup: bool = False
 
 
 class IgnorePatternRequest(BaseModel):
     """Request model for adding/removing ignore patterns."""
 
-    pattern: str
+    pattern: str = Field(..., min_length=1, max_length=4096)

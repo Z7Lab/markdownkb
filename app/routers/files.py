@@ -280,7 +280,7 @@ def read_file(
             if str(p) in bucketed or path in bucketed:
                 allowed = True
         except Exception:
-            pass
+            logger.warning("Failed to check bucket paths for %s", path, exc_info=True)
     if not allowed:
         logger.warning("Access denied: %s is outside configured sources", p)
         raise HTTPException(

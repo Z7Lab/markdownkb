@@ -530,8 +530,12 @@ class GitManager:
         try:
             result = subprocess.run(
                 cmd, check=True, capture_output=True, text=True, encoding="utf-8",
-                input=input_text, env=env,
+                input=input_text, env=env, timeout=120,
             )
+        except subprocess.TimeoutExpired as exc:
+            raise GitManagerError(
+                f"git {args[0]} timed out after 120s"
+            ) from exc
         except subprocess.CalledProcessError as exc:
             raise GitManagerError(
                 f"git {args[0]} failed: {exc.stderr.strip() or exc}"
@@ -555,7 +559,12 @@ class GitManager:
         try:
             result = subprocess.run(
                 cmd, check=True, capture_output=True, text=True, encoding="utf-8",
+                timeout=120,
             )
+        except subprocess.TimeoutExpired as exc:
+            raise GitManagerError(
+                f"git {' '.join(cmd[1:3])} timed out after 120s"
+            ) from exc
         except FileNotFoundError as exc:
             raise GitManagerError("git is not installed") from exc
         except subprocess.CalledProcessError as exc:

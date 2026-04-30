@@ -173,16 +173,20 @@ class BucketDB:
     def delete(self, bucket_id: str) -> bool:
         """Delete a bucket by ID, including its file memberships and pending documents."""
         with self._lock:
-            self._conn.execute(
-                "DELETE FROM file_memberships WHERE bucket_id = ?", (bucket_id,)
-            )
-            self._conn.execute(
-                "DELETE FROM pending_documents WHERE bucket_id = ?", (bucket_id,)
-            )
-            cursor = self._conn.execute(
-                "DELETE FROM buckets WHERE id = ?", (bucket_id,)
-            )
-            self._conn.commit()
+            try:
+                self._conn.execute(
+                    "DELETE FROM file_memberships WHERE bucket_id = ?", (bucket_id,)
+                )
+                self._conn.execute(
+                    "DELETE FROM pending_documents WHERE bucket_id = ?", (bucket_id,)
+                )
+                cursor = self._conn.execute(
+                    "DELETE FROM buckets WHERE id = ?", (bucket_id,)
+                )
+                self._conn.commit()
+            except Exception:
+                self._conn.rollback()
+                raise
         return cursor.rowcount > 0
 
     # -- File membership operations ------------------------------------------
