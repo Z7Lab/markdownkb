@@ -72,9 +72,13 @@ def _override_path(project_root: Path) -> Path:
     In Docker, /app is ephemeral — writes there never reach the host.
     The config directory IS bind-mounted (./config → /app/config), so
     writing there makes the file available on the host at config/compose.override.yml.
-    docker compose reads both files when COMPOSE_FILE includes both.
 
-    Outside Docker, use the conventional project-root location.
+    This leaves the root compose.override.yml free for user-managed additions
+    (extra env vars, custom mounts, port overrides) that support ${VAR} substitution
+    from .env. That file is loaded alongside this one via COMPOSE_FILE in .env.
+
+    Outside Docker (dev mode), use the conventional project-root location instead;
+    config/compose.override.yml is then the user-editable slot.
     """
     if in_docker():
         return Path("/app/config/compose.override.yml")

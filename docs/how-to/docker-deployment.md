@@ -103,8 +103,8 @@ volumes:
 
 **Two override files, one purpose:** MarkdownKB uses two override files for source mounts:
 
-- `compose.override.yml` (project root) — written by the app when running on the host (dev mode)
-- `config/compose.override.yml` — written by the app when running inside Docker (bind-mounted via `./config:/app/config`)
+- `config/compose.override.yml` — **auto-generated** by the app in Docker mode (bind-mounted via `./config:/app/config`). Do not hand-edit; it is overwritten whenever sources change.
+- `compose.override.yml` (project root) — **user-editable** in Docker mode. The app never writes here when running inside a container. Add extra environment variables, custom volume mounts, or other service overrides here. Supports `${VAR}` substitution — any variable defined in `.env` is expanded by Docker Compose at startup.
 
 Both are listed in `.env` as `COMPOSE_FILE=compose.yml:compose.override.yml:config/compose.override.yml`, so `docker compose up -d` (no `-f` flags) loads them both automatically.
 
