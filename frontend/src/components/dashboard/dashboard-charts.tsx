@@ -26,18 +26,11 @@ export interface DashboardChartsData {
 }
 
 // ── Palette: cycles through CSS vars so it respects light/dark ───────────────
-const SLICE_COLORS = [
-  "var(--chart-1)",
-  "var(--chart-2)",
-  "var(--chart-3)",
-  "var(--chart-4)",
-  "var(--chart-5)",
-]
+const SLICE_COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"]
 
 function sliceColor(i: number) {
   return SLICE_COLORS[i % SLICE_COLORS.length]
 }
-
 
 // ── 1. Area / bar timeline chart ──────────────────────────────────────────────
 export function DocsOverTimeChart({ data }: { data: DocsOverTimePoint[] }) {
@@ -75,12 +68,7 @@ export function DocsOverTimeChart({ data }: { data: DocsOverTimePoint[] }) {
           </div>
         ) : (
           <div className="relative select-none">
-            <svg
-              viewBox={`0 0 ${W} ${H}`}
-              className="w-full"
-              style={{ height: H }}
-              onMouseLeave={() => setTip(null)}
-            >
+            <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }} onMouseLeave={() => setTip(null)}>
               <defs>
                 <linearGradient id="bar-grad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.85" />
@@ -120,8 +108,7 @@ export function DocsOverTimeChart({ data }: { data: DocsOverTimePoint[] }) {
                     fill="url(#bar-grad)"
                     className="cursor-pointer"
                     onMouseEnter={(e) => {
-                      const rect = (e.currentTarget.ownerSVGElement as SVGSVGElement)
-                        .getBoundingClientRect()
+                      const rect = (e.currentTarget.ownerSVGElement as SVGSVGElement).getBoundingClientRect()
                       setTip({
                         x: e.clientX - rect.left,
                         y: e.clientY - rect.top - 36,
@@ -140,14 +127,7 @@ export function DocsOverTimeChart({ data }: { data: DocsOverTimePoint[] }) {
                 const parts = d.date.split("-")
                 const label = `${parts[1]}/${parts[2]}`
                 return (
-                  <text
-                    key={d.date}
-                    x={x}
-                    y={H - 6}
-                    textAnchor="middle"
-                    fontSize={9}
-                    fill="var(--muted-foreground)"
-                  >
+                  <text key={d.date} x={x} y={H - 6} textAnchor="middle" fontSize={9} fill="var(--muted-foreground)">
                     {label}
                   </text>
                 )
@@ -207,13 +187,14 @@ export function DocsBySourceChart({ data }: { data: DocsBySourceItem[] }) {
       </CardHeader>
       <CardContent>
         <div className="flex items-center gap-4">
-          <svg viewBox="0 0 144 144" className="shrink-0" style={{ width: 120, height: 120 }}>
+          <svg viewBox="0 0 144 144" className="shrink-0 w-[120px] h-[120px]">
             {slices.map(({ d, i, x1, y1, x2, y2, large, color, frac }) => {
               const isHovered = hovered === i
               const angle = frac * 2 * Math.PI
-              const pathD = angle >= 2 * Math.PI - 0.001
-                ? `M ${CX} ${CY - R} A ${R} ${R} 0 1 1 ${CX - 0.001} ${CY - R} Z`
-                : `M ${x1} ${y1} A ${R} ${R} 0 ${large} 1 ${x2} ${y2}`
+              const pathD =
+                angle >= 2 * Math.PI - 0.001
+                  ? `M ${CX} ${CY - R} A ${R} ${R} 0 1 1 ${CX - 0.001} ${CY - R} Z`
+                  : `M ${x1} ${y1} A ${R} ${R} 0 ${large} 1 ${x2} ${y2}`
 
               return (
                 <path
@@ -227,7 +208,9 @@ export function DocsBySourceChart({ data }: { data: DocsBySourceItem[] }) {
                   onMouseEnter={() => setHovered(i)}
                   onMouseLeave={() => setHovered(null)}
                 >
-                  <title>{d.label}: {d.count} docs ({Math.round(frac * 100)}%)</title>
+                  <title>
+                    {d.label}: {d.count} docs ({Math.round(frac * 100)}%)
+                  </title>
                 </path>
               )
             })}
@@ -250,11 +233,11 @@ export function DocsBySourceChart({ data }: { data: DocsBySourceItem[] }) {
                 onMouseLeave={() => setHovered(null)}
               >
                 <div className="shrink-0 h-2.5 w-2.5 rounded-sm" style={{ background: color }} />
-                <span className="truncate text-muted-foreground flex-1" title={d.source}>{d.label}</span>
-                <span className="shrink-0 font-medium tabular-nums">{d.count}</span>
-                <span className="shrink-0 text-muted-foreground tabular-nums">
-                  {Math.round(frac * 100)}%
+                <span className="truncate text-muted-foreground flex-1" title={d.source}>
+                  {d.label}
                 </span>
+                <span className="shrink-0 font-medium tabular-nums">{d.count}</span>
+                <span className="shrink-0 text-muted-foreground tabular-nums">{Math.round(frac * 100)}%</span>
               </div>
             ))}
           </div>
@@ -284,12 +267,7 @@ export function RichestFilesChart({
       <CardContent>
         <div className="space-y-2">
           {data.map((d, i) => (
-            <button
-              key={d.path}
-              className="w-full text-left group"
-              onClick={() => onSelectFile(d.path)}
-              title={d.path}
-            >
+            <button key={d.path} className="w-full text-left group" onClick={() => onSelectFile(d.path)} title={d.path}>
               <div className="flex items-center gap-2 mb-0.5">
                 <span className="text-xs text-muted-foreground truncate flex-1 group-hover:text-foreground transition-colors">
                   {d.filename}

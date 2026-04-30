@@ -31,40 +31,40 @@ function detectWebGL(): boolean {
 
 // Cluster color palette — uses CSS-compatible values that complement Tailwind's default palette
 const CLUSTER_COLORS = [
-  "oklch(0.585 0.233 277)",  // indigo-500
+  "oklch(0.585 0.233 277)", // indigo-500
   "oklch(0.769 0.188 70.1)", // amber-500
-  "oklch(0.765 0.177 163)",  // emerald-500
+  "oklch(0.765 0.177 163)", // emerald-500
   "oklch(0.637 0.237 25.3)", // red-500
-  "oklch(0.606 0.25 292)",   // violet-500
-  "oklch(0.715 0.143 215)",  // cyan-500
+  "oklch(0.606 0.25 292)", // violet-500
+  "oklch(0.715 0.143 215)", // cyan-500
   "oklch(0.702 0.183 55.1)", // orange-500
-  "oklch(0.768 0.233 130)",  // lime-500
-  "oklch(0.656 0.241 354)",  // pink-500
-  "oklch(0.704 0.14 182)",   // teal-500
-  "oklch(0.627 0.265 303)",  // purple-500
+  "oklch(0.768 0.233 130)", // lime-500
+  "oklch(0.656 0.241 354)", // pink-500
+  "oklch(0.704 0.14 182)", // teal-500
+  "oklch(0.627 0.265 303)", // purple-500
   "oklch(0.795 0.184 86.1)", // yellow-500
-  "oklch(0.723 0.219 149)",  // green-500
-  "oklch(0.598 0.25 360)",   // rose-600
-  "oklch(0.623 0.214 259)",  // blue-500
+  "oklch(0.723 0.219 149)", // green-500
+  "oklch(0.598 0.25 360)", // rose-600
+  "oklch(0.623 0.214 259)", // blue-500
 ]
 
 const UNCLUSTERED_COLOR = "oklch(0.551 0.027 264)" // gray-500
 
 // Entity type to color mapping for KG mode
 const ENTITY_TYPE_COLORS: Record<string, string> = {
-  concept: "oklch(0.585 0.233 277)",     // indigo
-  technology: "oklch(0.715 0.143 215)",  // cyan
-  tool: "oklch(0.765 0.177 163)",        // emerald
-  process: "oklch(0.769 0.188 70.1)",    // amber
-  pattern: "oklch(0.606 0.25 292)",      // violet
-  standard: "oklch(0.702 0.183 55.1)",   // orange
+  concept: "oklch(0.585 0.233 277)", // indigo
+  technology: "oklch(0.715 0.143 215)", // cyan
+  tool: "oklch(0.765 0.177 163)", // emerald
+  process: "oklch(0.769 0.188 70.1)", // amber
+  pattern: "oklch(0.606 0.25 292)", // violet
+  standard: "oklch(0.702 0.183 55.1)", // orange
   organization: "oklch(0.637 0.237 25.3)", // red
-  person: "oklch(0.768 0.233 130)",      // lime
-  metric: "oklch(0.704 0.14 182)",       // teal
-  principle: "oklch(0.656 0.241 354)",   // pink
+  person: "oklch(0.768 0.233 130)", // lime
+  metric: "oklch(0.704 0.14 182)", // teal
+  principle: "oklch(0.656 0.241 354)", // pink
 }
-const HIGHLIGHT_COLOR = "oklch(0.852 0.199 91.9)"  // yellow-300
-const BUCKET_COLOR = "#ff3333"  // bright red — must be visible against all cluster colors
+const HIGHLIGHT_COLOR = "oklch(0.852 0.199 91.9)" // yellow-300
+const BUCKET_COLOR = "#ff3333" // bright red — must be visible against all cluster colors
 
 import { GRAPH_THEME } from "@/lib/constants"
 
@@ -77,13 +77,30 @@ import type { GraphMode } from "@/hooks/use-visualization"
 
 export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
   const {
-    docmapData, docmapStatus, fetchedAt, threshold, setThreshold,
-    wordClouds, setWordClouds,
-    bucketThreshold, setBucketThreshold,
-    selectedNodeId, selectNode, clearSelection,
-    searchTerm, setSearchTerm, fetchDocMap, progress,
-    mode, setMode, kgData, kgLoading, fetchKG,
-    extraction, startExtraction, cancelExtraction,
+    docmapData,
+    docmapStatus,
+    fetchedAt,
+    threshold,
+    setThreshold,
+    wordClouds,
+    setWordClouds,
+    bucketThreshold,
+    setBucketThreshold,
+    selectedNodeId,
+    selectNode,
+    clearSelection,
+    searchTerm,
+    setSearchTerm,
+    fetchDocMap,
+    progress,
+    mode,
+    setMode,
+    kgData,
+    kgLoading,
+    fetchKG,
+    extraction,
+    startExtraction,
+    cancelExtraction,
   } = useVisualization()
 
   // Lock mode to what the parent tab specifies
@@ -107,11 +124,14 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
   const pendingRecenter = useRef(false)
 
   const {
-    selectedScopeIds, selectedTags,
-    scopeIdsParam, adHocTagsParam,
+    selectedScopeIds,
+    selectedTags,
+    scopeIdsParam,
+    adHocTagsParam,
     selectedBucketIds,
     bucketIdsParam,
-    handleScopeChange, handleTagChange,
+    handleScopeChange,
+    handleTagChange,
     handleBucketChange,
   } = useScopeTagFilter()
   const { buckets } = useBuckets()
@@ -149,7 +169,14 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
       prevWordCloudsRef.current = wordClouds
       prevBucketRef.current = bucketIdsParam
       prevBucketThresholdRef.current = bucketThreshold
-      fetchDocMap(scopeIdsParam, wcChanged || bucketChanged || bucketThreshChanged, wordClouds, adHocTagsParam, selectedBucketIdsArray, bucketThreshold)
+      fetchDocMap(
+        scopeIdsParam,
+        wcChanged || bucketChanged || bucketThreshChanged,
+        wordClouds,
+        adHocTagsParam,
+        selectedBucketIdsArray,
+        bucketThreshold,
+      )
     }, delay)
     return () => clearTimeout(timer)
   }, [fetchDocMap, scopeIdsParam, adHocTagsParam, wordClouds, bucketIdsParam, selectedBucketIdsArray, bucketThreshold])
@@ -167,14 +194,15 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
       if (terms.length > 0) {
         for (const node of docmapData.nodes) {
           const label = node.label.toLowerCase()
-          const tags = node.tags.map(t => t.toLowerCase())
-          const headings = node.headings.map(h => h.toLowerCase())
-          const wcKeys = Object.keys(node.word_cloud).map(t => t.toLowerCase())
-          const matchesAll = terms.every(term =>
-            label.includes(term)
-            || tags.some(t => t.includes(term))
-            || headings.some(h => h.includes(term))
-            || wcKeys.some(k => k.includes(term)),
+          const tags = node.tags.map((t) => t.toLowerCase())
+          const headings = node.headings.map((h) => h.toLowerCase())
+          const wcKeys = Object.keys(node.word_cloud).map((t) => t.toLowerCase())
+          const matchesAll = terms.every(
+            (term) =>
+              label.includes(term) ||
+              tags.some((t) => t.includes(term)) ||
+              headings.some((h) => h.includes(term)) ||
+              wcKeys.some((k) => k.includes(term)),
           )
           if (matchesAll) set.add(node.id)
         }
@@ -196,18 +224,17 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
   // Filter edges by threshold and remove disconnected nodes
   const forceDocMapData = useMemo(() => {
     if (!docmapData) return { nodes: [], links: [] }
-    const nodeIds = new Set(docmapData.nodes.map(n => n.id))
+    const nodeIds = new Set(docmapData.nodes.map((n) => n.id))
     // Bucket-involving edges already passed the server min_weight floor and
     // the per-bucket-doc top-N cap. The user's similarity threshold governs
     // intra-scope clarity — applying it to bucket edges silently nullifies
     // the Bucket Connections slider whenever cross-edge weights happen to
     // sit below the threshold (which is typical for thematic overlap).
-    const bucketIds = new Set(docmapData.nodes.filter(n => n._bucket).map(n => n.id))
-    const isBucketEdge = (e: { source: string; target: string }) =>
-      bucketIds.has(e.source) || bucketIds.has(e.target)
+    const bucketIds = new Set(docmapData.nodes.filter((n) => n._bucket).map((n) => n.id))
+    const isBucketEdge = (e: { source: string; target: string }) => bucketIds.has(e.source) || bucketIds.has(e.target)
     const links = docmapData.edges
-      .filter(e => nodeIds.has(e.source) && nodeIds.has(e.target) && (isBucketEdge(e) || e.weight >= threshold))
-      .map(e => ({
+      .filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target) && (isBucketEdge(e) || e.weight >= threshold))
+      .map((e) => ({
         source: e.source,
         target: e.target,
         weight: e.weight,
@@ -220,9 +247,7 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
     // Always keep bucket nodes so isolated bucket docs render as floating
     // colored markers — the whole point of bucket selection is visibility.
     const result = {
-      nodes: docmapData.nodes
-        .filter(n => connectedIds.has(n.id) || n._bucket)
-        .map(n => ({ ...n })),
+      nodes: docmapData.nodes.filter((n) => connectedIds.has(n.id) || n._bucket).map((n) => ({ ...n })),
       links,
     }
     return result
@@ -260,7 +285,8 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
   const activeForceData = mode === "knowledge" ? kgForceData : forceDocMapData
   const isLoading = docmapStatus === "loading" || docmapStatus === "computing"
   const activeIsLoading = mode === "knowledge" ? kgLoading : isLoading
-  const hasData = mode === "knowledge" ? (kgData && kgData.entities.length > 0) : (docmapData && docmapData.nodes.length > 0)
+  const hasData =
+    mode === "knowledge" ? kgData && kgData.entities.length > 0 : docmapData && docmapData.nodes.length > 0
 
   // Track whether the graph structure has changed (different documents),
   // vs cosmetic changes (threshold slider, word cloud toggle).
@@ -322,7 +348,7 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
     if (!docmapData) return { activeWordCloud: {}, wordCloudLabel: "Terms" }
 
     if (selectedNodeId) {
-      const node = docmapData.nodes.find(n => n.id === selectedNodeId)
+      const node = docmapData.nodes.find((n) => n.id === selectedNodeId)
       if (node) {
         return {
           activeWordCloud: node.word_cloud,
@@ -353,66 +379,83 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
   }, [docmapData, selectedNodeId, searchTerm, highlightedNodes])
 
   // Node color callback — bucket nodes get a distinct color
-  const nodeColor = useCallback((node: DocMapNode & { entity_type?: string; _bucket?: boolean }) => {
-    if (mode === "knowledge" && node.entity_type) {
-      if (hasHighlight && !highlightedNodes.has(node.id)) return colors.dim
-      return ENTITY_TYPE_COLORS[node.entity_type] || UNCLUSTERED_COLOR
-    }
-    if (hasHighlight) {
-      if (highlightedNodes.has(node.id)) {
-        if (node.id === selectedNodeId) return HIGHLIGHT_COLOR
-        if (node._bucket) return node.bucket_color ?? BUCKET_COLOR
-        return CLUSTER_COLORS[((node.cluster_id % CLUSTER_COLORS.length) + CLUSTER_COLORS.length) % CLUSTER_COLORS.length] || UNCLUSTERED_COLOR
+  const nodeColor = useCallback(
+    (node: DocMapNode & { entity_type?: string; _bucket?: boolean }) => {
+      if (mode === "knowledge" && node.entity_type) {
+        if (hasHighlight && !highlightedNodes.has(node.id)) return colors.dim
+        return ENTITY_TYPE_COLORS[node.entity_type] || UNCLUSTERED_COLOR
       }
-      return colors.dim
-    }
-    if (node._bucket) return node.bucket_color ?? BUCKET_COLOR
-    if (node.cluster_id < 0) return UNCLUSTERED_COLOR
-    return CLUSTER_COLORS[node.cluster_id % CLUSTER_COLORS.length] || UNCLUSTERED_COLOR
-  // docmapData is a phantom dep: its value isn't read here, but including it forces
-  // the function ref to change when graph data updates, making the library re-apply
-  // node colors (e.g. bucket vs non-bucket nodes flip styling on data refresh).
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, hasHighlight, highlightedNodes, selectedNodeId, colors.dim, docmapData])
+      if (hasHighlight) {
+        if (highlightedNodes.has(node.id)) {
+          if (node.id === selectedNodeId) return HIGHLIGHT_COLOR
+          if (node._bucket) return node.bucket_color ?? BUCKET_COLOR
+          return (
+            CLUSTER_COLORS[
+              ((node.cluster_id % CLUSTER_COLORS.length) + CLUSTER_COLORS.length) % CLUSTER_COLORS.length
+            ] || UNCLUSTERED_COLOR
+          )
+        }
+        return colors.dim
+      }
+      if (node._bucket) return node.bucket_color ?? BUCKET_COLOR
+      if (node.cluster_id < 0) return UNCLUSTERED_COLOR
+      return CLUSTER_COLORS[node.cluster_id % CLUSTER_COLORS.length] || UNCLUSTERED_COLOR
+      // docmapData is a phantom dep: its value isn't read here, but including it forces
+      // the function ref to change when graph data updates, making the library re-apply
+      // node colors (e.g. bucket vs non-bucket nodes flip styling on data refresh).
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- docmapData is a phantom dep to force color reapplication on data refresh
+    },
+    [mode, hasHighlight, highlightedNodes, selectedNodeId, colors.dim, docmapData],
+  )
 
   // Node size: chunk count, enlarged when highlighted or bucket
-  const nodeVal = useCallback((node: DocMapNode) => {
-    const base = Math.max(1, node.chunk_count)
-    // Make bucket nodes larger so they're visible among hundreds of other nodes
-    if (node._bucket) return Math.max(base * 3, 10)
-    if (hasHighlight && highlightedNodes.has(node.id)) return base * 2
-    return base
-  }, [hasHighlight, highlightedNodes])
+  const nodeVal = useCallback(
+    (node: DocMapNode) => {
+      const base = Math.max(1, node.chunk_count)
+      // Make bucket nodes larger so they're visible among hundreds of other nodes
+      if (node._bucket) return Math.max(base * 3, 10)
+      if (hasHighlight && highlightedNodes.has(node.id)) return base * 2
+      return base
+    },
+    [hasHighlight, highlightedNodes],
+  )
 
   // Node tooltip — escape user-controlled values to prevent XSS
-  const nodeLabel = useCallback((node: DocMapNode & { entity_type?: string; description?: string; mention_count?: number }) => {
-    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
-    if (mode === "knowledge" && node.entity_type) {
-      const desc = node.description ? `<br/><span style="opacity:0.7">${esc(node.description)}</span>` : ""
-      return `<div style="max-width:350px"><strong>${esc(node.label)}</strong><br/><span style="opacity:0.6">${esc(node.entity_type)}</span>${desc}<br/>${node.mention_count ?? 1} source${(node.mention_count ?? 1) !== 1 ? "s" : ""}</div>`
-    }
-    const dir = dirname(node.id)
-    const tags = node.tags.length > 0 ? `<br/>Tags: ${esc(node.tags.join(", "))}` : ""
-    return `<div style="max-width:350px"><strong>${esc(node.label)}</strong><br/><span style="opacity:0.7">${esc(dir)}</span><br/>${node.chunk_count} chunks${tags}</div>`
-  }, [mode])
+  const nodeLabel = useCallback(
+    (node: DocMapNode & { entity_type?: string; description?: string; mention_count?: number }) => {
+      const esc = (s: string) =>
+        s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+      if (mode === "knowledge" && node.entity_type) {
+        const desc = node.description ? `<br/><span style="opacity:0.7">${esc(node.description)}</span>` : ""
+        return `<div style="max-width:350px"><strong>${esc(node.label)}</strong><br/><span style="opacity:0.6">${esc(node.entity_type)}</span>${desc}<br/>${node.mention_count ?? 1} source${(node.mention_count ?? 1) !== 1 ? "s" : ""}</div>`
+      }
+      const dir = dirname(node.id)
+      const tags = node.tags.length > 0 ? `<br/>Tags: ${esc(node.tags.join(", "))}` : ""
+      return `<div style="max-width:350px"><strong>${esc(node.label)}</strong><br/><span style="opacity:0.7">${esc(dir)}</span><br/>${node.chunk_count} chunks${tags}</div>`
+    },
+    [mode],
+  )
 
   // Link styling
-  const linkColor = useCallback((link: GraphLink & { rel_type?: string }) => {
-    if (mode === "knowledge") {
-      return `rgba(${colors.linkBase},0.35)`
-    }
-    if (hasHighlight) {
-      const srcId = linkNodeId(link.source)
-      const tgtId = linkNodeId(link.target)
-      if (highlightedNodes.has(srcId) && highlightedNodes.has(tgtId)) {
-        return "rgba(250,204,21,0.8)"
+  const linkColor = useCallback(
+    (link: GraphLink & { rel_type?: string }) => {
+      if (mode === "knowledge") {
+        return `rgba(${colors.linkBase},0.35)`
       }
-      return `rgba(${colors.linkDim},0.03)`
-    }
-    const w = typeof link.weight === "number" ? link.weight : 0.5
-    const alpha = Math.min(0.6, 0.08 + w * 0.5)
-    return `rgba(${colors.linkBase},${alpha.toFixed(2)})`
-  }, [mode, hasHighlight, highlightedNodes, colors])
+      if (hasHighlight) {
+        const srcId = linkNodeId(link.source)
+        const tgtId = linkNodeId(link.target)
+        if (highlightedNodes.has(srcId) && highlightedNodes.has(tgtId)) {
+          return "rgba(250,204,21,0.8)"
+        }
+        return `rgba(${colors.linkDim},0.03)`
+      }
+      const w = typeof link.weight === "number" ? link.weight : 0.5
+      const alpha = Math.min(0.6, 0.08 + w * 0.5)
+      return `rgba(${colors.linkBase},${alpha.toFixed(2)})`
+    },
+    [mode, hasHighlight, highlightedNodes, colors],
+  )
 
   const linkWidth = useCallback((link: GraphLink) => {
     const w = typeof link.weight === "number" ? link.weight : 0.5
@@ -420,11 +463,14 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
   }, [])
 
   // Node click
-  const handleNodeClick = useCallback((node: DocMapNode) => {
-    selectNode(node.id)
-    setViewingPath(node.id)
-    setSelectedEdge(null)
-  }, [selectNode])
+  const handleNodeClick = useCallback(
+    (node: DocMapNode) => {
+      selectNode(node.id)
+      setViewingPath(node.id)
+      setSelectedEdge(null)
+    },
+    [selectNode],
+  )
 
   // Link click — show edge detail
   const handleLinkClick = useCallback((link: GraphLink) => {
@@ -441,15 +487,21 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
   }, [clearSelection, setSearchTerm])
 
   // Term click from word cloud
-  const handleTermClick = useCallback((term: string) => {
-    setSearchTerm(term)
-    selectNode(null)
-  }, [setSearchTerm, selectNode])
+  const handleTermClick = useCallback(
+    (term: string) => {
+      setSearchTerm(term)
+      selectNode(null)
+    },
+    [setSearchTerm, selectNode],
+  )
 
-  const handleSearchChange = useCallback((term: string) => {
-    setSearchTerm(term)
-    selectNode(null)
-  }, [setSearchTerm, selectNode])
+  const handleSearchChange = useCallback(
+    (term: string) => {
+      setSearchTerm(term)
+      selectNode(null)
+    },
+    [setSearchTerm, selectNode],
+  )
 
   const handleVisualizationRefresh = useCallback(() => {
     if (mode === "knowledge") {
@@ -504,7 +556,9 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
               variant="ghost"
               size="sm"
               className="h-6 text-xs text-yellow-500"
-              onClick={() => fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam, selectedBucketIdsArray, bucketThreshold)}
+              onClick={() =>
+                fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam, selectedBucketIdsArray, bucketThreshold)
+              }
             >
               Refresh
             </Button>
@@ -516,8 +570,7 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
           <div className="absolute top-3 left-3 z-10 text-xs text-muted-foreground bg-background/80 rounded px-2 py-1">
             {mode === "knowledge"
               ? `${kgForceData.nodes.length} entities · ${kgForceData.links.length} relationships`
-              : `${forceDocMapData.nodes.length}/${docmapData?.stats.doc_count ?? 0} docs${docmapData?.stats.bucket_doc_count ? ` (${docmapData.stats.bucket_doc_count} from bucket)` : ""} · ${forceDocMapData.links.length} edges`
-            }
+              : `${forceDocMapData.nodes.length}/${docmapData?.stats.doc_count ?? 0} docs${docmapData?.stats.bucket_doc_count ? ` (${docmapData.stats.bucket_doc_count} from bucket)` : ""} · ${forceDocMapData.links.length} edges`}
           </div>
         )}
 
@@ -527,7 +580,13 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
             <div className="flex flex-col items-center gap-3 text-muted-foreground w-64">
               <div className="flex items-center gap-2">
                 <Loader2 className="h-5 w-5 animate-spin" />
-                <span>{docmapStatus === "computing" ? (mode === "knowledge" ? "Loading knowledge graph..." : "Computing document map...") : "Loading..."}</span>
+                <span>
+                  {docmapStatus === "computing"
+                    ? mode === "knowledge"
+                      ? "Loading knowledge graph..."
+                      : "Computing document map..."
+                    : "Loading..."}
+                </span>
               </div>
               {docmapStatus === "computing" && progress.phase !== "idle" && (
                 <>
@@ -550,7 +609,13 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
             <div className="text-center text-muted-foreground space-y-3">
               <p className="text-sm font-medium">Document map not built yet</p>
               <p className="text-xs">Build the document map to visualize document relationships</p>
-              <Button variant="outline" size="sm" onClick={() => fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam, selectedBucketIdsArray, bucketThreshold)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  fetchDocMap(scopeIdsParam, true, wordClouds, adHocTagsParam, selectedBucketIdsArray, bucketThreshold)
+                }
+              >
                 Build Doc Map
               </Button>
             </div>
@@ -577,14 +642,23 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
         )}
 
         {/* Documents found but all filtered by threshold (no edges) */}
-        {!activeIsLoading && docmapData && docmapData.nodes.length > 0 && forceDocMapData.nodes.length === 0 && mode === "similarity" && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center text-muted-foreground space-y-2">
-              <p className="text-sm">{docmapData.nodes.length} document{docmapData.nodes.length === 1 ? "" : "s"} found, but no similarity connections at this threshold</p>
-              <p className="text-xs">Try lowering the similarity threshold, or broaden the scope to include more documents</p>
+        {!activeIsLoading &&
+          docmapData &&
+          docmapData.nodes.length > 0 &&
+          forceDocMapData.nodes.length === 0 &&
+          mode === "similarity" && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center text-muted-foreground space-y-2">
+                <p className="text-sm">
+                  {docmapData.nodes.length} document{docmapData.nodes.length === 1 ? "" : "s"} found, but no similarity
+                  connections at this threshold
+                </p>
+                <p className="text-xs">
+                  Try lowering the similarity threshold, or broaden the scope to include more documents
+                </p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* WebGL unavailable fallback */}
         {!webglSupported && hasData && (
@@ -593,12 +667,12 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
               <MonitorX className="h-10 w-10 mx-auto text-muted-foreground/60" />
               <p className="text-sm font-medium">WebGL is not available</p>
               <p className="text-xs leading-relaxed">
-                The 3D visualization requires WebGL, which needs hardware GPU access.
-                This can happen with remote desktop sessions or systems without a GPU driver.
-                Try accessing this page from a local browser session.
+                The 3D visualization requires WebGL, which needs hardware GPU access. This can happen with remote
+                desktop sessions or systems without a GPU driver. Try accessing this page from a local browser session.
               </p>
               <p className="text-xs text-muted-foreground/60">
-                {docmapData?.stats.doc_count ?? 0} docs · {docmapData?.stats.chunk_count ?? 0} chunks · {docmapData?.stats.edge_count ?? 0} edges ready to visualize
+                {docmapData?.stats.doc_count ?? 0} docs · {docmapData?.stats.chunk_count ?? 0} chunks ·{" "}
+                {docmapData?.stats.edge_count ?? 0} edges ready to visualize
               </p>
             </div>
           </div>
@@ -666,10 +740,7 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
         )}
       </div>
 
-      <FileViewerDialog
-        path={viewingPath}
-        onClose={() => setViewingPath(null)}
-      />
+      <FileViewerDialog path={viewingPath} onClose={() => setViewingPath(null)} />
     </div>
   )
 }

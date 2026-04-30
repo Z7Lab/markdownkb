@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { api } from "@/lib/api"
+import { setVisibilityInterval } from "@/lib/polling"
 import { toast } from "sonner"
 import type { KGData } from "@/lib/types"
 import type { GraphMode, ExtractionStatus } from "./use-visualization"
@@ -8,9 +9,14 @@ export function useKnowledgeGraph(mode: GraphMode) {
   const [kgData, setKgData] = useState<KGData | null>(null)
   const [kgLoading, setKgLoading] = useState(false)
   const [extraction, setExtraction] = useState<ExtractionStatus>({
-    running: false, progress: 0, message: "", result: "", files_done: 0, files_total: 0,
+    running: false,
+    progress: 0,
+    message: "",
+    result: "",
+    files_done: 0,
+    files_total: 0,
   })
-  const extractionPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const extractionPollCleanupRef = useRef<(() => void) | null>(null)
 
   const fetchKG = useCallback(async (entityTypes?: string, relTypes?: string) => {
     setKgLoading(true)
@@ -36,14 +42,14 @@ export function useKnowledgeGraph(mode: GraphMode) {
   }, [mode, kgData, kgLoading, fetchKG])
 
   const pollExtraction = useCallback(() => {
-    if (extractionPollRef.current) clearInterval(extractionPollRef.current)
-    extractionPollRef.current = setInterval(async () => {
+    if (extractionPollCleanupRef.current) extractionPollCleanupRef.current()
+    extractionPollCleanupRef.current = setVisibilityInterval(async () => {
       try {
         const s = await api.get<ExtractionStatus>("/api/v1/knowledge-graph/extract/status")
         setExtraction(s)
         if (!s.running) {
-          if (extractionPollRef.current) clearInterval(extractionPollRef.current)
-          extractionPollRef.current = null
+          if (extractionPollCleanupRef.current) extractionPollCleanupRef.current()
+          extractionPollCleanupRef.current = null
           fetchKG()
         }
       } catch {
@@ -55,19 +61,22 @@ export function useKnowledgeGraph(mode: GraphMode) {
   // Clean up poll on unmount
   useEffect(() => {
     return () => {
-      if (extractionPollRef.current) clearInterval(extractionPollRef.current)
+      if (extractionPollCleanupRef.current) extractionPollCleanupRef.current()
     }
   }, [])
 
   // Check extraction status on mode switch
   useEffect(() => {
     if (mode === "knowledge") {
-      api.get<ExtractionStatus>("/api/v1/knowledge-graph/extract/status")
+      api
+        .get<ExtractionStatus>("/api/v1/knowledge-graph/extract/status")
         .then((s) => {
           setExtraction(s)
           if (s.running) pollExtraction()
         })
-        .catch((e) => { console.warn("Knowledge graph: failed to check extraction status", e) })
+        .catch((e) => {
+          console.warn("Knowledge graph: failed to check extraction status", e)
+        })
     }
   }, [mode, pollExtraction])
 

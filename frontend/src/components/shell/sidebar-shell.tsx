@@ -16,13 +16,7 @@ interface SidebarShellProps {
   onSettingsClick: () => void
 }
 
-export function SidebarShell({
-  routes,
-  activeTab,
-  onNavigate,
-  onLogoClick,
-  onSettingsClick,
-}: SidebarShellProps) {
+export function SidebarShell({ routes, activeTab, onNavigate, onLogoClick, onSettingsClick }: SidebarShellProps) {
   const [collapsed, setCollapsed] = useState(() => {
     return localStorage.getItem("mdkb-sidebar-collapsed") === "true"
   })
@@ -37,17 +31,13 @@ export function SidebarShell({
   return (
     <aside
       className={cn(
-        "relative shrink-0 border-r flex flex-col h-full bg-muted/20 transition-[width] duration-200 overflow-hidden z-[60]",
+        "relative shrink-0 border-r flex flex-col h-full bg-muted/20 transition-[width] duration-200 overflow-hidden z-[60] pointer-events-auto",
         collapsed ? "w-14" : "w-52",
       )}
-      style={{ pointerEvents: "auto" }}
       aria-label="App navigation"
     >
       {/* Logo row */}
-      <div className={cn(
-        "flex items-center gap-2 px-2 py-2.5 shrink-0",
-        collapsed ? "justify-center" : "",
-      )}>
+      <div className={cn("flex items-center gap-2 px-2 py-2.5 shrink-0", collapsed ? "justify-center" : "")}>
         <div className="shrink-0 h-7 w-7 rounded-md bg-primary/15 flex items-center justify-center text-primary font-bold text-sm select-none">
           M
         </div>
@@ -136,10 +126,7 @@ export function SidebarShell({
           </button>
         )}
 
-        <div className={cn(
-          "flex items-center px-2 py-1",
-          collapsed ? "justify-center" : "justify-between",
-        )}>
+        <div className={cn("flex items-center px-2 py-1", collapsed ? "justify-center" : "justify-between")}>
           {!collapsed && <span className="text-xs text-muted-foreground">Theme</span>}
           <ThemeToggle compact={collapsed} />
         </div>
@@ -154,10 +141,14 @@ export function SidebarShell({
               )}
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
-              {collapsed
-                ? <ChevronRight className="h-3.5 w-3.5" />
-                : <><ChevronLeft className="h-3.5 w-3.5" /><span>Collapse</span></>
-              }
+              {collapsed ? (
+                <ChevronRight className="h-3.5 w-3.5" />
+              ) : (
+                <>
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  <span>Collapse</span>
+                </>
+              )}
             </button>
           </TooltipTrigger>
           {collapsed && <TooltipContent side="right">Expand</TooltipContent>}

@@ -11,7 +11,9 @@ export function useAppVersion() {
   const [version, setVersion] = useState<AppVersion | null>(null)
 
   useEffect(() => {
-    api.get<AppVersion>("/api/v1/version")
+    /* best-effort: version info is non-critical UI chrome */
+    api
+      .get<AppVersion>("/api/v1/version")
       .then(setVersion)
       .catch(() => {})
   }, [])

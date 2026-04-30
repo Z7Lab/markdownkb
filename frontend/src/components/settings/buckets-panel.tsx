@@ -11,14 +11,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Trash2 } from "lucide-react"
 import { useBuckets, type Bucket } from "@/hooks/use-buckets"
 import { useTableSort } from "@/hooks/use-table-sort"
@@ -91,11 +84,7 @@ function SortHeader({
       onClick={() => onSort(sortKey)}
     >
       {label}
-      {active && (
-        <span className="text-[10px] text-muted-foreground">
-          {currentDir === "asc" ? "↑" : "↓"}
-        </span>
-      )}
+      {active && <span className="text-[10px] text-muted-foreground">{currentDir === "asc" ? "↑" : "↓"}</span>}
     </button>
   )
 }
@@ -107,13 +96,14 @@ function BasePathConfig() {
   const [restartRequired, setRestartRequired] = useState(false)
 
   useEffect(() => {
-    api.get<{ base_path: string | null }>("/api/v1/buckets/base-path")
+    api
+      .get<{ base_path: string | null }>("/api/v1/buckets/base-path")
       .then((r) => {
         const v = r.base_path ?? ""
         setBasePath(v)
         setSaved(v)
       })
-      .catch(() => {})
+      .catch(() => {}) /* best-effort: bucket base-path is optional config */
   }, [])
 
   async function handleSave() {
@@ -141,7 +131,8 @@ function BasePathConfig() {
         <div>
           <h3 className="text-sm font-medium">Base path</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Default root for new bucket paths. Buckets created under this directory won't require a Docker restart after the first one.
+            Default root for new bucket paths. Buckets created under this directory won't require a Docker restart after
+            the first one.
           </p>
         </div>
         <div className="flex gap-2">
@@ -157,7 +148,12 @@ function BasePathConfig() {
         </div>
       </div>
 
-      <Dialog open={restartRequired} onOpenChange={(o) => { if (!o) setRestartRequired(false) }}>
+      <Dialog
+        open={restartRequired}
+        onOpenChange={(o) => {
+          if (!o) setRestartRequired(false)
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Docker restart required</DialogTitle>
@@ -185,11 +181,7 @@ export function BucketsPanel() {
   const { buckets, deleteBucket } = useBuckets()
   const [deleteTarget, setDeleteTarget] = useState<Bucket | null>(null)
 
-  const { sorted, sortKey, sortDir, onSort } = useTableSort(
-    buckets,
-    getValue,
-    "created_at",
-  )
+  const { sorted, sortKey, sortDir, onSort } = useTableSort(buckets, getValue, "created_at")
 
   async function handleDelete() {
     if (!deleteTarget) return
@@ -203,94 +195,90 @@ export function BucketsPanel() {
     <div className="space-y-6">
       <BasePathConfig />
       <div className="border-t pt-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">Bucket History</h3>
-        {buckets.length > 0 && (
-          <span className="text-xs text-muted-foreground">{buckets.length} bucket{buckets.length !== 1 ? "s" : ""}</span>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium">Bucket History</h3>
+          {buckets.length > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {buckets.length} bucket{buckets.length !== 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
+
+        {buckets.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No buckets. Create one on the Buckets tab.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>
+                  <SortHeader label="Name" sortKey="name" {...headerProps} />
+                </TableHead>
+                <TableHead>
+                  <SortHeader label="Files" sortKey="file_count" {...headerProps} />
+                </TableHead>
+                <TableHead>
+                  <SortHeader label="Created" sortKey="created_at" {...headerProps} />
+                </TableHead>
+                <TableHead>
+                  <SortHeader label="Expires" sortKey="expires_at" {...headerProps} />
+                </TableHead>
+                <TableHead>
+                  <SortHeader label="Status" sortKey="status" {...headerProps} />
+                </TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sorted.map((b) => {
+                const status = bucketStatus(b)
+                return (
+                  <TableRow key={b.id} className={b.expired ? "opacity-60" : undefined}>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="h-2 w-2 rounded-full shrink-0"
+                          style={{ backgroundColor: b.color ?? "var(--bucket-default)" }}
+                        />
+                        <span className="font-medium text-xs">{b.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground tabular-nums">{b.file_count}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{relativeTime(b.created_at)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {b.expires_at ? new Date(b.expires_at + "Z").toLocaleDateString() : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={status} />
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                        aria-label="Delete bucket"
+                        onClick={() => setDeleteTarget(b)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
         )}
-      </div>
 
-      {buckets.length === 0 ? (
-        <p className="text-xs text-muted-foreground">
-          No buckets. Create one on the Buckets tab.
-        </p>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>
-                <SortHeader label="Name" sortKey="name" {...headerProps} />
-              </TableHead>
-              <TableHead>
-                <SortHeader label="Files" sortKey="file_count" {...headerProps} />
-              </TableHead>
-              <TableHead>
-                <SortHeader label="Created" sortKey="created_at" {...headerProps} />
-              </TableHead>
-              <TableHead>
-                <SortHeader label="Expires" sortKey="expires_at" {...headerProps} />
-              </TableHead>
-              <TableHead>
-                <SortHeader label="Status" sortKey="status" {...headerProps} />
-              </TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sorted.map((b) => {
-              const status = bucketStatus(b)
-              return (
-                <TableRow key={b.id} className={b.expired ? "opacity-60" : undefined}>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="h-2 w-2 rounded-full shrink-0"
-                        style={{ backgroundColor: b.color ?? "var(--bucket-default)" }}
-                      />
-                      <span className="font-medium text-xs">{b.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground tabular-nums">
-                    {b.file_count}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {relativeTime(b.created_at)}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {b.expires_at
-                      ? new Date(b.expires_at + "Z").toLocaleDateString()
-                      : "—"}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={status} />
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                      aria-label="Delete bucket"
-                      onClick={() => setDeleteTarget(b)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
-      )}
-
-      <ConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}
-        title="Delete bucket?"
-        description={`This will permanently delete bucket "${deleteTarget?.name}" and all its vector data.`}
-        confirmLabel="Delete"
-        variant="destructive"
-        onConfirm={handleDelete}
-      />
+        <ConfirmDialog
+          open={!!deleteTarget}
+          onOpenChange={(open) => {
+            if (!open) setDeleteTarget(null)
+          }}
+          title="Delete bucket?"
+          description={`This will permanently delete bucket "${deleteTarget?.name}" and all its vector data.`}
+          confirmLabel="Delete"
+          variant="destructive"
+          onConfirm={handleDelete}
+        />
       </div>
     </div>
   )

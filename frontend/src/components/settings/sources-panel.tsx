@@ -9,7 +9,20 @@ import { usePathCheck } from "@/hooks/use-path-check"
 import { api } from "@/lib/api"
 import type { ProjectRoot, SourceConfig, VersioningStatus } from "@/lib/types"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { CheckCircle2, AlertCircle, Loader2, Trash2, FileText, Pencil, Plus, X, FolderGit2, GitBranch, HardDrive, ShieldAlert } from "lucide-react"
+import {
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Trash2,
+  FileText,
+  Pencil,
+  Plus,
+  X,
+  FolderGit2,
+  GitBranch,
+  HardDrive,
+  ShieldAlert,
+} from "lucide-react"
 import { toast } from "sonner"
 import { VersioningSourceRow } from "./versioning-source-row"
 
@@ -89,9 +102,7 @@ function PathStatus({ path }: { path: string }) {
   const check = usePathCheck(path)
 
   if (check.status === "idle" || check.status === "checking") {
-    return check.status === "checking"
-      ? <p className="text-xs text-muted-foreground mt-1">Checking...</p>
-      : null
+    return check.status === "checking" ? <p className="text-xs text-muted-foreground mt-1">Checking...</p> : null
   }
   if (check.status === "ok") {
     return <p className="text-xs text-green-600 dark:text-green-400 mt-1">Path found</p>
@@ -100,10 +111,19 @@ function PathStatus({ path }: { path: string }) {
     return <p className="text-xs text-destructive mt-1">Path not found</p>
   }
   if (check.status === "needs_restart") {
-    return <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">Not mounted yet — will be available after saving and restarting the container</p>
+    return (
+      <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+        Not mounted yet — will be available after saving and restarting the container
+      </p>
+    )
   }
   if (check.status === "bad_mount") {
-    return <p className="text-xs text-destructive mt-1">Configured in compose.override.yml but not accessible — check that the host path exists, then restart the container</p>
+    return (
+      <p className="text-xs text-destructive mt-1">
+        Configured in compose.override.yml but not accessible — check that the host path exists, then restart the
+        container
+      </p>
+    )
   }
   return null
 }
@@ -152,7 +172,9 @@ function ProjectRootForm({
             value={path}
             onChange={(e) => setPath(e.target.value)}
             placeholder="/home/user/projects"
-            onKeyDown={(e) => e.key === "Enter" && canSubmit && onSubmit(path.trim(), include, exclude, title.trim() || undefined)}
+            onKeyDown={(e) =>
+              e.key === "Enter" && canSubmit && onSubmit(path.trim(), include, exclude, title.trim() || undefined)
+            }
           />
           <PathStatus path={path} />
         </div>
@@ -203,9 +225,7 @@ function ProjectRootForm({
               </button>
             </Badge>
           ))}
-          {exclude.length === 0 && (
-            <span className="text-xs text-muted-foreground italic">None</span>
-          )}
+          {exclude.length === 0 && <span className="text-xs text-muted-foreground italic">None</span>}
         </div>
         <div className="flex gap-2">
           <Input
@@ -223,7 +243,9 @@ function ProjectRootForm({
       </div>
 
       <div className="flex gap-2 justify-end pt-1">
-        <Button variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
+        <Button variant="ghost" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
         <Button
           size="sm"
           onClick={() => onSubmit(path.trim(), include, exclude, title.trim() || undefined)}
@@ -260,7 +282,12 @@ export function SourcesPanel({
   onRemove: (path: string, cleanup: boolean) => Promise<void>
   onAddIgnore: (pattern: string) => Promise<void>
   onRemoveIgnore: (pattern: string) => Promise<void>
-  onAddProjectRoot: (path: string, include: string[], exclude: string[], title?: string) => Promise<{ docker_restart_required?: boolean; path_not_found?: boolean } | void>
+  onAddProjectRoot: (
+    path: string,
+    include: string[],
+    exclude: string[],
+    title?: string,
+  ) => Promise<{ docker_restart_required?: boolean; path_not_found?: boolean } | void>
   onRemoveProjectRoot: (path: string, cleanup: boolean) => Promise<void>
   onUpdateProjectRoot: (path: string, include: string[], exclude: string[], title?: string) => Promise<void>
   onReloadSettings: () => Promise<boolean> | void
@@ -282,19 +309,32 @@ export function SourcesPanel({
   const [vstatus, setVStatus] = useState<VersioningStatus | null>(null)
 
   const reloadVersioningStatus = useCallback(() => {
-    api.get<VersioningStatus>("/api/v1/versioning/status")
+    api
+      .get<VersioningStatus>("/api/v1/versioning/status")
       .then(setVStatus)
-      .catch(() => { /* status is non-critical UI data */ })
+      .catch(() => {
+        /* status is non-critical UI data */
+      })
   }, [])
 
   useEffect(() => {
-    api.get<{
-      files_tracked: number
-      files_complete: number
-      files_error: number
-      chunks_indexed: number
-    }>("/api/v1/stats").then(setStats).catch(() => { /* stats are non-critical UI data */ })
-    api.get<{ count: number }>("/api/v1/files/stale-ignored").then(setStaleIgnored).catch(() => { /* non-critical */ })
+    api
+      .get<{
+        files_tracked: number
+        files_complete: number
+        files_error: number
+        chunks_indexed: number
+      }>("/api/v1/stats")
+      .then(setStats)
+      .catch(() => {
+        /* stats are non-critical UI data */
+      })
+    api
+      .get<{ count: number }>("/api/v1/files/stale-ignored")
+      .then(setStaleIgnored)
+      .catch(() => {
+        /* non-critical */
+      })
   }, [lastIndexedAt])
 
   useEffect(() => {
@@ -305,7 +345,10 @@ export function SourcesPanel({
     if (!newPattern.trim()) return
     await onAddIgnore(newPattern.trim())
     setNewPattern("")
-    api.get<{ count: number }>("/api/v1/files/stale-ignored").then(setStaleIgnored).catch(() => {})
+    api
+      .get<{ count: number }>("/api/v1/files/stale-ignored")
+      .then(setStaleIgnored)
+      .catch(() => {}) /* best-effort */
   }
 
   async function handlePurgeStale() {
@@ -361,7 +404,10 @@ export function SourcesPanel({
                   <ShieldAlert className="h-4 w-4 shrink-0" />
                   <span>
                     <span className="font-medium">{staleIgnored.count}</span>
-                    <span className="text-muted-foreground ml-1">indexed {staleIgnored.count === 1 ? "file matches" : "files match"} an ignore pattern and still have chunks in the vector store</span>
+                    <span className="text-muted-foreground ml-1">
+                      indexed {staleIgnored.count === 1 ? "file matches" : "files match"} an ignore pattern and still
+                      have chunks in the vector store
+                    </span>
                   </span>
                 </div>
                 <Button
@@ -371,7 +417,11 @@ export function SourcesPanel({
                   disabled={purgingStale}
                   className="shrink-0 ml-4"
                 >
-                  {purgingStale ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Trash2 className="h-3.5 w-3.5 mr-1.5" />}
+                  {purgingStale ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                  )}
                   Purge {staleIgnored.count} {staleIgnored.count === 1 ? "file" : "files"}
                 </Button>
               </div>
@@ -389,11 +439,9 @@ export function SourcesPanel({
                 Project Directories
               </CardTitle>
               <CardDescription>
-                Index documentation from project repositories. Each immediate
-                subdirectory of the path is treated as a project. The include
-                patterns control which files within each project are indexed —
-                use exclude to skip test directories, build artifacts, or other
-                noise.
+                Index documentation from project repositories. Each immediate subdirectory of the path is treated as a
+                project. The include patterns control which files within each project are indexed — use exclude to skip
+                test directories, build artifacts, or other noise.
               </CardDescription>
             </div>
             {!showAddRoot && (
@@ -413,7 +461,9 @@ export function SourcesPanel({
                 setShowAddRoot(false)
                 const result = await onAddProjectRoot(path, include, exclude, title)
                 if (result?.docker_restart_required) {
-                  toast.warning(`Project root added — restart required to mount "${path}" into the container: make docker-down && make docker-up`)
+                  toast.warning(
+                    `Project root added — restart required to mount "${path}" into the container: make docker-down && make docker-up`,
+                  )
                 } else if (result?.path_not_found) {
                   toast.warning(`Project root added but "${path}" does not exist — check the path`)
                 } else {
@@ -465,10 +515,14 @@ export function SourcesPanel({
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {(root.include ?? []).map((p) => (
-                      <Badge key={p} variant="secondary" className="font-mono text-xs">{p}</Badge>
+                      <Badge key={p} variant="secondary" className="font-mono text-xs">
+                        {p}
+                      </Badge>
                     ))}
                     {(root.exclude ?? []).map((p) => (
-                      <Badge key={`ex-${p}`} variant="outline" className="font-mono text-xs line-through opacity-60">{p}</Badge>
+                      <Badge key={`ex-${p}`} variant="outline" className="font-mono text-xs line-through opacity-60">
+                        {p}
+                      </Badge>
                     ))}
                   </div>
                 </div>
@@ -486,11 +540,9 @@ export function SourcesPanel({
         <CardHeader>
           <CardTitle>Watch Directories</CardTitle>
           <CardDescription>
-            Directories that MarkdownKB monitors for documents. Files in these
-            directories are scanned, chunked, and embedded into the vector
-            store for RAG search. Each source can be configured as writable
-            (accepts mdkb-authored writes) and versioned (auto-commits those
-            writes to a managed git repo).
+            Directories that MarkdownKB monitors for documents. Files in these directories are scanned, chunked, and
+            embedded into the vector store for RAG search. Each source can be configured as writable (accepts
+            mdkb-authored writes) and versioned (auto-commits those writes to a managed git repo).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -498,14 +550,16 @@ export function SourcesPanel({
             <div className="rounded-md bg-muted/30 px-3 py-2 flex items-center gap-4 text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
                 <GitBranch className="h-3 w-3" />
-                {vstatus.total_commits} commits across {vstatus.sources.filter(s => s.initialised).length} repos
+                {vstatus.total_commits} commits across {vstatus.sources.filter((s) => s.initialised).length} repos
               </span>
               <span className="flex items-center gap-1">
                 <HardDrive className="h-3 w-3" />
                 {formatSize(vstatus.total_size_bytes)} on disk
               </span>
               {!coreVersioningEnabled && (
-                <span className="text-yellow-600 dark:text-yellow-400">Versioning is globally disabled — toggle on in Plugins settings</span>
+                <span className="text-yellow-600 dark:text-yellow-400">
+                  Versioning is globally disabled — toggle on in Plugins settings
+                </span>
               )}
             </div>
           )}
@@ -530,27 +584,36 @@ export function SourcesPanel({
                 status={status}
                 globalVersioningEnabled={coreVersioningEnabled}
                 onRemove={() => setPendingRemove(cfg.path)}
-                onUpdated={() => { reloadVersioningStatus(); onReloadSettings() }}
+                onUpdated={() => {
+                  reloadVersioningStatus()
+                  onReloadSettings()
+                }}
               />
             )
           })}
 
           {/* Project-root-expanded sources (read-only, not user-added explicitly) */}
-          {sources.filter((s) => !sourceConfigs.some((c) => c.path === s)).map((s) => (
-            <div key={s} className="rounded-md border border-dashed p-3 flex items-center gap-2">
-              <PathBadge path={s} />
-              <span className="font-mono text-sm flex-1 truncate">{s}</span>
-              <Badge variant="outline" className="text-[10px]">from project root</Badge>
-            </div>
-          ))}
+          {sources
+            .filter((s) => !sourceConfigs.some((c) => c.path === s))
+            .map((s) => (
+              <div key={s} className="rounded-md border border-dashed p-3 flex items-center gap-2">
+                <PathBadge path={s} />
+                <span className="font-mono text-sm flex-1 truncate">{s}</span>
+                <Badge variant="outline" className="text-[10px]">
+                  from project root
+                </Badge>
+              </div>
+            ))}
 
           {sourceConfigs.length === 0 && sources.length === 0 && (
             <p className="text-sm text-muted-foreground">No watch directories configured.</p>
           )}
-          <AddDirectoryForm onSubmit={async (path) => {
-            await onAdd(path)
-            toast.success(`Added "${path}" — indexing started in background`)
-          }} />
+          <AddDirectoryForm
+            onSubmit={async (path) => {
+              await onAdd(path)
+              toast.success(`Added "${path}" — indexing started in background`)
+            }}
+          />
         </CardContent>
       </Card>
 
@@ -558,21 +621,15 @@ export function SourcesPanel({
         <CardHeader>
           <CardTitle>Exclude Patterns</CardTitle>
           <CardDescription>
-            Glob patterns for files and directories to skip during
-            indexing. Matching paths are ignored by both the scanner
-            and file watcher.
+            Glob patterns for files and directories to skip during indexing. Matching paths are ignored by both the
+            scanner and file watcher.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {ignorePatterns.map((p) => (
             <div key={p} className="flex items-center gap-2">
               <span className="font-mono text-sm flex-1 truncate">{p}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onRemoveIgnore(p)}
-                aria-label={`Remove pattern ${p}`}
-              >
+              <Button variant="ghost" size="icon" onClick={() => onRemoveIgnore(p)} aria-label={`Remove pattern ${p}`}>
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
             </div>
@@ -597,7 +654,9 @@ export function SourcesPanel({
 
       <ConfirmDialog
         open={!!pendingRemove}
-        onOpenChange={(open) => { if (!open) setPendingRemove(null) }}
+        onOpenChange={(open) => {
+          if (!open) setPendingRemove(null)
+        }}
         title="Remove Watch Directory?"
         description={`Remove "${pendingRemove}" from watch list. You can also unindex all files that were indexed from this directory.`}
         confirmLabel="Remove & Unindex"
@@ -623,7 +682,9 @@ export function SourcesPanel({
 
       <ConfirmDialog
         open={!!pendingRemoveRoot}
-        onOpenChange={(open) => { if (!open) setPendingRemoveRoot(null) }}
+        onOpenChange={(open) => {
+          if (!open) setPendingRemoveRoot(null)
+        }}
         title="Remove Project Directory?"
         description={`Remove "${pendingRemoveRoot}" from project roots. You can also unindex all files that were discovered from this root.`}
         confirmLabel="Remove & Unindex"

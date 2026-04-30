@@ -43,13 +43,55 @@ interface FeatureCard {
 }
 
 const FEATURE_CARDS: FeatureCard[] = [
-  { label: "Chat", description: "Ask questions and get answers grounded in your knowledge base.", icon: MessageSquare, route: "/chat", coreKey: "rag_chat" },
-  { label: "Search", description: "Semantic + keyword search with AI-generated summaries.", icon: Globe, route: "/search", pluginKey: "search" },
-  { label: "Wiki", description: "Managed wikis — browse pages, ingest sources, run lint.", icon: BookOpen, route: "/wiki", pluginKey: "wiki_compile" },
-  { label: "Planner", description: "MCTS-based implementation planning and skill reviews.", icon: Lightbulb, route: "/planner", pluginKey: "planner" },
-  { label: "Buckets", description: "Temporary scoped collections with independent vector storage.", icon: Archive, route: "/buckets", pluginKey: "buckets" },
-  { label: "Files", description: "Browse, read, and manage indexed files.", icon: FolderOpen, route: "/files", alwaysShow: true },
-  { label: "Settings", description: "Configure models, sources, plugins, and retrieval.", icon: Settings, route: "/settings", alwaysShow: true },
+  {
+    label: "Chat",
+    description: "Ask questions and get answers grounded in your knowledge base.",
+    icon: MessageSquare,
+    route: "/chat",
+    coreKey: "rag_chat",
+  },
+  {
+    label: "Search",
+    description: "Semantic + keyword search with AI-generated summaries.",
+    icon: Globe,
+    route: "/search",
+    pluginKey: "search",
+  },
+  {
+    label: "Wiki",
+    description: "Managed wikis — browse pages, ingest sources, run lint.",
+    icon: BookOpen,
+    route: "/wiki",
+    pluginKey: "wiki_compile",
+  },
+  {
+    label: "Planner",
+    description: "MCTS-based implementation planning and skill reviews.",
+    icon: Lightbulb,
+    route: "/planner",
+    pluginKey: "planner",
+  },
+  {
+    label: "Buckets",
+    description: "Temporary scoped collections with independent vector storage.",
+    icon: Archive,
+    route: "/buckets",
+    pluginKey: "buckets",
+  },
+  {
+    label: "Files",
+    description: "Browse, read, and manage indexed files.",
+    icon: FolderOpen,
+    route: "/files",
+    alwaysShow: true,
+  },
+  {
+    label: "Settings",
+    description: "Configure models, sources, plugins, and retrieval.",
+    icon: Settings,
+    route: "/settings",
+    alwaysShow: true,
+  },
 ]
 
 export function DashboardTab() {
@@ -65,12 +107,31 @@ export function DashboardTab() {
   const [recentSearches, setRecentSearches] = useState<Array<{ id: string; query: string; created_at: string }>>([])
 
   useEffect(() => {
-    api.get<{ total: number }>("/api/v1/files?limit=1").then((r) => setFileCount(r.total)).catch(() => {})
-    api.get<{ total: number }>("/api/v1/threads?limit=1").then((r) => setThreadCount(r.total)).catch(() => {})
-    api.get<{ items: Array<{ id: string; title: string; created_at: string }> }>("/api/v1/threads?limit=5").then((r) => setRecentThreads(r.items)).catch(() => {})
-    api.get<{ items: Array<{ path: string; indexed_at: string }> }>("/api/v1/files?limit=5&sort=indexed_at").then((r) => setRecentFiles(r.items)).catch(() => {})
-    api.get<{ items: Array<{ id: string; query: string; created_at: string }> }>("/api/v1/searches?limit=5").then((r) => setRecentSearches(r.items)).catch(() => {})
-    api.get<DashboardChartsData>("/api/v1/dashboard/charts").then(setChartsData).catch(() => {})
+    /* best-effort: dashboard renders empty cards gracefully when any stat is unavailable */
+    api
+      .get<{ total: number }>("/api/v1/files?limit=1")
+      .then((r) => setFileCount(r.total))
+      .catch(() => {})
+    api
+      .get<{ total: number }>("/api/v1/threads?limit=1")
+      .then((r) => setThreadCount(r.total))
+      .catch(() => {})
+    api
+      .get<{ items: Array<{ id: string; title: string; created_at: string }> }>("/api/v1/threads?limit=5")
+      .then((r) => setRecentThreads(r.items))
+      .catch(() => {})
+    api
+      .get<{ items: Array<{ path: string; indexed_at: string }> }>("/api/v1/files?limit=5&sort=indexed_at")
+      .then((r) => setRecentFiles(r.items))
+      .catch(() => {})
+    api
+      .get<{ items: Array<{ id: string; query: string; created_at: string }> }>("/api/v1/searches?limit=5")
+      .then((r) => setRecentSearches(r.items))
+      .catch(() => {})
+    api
+      .get<DashboardChartsData>("/api/v1/dashboard/charts")
+      .then(setChartsData)
+      .catch(() => {})
   }, [])
 
   const sourceCount = settings?.source_configs?.length ?? null
@@ -91,12 +152,13 @@ export function DashboardTab() {
   return (
     <div className="h-full overflow-auto">
       <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
-
         {/* Header + stats */}
         <div className="flex items-start justify-between gap-6 flex-wrap">
           <div className="space-y-1">
             <h2 className="text-2xl font-bold tracking-tight">MarkdownKB</h2>
-            <p className="text-sm text-muted-foreground">Chat with your docs. Everything is markdown, nothing is magic.</p>
+            <p className="text-sm text-muted-foreground">
+              Chat with your docs. Everything is markdown, nothing is magic.
+            </p>
           </div>
           <div className="flex gap-6 shrink-0">
             {stats.map((s) => (
@@ -147,15 +209,19 @@ export function DashboardTab() {
               <WidgetSection title="Recent Activity">
                 <ActivityList
                   groups={[
-                    ...(settings?.core?.rag_chat !== false ? [{
-                      label: "Threads",
-                      items: recentThreads.map((t) => ({
-                        id: t.id,
-                        label: t.title || "(Untitled thread)",
-                        timestamp: getRelativeTime(t.created_at),
-                        onClick: () => setLocation(`/chat/${t.id}`),
-                      })),
-                    }] : []),
+                    ...(settings?.core?.rag_chat !== false
+                      ? [
+                          {
+                            label: "Threads",
+                            items: recentThreads.map((t) => ({
+                              id: t.id,
+                              label: t.title || "(Untitled thread)",
+                              timestamp: getRelativeTime(t.created_at),
+                              onClick: () => setLocation(`/chat/${t.id}`),
+                            })),
+                          },
+                        ]
+                      : []),
                     {
                       label: "Indexed Files",
                       items: recentFiles.map((f) => ({
@@ -165,15 +231,19 @@ export function DashboardTab() {
                         onClick: () => setViewingFile(f.path),
                       })),
                     },
-                    ...(settings?.plugins_enabled?.search ? [{
-                      label: "Searches",
-                      items: recentSearches.map((s) => ({
-                        id: s.id,
-                        label: s.query,
-                        timestamp: getRelativeTime(s.created_at),
-                        onClick: () => setLocation(`/search/${s.id}`),
-                      })),
-                    }] : []),
+                    ...(settings?.plugins_enabled?.search
+                      ? [
+                          {
+                            label: "Searches",
+                            items: recentSearches.map((s) => ({
+                              id: s.id,
+                              label: s.query,
+                              timestamp: getRelativeTime(s.created_at),
+                              onClick: () => setLocation(`/search/${s.id}`),
+                            })),
+                          },
+                        ]
+                      : []),
                   ]}
                 />
               </WidgetSection>
@@ -189,7 +259,10 @@ export function DashboardTab() {
               <p className="text-sm font-medium">No sources configured yet</p>
               <p className="text-xs text-muted-foreground">
                 Add a directory under{" "}
-                <button className="underline underline-offset-2 hover:text-foreground" onClick={() => setLocation("/settings/sources")}>
+                <button
+                  className="underline underline-offset-2 hover:text-foreground"
+                  onClick={() => setLocation("/settings/sources")}
+                >
                   Settings → Sources
                 </button>{" "}
                 to start indexing your markdown files.
@@ -197,7 +270,6 @@ export function DashboardTab() {
             </div>
           </div>
         )}
-
       </div>
 
       <FileViewerDialog path={viewingFile} onClose={() => setViewingFile(null)} />

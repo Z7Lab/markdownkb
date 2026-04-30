@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { api } from "@/lib/api"
+import { setVisibilityInterval } from "@/lib/polling"
 import { toast } from "sonner"
 
 export interface Bucket {
@@ -50,9 +51,7 @@ export function useBucketFiles(bucketId: string | null) {
     if (!bucketId) return
     setLoading(true)
     try {
-      const res = await api.get<{ files: BucketFile[]; indexing?: boolean }>(
-        `/api/v1/buckets/${bucketId}/files`
-      )
+      const res = await api.get<{ files: BucketFile[]; indexing?: boolean }>(`/api/v1/buckets/${bucketId}/files`)
       setFiles(res.files)
       setIndexing(res.indexing ?? false)
     } catch (err) {
@@ -74,8 +73,9 @@ export function useBucketFiles(bucketId: string | null) {
   // Poll while embedding is in progress so files get their chunk counts once done
   useEffect(() => {
     if (!indexing) return
-    const timer = setInterval(() => { void load() }, 3000)
-    return () => clearInterval(timer)
+    return setVisibilityInterval(() => {
+      void load()
+    }, 3000)
   }, [indexing, load])
 
   return { files, loading, indexing, reload: load }
@@ -89,7 +89,7 @@ export function useBuckets() {
     try {
       const res = await api.get<{ buckets: Bucket[] }>("/api/v1/buckets")
       // SQLite returns expired as 0/1 integer; coerce to boolean at the boundary
-      setBuckets(res.buckets.map(b => ({ ...b, expired: Boolean(b.expired) })))
+      setBuckets(res.buckets.map((b) => ({ ...b, expired: Boolean(b.expired) })))
     } catch {
       // Buckets plugin may be disabled
     }
@@ -170,7 +170,8 @@ export function useBuckets() {
 
   const exportBucket = useCallback((id: string, name: string) => {
     const toastId = toast.loading(`Exporting "${name}"...`)
-    api.fetchRaw("GET", `/api/v1/buckets/${id}/export`)
+    api
+      .fetchRaw("GET", `/api/v1/buckets/${id}/export`)
       .then(async (res) => {
         const blob = await res.blob()
         const url = URL.createObjectURL(blob)
@@ -186,30 +187,34 @@ export function useBuckets() {
       })
   }, [])
 
-  const importBucket = useCallback(async (file: File): Promise<Bucket | null> => {
-    const toastId = toast.loading(`Importing "${file.name}"...`)
-    try {
-      const fd = new FormData()
-      fd.append("file", file)
-      const bucket = await api.upload<Bucket>("/api/v1/buckets/import", fd)
-      await refresh()
-      toast.success(`Imported bucket "${bucket.name}"`, {
-        id: toastId,
-        description: `${bucket.chunk_count} chunks`,
-        duration: 4000,
-      })
-      return bucket
-    } catch (err) {
-      toast.error(`Import failed: ${(err as Error).message}`, { id: toastId })
-      return null
-    }
-  }, [refresh])
+  const importBucket = useCallback(
+    async (file: File): Promise<Bucket | null> => {
+      const toastId = toast.loading(`Importing "${file.name}"...`)
+      try {
+        const fd = new FormData()
+        fd.append("file", file)
+        const bucket = await api.upload<Bucket>("/api/v1/buckets/import", fd)
+        await refresh()
+        toast.success(`Imported bucket "${bucket.name}"`, {
+          id: toastId,
+          description: `${bucket.chunk_count} chunks`,
+          duration: 4000,
+        })
+        return bucket
+      } catch (err) {
+        toast.error(`Import failed: ${(err as Error).message}`, { id: toastId })
+        return null
+      }
+    },
+    [refresh],
+  )
 
   const promoteBucket = useCallback(async (id: string, name: string) => {
     const toastId = toast.loading(`Promoting "${name}" to watched directories...`)
     try {
       const res = await api.post<{ promoted: string[]; already_present: string[]; message: string }>(
-        `/api/v1/buckets/${id}/promote`, {}
+        `/api/v1/buckets/${id}/promote`,
+        {},
       )
       toast.success(`Promoted "${name}"`, {
         id: toastId,

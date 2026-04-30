@@ -25,6 +25,16 @@ export default defineConfig({
     // Always wipe the output directory before building so stale hashed
     // bundles from prior builds are not left in app/static/assets/.
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Three.js is large (~600 KB min) and only used by the visualization
+          // tab (lazy-loaded). Splitting it into its own chunk avoids bloating
+          // the main vendor bundle for users who never open that tab.
+          "vendor-three": ["three"],
+        },
+      },
+    },
   },
   server: {
     port: parseInt(process.env.FRONTEND_PORT || "9714"),
