@@ -113,7 +113,7 @@ Plugins that own a database (buckets, tags, knowledge_graph) follow the same pat
 
 ### Legacy `schema_version` table
 
-Two existing databases (`trackingdb.py` and `knowledgegraph.py`) use an older equivalent pattern — a `schema_version` table with explicit `_migrate_v1_to_v2`-style functions. These are functionally equivalent and stay as-is; new databases must use the canonical `PRAGMA user_version` + `_MIGRATIONS` pattern via `app.storage.migrations.run_migrations`.
+One database (`trackingdb.py`) uses an older equivalent pattern — a `schema_version` table with explicit `_migrate_v1_to_v2`-style functions. This is functionally equivalent and stays as-is; new databases must use the canonical `PRAGMA user_version` + `_MIGRATIONS` pattern via `app.storage.migrations.run_migrations`. `knowledgegraph.py` was previously on the legacy pattern and now uses the canonical runner; it drops the old `schema_version` table on first open if present.
 
 ## Config migrations
 

@@ -15,10 +15,10 @@ from app.storage.migrations import run_migrations
 
 logger = logging.getLogger(__name__)
 
-# Migration list is empty for now — the schema has only ever had one
-# version. Future schema changes append here and the canonical runner
-# advances PRAGMA user_version.
-_MIGRATIONS: list = []
+_MIGRATIONS: list = [
+    (1, "index kg_relationships.target_entity_id for incoming-edge lookups and FK cascade",
+     "CREATE INDEX IF NOT EXISTS idx_relationships_target ON kg_relationships(target_entity_id)"),
+]
 
 _CREATE_SQL = """
 CREATE TABLE IF NOT EXISTS kg_entities (
@@ -57,6 +57,7 @@ CREATE INDEX IF NOT EXISTS idx_entities_type ON kg_entities(entity_type);
 CREATE INDEX IF NOT EXISTS idx_entities_source ON kg_entities(source_path);
 CREATE INDEX IF NOT EXISTS idx_relationships_source ON kg_relationships(source_path);
 CREATE INDEX IF NOT EXISTS idx_relationships_type ON kg_relationships(rel_type);
+CREATE INDEX IF NOT EXISTS idx_relationships_target ON kg_relationships(target_entity_id);
 CREATE INDEX IF NOT EXISTS idx_cache_source ON kg_extraction_cache(source_path);
 """
 
