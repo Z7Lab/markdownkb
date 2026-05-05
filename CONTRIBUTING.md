@@ -5,8 +5,8 @@
 **Prerequisites**: Python 3.11+, Node 18+.
 
 ```bash
-git clone <repo-url>
-cd mdkb
+git clone https://github.com/markdownkb/markdownkb
+cd markdownkb
 cp config/settings.yaml.example config/settings.yaml
 ./run.sh          # creates .venv, installs deps, starts backend:9713 + Vite:5173
 ```

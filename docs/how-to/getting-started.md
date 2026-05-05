@@ -13,7 +13,7 @@ This guide walks you through setting up MarkdownKB, indexing your first document
 ### Docker (recommended)
 
 ```bash
-git clone <repo-url> && cd markdownkb
+git clone https://github.com/markdownkb/markdownkb && cd markdownkb
 cp config/settings.yaml.example config/settings.yaml
 cp .env.example .env
 make docker-build && make docker-up

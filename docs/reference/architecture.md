@@ -59,7 +59,7 @@ MarkdownKB is a chat-with-your-docs tool with a Python backend and React fronten
 
 ┌─────────────────────────────────────────────────────────┐
 │  MCP Server (mcp_server.py — separate process)          │
-│  Core (22 tools):                                       │
+│  Core tools:                                            │
 │    health │ retrieve │ retrieve_documents │ chat        │
 │    enhance_query │ deep_research │ get_file │ list_files│
 │    list_threads │ list_sources │ list_models            │
@@ -183,7 +183,7 @@ All files are relative to the data directory (see [Storage](#storage) below).
 3. **Auth middleware** (`app/auth.py`) checks the `X-MarkdownKB-Key` header on all `/api/v1/*` paths (except `/api/v1/health`) when an API key is configured via Docker secret or env var. Uses `hmac.compare_digest()` for timing-safe comparison. Disabled when no key is set.
 4. **Dependency injection** (`app/deps.py`) provides services via FastAPI's `Depends()`. All shared state lives on `app.state`, initialized in the async lifespan context manager (`app/main.py`).
 5. **Services** contain business logic — conversation management, LLM health checks, query enhancement.
-6. **Storage layer** persists data across seven stores (see below).
+6. **Storage layer** persists data across ten stores (see below).
 
 ## Storage
 
@@ -334,6 +334,16 @@ Current builtin plugins: `search` (search with history and AI summaries), `expor
 A separate plugin type lives under `app/plugins/catalogs/`. Each subdirectory provides a static model catalog for an LLM provider, exposing `get_model_ids()` and `get_model_info()`. These are used by `llm_service.build_model_list()` to populate the model dropdown and display pricing/context info in the UI. No feature flag is needed — catalogs are always active.
 
 Current catalogs: `venice` (Venice.ai — 21 privacy-preserving chat models).
+
+## Versioning
+
+`app/versioning/` is a core subsystem (not a plugin) that provides git-backed revision history for markdown files written by MarkdownKB. It is distinct from the app-level versioning described in [versioning-and-upgrades.md](../explanation/versioning-and-upgrades.md).
+
+- **`git_manager.py`** — manages one git repository per writable source directory. Repos are stored under `{data_dir}/versioning/<source-hash>/` with `--work-tree` pointing at the live source directory. Each public method holds a per-source lock so concurrent writers (`write_api`, `wiki_compile`) on the same source serialize their commits. Git is invoked via subprocess — no native dependency.
+- **`hooks.py`** — best-effort commit helpers. Callers (write_api, wiki_compile) invoke `try_commit()` after a successful filesystem write. Failures never raise — versioning is a background concern, not a correctness gate on the write operation.
+- **`router.py`** — HTTP API exposing version history and diff retrieval for files in versioned sources.
+
+See [versioning.md](../explanation/versioning.md) for the user-facing behavior (what gets versioned, the managed repo layout, and non-goals).
 
 ## Settings Structure
 

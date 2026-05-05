@@ -66,4 +66,12 @@ Background and reasoning. Read when you want to understand why, not how.
 | [Versioning and Upgrades](explanation/versioning-and-upgrades.md) | App versioning, update detection (PyPI / Docker Hub / git), schema migration pattern, plugin contract versioning |
 | [Philosophy](explanation/manifesto.md) | The markdown-first paradigm — why tokens are value |
 | [Value Proposition](explanation/value-proposition.md) | What MarkdownKB is, who it's for, what makes it different |
-| [Security](../SECURITY.md) | Threat model, API key auth, feature flags, network exposure |
+
+## Security & Contributing
+
+Root-level project files not part of the Diataxis quadrants.
+
+| Document | Description |
+|----------|-------------|
+| [Security](../SECURITY.md) | Threat model, API key auth, rate limiting, feature flags, vulnerability reporting |
+| [Contributing](../CONTRIBUTING.md) | Dev environment setup, running tests, plugin dev, PR guidelines |

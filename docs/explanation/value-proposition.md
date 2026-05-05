@@ -163,3 +163,7 @@ Most knowledge management tools optimize for ingestion — get everything in, wo
 There's a second bet: that the same knowledge base should serve both humans and agents equally. Every feature in the web UI has an equivalent MCP tool or API endpoint. The knowledge base is not a human tool that agents can kind of use, or an agent tool with a dashboard bolted on — it's both, by design.
 
 And there's a third bet: that value compounds. Build-time tools produce snapshots — useful at a point in time, then stale. A runtime service that's always indexing, always serving, always accumulating conversation history and search patterns becomes more valuable every week it runs. More documents indexed means richer retrieval. More conversations mean better institutional memory. More agents connected means broader access. MarkdownKB is infrastructure you build on, not a report you run once.
+
+---
+
+For the philosophical reasoning behind the markdown-first approach — why plain text over proprietary formats, and why retrieval over long context — see [The Markdown-First Paradigm](manifesto.md).

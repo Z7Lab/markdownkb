@@ -2,6 +2,15 @@
 
 MarkdownKB handles API keys, accesses the file system, and optionally executes terminal commands. This document describes the security model and how to report issues.
 
+## Supported Versions
+
+Only the latest published release receives security patches. If you discover a vulnerability on an older version, please verify it against the latest release before reporting.
+
+| Version | Supported |
+|---------|-----------|
+| Latest  | Yes       |
+| Older   | No        |
+
 ## Sensitive Data
 
 - **API keys** are stored in Docker secret files (`secrets/`) or environment variables — never in `config/settings.yaml`. They are never logged or exposed via API responses.
@@ -91,8 +100,8 @@ The `write_api` plugin and MCP write tools validate paths to prevent directory t
 
 ## Rate Limiting
 
-Optional rate limiting via slowapi can be enabled with the `rate_limiting` feature flag to prevent API abuse.
+Rate limiting via slowapi is **automatically enabled** when the server binds to a non-localhost address (`0.0.0.0` or any explicit LAN IP). It can also be explicitly enabled for localhost via the `rate_limiting` feature flag. See [security-hardening.md](docs/how-to/security-hardening.md#rate-limiting) for tier details.
 
 ## Reporting Vulnerabilities
 
-If you discover a security vulnerability, please report it privately — **do not open a public GitHub issue**. Use [GitHub's private vulnerability reporting](../../security/advisories/new) or email **REDACTED** with steps to reproduce and the expected vs. actual behavior. This gives us time to prepare a fix before the issue is disclosed publicly. We aim to acknowledge reports within 48 hours.
+If you discover a security vulnerability, please report it privately — **do not open a public GitHub issue**. Use [GitHub's private vulnerability reporting](https://github.com/markdownkb/markdownkb/security/advisories/new) or email **REDACTED** with steps to reproduce and the expected vs. actual behavior. This gives us time to prepare a fix before the issue is disclosed publicly. We aim to acknowledge reports within 48 hours.

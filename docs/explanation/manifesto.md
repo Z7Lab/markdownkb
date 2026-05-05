@@ -211,3 +211,7 @@ The arguments against RAG and why they don't apply here:
 **Long context assumes cloud-scale hardware.** A 1M-token context window requires significant GPU memory just to hold the KV cache. Local models running on consumer hardware — the 8B quantized models that make local-first AI practical — typically run with 2K-8K context. Even 32K context on a local model demands substantially more RAM and slows inference. Retrieval sidesteps this entirely: embed your documents once (a CPU operation), then retrieve the 5-10 relevant chunks that fit comfortably in any context window. The model reasons over a focused, pre-filtered context instead of trying to hold your entire knowledge base in memory. This is why retrieval and local models are complementary — retrieval compensates for the smaller context window, and the smaller model compensates for retrieval's imperfection by applying reasoning to already-relevant content.
 
 The core insight: retrieval and long context aren't competing approaches. They solve different problems. Long context is for working deeply with a bounded set of documents you've already identified. Retrieval is for finding which documents are relevant in the first place, across a collection too large to read in full. A knowledge base needs retrieval. What it does with the retrieved context — that's where model capability matters.
+
+---
+
+For a product-level view of what MarkdownKB is, who it's for, and how it compares to alternatives, see [Value Proposition](value-proposition.md).

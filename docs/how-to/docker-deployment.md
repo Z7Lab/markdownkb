@@ -7,7 +7,7 @@ MarkdownKB ships as a docker compose stack — clone the repo, copy the example 
 ## First-run
 
 ```bash
-git clone <repo-url> markdownkb
+git clone https://github.com/markdownkb/markdownkb markdownkb
 cd markdownkb
 cp .env.example .env
 cp config/settings.yaml.example config/settings.yaml

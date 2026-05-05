@@ -9,8 +9,8 @@ Python (FastAPI) backend + React (Vite + TypeScript + Shadcn/ui) frontend.
 ## Quick Start
 
 ```bash
-git clone <repo-url>
-cd mdkb
+git clone https://github.com/markdownkb/markdownkb
+cd markdownkb
 ```
 
 ### Option A: Docker (recommended)
