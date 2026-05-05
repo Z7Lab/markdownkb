@@ -241,7 +241,7 @@ def get_status(request: Request, settings: Settings = Depends(get_settings)):
 # name="versioning", so it sits alongside file_watcher, rag_chat, etc.
 # No dedicated endpoint here.
 
-class SourceActionRequest(BaseModel):
+class RepoPathRequest(BaseModel):
     path: str
 
 
@@ -249,7 +249,7 @@ class SourceActionRequest(BaseModel):
 @limiter.limit(STANDARD)
 def post_init_repo(
     request: Request,
-    req: SourceActionRequest,
+    req: RepoPathRequest,
     settings: Settings = Depends(get_settings),
 ):
     """Force-initialise the managed repo for a source.

@@ -42,7 +42,7 @@ def reload_settings(request: Request, settings: Settings = Depends(get_settings)
 _KNOWN_CORE_FLAGS = frozenset({
     "file_watcher", "rate_limiting",
     "deep_research", "agent_skills",
-    "versioning",
+    "versioning", "update_check",
 })
 
 _KNOWN_MCP_FLAGS = frozenset({

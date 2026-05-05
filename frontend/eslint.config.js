@@ -32,6 +32,12 @@ export default defineConfig([
       // autoFocus is used intentionally on dialog/modal inputs for UX —
       // the a11y concern is about page-level autofocus, not scoped modals.
       'jsx-a11y/no-autofocus': 'off',
+      // Leading-underscore convention marks intentionally ignored variables and
+      // parameters (e.g. stub components, destructuring placeholders).
+      '@typescript-eslint/no-unused-vars': ['error', {
+        varsIgnorePattern: '^_',
+        argsIgnorePattern: '^_',
+      }],
     },
   },
   eslintConfigPrettier,

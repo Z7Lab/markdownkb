@@ -128,21 +128,3 @@ def _extract_items(text: str, markers: list[str]) -> list[str]:
                 items.append(line.strip())
                 break
     return items
-
-
-def format_reviews(reviews: list[SkillReview]) -> str:
-    """Format a list of skill reviews into a readable markdown string."""
-    parts: list[str] = []
-    for r in reviews:
-        parts.append(f"### {r.skill_name}")
-        parts.append(r.review)
-        if r.issues:
-            parts.append("\n**Issues found:**")
-            for issue in r.issues:
-                parts.append(f"- {issue}")
-        if r.approvals:
-            parts.append("\n**Approved:**")
-            for approval in r.approvals:
-                parts.append(f"- {approval}")
-        parts.append("---")
-    return "\n".join(parts)

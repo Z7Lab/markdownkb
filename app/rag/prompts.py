@@ -35,10 +35,6 @@ def get_rag_user_template() -> str:
     return _get("rag_user")
 
 
-def get_planning_user_template() -> str:
-    return _get("planning_user")
-
-
 def get_skill_review_template() -> str:
     return _get("skill_review")
 

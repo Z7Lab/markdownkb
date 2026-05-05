@@ -54,7 +54,8 @@ def migrate_settings(data: dict) -> bool:
     for old_key, new_key in _MCP_FLAGS.items():
         if old_key in old_features:
             mcp[new_key] = old_features[old_key]
-    data["mcp"] = mcp
+    if mcp:
+        data["mcp"] = mcp
 
     plugins: dict[str, dict] = {}
     for old_flag, plugin_name in _PLUGIN_FLAG_MAP.items():

@@ -403,8 +403,8 @@ export function VisualizationTab({ fixedMode }: { fixedMode: GraphMode }) {
       // docmapData is a phantom dep: its value isn't read here, but including it forces
       // the function ref to change when graph data updates, making the library re-apply
       // node colors (e.g. bucket vs non-bucket nodes flip styling on data refresh).
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- docmapData is a phantom dep to force color reapplication on data refresh
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- docmapData is a phantom dep to force color reapplication on data refresh
     [mode, hasHighlight, highlightedNodes, selectedNodeId, colors.dim, docmapData],
   )
 
