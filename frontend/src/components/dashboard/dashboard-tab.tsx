@@ -145,7 +145,7 @@ export function DashboardTab() {
   const visibleCards = FEATURE_CARDS.filter((c) => {
     if (c.alwaysShow) return true
     if (c.pluginKey) return !!settings?.plugins_enabled?.[c.pluginKey]
-    if (c.coreKey) return settings?.core?.[c.coreKey] !== false
+    if (c.coreKey) return settings?.core[c.coreKey] !== false
     return true
   })
 
@@ -209,7 +209,7 @@ export function DashboardTab() {
               <WidgetSection title="Recent Activity">
                 <ActivityList
                   groups={[
-                    ...(settings?.core?.rag_chat !== false
+                    ...(settings?.core.rag_chat !== false
                       ? [
                           {
                             label: "Threads",

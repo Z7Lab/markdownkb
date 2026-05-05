@@ -99,7 +99,7 @@ export function PluginConfigDialog({
                       value={value as number}
                       min={field.min}
                       max={field.max}
-                      onChange={(e) => updateField(key, parseInt(e.target.value))}
+                      onChange={(e) => updateField(key, parseInt(e.target.value, 10))}
                     />
                     {field.description && (
                       <p className="text-xs text-muted-foreground">{field.description}</p>

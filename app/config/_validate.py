@@ -40,6 +40,7 @@ _CHECKS: list[tuple[str, tuple, tuple | None]] = [
     ("server.host", (str,), None),
     ("logging.level", (str,), None),
     ("ui.file_list_limit", (int,), (1, 1_000_000)),
+    ("mcp.rate_limit_per_minute", (int,), (0, 1_000_000)),
 ]
 
 # OFF is a MarkdownKB-specific value meaning "disable log emission" — it's

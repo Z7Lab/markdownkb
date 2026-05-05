@@ -200,7 +200,11 @@ def get_completion(
     settings: Settings | None = None,
     stream: bool = False,
 ) -> str | Generator:
-    """Get a completion from the active LLM provider, with fallback."""
+    """Get a completion from the active LLM provider.
+
+    Uses a single active provider (no multi-provider fallback). Raises
+    RuntimeError if no usable provider is configured or if the provider fails.
+    """
     settings = settings or Settings.get()
 
     providers = _usable_providers(settings)

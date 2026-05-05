@@ -50,8 +50,13 @@ def get_status(request: Request, settings: Settings = Depends(get_settings)):
         try:
             import json
             pending = json.loads(marker.read_text())
-        except Exception:
-            pending = {"restored_at": "unknown"}
+        except Exception as e:
+            logger.warning(
+                "Restart-required marker file is corrupt or unreadable (%s) — "
+                "reporting unknown restore time. Inspect or delete %s manually.",
+                e, marker,
+            )
+            pending = {"restored_at": "unknown", "_corrupt": True}
     size_bytes = _dir_size(data_dir)
     return {
         "data_dir": str(data_dir),

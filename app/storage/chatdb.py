@@ -141,9 +141,33 @@ class ChatDB:
             for r in rows:
                 d = dict(r)
                 raw = d.get("sources")
-                d["sources"] = json.loads(raw) if raw else None
+                if raw:
+                    try:
+                        d["sources"] = json.loads(raw)
+                    except (json.JSONDecodeError, TypeError) as e:
+                        logger.error(
+                            "ChatDB: corrupt JSON in 'sources' for message id=%s thread=%s — "
+                            "substituting None. Error: %s",
+                            d.get("id"), thread_id, e,
+                        )
+                        d["sources"] = None
+                        d["_data_corrupt"] = True
+                else:
+                    d["sources"] = None
                 raw_map = d.get("source_map")
-                d["source_map"] = json.loads(raw_map) if raw_map else None
+                if raw_map:
+                    try:
+                        d["source_map"] = json.loads(raw_map)
+                    except (json.JSONDecodeError, TypeError) as e:
+                        logger.error(
+                            "ChatDB: corrupt JSON in 'source_map' for message id=%s thread=%s — "
+                            "substituting None. Error: %s",
+                            d.get("id"), thread_id, e,
+                        )
+                        d["source_map"] = None
+                        d.setdefault("_data_corrupt", True)
+                else:
+                    d["source_map"] = None
                 out.append(d)
             return out
 

@@ -20,6 +20,10 @@ def _get_plugin_catalog(provider_name: str, api_base: str = "") -> list[dict] | 
     """Check if a plugin catalog provides model entries for this provider."""
     try:
         from app.plugins.catalogs import get_catalog
+    except ImportError:
+        return None
+
+    try:
         mod = get_catalog(provider_name)
         if mod and hasattr(mod, "get_model_entries"):
             import inspect
@@ -27,8 +31,12 @@ def _get_plugin_catalog(provider_name: str, api_base: str = "") -> list[dict] | 
             if "api_base" in sig.parameters:
                 return mod.get_model_entries(api_base=api_base)
             return mod.get_model_entries()
-    except ImportError:
-        pass
+    except ImportError as e:
+        logger.warning(
+            "Plugin catalog for provider %r failed to import — "
+            "falling back to /v1/models endpoint. Error: %s",
+            provider_name, e,
+        )
     return None
 
 
@@ -80,35 +88,47 @@ def _fetch_openai_models(api_base: str) -> list[dict]:
 
 # ── Connection Testing ────────────────────────────────────
 
-def test_ollama(api_base: str) -> str:
-    """Test connectivity to an Ollama instance."""
+def test_ollama(api_base: str) -> dict:
+    """Test connectivity to an Ollama instance.
+
+    Returns a dict with keys: ``ok`` (bool), ``message`` (str).
+    """
     try:
         validate_api_base(api_base)
         resp = httpx.get(
             f"{api_base.rstrip('/')}/api/tags", timeout=10,
         )
     except httpx.ConnectError:
-        return (
-            f"Cannot reach {api_base}\n"
-            "Try: OLLAMA_HOST=0.0.0.0 ollama serve"
-        )
+        return {
+            "ok": False,
+            "message": (
+                f"Cannot reach {api_base}\n"
+                "Try: OLLAMA_HOST=0.0.0.0 ollama serve"
+            ),
+        }
     except httpx.HTTPError as e:
-        return f"Connection error: {e}"
+        return {"ok": False, "message": f"Connection error: {e}"}
 
     if resp.status_code != 200:
-        return f"Connection failed: HTTP {resp.status_code}"
+        return {"ok": False, "message": f"Connection failed: HTTP {resp.status_code}"}
 
     data = resp.json()
     models = [m["name"] for m in data.get("models", [])]
     if models:
-        return (
-            f"Connected to {api_base}\n"
-            f"Available models: {', '.join(models)}"
-        )
-    return (
-        f"Connected to {api_base} but no models found. "
-        "Pull a model first."
-    )
+        return {
+            "ok": True,
+            "message": (
+                f"Connected to {api_base}\n"
+                f"Available models: {', '.join(models)}"
+            ),
+        }
+    return {
+        "ok": True,
+        "message": (
+            f"Connected to {api_base} but no models found. "
+            "Pull a model first."
+        ),
+    }
 
 
 def test_api_provider(model: str, api_base: str, api_key: str = "") -> dict:
@@ -181,9 +201,7 @@ def test_llm_connection(
 
     provider_type, _ = _parse_model(model)
     if ("ollama" in provider_name.lower() or provider_type == "ollama") and api_base:
-        msg = test_ollama(api_base)
-        ok = not msg.startswith(("Cannot reach", "Connection failed", "Connection error"))
-        return {"ok": ok, "message": msg}
+        return test_ollama(api_base)
 
     return test_api_provider(model, api_base, api_key)
 

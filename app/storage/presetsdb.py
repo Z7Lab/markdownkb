@@ -53,7 +53,16 @@ class PresetsDB:
 
     def _row_to_dict(self, row: sqlite3.Row) -> dict:
         d = dict(row)
-        d["settings"] = json.loads(d["settings"])
+        try:
+            d["settings"] = json.loads(d["settings"])
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.error(
+                "PresetsDB: corrupt JSON in 'settings' for preset id=%s name=%r — "
+                "substituting defaults. Error: %s",
+                d.get("id"), d.get("name"), e,
+            )
+            d["settings"] = dict(_DEFAULTS)
+            d["_data_corrupt"] = True
         return d
 
     def create(self, name: str, settings: dict) -> str:

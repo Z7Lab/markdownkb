@@ -556,7 +556,11 @@ class BucketService:
         try:
             existing = store._collection.get(where={"source_path": path}, include=[])
             chunk_count = len(existing["ids"])
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "Bucket '%s': could not query chunk count for %s — defaulting to 0 (tracking DB may be inaccurate): %s",
+                record["name"], path, e,
+            )
             chunk_count = 0
 
         store.delete_by_source(path)

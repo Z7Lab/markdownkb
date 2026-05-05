@@ -240,7 +240,8 @@ def _select_doc_pairs(
             continue
         try:
             results = retriever.search(text[:1500])
-        except Exception:
+        except Exception as e:
+            logger.warning("_select_doc_pairs: retriever search failed for %s: %s", doc, e)
             continue
         for r in results[:3]:
             path = r.metadata.get("source_path", "")
@@ -343,7 +344,8 @@ def cross_tier(settings: Settings, retriever) -> list[Finding]:
             continue
         try:
             results = retriever.search(text[:1500])
-        except Exception:
+        except Exception as e:
+            logger.warning("cross_tier: retriever search failed for %s: %s", doc, e)
             continue
         canonical_match: Path | None = None
         for r in results[:10]:

@@ -65,12 +65,14 @@ def handler(query: str, top_k: int | None = None, tags: list[str] | None = None,
             "score": round(r.score, 4),
         }
         for r in results
+        if r.metadata.get("source_path")
     ]
 
     # Build rich history data matching the web UI search format
     result_details = [
         {"path": r.metadata.get("source_path", ""), "score": r.score}
         for r in results
+        if r.metadata.get("source_path")
     ]
     result_data = [
         {

@@ -63,9 +63,21 @@ class ScopeDB:
 
     def _row_to_dict(self, row: sqlite3.Row) -> dict:
         d = dict(row)
-        d["folders"] = json.loads(d["folders"])
-        d["tags"] = json.loads(d["tags"])
-        d["exclude_patterns"] = json.loads(d["exclude_patterns"])
+        corrupt_fields = []
+        for field in ("folders", "tags", "exclude_patterns"):
+            try:
+                d[field] = json.loads(d[field])
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.error(
+                    "ScopeDB: corrupt JSON in field '%s' for scope id=%s — "
+                    "substituting []. Raw value: %r. Error: %s",
+                    field, d.get("id"), d[field], e,
+                )
+                d[field] = []
+                corrupt_fields.append(field)
+        if corrupt_fields:
+            d["_data_corrupt"] = True
+            d["_corrupt_fields"] = corrupt_fields
         return d
 
     def list_scopes(self) -> list[dict]:

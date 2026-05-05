@@ -109,7 +109,12 @@ def parse_markdown_content(
         post = frontmatter.loads(raw)
         front = dict(post.metadata) if post.metadata else {}
         content = post.content
-    except yaml.YAMLError:
+    except yaml.YAMLError as e:
+        logger.warning(
+            "Bad YAML frontmatter in inline document (virtual_path=%r) — "
+            "all metadata (title, tags) will be lost: %s",
+            virtual_path, e,
+        )
         front = {}
         content = raw
 

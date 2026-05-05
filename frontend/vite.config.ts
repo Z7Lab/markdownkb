@@ -23,7 +23,7 @@ export default defineConfig({
     // set html.cspNonce instead and re-enable the polyfill.
     modulePreload: { polyfill: false },
     // Always wipe the output directory before building so stale hashed
-    // bundles from prior builds are not left in app/static/assets/.
+    // bundles from prior builds are not left in frontend/dist/.
     emptyOutDir: true,
     rollupOptions: {
       output: {

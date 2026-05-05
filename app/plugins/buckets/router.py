@@ -280,7 +280,11 @@ def list_bucket_files(
                 }
         file_list = sorted(files.values(), key=lambda f: f["path"])
     else:
-        sources = json.loads(record.get("sources", "[]"))
+        try:
+            sources = json.loads(record.get("sources", "[]"))
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.error("Bucket '%s': corrupt 'sources' JSON in DB record: %s", record["name"], e)
+            raise HTTPException(status_code=500, detail="Bucket source configuration is corrupt")
         file_list = []
         for src in sources:
             path = src.get("path", "")
@@ -441,7 +445,11 @@ def reindex_bucket(
             pending_embedded = len(pending)
             logger.info("Bucket '%s': triggered re-embed of %d pending docs (task %s)", record["name"], len(pending), task.id)
 
-        sources = json.loads(record.get("sources", "[]"))
+        try:
+            sources = json.loads(record.get("sources", "[]"))
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.error("Bucket '%s': corrupt 'sources' JSON during sync: %s", record["name"], e)
+            raise HTTPException(status_code=500, detail="Bucket source configuration is corrupt")
         if not sources:
             if pending_embedded:
                 return {"added_files": 0, "added_chunks": 0, "pending_requeued": pending_embedded, "message": f"Re-queued {pending_embedded} pending files for embedding"}
@@ -578,12 +586,18 @@ def export_bucket(
     store = svc.get_store(record["id"])
     data = store.get_all_with_embeddings()
 
+    try:
+        sources_for_export = json.loads(record.get("sources", "[]"))
+    except (json.JSONDecodeError, TypeError) as e:
+        logger.error("Bucket '%s': corrupt 'sources' JSON during export: %s", record["name"], e)
+        raise HTTPException(status_code=500, detail="Bucket source configuration is corrupt")
+
     manifest = {
         "format_version": _EXPORT_FORMAT_VERSION,
         "name": record["name"],
         "description": record.get("description"),
         "color": record.get("color"),
-        "sources": json.loads(record.get("sources", "[]")),
+        "sources": sources_for_export,
         "created_at": record.get("created_at"),
         "exported_at": datetime.now(timezone.utc).isoformat(),
         "chunk_count": len(data["ids"]),
@@ -694,7 +708,11 @@ def promote_bucket(
     """Promote bucket source paths to permanent watched directories."""
     record = _resolve_bucket(svc, bucket_id)
 
-    sources = json.loads(record.get("sources", "[]"))
+    try:
+        sources = json.loads(record.get("sources", "[]"))
+    except (json.JSONDecodeError, TypeError) as e:
+        logger.error("Bucket '%s': corrupt 'sources' JSON during promote: %s", record["name"], e)
+        raise HTTPException(status_code=500, detail="Bucket source configuration is corrupt")
     if not sources:
         return {"promoted": [], "message": "Bucket has no source paths to promote"}
 
