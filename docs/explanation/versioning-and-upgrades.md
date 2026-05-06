@@ -106,6 +106,7 @@ def _run_migrations(conn):
 - **Update `_CREATE_SQL` too.** When migration N adds a column, also add it to the `CREATE TABLE` so fresh installs get it from the start.
 - **Sequential numbering.** Migration versions start at 1 and have no gaps.
 - **No data loss.** New columns must have a sensible default or be NULL-tolerant. Backfills happen in the migration itself or on first read.
+- **One statement per SQL string.** `run_migrations` applies SQL bodies with `conn.execute()`, which rejects multi-statement strings. If a migration needs more than one statement (e.g. `CREATE TABLE` + `CREATE INDEX`), split it into two consecutive entries or use a callable body.
 
 ### Plugin-owned databases
 

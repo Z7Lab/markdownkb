@@ -66,9 +66,10 @@ _MIGRATIONS: list[tuple[int, str, str]] = [
             content      TEXT NOT NULL,
             content_hash TEXT NOT NULL,
             created_at   TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-        CREATE INDEX IF NOT EXISTS idx_pending_documents_bucket ON pending_documents(bucket_id)
+        )
      """),
+    (7, "index pending_documents by bucket",
+     "CREATE INDEX IF NOT EXISTS idx_pending_documents_bucket ON pending_documents(bucket_id)"),
 ]
 
 
