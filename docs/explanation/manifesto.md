@@ -136,7 +136,13 @@ The difference matters:
 
 **Converting** means you have the files. Plain text markdown on your filesystem. No API keys required to access your own knowledge. No vendor dependency. The source service could shut down tomorrow and your knowledge base is unaffected. You can version the files, diff them, edit them, move them between machines, back them up however you want.
 
-This is why the converter plugin exists — it takes documents in any format (DOCX, PDF, HTML, EPUB, and others via Pandoc) and produces markdown files that you keep. It's not a workaround for a missing connector feature. It's the deliberate choice: your knowledge should live as files you own, not as API calls to someone else's platform.
+This is why the converter plugin exists. The intake paths it opens up:
+
+- **File upload** — PDF, Word, PowerPoint, Excel, EPUB, HTML. Drag a file in, get markdown out.
+- **URL clip** — paste any article, documentation page, or YouTube URL. The content is fetched and converted to markdown; YouTube transcripts are extracted and stored as a document you own.
+- **GitHub import** — paste a repository URL, get a checklist of every `.md` and `.mdx` file in it. Pick what's worth keeping, import, done.
+
+Every path produces the same output: plain text markdown on your filesystem, versionable, searchable, no platform required to read it. It's not a workaround for a missing connector feature. It's the deliberate choice: your knowledge should live as files you own, not as API calls to someone else's platform.
 
 The friction of converting is a feature. It forces a decision about what's worth keeping. Not everything in your Notion workspace belongs in your knowledge base — most of it is transient. The act of selecting, converting, and curating is what turns a pile of documents into a knowledge base worth querying.
 
