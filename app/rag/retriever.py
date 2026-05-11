@@ -82,6 +82,8 @@ class Retriever:
             vector_results["metadatas"],
             vector_results["distances"],
         ):
+            if doc is None:
+                continue
             score = 1 - dist  # cosine distance -> similarity
             results.append(SearchResult(
                 document=doc, metadata=meta, score=score
