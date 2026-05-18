@@ -51,7 +51,7 @@ API keys can also be configured via Docker secrets (`secrets/embedding_api_key`)
 ```yaml
 embeddings:
   provider: remote
-  api_base: http://<your-server-ip>:11434
+  api_base: http://<your-server-ip>:11434  # Replace with your embedding server IP
   remote_model: nomic-embed-text
   api_type: ollama
 ```

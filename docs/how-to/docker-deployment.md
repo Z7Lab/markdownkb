@@ -69,6 +69,7 @@ MARKDOWNKB_MCP_HOST=0.0.0.0       # MCP server on every interface
 For a tighter setup, bind to a specific IP instead of `0.0.0.0`:
 
 ```
+# Replace <your-server-ip> with your server's LAN IP
 SERVER_HOST=<your-server-ip>
 MARKDOWNKB_MCP_HOST=<your-server-ip>
 ```

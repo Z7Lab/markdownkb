@@ -169,12 +169,12 @@ llm:
   - name: ollama
     model: ollama/deepseek-coder-v2:latest
     api_key: ''
-    api_base: http://<your-server-ip>:11434
+    api_base: http://<your-server-ip>:11434  # Replace with your LLM server IP
 
   - name: llamacpp
     model: openai/deepseek
     api_key: 'dummy'
-    api_base: http://<your-server-ip>:8080/v1
+    api_base: http://<your-server-ip>:8080/v1  # Replace with your LLM server IP
 
   active_provider: ollama  # Switch to "llamacpp" to use llama.cpp
 ```
@@ -192,7 +192,7 @@ cp .env.example .env
 API_PORT=9713
 FRONTEND_PORT=9714
 
-# Ollama remote server
+# Ollama remote server (replace with your LLM server IP)
 OLLAMA_API_BASE=http://<your-server-ip>:11434
 
 # Expose to network (optional - defaults to localhost only)
@@ -236,7 +236,7 @@ curl http://<server-ip>:8080/v1/models
 ### Test 2: From Docker Host (Before Starting MarkdownKB)
 
 ```bash
-# Test Ollama connection
+# Test Ollama connection (replace <your-server-ip> with your LLM server IP)
 curl http://<your-server-ip>:11434/api/tags
 
 # Quick generation test
@@ -336,7 +336,7 @@ sudo systemctl enable --now ollama-tunnel
 **On LLM server, allow only Docker host:**
 
 ```bash
-# Allow only Docker host IP
+# Allow only Docker host IP (replace <your-docker-host-ip> with your Docker host IP)
 sudo ufw allow from <your-docker-host-ip> to any port 11434 proto tcp
 
 # Block everyone else
@@ -357,14 +357,14 @@ Run both machines on a VPN (Tailscale, WireGuard, etc.) for encrypted private ne
 
 **Symptoms:**
 ```
-Error: Connection refused to http://<your-server-ip>:11434
+Error: Connection refused to http://<your-server-ip>:11434  # example IP — replace with yours
 ```
 
 **Fixes:**
 1. Check server is running: `systemctl status ollama`
 2. Check it's listening on network: `ss -tlnp | grep 11434`
 3. Check firewall: `sudo ufw status`
-4. Ping server: `ping <your-server-ip>`
+4. Ping server: `ping <your-server-ip>`  # replace with your LLM server IP
 5. Test from server itself: `curl http://localhost:11434/api/tags`
 
 ### Model Not Found
@@ -405,7 +405,7 @@ docker-compose logs -f backend
 
 **Test manually:**
 ```bash
-# From inside Docker container
+# From inside Docker container (replace <your-server-ip> with your LLM server IP)
 docker-compose exec backend bash
 curl http://<your-server-ip>:11434/api/tags
 ```
