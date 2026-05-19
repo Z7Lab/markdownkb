@@ -86,15 +86,14 @@ The stored vectors are incompatible — searching will return wrong results and 
 
 After a `make docker-restart` or `make docker-up`, the file list can appear empty — all previously indexed documents gone. **Your source files are safe.** They live on the host filesystem and were never touched. What happened is that MarkdownKB's scanner runs on startup, finds the source paths not mounted inside the container, and prunes those paths from the index (treating them as deleted files).
 
-**Root cause:** source directory mounts live in `compose.override.yml` (project root) and `config/compose.override.yml`. When Docker Compose is invoked with explicit `-f` flags — as the `docker-build-full` and variant targets do — it ignores the `COMPOSE_FILE` env var entirely. If either override file is missing from the `-f` chain, the source mounts are silently absent.
+**Root cause:** source directory mounts are auto-generated into `config/compose.override.yml`. When Docker Compose is invoked with explicit `-f` flags — as the `docker-build-full` and variant targets do — it ignores the `COMPOSE_FILE` env var entirely. If either override file is missing from the `-f` chain, the source mounts are silently absent.
 
 The `make` targets handle this correctly and include both override files. If you ran `docker compose` by hand and omitted the override files, that's the likely cause.
 
 **To recover:**
 
-1. Check that both override files exist and contain your source mounts:
+1. Check that the auto-generated override exists and contains your source mounts:
    ```bash
-   cat compose.override.yml
    cat config/compose.override.yml
    ```
 2. Stop and restart with the full override chain:

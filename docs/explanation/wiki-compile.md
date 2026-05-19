@@ -60,7 +60,7 @@ The next time a question comes up about that topic, the compiled page is in the 
 
 ## Managed wikis
 
-A "wiki" in this plugin is a named, persistent target with a managed path. Create one by name (`POST /api/v1/wiki-compile/wikis`), and the plugin handles the rest: directory creation, registration as a writable source, Docker mount auto-update via `compose.override.yml`. Ingest calls reference the wiki by name rather than by raw filesystem path.
+A "wiki" in this plugin is a named, persistent target with a managed path. Create one by name (`POST /api/v1/wiki-compile/wikis`), and the plugin handles the rest: directory creation, registration as a writable source, Docker mount auto-update via `config/compose.override.yml`. Ingest calls reference the wiki by name rather than by raw filesystem path.
 
 By default, wikis live under `{data_directory}/wikis/{name}/` — inside the existing data-dir mount, so no Docker restart is needed. If you'd rather keep a wiki in a git-versioned location elsewhere on disk, pass an explicit `path` on creation and the response will flag `docker_restart_required: true` so you know to run `make docker-down && make docker-up` before the new mount activates.
 

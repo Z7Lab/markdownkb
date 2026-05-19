@@ -1,26 +1,26 @@
-# compose.override.yml — mount your source directories into the container.
+# compose.override.yml — user-managed service overrides.
 #
 # Copy this file:  cp compose.override.yml.example compose.override.yml
 #
-# Add one volume per source directory from your settings.yaml.
-# Use :ro for read-only sources, omit for writable ones.
-# The paths must match settings.yaml sources[].path exactly.
+# Source directory mounts are handled automatically when you add sources
+# via the Settings UI — they are written to config/compose.override.yml.
 #
-# After changing mounts: make down && make up
+# Use this file for:
+#   - Extra environment variables  (supports ${VAR} substitution from .env)
+#   - Custom volume mounts not covered by auto-generation
+#   - Port overrides or other service tweaks
+#
+# Example — expose an extra env var:
+#   services:
+#     markdownkb:
+#       environment:
+#         - MY_EXTRA_VAR=${MY_EXTRA_VAR}
+#
+# After changing this file: make docker-down && make docker-up
 
 services:
   markdownkb:
-    volumes:
-      # Read-only source (indexing only):
-      # - /home/user/docs:/home/user/docs:ro
-      #
-      # Writable source (write API can create/delete files):
-      # - /home/user/captures:/home/user/captures
-      []
+    volumes: []
 
   markdownkb-mcp:
-    volumes:
-      # MCP server only needs read access for search:
-      # - /home/user/docs:/home/user/docs:ro
-      # - /home/user/captures:/home/user/captures:ro
-      []
+    volumes: []

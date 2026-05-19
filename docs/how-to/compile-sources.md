@@ -24,7 +24,7 @@ Restart the container: `make docker-down && make docker-up`. Plugin enablement i
 
 ## 2. Create a wiki
 
-A *wiki* is a named, persistent target the plugin manages for you. The plugin creates the directory, registers it as a writable source, and (in Docker) updates `compose.override.yml` automatically.
+A *wiki* is a named, persistent target the plugin manages for you. The plugin creates the directory, registers it as a writable source, and (in Docker) updates `config/compose.override.yml` automatically.
 
 ```bash
 curl -X POST http://localhost:9713/api/v1/wiki-compile/wikis \
