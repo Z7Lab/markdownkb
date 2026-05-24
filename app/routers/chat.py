@@ -163,10 +163,9 @@ def chat_stream(
             except Exception:
                 pass
 
-        active_cfg = settings.get_active_llm_config()
         yield sse("done", {
             "provider": settings.active_provider,
-            "model": active_cfg.get("model", ""),
+            "model": settings.get_active_model_name(),
         })
 
     return StreamingResponse(

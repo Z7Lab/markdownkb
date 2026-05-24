@@ -67,6 +67,19 @@ class LLMMixin:
 
         return config
 
+    def get_active_model_name(self) -> str:
+        """Return the model name for the active provider without resolving keys.
+
+        Use this when only the model name is needed (e.g. SSE done events)
+        to avoid unnecessary secret/env-var I/O on the hot path.
+        """
+        for p in self.llm_providers:
+            if p.get("name") == self.active_provider:
+                return p.get("model", "")
+        if self.llm_providers:
+            return self.llm_providers[0].get("model", "")
+        return ""
+
     def resolve_provider_key(self, provider_name: str) -> str:
         """Return the effective API key for a provider.
 

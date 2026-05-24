@@ -57,9 +57,19 @@ def read_secret(name: str) -> str:
 
 
 def resolve_env(value: str) -> str:
-    """Replace a single ``${VAR}`` placeholder with its env var value."""
-    if isinstance(value, str) and value.startswith("${") and value.endswith("}"):
-        env_var = value[2:-1]
+    """Replace ``${VAR}`` placeholders with their env var values.
+
+    Handles both whole-string (``"${VAR}"``) and inline
+    (``"http://host:${PORT}/path"``) patterns.  Unset variables produce a
+    warning and resolve to empty string.
+    """
+    if not isinstance(value, str) or "${" not in value:
+        return value
+
+    import re
+
+    def _replace(match: re.Match) -> str:
+        env_var = match.group(1)
         resolved = os.environ.get(env_var)
         if resolved is None:
             logger.warning(
@@ -69,7 +79,8 @@ def resolve_env(value: str) -> str:
             )
             return ""
         return resolved
-    return value
+
+    return re.sub(r"\$\{([^}]+)\}", _replace, value)
 
 
 def resolve_env_recursive(obj: Any, skip_keys: frozenset[str] = frozenset()) -> Any:

@@ -500,7 +500,7 @@ Temporary scoped document collections with independent vector storage. Each buck
 | GET | `/api/v1/buckets/{id}/files` | List all files in a bucket. Response: `{ files: [{ path, title, chunk_count, indexed_at }], indexing }`. `indexed_at` is an ISO-like UTC timestamp string or null for files ingested before this field was added. |
 | GET | `/api/v1/buckets/{id}/file` | Read full content of a bucket file (reconstructed from chunks). Query param: `path`. |
 | GET | `/api/v1/buckets/{id}/export` | Export bucket as a portable zip archive (manifest + pre-computed embeddings) |
-| POST | `/api/v1/buckets/import` | Import a bucket from a previously exported zip (multipart file upload, no re-embedding) |
+| POST | `/api/v1/buckets/import` | Import a bucket from a previously exported zip (multipart file upload, no re-embedding). Max upload size: 256 MB. Max decompressed size per entry: 512 MB. Returns HTTP 413 if exceeded. |
 | POST | `/api/v1/buckets/{id}/promote` | Add bucket source paths to the main watched directories in settings |
 | GET | `/api/v1/buckets/base-path` | Get the configured base path and whether it is mounted in Docker |
 | POST | `/api/v1/buckets/base-path` | Set (or clear) the base path; auto-adds it to Docker mounts if needed |

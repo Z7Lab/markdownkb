@@ -250,6 +250,13 @@ async def lifespan(app: FastAPI):
     if hasattr(app.state, "cancel_event"):
         app.state.cancel_event.set()
 
+    # Shutdown: close httpx AsyncClient used by MCP proxy
+    try:
+        from app.routers.mcp import _mcp_http_client
+        await _mcp_http_client.aclose()
+    except Exception:
+        logger.debug("MCP http client close raised", exc_info=True)
+
     # Shutdown: close DB connections
     tracking.close()
     chatdb.close()

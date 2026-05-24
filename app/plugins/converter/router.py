@@ -81,11 +81,8 @@ def _enabled_extensions(settings: Settings) -> set[str]:
 
 
 def _has_transcript_support() -> bool:
-    try:
-        import youtube_transcript_api  # noqa: F401
-        return True
-    except ImportError:
-        return False
+    import importlib.util
+    return importlib.util.find_spec("youtube_transcript_api") is not None
 
 
 def _convert_file(source: Path, dest: Path) -> str | None:
