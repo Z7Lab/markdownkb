@@ -237,6 +237,20 @@ def get_plugin_info(name: str) -> dict[str, Any] | None:
     return None
 
 
+def get_enabled_plugin_manifests() -> list[dict[str, Any]]:
+    """Return manifest dicts for all enabled plugins that have a manifest.
+
+    Provides a public interface for code that needs to read plugin metadata
+    (e.g. logging overrides) without accessing the private ``_plugin_registry``
+    variable directly.
+    """
+    return [
+        {"name": p["name"], "manifest": p.get("manifest") or {}}
+        for p in _plugin_registry
+        if p.get("enabled") and p.get("manifest")
+    ]
+
+
 def init_plugins(app: FastAPI) -> None:
     """Call on_startup(app) on each enabled plugin that defines it.
 
