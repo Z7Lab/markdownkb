@@ -148,8 +148,8 @@ Core router (always registered). Manages plugin discovery, installation, and rem
   ],
   "core_features": [
     {
-      "name": "rag_chat",
-      "display_name": "RAG Chat",
+      "name": "file_watcher",
+      "display_name": "File Watcher",
       "enabled": true,
       "category": "core"
     }

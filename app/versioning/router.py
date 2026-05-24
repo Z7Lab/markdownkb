@@ -21,6 +21,12 @@ router = APIRouter(prefix="/api/v1/versioning", tags=["versioning"])
 
 
 def _get_manager(request: Request) -> GitManager | None:
+    """Nullable lower-level accessor — returns None when versioning is off or not initialised.
+
+    Most endpoints should call ``_require_manager()`` instead, which enforces
+    the 503 guard.  Use this only when the endpoint must respond even with
+    versioning disabled (e.g. ``get_status``).
+    """
     return getattr(request.app.state, "versioning_manager", None)
 
 

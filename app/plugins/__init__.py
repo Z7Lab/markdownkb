@@ -34,6 +34,16 @@ from app.config import Settings, default_data_dir as _data_dir
 
 logger = logging.getLogger(__name__)
 
+__all__ = [
+    "discover_plugins",
+    "register_plugins",
+    "init_plugins",
+    "shutdown_plugins",
+    "get_registry",
+    "get_plugin_info",
+    "get_enabled_plugin_manifests",
+]
+
 _BUILTIN_DIR = Path(__file__).resolve().parent
 _EXTERNAL_DIR = Path(_data_dir()) / "plugins"
 
@@ -240,9 +250,10 @@ def get_plugin_info(name: str) -> dict[str, Any] | None:
 def get_enabled_plugin_manifests() -> list[dict[str, Any]]:
     """Return manifest dicts for all enabled plugins that have a manifest.
 
-    Provides a public interface for code that needs to read plugin metadata
-    (e.g. logging overrides) without accessing the private ``_plugin_registry``
-    variable directly.
+    Public accessor for plugin metadata — use this instead of accessing
+    ``_plugin_registry`` directly.  Returns a list of ``{name, manifest}``
+    dicts for any caller that needs to inspect enabled plugin capabilities
+    (e.g. logging overrides, capability discovery, feature introspection).
     """
     return [
         {"name": p["name"], "manifest": p.get("manifest") or {}}

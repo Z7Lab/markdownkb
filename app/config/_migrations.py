@@ -51,6 +51,8 @@ def migrate_settings(data: dict) -> bool:
             core[flag] = old_features[flag]
     data["core"] = core
 
+    data["mcp"] = {}  # Empty after _MCP_FLAGS removal — section preserved for structural consistency
+
     plugins: dict[str, dict] = {}
     for old_flag, plugin_name in _PLUGIN_FLAG_MAP.items():
         cfg = dict(old_plugins.pop(plugin_name, {}))

@@ -299,12 +299,17 @@ Behaviour toggles for built-in features (not plugins).
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `core.rag_chat` | `true` | Chat with RAG |
 | `core.file_watcher` | `true` | Auto-reindex on file changes |
 | `core.deep_research` | `false` | MCTS-powered multi-angle research synthesis |
 | `core.agent_skills` | `false` | Agent skill system |
-| `core.diagnostics` | `false` | Diagnostic endpoints |
 | `core.rate_limiting` | `false` | API rate limiting (slowapi) |
+| `core.versioning` | `true` | Git-based file versioning for writable sources |
+| `core.update_check` | `true` | Periodic check for new releases |
+
+> **Removed flags (backward-compat only):** `core.rag_chat` and `core.diagnostics` are
+> accepted by the migration path so old configs load without error, but they have no active
+> gate in production code and are not present in `config/settings.yaml.example`. Setting
+> them has no effect.
 
 ## MCP
 
