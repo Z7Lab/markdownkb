@@ -111,27 +111,27 @@ export function DashboardTab() {
     api
       .get<{ total: number }>("/api/v1/files?limit=1")
       .then((r) => setFileCount(r.total))
-      .catch(() => {})
+      .catch((err) => console.warn("Dashboard: could not load file count", err))
     api
       .get<{ total: number }>("/api/v1/threads?limit=1")
       .then((r) => setThreadCount(r.total))
-      .catch(() => {})
+      .catch((err) => console.warn("Dashboard: could not load thread count", err))
     api
       .get<{ items: Array<{ id: string; title: string; created_at: string }> }>("/api/v1/threads?limit=5")
       .then((r) => setRecentThreads(r.items))
-      .catch(() => {})
+      .catch((err) => console.warn("Dashboard: could not load recent threads", err))
     api
       .get<{ items: Array<{ path: string; indexed_at: string }> }>("/api/v1/files?limit=5&sort=indexed_at")
       .then((r) => setRecentFiles(r.items))
-      .catch(() => {})
+      .catch((err) => console.warn("Dashboard: could not load recent files", err))
     api
       .get<{ items: Array<{ id: string; query: string; created_at: string }> }>("/api/v1/searches?limit=5")
       .then((r) => setRecentSearches(r.items))
-      .catch(() => {})
+      .catch((err) => console.warn("Dashboard: could not load recent searches", err))
     api
       .get<DashboardChartsData>("/api/v1/dashboard/charts")
       .then(setChartsData)
-      .catch(() => {})
+      .catch((err) => console.warn("Dashboard: could not load chart data", err))
   }, [])
 
   const sourceCount = settings?.source_configs?.length ?? null

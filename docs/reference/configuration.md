@@ -165,7 +165,7 @@ For a detailed explanation of how chunking works — header splitting, paragraph
 | `llm.providers` | anthropic, openai, ollama | LLM backends with `name`, `model`, `api_base` |
 | `llm.active_provider` | `ollama` | Which provider to use |
 | `llm.temperature` | `0.3` | Response randomness (0.0–2.0). Stored per-provider. |
-| `llm.max_tokens` | `2048` | Max output tokens. Stored per-provider. |
+| `llm.max_tokens` | `4096` | Max output tokens. Stored per-provider. |
 | `llm.num_ctx` | (unset) | Ollama context window (total input + output). Leave unset for model default. Stored per-provider in `extra_body.num_ctx`. |
 
 Generation parameters (temperature, max_tokens, num_ctx) are stored **per-provider** — each entry in `llm.providers` has its own values. The Settings UI shows the selected provider's parameters and saves to that provider's entry. See [Chat > Configuration](../explanation/chat.md#configuration) for how max_tokens and num_ctx interact.

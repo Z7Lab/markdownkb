@@ -26,7 +26,7 @@ def _read_pyproject() -> str | None:
             data = tomllib.load(f)
         return data.get("project", {}).get("version")
     except Exception:
-        logger.debug("could not read version from pyproject.toml", exc_info=True)
+        logger.warning("could not read version from pyproject.toml", exc_info=True)
         return None
 
 

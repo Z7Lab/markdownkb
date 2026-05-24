@@ -19,7 +19,7 @@ export function usePersistedState<T>(
         return JSON.parse(item) as T
       }
     } catch (err) {
-      if (import.meta.env.DEV) console.warn(`Failed to load persisted state for "${key}":`, err)
+      console.warn(`Failed to load persisted state for "${key}":`, err)
     }
     return initialValue
   })
@@ -29,7 +29,7 @@ export function usePersistedState<T>(
     try {
       localStorage.setItem(key, JSON.stringify(state))
     } catch (err) {
-      if (import.meta.env.DEV) console.warn(`Failed to persist state for "${key}":`, err)
+      console.warn(`Failed to persist state for "${key}":`, err)
     }
   }, [key, state])
 
@@ -51,14 +51,14 @@ export function usePersistedValue<T extends string | number | boolean>(
         if (typeof initialValue === "number") {
           const n = Number(item)
           if (!Number.isNaN(n)) return n as T
-          if (import.meta.env.DEV) console.warn(`Persisted value for "${key}" is not a valid number: ${item}`)
+          console.warn(`Persisted value for "${key}" is not a valid number: ${item}`)
           return initialValue
         }
         if (typeof initialValue === "boolean") return (item === "true") as T
         return item as T
       }
     } catch (err) {
-      if (import.meta.env.DEV) console.warn(`Failed to load persisted value for "${key}":`, err)
+      console.warn(`Failed to load persisted value for "${key}":`, err)
     }
     return initialValue
   })
@@ -67,7 +67,7 @@ export function usePersistedValue<T extends string | number | boolean>(
     try {
       localStorage.setItem(key, String(state))
     } catch (err) {
-      if (import.meta.env.DEV) console.warn(`Failed to persist value for "${key}":`, err)
+      console.warn(`Failed to persist value for "${key}":`, err)
     }
   }, [key, state])
 

@@ -262,4 +262,7 @@ def index_directory(
             errors += 1
         time.sleep(0.02)
 
-    return f"Indexed {len(to_index)} files ({total_chunks} chunks, {errors} errors) in {path}"
+    msg = f"Indexed {len(to_index)} files ({total_chunks} chunks, {errors} errors) in {path}"
+    if errors > 0:
+        logger.warning("index_directory: %d file(s) failed to index in %s", errors, path)
+    return msg

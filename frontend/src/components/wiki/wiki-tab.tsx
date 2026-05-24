@@ -58,7 +58,10 @@ export function WikiTab() {
   useEffect(() => {
     api.get<{ plugins_enabled?: Record<string, boolean> }>("/api/v1/settings")
       .then((r) => setLintEnabled(!!r.plugins_enabled?.lint))
-      .catch(() => setLintEnabled(false))
+      .catch((err) => {
+        console.warn("Could not determine lint plugin availability; lint disabled.", err)
+        setLintEnabled(false)
+      })
   }, [])
 
   const loadWikis = useCallback(() => {
@@ -480,7 +483,10 @@ function PagesView({ wiki, onOpenFile }: { wiki: WikiRecord; onOpenFile: (p: str
           .sort((a, b) => (b.modified ?? 0) - (a.modified ?? 0))
         setFiles(matches)
       })
-      .catch(() => setFiles([]))
+      .catch((err) => {
+        console.warn("Failed to load wiki page list; showing empty list.", err)
+        setFiles([])
+      })
   }, [prefix])
 
   if (files === null) {

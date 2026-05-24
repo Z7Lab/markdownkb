@@ -73,6 +73,11 @@ def _fetch_openai_models(api_base: str) -> list[dict]:
             url = f"{api_base.rstrip('/')}/v1/models"
         resp = httpx.get(url, timeout=10)
         if resp.status_code != 200:
+            logger.warning(
+                "Non-200 response fetching models from %s: HTTP %s — "
+                "check api_base URL and API key configuration",
+                url, resp.status_code,
+            )
             return []
         data = resp.json()
         models = data.get("data", [])

@@ -23,7 +23,7 @@ def handler(file_path: str = "") -> dict:
     tagdb = deps.get("tagdb")
 
     if tagdb is None:
-        return {"tags": [], "error": "TagDB not available"}
+        return {"error": "TagDB not available"}
 
     if file_path:
         tags_str = tagdb.get_tags(file_path)

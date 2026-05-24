@@ -24,6 +24,10 @@ class SourcesMixin:
         set tier=-1 on a raw-material source so the lint's coverage pass
         picks it up as a synthesis target.
         """
+        # Default writable=True: explicit sources added by the user are
+        # assumed to be writable unless the user specifies otherwise.
+        # Read-only mounts (project_roots) are always writable=False.
+        # If you add a read-only source, set ``writable: false`` explicitly.
         writable = entry.get("writable", True)
         tier = entry.get("tier")
         if tier is None:
