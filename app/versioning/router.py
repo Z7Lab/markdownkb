@@ -87,12 +87,7 @@ def get_history(
     settings: Settings = Depends(get_settings),
 ):
     """Return the commit history for a single file."""
-    if not settings.versioning_enabled:
-        raise HTTPException(503, "versioning is disabled")
-    manager = _get_manager(request)
-    if manager is None:
-        raise HTTPException(503, "versioning manager not initialised")
-
+    manager = _require_manager(request, settings)
     source, rel = _resolve_versioned_source(path, settings)
     commits = manager.log_for_file(source, rel, limit=limit)
     return HistoryResponse(
@@ -120,12 +115,7 @@ def get_diff(
     settings: Settings = Depends(get_settings),
 ):
     """Return the unified diff of ``path`` at ``commit`` vs its parent."""
-    if not settings.versioning_enabled:
-        raise HTTPException(503, "versioning is disabled")
-    manager = _get_manager(request)
-    if manager is None:
-        raise HTTPException(503, "versioning manager not initialised")
-
+    manager = _require_manager(request, settings)
     source, rel = _resolve_versioned_source(path, settings)
     diff = manager.diff_file(source, commit, rel)
     return DiffResponse(sha=commit, path=path, diff=diff)
@@ -146,12 +136,7 @@ def get_content_at(
     settings: Settings = Depends(get_settings),
 ):
     """Return the file's contents at a specific commit."""
-    if not settings.versioning_enabled:
-        raise HTTPException(503, "versioning is disabled")
-    manager = _get_manager(request)
-    if manager is None:
-        raise HTTPException(503, "versioning manager not initialised")
-
+    manager = _require_manager(request, settings)
     source, rel = _resolve_versioned_source(path, settings)
     content = manager.show_file_at(source, commit, rel)
     return ContentResponse(sha=commit, path=path, content=content)
@@ -238,7 +223,7 @@ def get_status(request: Request, settings: Settings = Depends(get_settings)):
 # -- Per-source actions ------------------------------------------------------
 
 # Note: the global on/off toggle lives at PUT /api/v1/settings/core with
-# name="versioning", so it sits alongside file_watcher, rag_chat, etc.
+# name="versioning", so it sits alongside file_watcher, rate_limiting, etc.
 # No dedicated endpoint here.
 
 class RepoPathRequest(BaseModel):

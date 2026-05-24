@@ -12,12 +12,13 @@ logger = logging.getLogger(__name__)
 
 
 _CORE_FLAGS = frozenset({
-    "rag_chat", "file_watcher", "rate_limiting",
-    "deep_research", "agent_skills", "diagnostics",
+    "file_watcher", "rate_limiting",
+    "deep_research", "agent_skills",
     "update_check",
+    # Preserved for migration backward compat — these flags have no active
+    # gate in production code and are not present in the example config.
+    "rag_chat", "diagnostics",
 })
-
-_MCP_FLAGS: dict[str, str] = {}
 
 # Old feature-flag name → plugin directory name
 _PLUGIN_FLAG_MAP = {
@@ -49,13 +50,6 @@ def migrate_settings(data: dict) -> bool:
         if flag in old_features:
             core[flag] = old_features[flag]
     data["core"] = core
-
-    mcp: dict[str, bool] = {}
-    for old_key, new_key in _MCP_FLAGS.items():
-        if old_key in old_features:
-            mcp[new_key] = old_features[old_key]
-    if mcp:
-        data["mcp"] = mcp
 
     plugins: dict[str, dict] = {}
     for old_flag, plugin_name in _PLUGIN_FLAG_MAP.items():

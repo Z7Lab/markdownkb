@@ -169,8 +169,9 @@ prod: ## Production mode (build frontend + serve)
 test: ## Run pytest suite (with coverage)
 	@.venv/bin/pytest tests/
 
-lint: ## Run pylint
+lint: ## Run pylint + ruff (unused imports, pyflakes checks)
 	@.venv/bin/pylint app/
+	@.venv/bin/ruff check app/
 
 typecheck: ## Run mypy static type checker
 	@.venv/bin/mypy app/

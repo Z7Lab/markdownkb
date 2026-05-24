@@ -177,12 +177,10 @@ storage:
 
 # Core behaviour toggles (not plugins — these control built-in behaviour)
 core:
-  rag_chat: true
   file_watcher: true
   rate_limiting: false
   deep_research: false
   agent_skills: false
-  diagnostics: false
 
 # MCP tool enable flags
 mcp:

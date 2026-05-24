@@ -89,7 +89,7 @@ Sources are saved per-message, so when you reload a thread, the citations are pr
 
 ## Diagnostics Mode
 
-When `core.diagnostics` is enabled in settings, chat messages show additional metadata — retrieval scores, chunk details, and timing information. This is a development/debugging feature, not intended for normal use.
+The diagnostics flag (`core.diagnostics`) was present in earlier releases and surfaced retrieval scores, chunk details, and timing metadata on chat messages. It has no active gate in the current release and is not included in `config/settings.yaml.example`. Retrieval metadata is available via the API response fields for integrations that need it.
 
 ## Configuration
 

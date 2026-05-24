@@ -29,7 +29,7 @@ def get_catalog(provider_name: str):
     for child in _CATALOGS_DIR.iterdir():
         if not child.is_dir() or child.name.startswith("_"):
             continue
-        if child.name in name:
+        if child.name == name:
             try:
                 mod = importlib.import_module(
                     f"app.plugins.catalogs.{child.name}.catalog"
