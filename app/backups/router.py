@@ -19,7 +19,7 @@ from app.backups.manager import (
     RestoreOptions,
 )
 from app.config import Settings
-from app.deps import get_settings
+from app.deps import get_bucket_service, get_settings
 from app.ratelimit import HEAVY, STANDARD, limiter
 
 logger = logging.getLogger(__name__)
@@ -90,6 +90,7 @@ def create_backup(
     request: Request,
     body: CreateBackupQuery,
     settings: Settings = Depends(get_settings),
+    bucket_svc=Depends(get_bucket_service),
 ):
     """Build a backup archive and stream it back as a download."""
     import os
@@ -102,7 +103,6 @@ def create_backup(
 
     staging_hook = None
     if body.include_markdown:
-        bucket_svc = getattr(request.app.state, "bucket_service", None)
         staging_hook = MarkdownArchiveBuilder(settings, bucket_service=bucket_svc).add_to_staging
 
     try:

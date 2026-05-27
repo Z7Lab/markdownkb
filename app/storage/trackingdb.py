@@ -120,7 +120,10 @@ def _migrate_v5_to_v6(conn: sqlite3.Connection):
     """Rename include_rag → include_in_index in both tables."""
     for table in ("indexed_files", "file_metadata"):
         cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
-        if "include_rag" in cols:
+        # Only rename if the old column exists and the new one does not.
+        # On fresh databases the CREATE TABLE already uses include_in_index,
+        # so this migration is a no-op there.
+        if "include_rag" in cols and "include_in_index" not in cols:
             conn.execute(
                 f"ALTER TABLE {table} RENAME COLUMN include_rag TO include_in_index"
             )
@@ -480,18 +483,36 @@ class TrackingDB:
             )
             self._conn.commit()
 
-    def remove_files_not_in(self, current_paths: set[str]) -> list[str]:
+    def remove_files_not_in(
+        self,
+        current_paths: set[str],
+        within_source_roots: set[str] | None = None,
+    ) -> list[str]:
         """Remove files no longer on disk. Returns removed paths.
 
         Cleans both indexed_files and file_metadata to prevent ghost entries.
+
+        If *within_source_roots* is provided, only files whose ``source_root``
+        is in that set are candidates for removal.  Files from source roots
+        that were not scanned in this pass (e.g. a directory that is not
+        currently mounted) are left untouched so their tracking records
+        survive a bad restart.
         """
         with self._lock:
-            # Collect paths from both tables
-            all_tracked = self._conn.execute(
-                """SELECT path FROM indexed_files
-                UNION
-                SELECT path FROM file_metadata"""
-            ).fetchall()
+            if within_source_roots is not None:
+                # Scope the query to only the roots we actually scanned so
+                # unmounted sources are never treated as "deleted".
+                placeholders = ",".join("?" * len(within_source_roots))
+                all_tracked = self._conn.execute(
+                    f"SELECT path FROM indexed_files WHERE source_root IN ({placeholders})",
+                    list(within_source_roots),
+                ).fetchall()
+            else:
+                all_tracked = self._conn.execute(
+                    """SELECT path FROM indexed_files
+                    UNION
+                    SELECT path FROM file_metadata"""
+                ).fetchall()
             removed = [
                 r["path"] for r in all_tracked
                 if r["path"] not in current_paths

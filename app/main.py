@@ -142,11 +142,29 @@ async def lifespan(app: FastAPI):
     cancel_event = threading.Event()
 
     if store.count == 0 and tracking.file_count() > 0:
-        # ChromaDB empty but tracking has records (collection rename,
-        # model switch, or interrupted startup) — clear stale records
-        # so every file is re-scanned.
-        logger.info("ChromaDB empty but tracking has %d files — clearing stale records", tracking.file_count())
-        tracking.clear()
+        # ChromaDB is empty but tracking has records. Only clear tracking
+        # (which forces a full re-scan) when at least one configured source
+        # path actually exists on disk.  If no source is accessible — e.g.
+        # settings.yaml failed to load or Docker volume mounts are absent —
+        # the empty store is a config problem, not a data-loss event.
+        # Clearing tracking in that case would discard the record of every
+        # previously-indexed file and trigger an unnecessary full re-index
+        # once the mounts are restored.
+        sources_accessible = any(Path(src).exists() for src in settings.sources)
+        if sources_accessible:
+            logger.info(
+                "ChromaDB empty but tracking has %d files — clearing stale "
+                "records so startup scan re-indexes everything.",
+                tracking.file_count(),
+            )
+            tracking.clear()
+        else:
+            logger.warning(
+                "ChromaDB empty but tracking has %d files and no source "
+                "directories are accessible — preserving tracking records. "
+                "Check Docker volume mounts or config/settings.yaml.",
+                tracking.file_count(),
+            )
 
     # Always run the indexer on startup — it skips unchanged files (hash
     # comparison) so this is fast when everything is up to date. This
@@ -216,7 +234,7 @@ async def lifespan(app: FastAPI):
     # Explicit false in settings always wins — auto-enable is skipped.
     bind_host = settings.server_host
     network_exposed = bind_host not in ("127.0.0.1", "::1", "localhost")
-    rate_limiting_explicit = "rate_limiting" in (settings._data.get("core") or {})
+    rate_limiting_explicit = "rate_limiting" in settings.core_features
     if settings.core_enabled("rate_limiting"):
         limiter.enabled = True
         logger.info("Rate limiting enabled (core flag)")
