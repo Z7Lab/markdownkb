@@ -41,14 +41,12 @@ export function LLMStatusIndicator() {
           type="button"
           onClick={checkStatus}
           className={cn(
-            "flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors hover:bg-accent",
+            "flex items-center justify-center h-6 w-6 rounded-md transition-colors hover:bg-accent",
             config.bg,
           )}
+          aria-label={config.label}
         >
           <Icon className={cn("h-3.5 w-3.5", config.color)} />
-          <span className={cn("text-xs font-medium", config.color)}>
-            {status === "checking" ? "..." : status.toUpperCase()}
-          </span>
         </button>
       </TooltipTrigger>
       <TooltipContent className="max-w-xs">
