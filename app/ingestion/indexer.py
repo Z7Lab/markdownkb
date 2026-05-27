@@ -111,9 +111,27 @@ def run_index(
     if incomplete:
         report(0.02, f"Recovering {len(incomplete)} interrupted files...")
 
-    removed = tracking.remove_files_not_in(
-        {fi.path for fi in files}
-    )
+    # Only clean up deleted files for the source roots that were actually
+    # scanned.  If a source root wasn't reachable this run (e.g. a Docker
+    # volume mount is missing), its files are left in tracking so the
+    # records survive the bad restart and the cleanup happens automatically
+    # once the mount is restored.  If no roots were scanned at all, skip
+    # the cleanup entirely — we cannot distinguish "file deleted" from
+    # "directory not mounted".
+    scanned_roots = {fi.source_root for fi in files}
+    if scanned_roots:
+        removed = tracking.remove_files_not_in(
+            {fi.path for fi in files},
+            within_source_roots=scanned_roots,
+        )
+    else:
+        removed = []
+        if tracking.file_count() > 0:
+            logger.warning(
+                "run_index: no source directories yielded files — skipping "
+                "deleted-file cleanup to preserve tracking records from "
+                "unmounted sources."
+            )
     for path in removed:
         store.delete_by_source(path)
         from app.domains.tag_registry import notify_file_deleted
@@ -262,4 +280,7 @@ def index_directory(
             errors += 1
         time.sleep(0.02)
 
-    return f"Indexed {len(to_index)} files ({total_chunks} chunks, {errors} errors) in {path}"
+    msg = f"Indexed {len(to_index)} files ({total_chunks} chunks, {errors} errors) in {path}"
+    if errors > 0:
+        logger.warning("index_directory: %d file(s) failed to index in %s", errors, path)
+    return msg

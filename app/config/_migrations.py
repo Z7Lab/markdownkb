@@ -12,12 +12,13 @@ logger = logging.getLogger(__name__)
 
 
 _CORE_FLAGS = frozenset({
-    "rag_chat", "file_watcher", "rate_limiting",
-    "deep_research", "agent_skills", "diagnostics",
+    "file_watcher", "rate_limiting",
+    "deep_research", "agent_skills",
     "update_check",
+    # Active frontend feature gates: rag_chat controls chat tab visibility,
+    # diagnostics controls the diagnostics overlay in the chat tab.
+    "rag_chat", "diagnostics",
 })
-
-_MCP_FLAGS: dict[str, str] = {}
 
 # Old feature-flag name → plugin directory name
 _PLUGIN_FLAG_MAP = {
@@ -36,6 +37,7 @@ def migrate_settings(data: dict) -> bool:
 
     Applied to configs written before v0.4.0. Safe to remove once no pre-0.4.0
     configs remain in the wild (sentinel: ``"features" not in data``).
+    Removal target: v0.7.0 (two minor versions after v0.5.0 stabilisation).
     Returns True if migration was performed (caller should save).
     """
     if "features" not in data or "core" in data:
@@ -50,12 +52,7 @@ def migrate_settings(data: dict) -> bool:
             core[flag] = old_features[flag]
     data["core"] = core
 
-    mcp: dict[str, bool] = {}
-    for old_key, new_key in _MCP_FLAGS.items():
-        if old_key in old_features:
-            mcp[new_key] = old_features[old_key]
-    if mcp:
-        data["mcp"] = mcp
+    data["mcp"] = {}  # Empty after _MCP_FLAGS removal — section preserved for structural consistency
 
     plugins: dict[str, dict] = {}
     for old_flag, plugin_name in _PLUGIN_FLAG_MAP.items():
@@ -85,6 +82,7 @@ def migrate_num_ctx(data: dict) -> bool:
 
     Applied to configs written before v0.5.0. Safe to remove once no pre-0.5.0
     configs remain in the wild (sentinel: ``"num_ctx" not in provider``).
+    Removal target: v0.7.0 (two minor versions after v0.5.0 stabilisation).
     Returns True if any migration was performed.
     """
     migrated = False

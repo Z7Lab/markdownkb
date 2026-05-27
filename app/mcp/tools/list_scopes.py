@@ -20,7 +20,7 @@ def handler() -> dict:
     scopedb = deps.get("scopedb")
 
     if scopedb is None:
-        return {"scopes": [], "error": "ScopeDB not available"}
+        return {"error": "ScopeDB not available"}
 
     scopes = scopedb.list_scopes()
     return {

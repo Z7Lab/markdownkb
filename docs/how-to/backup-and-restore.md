@@ -84,9 +84,11 @@ The stored vectors are incompatible — searching will return wrong results and 
 
 ## If indexed files disappear after a Docker restart
 
-After a `make docker-restart` or `make docker-up`, the file list can appear empty — all previously indexed documents gone. **Your source files are safe.** They live on the host filesystem and were never touched. What happened is that MarkdownKB's scanner runs on startup, finds the source paths not mounted inside the container, and prunes those paths from the index (treating them as deleted files).
+After a `make docker-restart` or `make docker-up`, the file list can appear empty — all previously indexed documents gone. **Your source files are safe.** They live on the host filesystem and were never touched.
 
-**Root cause:** source directory mounts are auto-generated into `config/compose.override.yml`. When Docker Compose is invoked with explicit `-f` flags — as the `docker-build-full` and variant targets do — it ignores the `COMPOSE_FILE` env var entirely. If either override file is missing from the `-f` chain, the source mounts are silently absent.
+The scanner only prunes tracking records for source roots it actually scanned. If a source directory isn't mounted, its files are left in the index untouched — they remain present but will not update until the mount is restored and the container restarts. If the file list genuinely shows empty after a restart where mounts were intact, the most likely cause is a missing override file in the Compose invocation.
+
+**Root cause:** source directory mounts are auto-generated into `config/compose.override.yml`. When Docker Compose is invoked with explicit `-f` flags — as the `docker-build-full` and variant targets do — it ignores the `COMPOSE_FILE` env var entirely. If either override file is missing from the `-f` chain, the source mounts are silently absent and the scanner cannot reach those directories.
 
 The `make` targets handle this correctly and include both override files. If you ran `docker compose` by hand and omitted the override files, that's the likely cause.
 
@@ -100,7 +102,7 @@ The `make` targets handle this correctly and include both override files. If you
    ```bash
    make docker-down && make docker-up
    ```
-3. On startup, the scanner will detect the now-mounted paths and re-index them. No re-uploading needed — the files were always there.
+3. On startup, the scanner will detect the now-mounted paths and index any new or changed files. No re-uploading needed — the files were always there.
 
 If sources are missing from the override files entirely, re-add them via **Settings → Sources** and restart. The UI writes the mount entry automatically.
 

@@ -19,7 +19,7 @@ def handler(limit: int = 20) -> dict:
     chatdb = deps.get("chatdb")
 
     if chatdb is None:
-        return {"threads": [], "error": "Chat history not available"}
+        return {"error": "Chat history not available"}
 
     threads = chatdb.list_threads(limit=limit)
     return {

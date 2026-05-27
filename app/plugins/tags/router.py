@@ -319,6 +319,8 @@ def bulk_tag(
                 if r.get("applied") and r.get("final_tags"):
                     db.update_tags(r["file"], ", ".join(r["final_tags"]))
         return {"processed": len(results), "results": results}
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
     except Exception as e:
         logger.error("Bulk tagging error: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Bulk tagging failed.")

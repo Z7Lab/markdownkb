@@ -160,6 +160,8 @@ class Settings(
             with open(self._path, "w", encoding="utf-8") as f:
                 yaml.dump(self._data, f, default_flow_style=False, sort_keys=False)
             self._loaded_mtime = self._path.stat().st_mtime
+            self._mcp_cache.clear()
+            self._prompt_cache.clear()
 
     def _resolve_path(self, p: str) -> str:
         """Resolve a relative path against the project root."""

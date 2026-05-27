@@ -10,7 +10,8 @@ from app.deps import get_bucket_service, get_retriever, get_scopedb, get_setting
 from app.events import event_bus
 from app.rag.retriever import Retriever
 from app.ratelimit import STANDARD, limiter
-from app.domains.scope_resolution import apply_exclude_patterns, parse_scope_ids, resolve_scopes
+from app.domains.scope_resolution import apply_exclude_patterns, resolve_scopes
+from app.services.scope_service import parse_scope_id_fallback as _parse_scope_id_fallback
 from app.domains.tag_registry import resolve_tag_paths
 from app.services.graph_service import compute_cross_edges_fused, compute_edge_detail, compute_graph, graph_progress
 from app.storage.scopedb import ScopeDB
@@ -47,7 +48,7 @@ def graph_data(
     bucket_service=Depends(get_bucket_service),
 ):
     """Return the document similarity map (nodes, edges, clusters, word clouds)."""
-    ids = parse_scope_ids(scope_ids) or ([scope_id] if scope_id else None)
+    ids = _parse_scope_id_fallback(scope_ids, scope_id)
     logger.info("docmap/data request: scope_ids=%s, bucket_id=%s, min_weight=%s, word_clouds=%s", scope_ids, bucket_id, min_weight, word_clouds)
     scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
     tag_paths = resolve_tag_paths(scope_tags, ad_hoc_tags)
@@ -191,7 +192,7 @@ def graph_stats(
     tracking: TrackingDB = Depends(get_tracking),
 ):
     """Lightweight stats without computing the full graph."""
-    ids = parse_scope_ids(scope_ids) or ([scope_id] if scope_id else None)
+    ids = _parse_scope_id_fallback(scope_ids, scope_id)
     scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
     tag_paths = resolve_tag_paths(scope_tags, None)
 
@@ -245,7 +246,7 @@ def graph_status(
     scopedb: ScopeDB = Depends(get_scopedb),
 ):
     """Check if cached graph data is available (no computation)."""
-    ids = parse_scope_ids(scope_ids) or ([scope_id] if scope_id else None)
+    ids = _parse_scope_id_fallback(scope_ids, scope_id)
     scope_folders, scope_tags, exclude_patterns = resolve_scopes(ids, scopedb)
     key = _cache_key(scope_folders, scope_tags, ad_hoc_tags, top_k, word_clouds, min_weight)
     with _cache_lock:

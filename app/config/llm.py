@@ -67,6 +67,19 @@ class LLMMixin:
 
         return config
 
+    def get_active_model_name(self) -> str:
+        """Return the model name for the active provider without resolving keys.
+
+        Use this when only the model name is needed (e.g. SSE done events)
+        to avoid unnecessary secret/env-var I/O on the hot path.
+        """
+        for p in self.llm_providers:
+            if p.get("name") == self.active_provider:
+                return p.get("model", "")
+        if self.llm_providers:
+            return self.llm_providers[0].get("model", "")
+        return ""
+
     def resolve_provider_key(self, provider_name: str) -> str:
         """Return the effective API key for a provider.
 
@@ -102,7 +115,13 @@ class LLMMixin:
                 if p.get("name") == self.active_provider:
                     p["temperature"] = value
                     return
-            # Fallback: set global default
+            # Fallback: active_provider name not found in providers list — write
+            # to global llm.temperature so the getter's fallback chain picks it up.
+            logger.warning(
+                "llm_temperature setter: active provider %r not found in providers list — "
+                "writing to global llm.temperature fallback",
+                self.active_provider,
+            )
             self._data.setdefault("llm", {})["temperature"] = value
 
     @property
@@ -111,7 +130,9 @@ class LLMMixin:
         active = self.get_active_llm_config()
         if "max_tokens" in active:
             return active["max_tokens"]
-        return self._data.get("llm", {}).get("max_tokens", 2048)
+        # 4096 matches the canonical default in ModelProfile.default_max_tokens
+        # (app/config/profiles.py) to prevent silent truncation divergence.
+        return self._data.get("llm", {}).get("max_tokens", 4096)
 
     @llm_max_tokens.setter
     def llm_max_tokens(self, value: int):
@@ -121,6 +142,13 @@ class LLMMixin:
                 if p.get("name") == self.active_provider:
                     p["max_tokens"] = value
                     return
+            # Fallback: active_provider name not found in providers list — write
+            # to global llm.max_tokens so the getter's fallback chain picks it up.
+            logger.warning(
+                "llm_max_tokens setter: active provider %r not found in providers list — "
+                "writing to global llm.max_tokens fallback",
+                self.active_provider,
+            )
             self._data.setdefault("llm", {})["max_tokens"] = value
 
     @property

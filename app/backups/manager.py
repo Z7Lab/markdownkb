@@ -267,6 +267,12 @@ class BackupManager:
         # Refuse backups produced by a newer mdkb version — they may
         # contain schemas this build cannot read.  Older versions are
         # accepted; the running app will run forward-only migrations.
+        if "mdkb_version" not in manifest:
+            logger.warning(
+                "Backup manifest is missing 'mdkb_version' key — "
+                "treating as version 0.0.0 (unverified provenance). "
+                "Restore will proceed but the backup may have been hand-crafted or truncated."
+            )
         backup_ver = manifest.get("mdkb_version", "0.0.0")
         if _is_newer(backup_ver, self.app_version):
             raise RestoreError(

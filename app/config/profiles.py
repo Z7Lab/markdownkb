@@ -206,11 +206,31 @@ def _load_user_profiles(config_dir: Path) -> list[ModelProfile]:
             cm = raw.get("context_managed_by", "server")
             if cm not in CONTEXT_MANAGED_BY:
                 cm = "server"
+            raw_max_tokens = raw.get("default_max_tokens", 4096)
+            try:
+                default_max_tokens = int(raw_max_tokens)
+            except (ValueError, TypeError):
+                logger.warning(
+                    "profiles: %s has non-integer default_max_tokens %r — using 4096",
+                    path.name, raw_max_tokens,
+                )
+                default_max_tokens = 4096
+
+            raw_temperature = raw.get("default_temperature", 0.3)
+            try:
+                default_temperature = float(raw_temperature)
+            except (ValueError, TypeError):
+                logger.warning(
+                    "profiles: %s has non-numeric default_temperature %r — using 0.3",
+                    path.name, raw_temperature,
+                )
+                default_temperature = 0.3
+
             profiles.append(ModelProfile(
                 pattern=raw["pattern"],
                 thinking_format=tf,
-                default_max_tokens=int(raw.get("default_max_tokens", 4096)),
-                default_temperature=float(raw.get("default_temperature", 0.3)),
+                default_max_tokens=default_max_tokens,
+                default_temperature=default_temperature,
                 context_managed_by=cm,
                 max_context=raw.get("max_context"),
                 notes=raw.get("notes", ""),

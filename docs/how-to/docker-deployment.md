@@ -109,7 +109,7 @@ volumes:
 
 Both are listed in `.env` as `COMPOSE_FILE=compose.yml:compose.override.yml:config/compose.override.yml`, so `docker compose up -d` (no `-f` flags) loads them both automatically.
 
-**Warning — explicit `-f` flags override `COMPOSE_FILE`:** When using variant builds (`-f compose.full.yml`, etc.), Docker ignores the `COMPOSE_FILE` env var entirely. Both override files must be listed explicitly, or source mounts will be missing and the scanner will prune all indexed files on startup. All `make docker-build-*` targets handle this correctly — if you run `docker compose` by hand, always include both: `-f compose.override.yml -f config/compose.override.yml`.
+**Warning — explicit `-f` flags override `COMPOSE_FILE`:** When using variant builds (`-f compose.full.yml`, etc.), Docker ignores the `COMPOSE_FILE` env var entirely. Both override files must be listed explicitly, or source mounts will be missing and those directories will not be scanned. All `make docker-build-*` targets handle this correctly — if you run `docker compose` by hand, always include both: `-f compose.override.yml -f config/compose.override.yml`.
 
 ## Image variants
 

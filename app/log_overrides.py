@@ -22,14 +22,11 @@ _VALID_LEVELS = frozenset({"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
 
 def get_plugin_defaults() -> dict[str, dict[str, str]]:
     """Return {plugin_name: {logger_name: level}} for all enabled plugins that declare logging_overrides."""
-    from app.plugins import _plugin_registry
+    from app.plugins import get_enabled_plugin_manifests
 
     result: dict[str, dict[str, str]] = {}
-    for p in _plugin_registry:
-        if not p.get("enabled"):
-            continue
-        manifest = p.get("manifest") or {}
-        raw = manifest.get("logging_overrides")
+    for p in get_enabled_plugin_manifests():
+        raw = p["manifest"].get("logging_overrides")
         if raw and isinstance(raw, dict):
             result[p["name"]] = {k: str(v).upper() for k, v in raw.items()}
     return result

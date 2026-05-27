@@ -349,7 +349,7 @@ See [versioning.md](../explanation/versioning.md) for the user-facing behavior (
 
 Configuration is split into four sections in `config/settings.yaml`:
 
-- **`core:`** — behaviour toggles for built-in features (rag_chat, file_watcher, etc.)
+- **`core:`** — behaviour toggles for built-in features (file_watcher, versioning, etc.)
 - **`mcp:`** — MCP tool flags (read_only, allow_bucket_writes, save_document, filesystem, terminal)
 - **`plugins:`** — each plugin has `enabled` + config together (`plugins.<name>.enabled`)
 - **`services:`** — shared service config (deep_research iterations, etc.)

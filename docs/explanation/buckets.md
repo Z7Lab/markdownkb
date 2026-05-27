@@ -51,7 +51,7 @@ The **Buckets tab** is the primary UI for managing buckets. It has a left sideba
 - **Promote** (folder-input) — adds the bucket's source paths to the main watched directories
 - **Delete** (trash) — removes the bucket and all its vector data
 
-**Sidebar header:** The **New Bucket** button creates a fresh bucket. The **Import** button (upload icon) restores a bucket from a previously exported zip file.
+**Sidebar header:** The **New Bucket** button creates a fresh bucket. The **Import** button (upload icon) restores a bucket from a previously exported zip file. Zip archives must be 256 MB or smaller (raw upload size); each entry inside the archive must decompress to 512 MB or less.
 
 **Files table:** Lists all files indexed in the bucket with sortable columns: **File**, **Chunks**, and **Last indexed** (time since the file was last embedded — null for files ingested before this field was added). Click a file to open it in the viewer. Each row has a **Scope** checkbox — uncheck files to exclude them from retrieval. Unchecked files remain in the bucket but are not searched when the bucket is active in chat, search, planner, or doc map. By default all files are in scope (null scope = all). This saved scope is the authoritative filter: the chat drawer no longer has a per-session file picker, and any other part of the app that uses this bucket respects the same scope automatically.
 

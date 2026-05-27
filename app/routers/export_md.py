@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 
 from app.backups.manager import BackupError, BackupManager, BackupOptions
 from app.config import Settings
-from app.deps import get_settings
+from app.deps import get_bucket_service, get_settings
 from app.export.markdown_archive import MarkdownArchiveBuilder
 from app.ratelimit import HEAVY, limiter
 
@@ -26,8 +26,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/export", tags=["export"])
 
 
-def _make_builder(request: Request, settings: Settings) -> MarkdownArchiveBuilder:
-    bucket_svc = getattr(request.app.state, "bucket_service", None)
+def _make_builder(settings: Settings, bucket_svc) -> MarkdownArchiveBuilder:
     return MarkdownArchiveBuilder(settings, bucket_service=bucket_svc)
 
 
@@ -36,9 +35,13 @@ def _make_builder(request: Request, settings: Settings) -> MarkdownArchiveBuilde
 
 @router.get("/markdown")
 @limiter.limit(HEAVY)
-def export_markdown(request: Request, settings: Settings = Depends(get_settings)):
+def export_markdown(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+    bucket_svc=Depends(get_bucket_service),
+):
     """Download a zip of all indexed markdown files (sources, buckets, wikis)."""
-    builder = _make_builder(request, settings)
+    builder = _make_builder(settings, bucket_svc)
     try:
         buf = builder.build_zip()
     except Exception as exc:
@@ -58,9 +61,13 @@ def export_markdown(request: Request, settings: Settings = Depends(get_settings)
 
 @router.get("/snapshot")
 @limiter.limit(HEAVY)
-def export_snapshot(request: Request, settings: Settings = Depends(get_settings)):
+def export_snapshot(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+    bucket_svc=Depends(get_bucket_service),
+):
     """Download a full snapshot: databases, vectors, config, and all markdown files."""
-    builder = _make_builder(request, settings)
+    builder = _make_builder(settings, bucket_svc)
     mgr = BackupManager(
         data_dir=Path(settings.data_directory),
         project_root=settings.project_root,

@@ -82,6 +82,14 @@ class FakeSettings:
                 return p
         return {}
 
+    def get_active_model_name(self) -> str:
+        for p in self.llm_providers:
+            if p.get("name") == self.active_provider:
+                return p.get("model", "")
+        if self.llm_providers:
+            return self.llm_providers[0].get("model", "")
+        return ""
+
     def resolve_provider_key(self, provider_name):
         import os
         env_key = os.environ.get(f"{provider_name.upper()}_API_KEY", "")
@@ -175,6 +183,10 @@ class FakeSettings:
     @property
     def source_configs(self):
         return [{"path": s, "writable": False, "versioned": False, "tier": 0} for s in self.sources]
+
+    @property
+    def source_file_filters(self) -> dict:
+        return {}
 
     @property
     def versioning_root(self):

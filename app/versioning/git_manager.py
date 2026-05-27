@@ -288,16 +288,21 @@ class GitManager:
         with self._lock_for(source):
             try:
                 count = self._git(source, ["rev-list", "--all", "--count"]).strip()
-                result["commit_count"] = int(count or 0)
-            except GitManagerError:
-                pass
+                try:
+                    result["commit_count"] = int(count or 0)
+                except ValueError as ve:
+                    raise GitManagerError(
+                        f"git rev-list returned non-numeric output {count!r}"
+                    ) from ve
+            except GitManagerError as e:
+                logger.warning("repo_stats: could not read commit count for %s: %s", source, e)
             if result["commit_count"] > 0:
                 try:
                     result["last_commit_date"] = self._git(
                         source, ["log", "-1", "--pretty=format:%aI"],
                     ).strip()
-                except GitManagerError:
-                    pass
+                except GitManagerError as e:
+                    logger.warning("repo_stats: could not read last commit date for %s: %s", source, e)
         # Directory size (git objects + working-tree metadata, not the source).
         total = 0
         try:

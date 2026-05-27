@@ -12,6 +12,7 @@ import pytest
 from fastapi import HTTPException
 
 from app.services.scope_service import (
+    BucketRetriever,
     parse_scope_id_fallback,
     resolve_bucket_retrievers,
     resolve_request_scope,
@@ -37,9 +38,12 @@ class _FakeBucketDB:
 class _FakeBucketService:
     def __init__(self, records=None):
         self.db = _FakeBucketDB(records)
+        self._retrievers: dict = {}
 
     def get_retriever(self, bucket_id, settings):
-        return f"retriever-for-{bucket_id}"
+        retriever = MagicMock(name=f"retriever-for-{bucket_id}")
+        self._retrievers[bucket_id] = retriever
+        return retriever
 
 
 # -- parse_scope_id_fallback -------------------------------------------------
@@ -87,7 +91,10 @@ def test_resolve_bucket_retrievers_ok():
         "b2": {"id": "b2"},
     })
     result = resolve_bucket_retrievers(svc, ["b1", "b2"], MagicMock())
-    assert result == ["retriever-for-b1", "retriever-for-b2"]
+    assert len(result) == 2
+    assert all(isinstance(r, BucketRetriever) for r in result)
+    assert result[0]._retriever is svc._retrievers["b1"]
+    assert result[1]._retriever is svc._retrievers["b2"]
 
 
 # -- resolve_request_scope ---------------------------------------------------
@@ -143,7 +150,9 @@ def test_resolve_request_scope_bucket_only_when_no_scope():
         bucket_ids=["b1"],
     )
     assert bundle.bucket_only is True
-    assert bundle.bucket_retrievers == ["retriever-for-b1"]
+    assert len(bundle.bucket_retrievers) == 1
+    assert isinstance(bundle.bucket_retrievers[0], BucketRetriever)
+    assert bundle.bucket_retrievers[0]._retriever is svc._retrievers["b1"]
 
 
 def test_resolve_request_scope_not_bucket_only_with_scope():
@@ -156,7 +165,9 @@ def test_resolve_request_scope_not_bucket_only_with_scope():
         scopedb=_FakeScopeDB(scopes),
     )
     assert bundle.bucket_only is False
-    assert bundle.bucket_retrievers == ["retriever-for-b1"]
+    assert len(bundle.bucket_retrievers) == 1
+    assert isinstance(bundle.bucket_retrievers[0], BucketRetriever)
+    assert bundle.bucket_retrievers[0]._retriever is svc._retrievers["b1"]
 
 
 def test_resolve_request_scope_404_on_unknown_bucket():

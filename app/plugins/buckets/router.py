@@ -642,13 +642,31 @@ async def import_bucket(
     if not file.filename or not file.filename.endswith(".zip"):
         raise HTTPException(status_code=400, detail="Expected a .zip file")
 
+    # Guard against oversized uploads (default 256 MB compressed).
+    _MAX_ZIP_UPLOAD = 256 * 1024 * 1024
+    # Guard against zip bombs: max decompressed size per file (512 MB).
+    _MAX_DECOMPRESSED_FILE = 512 * 1024 * 1024
+
     try:
         raw = await file.read()
+        if len(raw) > _MAX_ZIP_UPLOAD:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Zip file exceeds maximum upload size of {_MAX_ZIP_UPLOAD // (1024 * 1024)} MB",
+            )
         buf = io.BytesIO(raw)
         with zipfile.ZipFile(buf) as zf:
             names = zf.namelist()
             if "manifest.json" not in names or "chunks.json" not in names:
                 raise HTTPException(status_code=400, detail="Invalid bucket archive — missing manifest.json or chunks.json")
+
+            # Check decompressed sizes before reading to guard against zip bombs
+            for entry in zf.infolist():
+                if entry.file_size > _MAX_DECOMPRESSED_FILE:
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"Archive entry '{entry.filename}' exceeds maximum decompressed size of {_MAX_DECOMPRESSED_FILE // (1024 * 1024)} MB",
+                    )
 
             manifest = json.loads(zf.read("manifest.json"))
             chunks = json.loads(zf.read("chunks.json"))

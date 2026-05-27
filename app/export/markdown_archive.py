@@ -99,7 +99,7 @@ class MarkdownArchiveBuilder:
         try:
             buckets = self._bucket_svc.db.list_all()
         except Exception:
-            logger.debug("Could not list buckets for export", exc_info=True)
+            logger.warning("Could not list buckets for export", exc_info=True)
             return
 
         for bucket in buckets:
@@ -116,7 +116,7 @@ class MarkdownArchiveBuilder:
                 store = self._bucket_svc.get_store(bucket["id"])
                 result = store._collection.get(include=["documents", "metadatas"])
             except Exception:
-                logger.debug("Could not read bucket '%s' for export", bucket_name, exc_info=True)
+                logger.warning("Could not read bucket '%s' for export", bucket_name, exc_info=True)
                 continue
 
             # Group chunks by source_path, sorted by chunk_index, then reconstruct
@@ -152,7 +152,7 @@ class MarkdownArchiveBuilder:
             wikidb = WikiDB(self._settings.data_directory)
             wikis = wikidb.list_all()
         except Exception:
-            logger.debug("Could not list wikis for export", exc_info=True)
+            logger.warning("Could not list wikis for export", exc_info=True)
             return
 
         for wiki in wikis:

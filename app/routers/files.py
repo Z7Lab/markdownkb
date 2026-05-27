@@ -55,7 +55,7 @@ def list_files(
     request: Request,
     offset: int = Query(0, ge=0),
     limit: int | None = Query(None, ge=1, le=100000),
-    sort: str = Query("path", regex="^(path|indexed_at)$"),
+    sort: str = Query("path", pattern="^(path|indexed_at)$"),
     settings: Settings = Depends(get_settings),
     tracking: TrackingDB = Depends(get_tracking),
     tagdb=Depends(get_tagdb),
@@ -446,7 +446,8 @@ def index_file(
     try:
         result = reindex_file(req.path, settings, store, tracking)
     except ReindexError as e:
-        raise HTTPException(status_code=422, detail=str(e)) from e
+        logger.warning("Indexing failed for %s: %s", req.path, e)
+        raise HTTPException(status_code=422, detail="Indexing failed for the requested file") from e
     return {"status": "ok", "message": result}
 
 
@@ -466,7 +467,8 @@ def reindex_single_file(
     try:
         result = reindex_file(req.path, settings, store, tracking)
     except ReindexError as e:
-        raise HTTPException(status_code=422, detail=str(e)) from e
+        logger.warning("Reindexing failed for %s: %s", req.path, e)
+        raise HTTPException(status_code=422, detail="Reindexing failed for the requested file") from e
     return {"status": "ok", "message": result}
 
 

@@ -45,6 +45,9 @@ _KNOWN_CORE_FLAGS = frozenset({
     "versioning", "update_check",
 })
 
+# Active MCP toggle flags accepted by this API endpoint.
+# Distinct from the removed _MCP_FLAGS dict in app/config/_migrations.py,
+# which mapped legacy feature-flag names for the one-time migration path.
 _KNOWN_MCP_FLAGS = frozenset({
     "read_only", "allow_bucket_writes", "save_document", "track_history",
 })

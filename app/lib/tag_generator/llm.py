@@ -213,7 +213,7 @@ def bulk_tag_directory(
 
     dir_path = Path(directory)
     if not dir_path.exists():
-        return [{"status": "error", "message": f"Directory not found: {directory}"}]
+        raise FileNotFoundError(f"Directory not found: {directory}")
 
     results = []
     count = 0

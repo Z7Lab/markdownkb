@@ -99,7 +99,10 @@ export function PluginConfigDialog({
                       value={value as number}
                       min={field.min}
                       max={field.max}
-                      onChange={(e) => updateField(key, parseInt(e.target.value, 10))}
+                      onChange={(e) => {
+                        const n = parseInt(e.target.value, 10)
+                        if (!isNaN(n)) updateField(key, n)
+                      }}
                     />
                     {field.description && (
                       <p className="text-xs text-muted-foreground">{field.description}</p>

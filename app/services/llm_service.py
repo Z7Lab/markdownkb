@@ -73,6 +73,11 @@ def _fetch_openai_models(api_base: str) -> list[dict]:
             url = f"{api_base.rstrip('/')}/v1/models"
         resp = httpx.get(url, timeout=10)
         if resp.status_code != 200:
+            logger.warning(
+                "Non-200 response fetching models from %s: HTTP %s — "
+                "check api_base URL and API key configuration",
+                url, resp.status_code,
+            )
             return []
         data = resp.json()
         models = data.get("data", [])
@@ -146,7 +151,8 @@ def test_api_provider(model: str, api_base: str, api_key: str = "") -> dict:
 
     try:
         if provider_type == "anthropic":
-            client = anthropic.Anthropic(api_key=api_key or "")
+            from app.rag.llm import _get_anthropic_client
+            client = _get_anthropic_client(api_key or "")
             response = client.messages.create(
                 model=model_name,
                 messages=[{"role": "user", "content": "Say OK"}],
@@ -155,13 +161,14 @@ def test_api_provider(model: str, api_base: str, api_key: str = "") -> dict:
             )
             reply = (response.content[0].text if response.content else "").strip()
         else:
-            client_kwargs: dict = {"api_key": api_key or "not-needed"}
+            from app.rag.llm import _get_openai_client
+            effective_base = None
             if api_base:
                 base = api_base.rstrip("/")
                 if provider_type == "ollama" and not base.endswith("/v1"):
                     base += "/v1"
-                client_kwargs["base_url"] = base
-            client = openai.OpenAI(**client_kwargs)
+                effective_base = base
+            client = _get_openai_client(api_key or "not-needed", effective_base)
             response = client.chat.completions.create(
                 model=model_name,
                 messages=[{"role": "user", "content": "Say OK"}],
@@ -306,7 +313,8 @@ def stream_test_prompt(
 
     try:
         if provider_type == "anthropic":
-            client = anthropic.Anthropic(api_key=api_key or "")
+            from app.rag.llm import _get_anthropic_client
+            client = _get_anthropic_client(api_key or "")
             with client.messages.stream(
                 model=model_name,
                 messages=[{"role": "user", "content": prompt}],
@@ -317,13 +325,14 @@ def stream_test_prompt(
                     token_count += 1
                     yield "token", {"content": text}
         else:
-            client_kwargs: dict = {"api_key": api_key or "not-needed"}
+            from app.rag.llm import _get_openai_client
+            effective_base = None
             if api_base:
                 base = api_base.rstrip("/")
                 if provider_type == "ollama" and not base.endswith("/v1"):
                     base += "/v1"
-                client_kwargs["base_url"] = base
-            client = openai.OpenAI(**client_kwargs)
+                effective_base = base
+            client = _get_openai_client(api_key or "not-needed", effective_base)
 
             create_kwargs: dict = {
                 "model": model_name,
