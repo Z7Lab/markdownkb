@@ -6,7 +6,7 @@ Requires the `tags` plugin with `ai_generation` enabled, and a configured LLM pr
 
 ## Setup
 
-Enable in `config/settings.yaml`:
+Enable via **Settings → Plugins → Tags → AI Tag Generation** in the web UI. Or, on a fresh install, set this in `config/settings.yaml` before first run:
 
 ```yaml
 plugins:
@@ -14,8 +14,6 @@ plugins:
     enabled: true
     ai_generation: true
 ```
-
-Restart the server to activate.
 
 ## How It Works
 

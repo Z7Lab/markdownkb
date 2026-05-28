@@ -70,7 +70,7 @@ AI-powered implementation planning using MCTS (Monte Carlo Tree Search). Describ
 
 ## Builtin Plugins
 
-All plugins live in `app/plugins/<name>/` and are toggled via `plugins.<name>.enabled` in settings.yaml or the Settings UI. Disabling a plugin removes its tab, API routes, and background processing — zero trace when off.
+All plugins live in `app/plugins/<name>/` and are toggled via the Settings UI or by setting `plugins.<name>.enabled` in `config/settings.yaml` before first run. Disabling a plugin removes its tab, API routes, and background processing — zero trace when off.
 
 | Plugin | Default | Tab | Description |
 |--------|---------|-----|-------------|
@@ -87,15 +87,13 @@ All plugins live in `app/plugins/<name>/` and are toggled via `plugins.<name>.en
 | `wiki_compile` | off | — | Karpathy-style wiki compilation — create named wikis, ingest source files into them, maintain index.md + log.md per wiki |
 | `lint` | off | — | Tiered knowledge-base health check — raw-coverage, orphan detection, within-tier contradictions, cross-tier tensions. Flag-only; works across all configured source tiers regardless of whether wiki_compile is active |
 
-Plugins marked "on" are enabled in the default configuration. Plugins marked "off" need to be explicitly enabled — either in `config/settings.yaml` or via Settings > Plugins in the UI.
+Plugins marked "on" are enabled in the default configuration. Plugins marked "off" need to be explicitly enabled via **Settings → Plugins** in the UI.
 
 ## Enabling a Plugin
 
-### From the UI
+Go to **Settings → Plugins**, find the plugin, and toggle it on. Some plugins require a container restart to take effect.
 
-Go to **Settings > Plugins**, find the plugin, and toggle it on. Some plugins require a container restart to take effect.
-
-### From settings.yaml
+On a fresh install, you can also enable plugins in `config/settings.yaml` before first run:
 
 ```yaml
 plugins:

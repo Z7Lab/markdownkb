@@ -129,7 +129,7 @@ Without a manifest, the plugin still works but appears in the UI with limited me
 
 ## Plugin Configuration
 
-Each plugin's `enabled` flag and config live together under `plugins.<name>` in `config/settings.yaml`:
+Each plugin's `enabled` flag and config live together under `plugins.<name>` in the settings database (or in `config/settings.yaml` for first-run seed):
 
 ```yaml
 plugins:
@@ -161,7 +161,7 @@ Config is also readable/writable via the generic API:
 
 ### Builtin plugins
 
-Place the directory in `app/plugins/` and enable it in `config/settings.yaml`:
+Place the directory in `app/plugins/` and enable it via **Settings → Plugins** in the web UI, or in `config/settings.yaml` before first run:
 
 ```yaml
 plugins:

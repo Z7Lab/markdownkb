@@ -311,7 +311,9 @@ URL formats accepted: `https://github.com/user/repo`, `https://github.com/user/r
 
 ### Plugin Configuration
 
-Each plugin's `enabled` flag and config live together under `plugins.<name>` in `config/settings.yaml`:
+Each plugin's `enabled` flag and config live together under `plugins.<name>` in the settings database. Toggle plugins via **Settings → Plugins** in the web UI; the change takes effect immediately (some plugins require a container restart).
+
+To seed plugin config before first run, add it to `config/settings.yaml` — this file is read once on startup and written to the database, then never consulted again:
 
 ```yaml
 plugins:
@@ -347,14 +349,16 @@ See [versioning.md](../explanation/versioning.md) for the user-facing behavior (
 
 ## Settings Structure
 
-Configuration is split into four sections in `config/settings.yaml`:
+Configuration is stored in a SQLite database (`markdownkb_settings.db`) in the data directory. Settings are grouped into four top-level keys:
 
 - **`core:`** — behaviour toggles for built-in features (file_watcher, versioning, etc.)
 - **`mcp:`** — MCP tool flags (read_only, allow_bucket_writes, save_document, filesystem, terminal)
 - **`plugins:`** — each plugin has `enabled` + config together (`plugins.<name>.enabled`)
 - **`services:`** — shared service config (deep_research iterations, etc.)
 
-Legacy `features:` layouts are auto-migrated on first startup and saved to disk. Security-sensitive features (MCP tools) default to off — see [SECURITY.md](../../SECURITY.md).
+`config/settings.yaml` is a **seed file** only: on first startup, if the settings database is empty, its contents are read and written to the database. After that, `settings.yaml` is never read or written — all runtime configuration lives in the database. Settings are changed via the **Settings** tab in the UI or the `GET/PUT /api/v1/settings/*` API.
+
+Legacy `features:` layouts are auto-migrated on first startup and saved to the database. Security-sensitive features (MCP tools) default to off — see [SECURITY.md](../../SECURITY.md).
 
 ## MCP Server
 

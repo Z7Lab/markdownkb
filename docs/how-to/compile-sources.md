@@ -12,15 +12,13 @@ For background on why this exists and the three-tier model it respects, read [wi
 
 ## 1. Enable the plugin
 
-In `config/settings.yaml`:
+Enable via **Settings → Plugins → Wiki Compile** in the web UI, then restart: `make docker-restart`. Or, on a fresh install, set this in `config/settings.yaml` before first run:
 
 ```yaml
 plugins:
   wiki_compile:
     enabled: true
 ```
-
-Restart the container: `make docker-down && make docker-up`. Plugin enablement is read at startup.
 
 ## 2. Create a wiki
 
@@ -180,6 +178,6 @@ Run serially rather than in parallel — concurrent LLM calls will queue anyway,
 
 - **404 "Wiki not found"** — the wiki name doesn't exist. Call `GET /wikis` to see what's available, or create one with `POST /wikis`.
 - **404 "source_path not found"** — the source file isn't readable from inside the container. In Docker, make sure the parent directory is mounted. Check `docker inspect markdownkb --format '{{range .Mounts}}{{.Source}}{{"\n"}}{{end}}'`.
-- **503 "LLM request failed"** — no usable LLM provider. Check `Settings > LLM` in the web UI or the `llm.providers` block in `settings.yaml`.
+- **503 "LLM request failed"** — no usable LLM provider. Check **Settings → Chat Model** in the web UI.
 - **400 "summary page already exists"** — the source was already ingested. Pass `force=true` to overwrite, or delete the existing summary manually if you want a clean slate.
 - **`docker_restart_required: true` in a create response** — you used a custom path outside the project/data dir. Run `make docker-down && make docker-up` before ingesting so the new bind mount activates.

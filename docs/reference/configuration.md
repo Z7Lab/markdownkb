@@ -2,24 +2,34 @@
 
 MarkdownKB is configured through three sources:
 
-- **`config/settings.yaml`** — primary configuration (sources, LLM providers, retrieval tuning, feature flags, storage). Copy from `config/settings.yaml.example`.
+- **`config/settings.yaml`** — initial seed configuration. Read exactly once on first startup, then the contents are stored in the settings database. Editing this file after the first run has no effect — use the Settings UI instead.
 - **`secrets/`** — Docker secrets for API keys. One key per file, mounted at `/run/secrets/` inside the container. Run `make secrets-init` to scaffold the directory on a fresh clone.
 - **`.env`** — environment variables for ports and Docker settings. Copy from `.env.example`.
 
 All three are gitignored. API keys go in `secrets/` files or `.env` — never in `settings.yaml`.
 
+### Settings database
+
+All runtime configuration is stored in `markdownkb_settings.db` in the data directory, alongside the other SQLite databases. On first startup, `config/settings.yaml` is read and its contents are written to this database. After that:
+
+- All Settings UI changes write directly to the database and take effect immediately.
+- The database is automatically included in every backup.
+- Editing `settings.yaml` has no effect on a running instance — the database is authoritative.
+
+To reset configuration to the YAML file, delete `markdownkb_settings.db` and restart. The YAML will be re-seeded on next boot.
+
 ## Precedence
 
-Docker secrets take highest priority, then environment variables, then `settings.yaml`:
+For the small number of settings that can be overridden by environment variables, the resolution order is: **env var / Docker secret → database → built-in default**.
 
-| Setting | settings.yaml | secrets / .env |
-|---------|--------------|----------------|
+| Setting | Database key | Env var / secret override |
+|---------|-------------|--------------------------|
 | Server port (local dev) | `server.port` | `API_PORT` |
 | Server port (Docker, host-side) | *(n/a — container listens on fixed `9713`)* | `MARKDOWNKB_PORT` |
 | MCP port (Docker, host-side) | *(n/a — container listens on fixed `9715`)* | `MARKDOWNKB_MCP_PORT` |
 | Ollama URL | `llm.providers[].api_base` | `OLLAMA_API_BASE` |
-| LLM API keys | *(not supported)* | `secrets/<provider>_api_key` or `<PROVIDER>_API_KEY` env |
-| MarkdownKB API key | *(not supported)* | `secrets/markdownkb_api_key` or `MARKDOWNKB_API_KEY` env |
+| LLM API keys | *(not stored)* | `secrets/<provider>_api_key` or `<PROVIDER>_API_KEY` env |
+| MarkdownKB API key | *(not stored)* | `secrets/markdownkb_api_key` or `MARKDOWNKB_API_KEY` env |
 | Bind address (web/API) | `server.host` | `SERVER_HOST` (Docker) |
 | Bind address (MCP) | *(n/a)* | `MARKDOWNKB_MCP_HOST` (Docker) |
 | CORS origins | `server.cors_origins` | `CORS_ORIGINS` (comma-separated) |
@@ -27,21 +37,10 @@ Docker secrets take highest priority, then environment variables, then `settings
 **When to use which:**
 - Use `secrets/` for API keys on shared/production hosts (not visible in `docker inspect`).
 - Use `.env` for API keys on single-user/home-lab setups (convenient, but visible in `docker inspect`).
-- Use `settings.yaml` for non-secret configuration — it's the canonical config file.
+- Use `settings.yaml` to configure a fresh install before first run.
+- Use the **Settings UI** (or API) for all changes to a running instance.
 - Use `.env` for machine-specific overrides (ports, Docker settings).
 - `.mcp.json` (gitignored) — local MCP client config for connecting to other MCP servers. Contains connection tokens, so never commit it.
-
-Settings changed via the **Settings** tab in the UI are saved back to `settings.yaml`.
-
-### Reloading configuration
-
-If you edit `settings.yaml` on the host (e.g. via another tool or agent), the running container does not pick up changes automatically. Call the reload endpoint to re-read from disk without restarting:
-
-```bash
-curl -X POST http://localhost:9713/api/v1/settings/reload
-```
-
-API-driven changes (via the Settings UI) take effect immediately — they update the live config and save to disk in one step. The reload endpoint is only needed for host-side file edits.
 
 ---
 
@@ -70,7 +69,7 @@ Patterns use glob syntax (`**` matches any depth). The API endpoints `POST /api/
 
 | UI control | Where it appears | What it controls |
 |---|---|---|
-| **Exclude Patterns** (Sources card) | Bottom of Settings → Sources | `global_ignore` in `settings.yaml` — controls **indexing**. Matching files are skipped by the scanner and never appear in the Files tab or search results. |
+| **Exclude Patterns** (Sources card) | Bottom of Settings → Sources | `global_ignore` — controls **indexing**. Matching files are skipped by the scanner and never appear in the Files tab or search results. |
 | **Ignore Rules** (per versioned source) | Next to each versioned watched directory | Gitignore-syntax patterns written to `.git/info/exclude` inside the managed repo — controls **auto-commit only**. Matching files are not committed to the version history. Has no effect on indexing. |
 
 A file can be indexed but not versioned, versioned but not indexed, both, or neither — the two systems are independent.
@@ -119,7 +118,7 @@ This means `tests/**` files are never indexed even if the `tests/` directory its
 
 **Via UI:** Settings → Sources → Project Directories → Add. Enter the parent path, an optional display title, and configure include/exclude glob patterns. The title appears in the project listing and the scope picker.
 
-**Via `settings.yaml`:**
+**Via `config/settings.yaml` (before first run):**
 
 ```yaml
 project_roots:
@@ -215,8 +214,8 @@ See `config/models/README.md` for the full field reference.
 
 All persistent state (databases, embeddings, models, plugins) lives under a single **data directory**, resolved in order:
 
-1. `storage.data_directory` in settings.yaml (explicit override)
-2. `MARKDOWNKB_DATA_DIR` environment variable (Docker sets this to `/data`)
+1. `MARKDOWNKB_DATA_DIR` environment variable (Docker sets this to `/data`)
+2. `storage.data_directory` in `config/settings.yaml` (seed-only; only applied on first run if the settings database is empty)
 3. OS-appropriate default via [platformdirs](https://pypi.org/project/platformdirs/):
    - **Linux:** `~/.local/share/markdownkb`
    - **macOS:** `~/Library/Application Support/markdownkb`
@@ -261,7 +260,7 @@ MARKDOWNKB_API_KEY=your-key-here
 
 Env vars are visible in `docker inspect` — use secret files instead if others have Docker access on the host.
 
-Keys are resolved in order: `{data_directory}/secrets/` (generated keys) > Docker secret (`/run/secrets/`) > env var (`MARKDOWNKB_API_KEY`). Keys are never stored in `settings.yaml`.
+Keys are resolved in order: `{data_directory}/secrets/` (generated keys) > Docker secret (`/run/secrets/`) > env var (`MARKDOWNKB_API_KEY`). Keys are never stored in the settings database or `settings.yaml`.
 
 When no key is configured and the server binds to localhost only, authentication is disabled (single-user mode).
 
@@ -364,7 +363,7 @@ Plugin config (excluding `enabled`) is read/written via the generic API:
 
 ### Migration from legacy format
 
-If your `settings.yaml` still uses the old `features:` section, it is automatically migrated on startup to the new `core:`/`mcp:`/`plugins:`/`services:` layout. The migrated file is saved back to disk. No manual intervention needed.
+If your `settings.yaml` seed file still uses the old `features:` section, it is automatically migrated on first startup to the new `core:`/`mcp:`/`plugins:`/`services:` layout and saved to the settings database. No manual intervention needed.
 
 ## Services
 
@@ -406,4 +405,4 @@ The managed repos are mdkb-owned and separate from any user-owned git repo that 
 
 ## MCP Tool Configuration
 
-Each library module has a default config in its source directory (`app/lib/<module>/config.yaml`). When you modify MCP settings via the Settings UI, overrides are saved to `config/mcp/<tool>.yaml` (created automatically on first save). The defaults in the source tree are never modified.
+Each MCP tool has built-in defaults in its source directory (`app/mcp/<tool>/config.yaml`), shipped with the code and never modified at runtime. When you change MCP settings via the Settings UI, your overrides are stored in the settings database under `mcp_configs.<tool>`. The defaults in the source tree are never touched.

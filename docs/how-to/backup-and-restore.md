@@ -4,12 +4,12 @@ MarkdownKB can export its full state as a single portable archive — databases,
 
 ## What's in a backup
 
-| Always included            | Optional (on by default)  | Optional (off by default) | Never included         |
-| -------------------------- | ------------------------- | ------------------------- | ---------------------- |
-| All SQLite databases       | ChromaDB vector store     | `config/settings.yaml`    | API keys / secrets     |
-| Plans (`plans/`)           |                           | `compose.override.yml`    | Embedding model weights |
-| Plugin data (`plugins/`)   |                           | Source files              | Versioning git repos   |
-|                            |                           |                           | Log files              |
+| Always included                      | Optional (on by default)  | Optional (off by default) | Never included         |
+| ------------------------------------ | ------------------------- | ------------------------- | ---------------------- |
+| All SQLite databases                 | ChromaDB vector store     | `compose.override.yml`    | API keys / secrets     |
+| `markdownkb_settings.db` (settings)  |                           | Source files              | Embedding model weights |
+| Plans (`plans/`)                     |                           |                           | Versioning git repos   |
+| Plugin data (`plugins/`)             |                           |                           | Log files              |
 
 The vector store (ChromaDB) is the largest part of a backup — typically hundreds of MB for a large knowledge base. Uncheck **Include vector embeddings** to produce a much smaller archive that still preserves all your chats, searches, plans, scopes, buckets, and tags. You will need to re-index after restoring to rebuild the vectors.
 
@@ -44,7 +44,7 @@ Once restarted, click **I've restarted — clear this notice** to dismiss the ba
 
 A restore replaces all SQLite databases, the ChromaDB vector store, and the `plans/` and `plugins/` directories. Secrets and embedding model weights in the data directory are never touched.
 
-If the backup was created with **Include configuration** enabled, you can opt to apply the included `settings.yaml` and `compose.override.yml`. Skip this if you're restoring onto a machine with different paths or a different LLM setup.
+If the backup was created with **Include configuration** enabled, you can opt to apply the included `compose.override.yml`. All runtime configuration is in `markdownkb_settings.db`, which is always restored as part of the databases. Skip the compose override if you're restoring onto a machine with different source paths.
 
 If the backup was created with **Include source files** enabled, the source directories are unpacked into `data/restored-sources/`. You move them into place manually — your watch-dir paths on the new machine may differ from the original.
 

@@ -367,7 +367,7 @@ With `-c 2048`, the server accepts these inputs. Tokens beyond the model's train
 
 ### Configuring mdkb to Use the Embedding Server
 
-In `config/settings.yaml`:
+Configure via **Settings → Embedding Model → Provider: Remote** in the web UI, or add the following to `config/settings.yaml` before first run:
 
 ```yaml
 embeddings:
@@ -380,11 +380,7 @@ embeddings:
   chunk_overlap: 150
 ```
 
-Restart the container after changing (config is mounted as a volume — no rebuild needed):
-
-```bash
-make docker-restart
-```
+Restart after changing: `make docker-restart`.
 
 ### Model Compatibility
 

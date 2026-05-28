@@ -212,7 +212,14 @@ You should see a JSON list of your models.
 
 ## On the MarkdownKB Machine
 
-### Option A: Edit `config/settings.yaml`
+### Option A: Use the MarkdownKB Settings UI
+
+1. Open MarkdownKB in your browser (`http://localhost:9713`)
+2. Go to **Settings → Chat Model**
+3. Set the provider name, model, and API base to `http://<OLLAMA_IP>:11434`
+4. Click Save
+
+### Option B: Seed in `config/settings.yaml` (before first run)
 
 ```yaml
 llm:
@@ -224,12 +231,6 @@ llm:
 ```
 
 Replace `<OLLAMA_IP>` with your Ollama machine's IP or hostname.
-
-### Option B: Use the MarkdownKB Settings UI
-
-1. Open MarkdownKB in your browser (`http://localhost:9713`)
-2. Go to the **Settings** tab
-3. Set active provider to `ollama`
 
 ### Option C: Environment Variable
 
