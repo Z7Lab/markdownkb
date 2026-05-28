@@ -210,8 +210,10 @@ def test_service_config(tmp_path):
     assert cfg["n_approaches"] == 4
 
 
-def test_migration_persisted_to_disk(tmp_path):
-    """Migration saves the new format to disk."""
+def test_migration_persisted_to_db(tmp_path):
+    """Migration saves the new format to the settings database (not back to YAML)."""
+    from app.config.settingsdb import SettingsDB
+
     old_config = {
         "features": {"rag_chat": True, "search": True},
         "plugins": {"search": {"chunk_multiplier": 10}},
@@ -219,11 +221,11 @@ def test_migration_persisted_to_disk(tmp_path):
     config_file = _write_yaml(tmp_path, old_config)
     Settings(config_file)
 
-    # Re-read from disk
-    with open(config_file) as f:
-        on_disk = yaml.safe_load(f)
-
-    assert "features" not in on_disk
-    assert "core" in on_disk
-    assert on_disk["plugins"]["search"]["enabled"] is True
-    assert on_disk["plugins"]["search"]["chunk_multiplier"] == 10
+    # Migration output is in the DB, not rewritten to the YAML file.
+    db = SettingsDB(config_file.parent)
+    persisted = db.load()
+    assert persisted is not None
+    assert "features" not in persisted
+    assert "core" in persisted
+    assert persisted["plugins"]["search"]["enabled"] is True
+    assert persisted["plugins"]["search"]["chunk_multiplier"] == 10

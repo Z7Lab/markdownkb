@@ -75,7 +75,7 @@ The default overlap is 150 characters (~37 tokens). Higher overlap means more re
 
 ## Configuration
 
-All retrieval settings are in `config/settings.yaml` under `retrieval:`:
+All retrieval settings are configurable via **Settings → Retrieval** in the web UI. The equivalent structure in `config/settings.yaml` (for initial seed configuration) is:
 
 ```yaml
 retrieval:

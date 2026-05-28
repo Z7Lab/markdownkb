@@ -118,7 +118,7 @@ One database (`trackingdb.py`) uses an older equivalent pattern — a `schema_ve
 
 ## Config migrations
 
-`config/settings.yaml` is migrated at startup by `_migrate_settings` in `app/config/__init__.py`. The function tolerates legacy `features:` and flat `plugins:` layouts, normalises them to the current structured layout, and persists the result back to disk.
+Settings are migrated at startup by `_migrate_settings` in `app/config/__init__.py`. On first run the function reads `config/settings.yaml`, tolerates legacy `features:` and flat `plugins:` layouts, normalises them to the current structured layout, and persists the result to the settings database (`markdownkb_settings.db`). Subsequent starts load directly from the database; the YAML is not re-read.
 
 The same pattern applies for any future config restructure: detect the old shape, transform, save. Never error on missing new keys; supply a default.
 
@@ -148,4 +148,4 @@ This shifts the upgrade pain to the plugin (the plugin author bumps their declar
 - [Versioning](versioning.md) — git-backed write history for mdkb-authored documents (a different versioning system from the one described here)
 - [Backup and Restore](../how-to/backup-and-restore.md) — the rollback mechanism
 - [Plugin Development](../how-to/plugin-development.md) — plugin-owned schemas and the contract version range
-- [Configuration](../reference/configuration.md) — settings.yaml structure
+- [Configuration](../reference/configuration.md) — settings database and settings.yaml seed structure

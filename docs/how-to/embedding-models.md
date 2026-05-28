@@ -16,7 +16,7 @@ MarkdownKB supports three embedding providers:
 - **Ollama** — use an Ollama embedding model (e.g. `nomic-embed-text`), local or remote
 - **OpenAI-compatible API** — any endpoint serving `/v1/embeddings` (Venice, OpenAI, Together, etc.)
 
-Configure the provider in Settings > Embedding Model, or in `config/settings.yaml` under the `embeddings:` section.
+Configure the provider via **Settings → Embedding Model** in the web UI. To set a provider before first run, add it to `config/settings.yaml` under the `embeddings:` section.
 
 ## Remote Embeddings
 
@@ -86,7 +86,7 @@ No manual install step is needed. You can also install additional models from th
 
 ## Built-in Models
 
-These ship in the default `settings.yaml`:
+These are available out of the box:
 
 | Model | Dimensions | Max Tokens | ~Max Chars | Size | Notes |
 |-------|-----------|------------|------------|------|-------|
@@ -132,7 +132,7 @@ You can continue using the app while reindexing. The cancel button in the Index 
 
 ## Adding Custom Models
 
-All models are defined in `config/settings.yaml` under `embeddings.models`. You can add any ONNX sentence-transformer model from HuggingFace.
+Custom models are defined under `embeddings.models` in `config/settings.yaml` (for first-run seed) or directly in the settings database. You can add any ONNX sentence-transformer model from HuggingFace.
 
 ### From HuggingFace
 
@@ -214,11 +214,11 @@ For large collections (1000+ files), expect reindexing to take a few minutes.
 
 Models are stored at `{data_directory}/models/{model-id}/`. The data directory is resolved via `MARKDOWNKB_DATA_DIR` env var or OS-appropriate default (see [configuration](../reference/configuration.md#storage)).
 
-The active model is stored in `config/settings.yaml` under `embeddings.model`.
+The active model is stored in the settings database. Change it via **Settings → Embedding Model**.
 
 ## Config
 
-In `config/settings.yaml`:
+The equivalent `config/settings.yaml` structure (for first-run seed):
 
 ```yaml
 embeddings:

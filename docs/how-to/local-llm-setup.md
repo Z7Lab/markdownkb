@@ -58,7 +58,9 @@ You can also pull models from the MarkdownKB UI — go to Settings > Chat Model,
 4. Click Refresh — your pulled models appear in the dropdown
 5. Select a model and click Save
 
-### From settings.yaml
+### From config/settings.yaml (before first run)
+
+To seed the configuration before first startup, add to `config/settings.yaml`:
 
 ```yaml
 llm:

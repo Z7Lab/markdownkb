@@ -124,7 +124,7 @@ curl http://localhost:8080/health
 
 ### 1. Configure Connection to Remote LLM
 
-**Create/edit `config/settings.yaml`:**
+**Configure in `config/settings.yaml` (for first-run seed) or via **Settings → Chat Model** after first run:**
 
 #### For Ollama:
 
@@ -199,14 +199,14 @@ OLLAMA_API_BASE=http://<your-server-ip>:11434
 # SERVER_HOST=0.0.0.0
 ```
 
-**Note:** Environment variables override `settings.yaml` values.
+**Note:** Environment variables override database values for the settings listed in [Configuration](../reference/configuration.md#precedence).
 
 ### 3. Start MarkdownKB
 
 ```bash
 # First time setup
 cp config/settings.yaml.example config/settings.yaml
-# Edit settings.yaml with your LLM server IP
+# Edit settings.yaml with your LLM server IP (used as initial seed on first run)
 
 # Build and start
 make docker-build && make docker-up
@@ -274,14 +274,7 @@ docker-compose logs -f
 
 **To switch providers:**
 
-1. Edit `config/settings.yaml`
-2. Change `active_provider: ollama` to `active_provider: llamacpp`
-3. Restart MarkdownKB:
-   ```bash
-   make restart
-   # or
-   docker-compose restart
-   ```
+Use **Settings → Chat Model → Active Provider** in the web UI. Changes take effect immediately — no restart needed.
 
 **Or use environment variable:**
 ```bash
@@ -377,7 +370,7 @@ Error: Model 'deepseek-coder-v2:latest' not found
 **Fixes:**
 1. List available models: `ollama list`
 2. Pull the model: `ollama pull deepseek-coder-v2:latest`
-3. Check model name in settings.yaml matches exactly
+3. Check model name in **Settings → Chat Model** matches exactly
 
 ### Slow Responses
 
@@ -388,7 +381,7 @@ Error: Model 'deepseek-coder-v2:latest' not found
 
 **To improve:**
 - Use MoE models (DeepSeek) for 45% faster CPU inference
-- Reduce `max_tokens` in settings.yaml
+- Reduce `max_tokens` in **Settings → Chat Model**
 - Use lower context (`num_ctx 8192` instead of `16384`)
 
 ### MarkdownKB Can't Connect
@@ -426,8 +419,9 @@ PARAMETER num_ctx 16384  # 16k context
 ```
 
 **Optimize retrieval:**
+
+Configure via **Settings → Retrieval** in the web UI, or seed in `config/settings.yaml` before first run:
 ```yaml
-# In settings.yaml
 retrieval:
   top_k: 10              # Retrieve more chunks
   score_threshold: 0.25  # Slightly more permissive

@@ -1,4 +1,4 @@
-"""Application configuration loaded from settings.yaml.
+"""Application configuration — SQLite-backed with YAML seed support.
 
 The Settings class is composed from domain-specific mixins:
 - SourcesMixin: source directories, project roots, ignore patterns
@@ -17,8 +17,19 @@ Settings layout (post-migration)::
     plugins:     # each plugin: enabled + its config together
     services:    # shared service config (deep_research, etc.)
 
+Persistence
+-----------
+Settings are stored in ``<data_dir>/markdownkb_settings.db`` (SQLite).
+``config/settings.yaml`` acts as a one-time seed: on first startup the
+YAML is read, migrated, and written to the database.  After that the YAML
+is not consulted — all reads and writes go through the database.
+
+This means ``settings.yaml`` can be mounted read-only in Docker without
+breaking any Settings-tab operations.  The database lives in the data
+directory, which is always writable.
+
 Legacy ``features:`` / flat ``plugins:`` layouts are auto-migrated on
-first load and persisted back to disk.
+first load and persisted back to the database.
 """
 
 import logging
@@ -45,6 +56,7 @@ from app.config._paths import (
     resolve_env_recursive as _resolve_env_recursive,
 )
 from app.config._validate import validate as _validate_settings
+from app.config.settingsdb import SettingsDB
 
 logger = logging.getLogger(__name__)
 
@@ -65,13 +77,15 @@ class Settings(
     StorageMixin,
     PluginsMixin,
 ):
-    """Singleton settings manager backed by YAML config file.
+    """Singleton settings manager backed by the settings database.
 
-    Environment variable substitution (``${VAR}`` in ``settings.yaml``) is
-    performed at ``__init__`` and ``reload()`` time only. A small number of
-    properties (``cors_origins``, ``server_host``) read ``os.environ``
-    directly and reflect changes per request; everything else requires
-    ``reload()`` to pick up env-var mutations.
+    ``config/settings.yaml`` is read exactly once on first startup to seed the
+    database, then never consulted again.  All reads and writes go through the
+    SQLite settings database (``<data_dir>/markdownkb_settings.db``).
+
+    A small number of properties (``api_key``, ``server_host``, ``cors_origins``)
+    read live from env vars / secrets on every access and are not stored in the
+    database.
     """
 
     _instance: "Settings | None" = None
@@ -85,28 +99,55 @@ class Settings(
 
     def __init__(self, config_path: str | Path | None = None):
         path = Path(config_path) if config_path else _DEFAULT_CONFIG_PATH
-        if path.exists():
-            with open(path, encoding="utf-8") as f:
-                self._data = yaml.safe_load(f) or {}
-            self._using_defaults = False
-        else:
-            logger.warning("Config file not found at %s — using built-in defaults", path)
-            self._data = {}
-            self._using_defaults = True
-        self._data = _resolve_env_recursive(self._data, skip_keys=frozenset({"api_key"}))
         self._path = path
         self._project_root = path.resolve().parent.parent
         self._lock = threading.Lock()
         self._mcp_cache: dict[str, dict] = {}
         self._prompt_cache: dict[str, str] = {}
-        self._mcp_dir = self._path.parent / "mcp"
-        self._loaded_mtime: float = path.stat().st_mtime if path.exists() else 0.0
+
+        # DB placement strategy:
+        # - Default (production) config path → data dir (MARKDOWNKB_DATA_DIR / platformdirs).
+        #   This keeps the DB well away from the config dir, which may be read-only.
+        # - Explicit config path (tests, alternate configs) → same directory as the
+        #   config file, giving each config its own isolated DB.
+        if config_path is None:
+            db_data_dir = default_data_dir()
+        else:
+            db_data_dir = path.parent
+        self._db = SettingsDB(db_data_dir)
+
+        db_data = self._db.load()
+        if db_data is not None:
+            # Normal path: settings already persisted in the database.
+            self._data = db_data
+            self._using_defaults = False
+            logger.debug("Settings loaded from database (%s)", self._db.path)
+        elif path.exists():
+            # First run / migration: seed the database from settings.yaml.
+            with open(path, encoding="utf-8") as f:
+                self._data = yaml.safe_load(f) or {}
+            self._data = _resolve_env_recursive(self._data, skip_keys=frozenset({"api_key"}))
+            self._using_defaults = False
+            logger.info(
+                "Migrating settings from %s → %s",
+                path,
+                self._db.path,
+            )
+        else:
+            # No database, no YAML — start from built-in defaults.
+            logger.warning(
+                "No settings found (no database, no settings.yaml) — using built-in defaults"
+            )
+            self._data = {}
+            self._using_defaults = True
 
         migrated = _migrate_settings(self._data)
         if _migrate_num_ctx(self._data):
             migrated = True
-        if migrated:
-            self.save()
+
+        # Persist to DB: always on migration/first-run, or whenever migrations ran.
+        if db_data is None or migrated:
+            self._db.save(self._data)
 
         _validate_settings(self._data)
 
@@ -130,36 +171,29 @@ class Settings(
             cls._instance = None
 
     def reload(self):
-        """Re-read settings.yaml from disk and update the live instance."""
+        """Reload settings from the database and update the live instance."""
         with self._lock:
-            if self._path.exists():
-                with open(self._path, encoding="utf-8") as f:
-                    self._data = yaml.safe_load(f) or {}
+            db_data = self._db.load()
+            if db_data is not None:
+                self._data = db_data
                 self._using_defaults = False
             else:
                 self._data = {}
                 self._using_defaults = True
-            self._data = _resolve_env_recursive(self._data, skip_keys=frozenset({"api_key"}))
             _validate_settings(self._data)
             self._mcp_cache.clear()
             self._prompt_cache.clear()
-            self._loaded_mtime = self._path.stat().st_mtime if self._path.exists() else 0.0
-            logger.info("Settings reloaded from %s", self._path)
+            logger.info("Settings reloaded from database (%s)", self._db.path)
 
     @property
     def is_dirty(self) -> bool:
-        """Return True if settings.yaml has been modified since it was last loaded."""
-        if not self._path.exists():
-            return False
-        return self._path.stat().st_mtime > self._loaded_mtime
+        """Always False — database writes are immediate and atomic."""
+        return False
 
     def save(self):
-        """Write current configuration back to the YAML file."""
+        """Persist current configuration to the settings database."""
         with self._lock:
-            self._path.parent.mkdir(parents=True, exist_ok=True)
-            with open(self._path, "w", encoding="utf-8") as f:
-                yaml.dump(self._data, f, default_flow_style=False, sort_keys=False)
-            self._loaded_mtime = self._path.stat().st_mtime
+            self._db.save(self._data)
             self._mcp_cache.clear()
             self._prompt_cache.clear()
 

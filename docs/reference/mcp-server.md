@@ -2,7 +2,7 @@
 
 MarkdownKB includes a standalone MCP (Model Context Protocol) server that exposes core knowledge base capabilities to any MCP-compatible client — Claude Desktop, the personal-dispatcher, or custom agents.
 
-The server runs as a **separate process** alongside the FastAPI app. It imports core services directly (no HTTP proxy), sharing the same `config/settings.yaml`, vector store, and SQLite databases.
+The server runs as a **separate process** alongside the FastAPI app. It imports core services directly (no HTTP proxy), sharing the same settings database, vector store, and SQLite databases.
 
 ## All MCP Tools at a Glance
 
@@ -205,12 +205,7 @@ save_file(
 
 Path must be relative, must end in `.md`, and cannot contain `..` traversal. The file is written to disk and automatically picked up by the file watcher for indexing.
 
-**Disabled by default.** Enable in `config/settings.yaml`:
-
-```yaml
-mcp:
-  save_document: true
-```
+**Disabled by default.** Enable via **Settings → MCP → Save Document** in the web UI.
 
 ### delete_file
 
@@ -495,7 +490,7 @@ Two independent layers control who can reach the MCP server.
 
 For Docker, set `MARKDOWNKB_MCP_HOST` in `.env` (see `.env.example`). For a native run, use `python mcp_server.py --http --host <ip>`.
 
-**Layer 2 — Host header allowlist** (`mcp.allowed_hosts` in `config/settings.yaml`): DNS rebinding protection. Defends a localhost-bound server from browser-based attackers that spoof a hostname resolving to 127.0.0.1.
+**Layer 2 — Host header allowlist** (configured via **Settings → MCP → Allowed hosts**): DNS rebinding protection. Defends a localhost-bound server from browser-based attackers that spoof a hostname resolving to 127.0.0.1.
 
 By default the allowlist is seeded automatically with every hostname this server is likely to be reached by:
 
@@ -519,7 +514,7 @@ Edit via **Settings → MCP → Allowed hosts** in the web UI. **Restart the MCP
 
 ### Rate Limiting
 
-Off by default. Set `mcp.rate_limit_per_minute` in `config/settings.yaml` (or via **Settings → MCP → Rate limit**) to a positive integer to cap requests per minute per API key — or per remote IP if no key is configured. `0` disables the limit.
+Off by default. Set via **Settings → MCP → Rate limit** to a positive integer to cap requests per minute per API key — or per remote IP if no key is configured. `0` disables the limit.
 
 Recommended values:
 
@@ -566,7 +561,7 @@ Open the resource browser (usually a paperclip or attachment icon) to see resour
 **Using prompts in a browser client:**  
 Open the prompt picker (usually a `/` shortcut or icon) to see the three built-in prompts: `ask-kb`, `summarize-topic`, and `research-topic`. Select one, fill in the argument, and it pre-populates the message with the right tool call instruction.
 
-> CORS is restricted to localhost origins by default. To allow additional origins (e.g. a remote browser client), set `mcp.allowed_origins` in `config/settings.yaml`.
+> CORS is restricted to localhost origins by default. To allow additional origins (e.g. a remote browser client), configure them via **Settings → MCP → Allowed origins**.
 
 ## Docker
 
@@ -597,7 +592,7 @@ http://localhost:9715/mcp
 
 The MCP server shares the same storage as the FastAPI app:
 
-- **Config**: Reads `config/settings.yaml` via the same `Settings` singleton
+- **Config**: Reads from the settings database via the same `Settings` singleton
 - **Vector store**: ChromaDB at `{data_directory}/chromadb/`
 - **Tracking DB**: SQLite at `{data_directory}/markdownkb.db`
 - **Embeddings**: Same ONNX models, same embedding pipeline

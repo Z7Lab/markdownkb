@@ -90,9 +90,9 @@ To use a different location, set `MARKDOWNKB_DATA_DIR` in `.env` before first ru
 
 ## Source directory mounts
 
-MarkdownKB indexes files inside its container, so any directory listed under `sources:` in `config/settings.yaml` must also be mounted. The UI does this automatically — when you add a source via **Settings → Sources**, it writes a mount entry to `config/compose.override.yml` and prompts you to restart.
+MarkdownKB indexes files inside its container, so any directory you add as a source must also be mounted. The UI does this automatically — when you add a source via **Settings → Sources**, it writes a mount entry to `config/compose.override.yml` and prompts you to restart.
 
-If you edit `settings.yaml` directly, mount the directory yourself in `compose.yml`:
+If you seed sources in `config/settings.yaml` before first run, mount each directory yourself in `compose.yml`:
 
 ```yaml
 volumes:
@@ -146,14 +146,14 @@ This passes the extras build arg through `compose.full.yml`. Use `make docker-re
 
 ### Building a custom image from your settings
 
-`compose.full.yml` is an all-or-nothing preset. If you only want some converter sub-converters (e.g. YouTube and DOCX but not PDF), generate a `compose.custom.yml` tailored to your `config/settings.yaml`:
+`compose.full.yml` is an all-or-nothing preset. If you only want some converter sub-converters (e.g. YouTube and DOCX but not PDF), generate a `compose.custom.yml` from your `config/settings.yaml` seed:
 
 ```bash
 make generate-compose    # reads config/settings.yaml, writes compose.custom.yml
 make docker-build-custom # builds and starts with only your enabled extras
 ```
 
-`compose.custom.yml` is gitignored — regenerate it any time you change converter sub-converter settings. The generator is `scripts/generate_compose.py` — run it directly with `python scripts/generate_compose.py` if needed outside of Make.
+`compose.custom.yml` is gitignored — regenerate it any time you change converter sub-converter settings in `settings.yaml`. The generator is `scripts/generate_compose.py` — run it directly with `python scripts/generate_compose.py` if needed outside of Make.
 
 ### Note on YouTube ToS
 

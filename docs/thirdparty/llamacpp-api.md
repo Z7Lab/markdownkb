@@ -212,7 +212,9 @@ print(data["choices"][0]["message"]["content"])
 
 MarkdownKB uses the `openai` Python SDK for any OpenAI-compatible endpoint.
 
-### Option 1: Edit `config/settings.yaml`
+### Option 1: Use the Settings UI
+
+Open **Settings → Chat Model**, set the provider to `llamacpp`, model to `openai/qwen3`, and API base to `http://localhost:8080/v1`. Or seed in `config/settings.yaml` before first run:
 
 ```yaml
 llm:
@@ -446,7 +448,7 @@ ss -tlnp | grep 8080
 
 MarkdownKB uses the OpenAI Python SDK for any OpenAI-compatible endpoint, so llama-server works as a drop-in LLM backend.
 
-In `config/settings.yaml`:
+Configure via **Settings → Chat Model → Provider** in the web UI: set the provider to `llamacpp` (or any name), model to `openai/your-model-name`, and API base to `http://localhost:8080/v1`. Or seed it in `config/settings.yaml` before first run:
 
 ```yaml
 llm:

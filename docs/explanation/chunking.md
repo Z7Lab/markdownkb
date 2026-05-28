@@ -52,7 +52,7 @@ Chunks shorter than 200 characters (e.g., a bare heading with no body text) are 
 
 ## Configuration
 
-Chunking is configured in `config/settings.yaml` under the `embeddings` section:
+Chunking is configured under **Settings → Embedding Model** in the web UI, or in `config/settings.yaml` before first run:
 
 ```yaml
 embeddings:
@@ -69,7 +69,7 @@ embeddings:
 
 ### Config hierarchy
 
-Settings are loaded from `config/settings.yaml` at startup. If a key is missing from YAML, the code default applies. There are **no environment variable overrides** for chunk settings — edit the YAML and restart.
+Settings are loaded from the settings database at startup. If a key is missing, the code default applies. There are **no environment variable overrides** for chunk settings — change them via the Settings UI and restart.
 
 The code defaults (512/50) exist in two places:
 - `app/config/__init__.py` — Settings property fallback
@@ -192,4 +192,4 @@ Separate files per topic are still recommended for **search result granularity**
 | `app/ingestion/watcher.py` | File change detection, triggers re-indexing |
 | `app/ingestion/scanner.py` | File discovery across source directories |
 | `app/config/__init__.py` | Settings properties (`chunk_size`, `chunk_overlap`) |
-| `config/settings.yaml` | Runtime configuration |
+| `markdownkb_settings.db` | Runtime configuration (settings database) |

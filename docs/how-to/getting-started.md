@@ -65,7 +65,7 @@ llama.cpp, vLLM, LM Studio, or any server with an OpenAI-compatible API:
 
 Go to **Settings → Sources** in the UI and add directories under **Watch Directories**. MarkdownKB will immediately start indexing all `.md` files it finds.
 
-Alternatively, edit `config/settings.yaml` directly and add directories under `sources:`:
+Alternatively, on a fresh install, add directories under `sources:` in `config/settings.yaml` before first run:
 
 ```yaml
 sources:

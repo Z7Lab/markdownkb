@@ -24,20 +24,6 @@ def get_settings_endpoint(request: Request, settings: Settings = Depends(get_set
     return build_settings_response(settings)
 
 
-@router.get("/settings/status")
-@limiter.limit(STANDARD)
-def settings_status(request: Request, settings: Settings = Depends(get_settings)):
-    """Return whether settings.yaml has been modified since it was last loaded."""
-    return {"dirty": settings.is_dirty}
-
-
-@router.post("/settings/reload")
-@limiter.limit(STANDARD)
-def reload_settings(request: Request, settings: Settings = Depends(get_settings)):
-    """Re-read settings.yaml from disk and update the live singleton."""
-    settings.reload()
-    return {"status": "reloaded"}
-
 
 _KNOWN_CORE_FLAGS = frozenset({
     "file_watcher", "rate_limiting",

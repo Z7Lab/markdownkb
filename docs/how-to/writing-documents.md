@@ -15,7 +15,7 @@ Both write to the same watched source directories. The file watcher picks up new
 
 ### REST API (write_api plugin)
 
-In `config/settings.yaml`:
+Enable via **Settings → Plugins → Write API** in the web UI, then restart. Or set this in `config/settings.yaml` before first run:
 
 ```yaml
 plugins:
@@ -23,11 +23,9 @@ plugins:
     enabled: true
 ```
 
-Restart the container (`make restart`) to activate.
-
 ### MCP tools
 
-In `config/settings.yaml`:
+Enable via **Settings → MCP** in the web UI. Or set this in `config/settings.yaml` before first run:
 
 ```yaml
 mcp:

@@ -64,7 +64,7 @@ Deep research takes longer (30 seconds to several minutes depending on iteration
 
 ### Configuration
 
-Deep research requires `core.deep_research: true` in settings.yaml. The iteration count is adjustable per-search (1–20) via the UI control next to the toggle.
+Deep research is enabled via **Settings → Plugins → Deep Research** (or `core.deep_research: true` in `config/settings.yaml` before first run). The iteration count is adjustable per-search (1–20) via the UI control next to the toggle.
 
 ## Search History
 
