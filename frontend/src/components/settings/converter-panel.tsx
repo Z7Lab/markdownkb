@@ -46,8 +46,8 @@ export function ConverterPanel() {
 
   const loadConfig = useCallback(async () => {
     try {
-      const res = await api.get<ConverterConfig>("/api/v1/settings/plugins/converter")
-      setConfig({ ...DEFAULTS, ...res })
+      const res = await api.get<{ plugin: string; config: ConverterConfig }>("/api/v1/settings/plugins/converter")
+      setConfig({ ...DEFAULTS, ...res.config })
       setLoaded(true)
     } catch {
       setLoaded(true)
@@ -62,7 +62,7 @@ export function ConverterPanel() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      await api.put("/api/v1/settings/plugins/converter", config)
+      await api.put("/api/v1/settings/plugins/converter", { config })
       toast.success("File Converter settings saved")
     } catch (err) {
       toast.error(`Failed to save: ${(err as Error).message}`)

@@ -42,7 +42,7 @@ export function PluginConfigDialog({
   const handleSave = async () => {
     setSaving(true)
     try {
-      await api.put(`/api/v1/settings/plugins/${plugin.name}`, config)
+      await api.put(`/api/v1/settings/plugins/${plugin.name}`, { config })
       toast.success(`${plugin.display_name} config saved`)
       onSaved()
       onOpenChange(false)
