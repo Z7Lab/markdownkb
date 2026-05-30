@@ -11,6 +11,7 @@ export interface ConfigFieldSchema {
   description?: string
   min?: number
   max?: number
+  options?: { value: string; label: string }[]
 }
 
 export interface SystemDependency {

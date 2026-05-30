@@ -386,6 +386,10 @@ Requires `plugins.converter.enabled: true`. Plugin: `app/plugins/converter/`. Us
 | POST | `/api/v1/converter/convert` | Start batch conversion (source_dir → dest_dir) |
 | GET | `/api/v1/converter/status` | Conversion progress (running, files done/total, errors) |
 | POST | `/api/v1/converter/cancel` | Cancel running conversion |
+| GET | `/api/v1/converter/audio/models` | List Whisper models with installation status (local provider only) |
+| POST | `/api/v1/converter/audio/install` | Download a Whisper model in the background |
+| GET | `/api/v1/converter/audio/status` | Whisper model download progress |
+| POST | `/api/v1/converter/audio/uninstall` | Remove downloaded Whisper model weights |
 
 ### POST /api/v1/converter/url
 

@@ -34,6 +34,14 @@ _FORMATS_BY_SUBCONVERTER: dict[str, dict[str, dict]] = {
         "xlsx": {"extensions": [".xlsx"], "label": "Excel (xlsx)"},
         "xls":  {"extensions": [".xls"],  "label": "Excel (xls)"},
     },
+    "audio": {
+        "mp3":  {"extensions": [".mp3"],         "label": "MP3"},
+        "wav":  {"extensions": [".wav"],         "label": "WAV"},
+        "m4a":  {"extensions": [".m4a"],         "label": "M4A"},
+        "ogg":  {"extensions": [".ogg"],         "label": "OGG"},
+        "flac": {"extensions": [".flac"],        "label": "FLAC"},
+        "webm": {"extensions": [".webm"],        "label": "WebM Audio"},
+    },
     "misc": {
         "html":  {"extensions": [".html", ".htm"], "label": "HTML"},
         "epub":  {"extensions": [".epub"],          "label": "EPUB"},
@@ -85,17 +93,62 @@ def _has_transcript_support() -> bool:
     return importlib.util.find_spec("youtube_transcript_api") is not None
 
 
-def _convert_file(source: Path, dest: Path) -> str | None:
-    """Convert a single file to markdown. Returns error message or None on success."""
+def _has_audio_support() -> bool:
+    from app.plugins.converter.audio import is_available
+    return is_available()
+
+
+def _resolve_whisper_api_key(settings) -> str:
+    """Read Whisper API key from Docker secret or WHISPER_API_KEY env var."""
+    return settings.resolve_provider_key("whisper")
+
+
+def _make_markitdown(cfg: dict, data_dir: str | None = None, settings=None):
+    """Build a MarkItDown instance, registering the audio converter when enabled."""
     from markitdown import MarkItDown
+    md = MarkItDown()
+    if cfg.get("audio_enabled", False):
+        provider = cfg.get("audio_provider", "local")
+        if provider == "remote":
+            api_base = cfg.get("audio_api_base", "").strip()
+            if api_base:
+                from app.plugins.converter.audio import make_markitdown_converter
+                api_key = _resolve_whisper_api_key(settings) if settings else ""
+                converter = make_markitdown_converter(
+                    provider="remote", api_base=api_base, api_key=api_key,
+                )
+                if converter:
+                    md.register_converter(converter)
+        elif _has_audio_support():
+            from app.plugins.converter.audio import make_markitdown_converter
+            model_size = cfg.get("audio_model", "small")
+            converter = make_markitdown_converter(
+                model_size=model_size, data_dir=data_dir, provider="local",
+            )
+            if converter:
+                md.register_converter(converter)
+    return md
+
+
+def _convert_file(source: Path, dest: Path, md=None) -> str | None:
+    """Convert a single file to markdown. Returns error message or None on success."""
+    if md is None:
+        from markitdown import MarkItDown
+        md = MarkItDown()
     try:
-        result = MarkItDown().convert_local(source)
+        result = md.convert_local(source)
         if result.text_content:
             dest.write_text(result.text_content, encoding="utf-8")
             return None
         return f"No content extracted from {source.name}"
     except Exception as e:
         return f"Conversion failed: {e}"
+
+
+# -- Background audio model install state --
+
+_audio_install_status: dict = {"running": False, "progress": 0.0, "message": "", "result": ""}
+_audio_install_lock = threading.Lock()
 
 
 # -- Background conversion state --
@@ -113,7 +166,7 @@ _conversion_status: dict = {
 _conversion_lock = threading.Lock()
 
 
-def _bg_convert(source_dir: str, dest_dir: str, extensions: set[str]):
+def _bg_convert(source_dir: str, dest_dir: str, extensions: set[str], md=None):
     """Run batch conversion in a background thread."""
     src = Path(source_dir)
     dst = Path(dest_dir)
@@ -156,7 +209,7 @@ def _bg_convert(source_dir: str, dest_dir: str, extensions: set[str]):
         dest_file = dst / relative.with_suffix(".md")
         dest_file.parent.mkdir(parents=True, exist_ok=True)
 
-        err = _convert_file(f, dest_file)
+        err = _convert_file(f, dest_file, md=md)
         if err:
             logger.warning("Conversion failed for %s: %s", f.name, err)
             errors += 1
@@ -191,8 +244,6 @@ def convert_url(
     settings: Settings = Depends(get_settings),
 ):
     """Convert a URL to markdown. Requires web sub-converter to be enabled."""
-    from markitdown import MarkItDown
-
     from app.security.validation import validate_api_base
 
     cfg = _plugin_config(settings)
@@ -205,7 +256,7 @@ def convert_url(
         raise HTTPException(400, f"URL not allowed: {exc}") from exc
 
     try:
-        result = MarkItDown().convert(req.url)
+        result = _make_markitdown(cfg).convert(req.url)
     except Exception as exc:
         raise HTTPException(400, f"Conversion failed: {exc}") from exc
 
@@ -232,14 +283,12 @@ async def convert_upload(
     settings: Settings = Depends(get_settings),
 ):
     """Convert an uploaded file to markdown. Only formats whose sub-converter is enabled are accepted."""
-    from markitdown import MarkItDown
-
     suffix = Path(file.filename or "upload").suffix.lower() or ".bin"
+    cfg = _plugin_config(settings)
     fmt_name = _EXT_TO_FORMAT.get(suffix)
     if fmt_name:
         fmt_info = ALL_FORMATS[fmt_name]
         sub = fmt_info["subconverter"]
-        cfg = _plugin_config(settings)
         if not cfg.get(f"{sub}_enabled", True):
             raise HTTPException(
                 503,
@@ -252,7 +301,7 @@ async def convert_upload(
         os.close(fd)
         with open(tmp, "wb") as f:
             shutil.copyfileobj(file.file, f)
-        result = MarkItDown().convert_local(Path(tmp))
+        result = _make_markitdown(cfg, settings.data_directory, settings).convert_local(Path(tmp))
     except Exception as exc:
         logger.error("converter/upload failed for %s: %s", file.filename, exc)
         raise HTTPException(400, f"Conversion failed: {exc}") from exc
@@ -291,6 +340,7 @@ def list_formats(request: Request, settings: Settings = Depends(get_settings)):
         "subconverters": subconverter_enabled,
         "web_enabled": cfg.get("web_enabled", True),
         "transcript_support": _has_transcript_support(),
+        "audio_support": _has_audio_support(),
     }
 
 
@@ -351,9 +401,11 @@ def start_conversion(
         _conversion_status["files_total"] = 0
         _conversion_status["errors"] = 0
 
+    md = _make_markitdown(_plugin_config(settings), settings.data_directory, settings)
     threading.Thread(
         target=_bg_convert,
         args=(req.source_dir, req.dest_dir, extensions),
+        kwargs={"md": md},
         daemon=True,
     ).start()
     return {"status": "started"}
@@ -401,13 +453,40 @@ async def ingest_file(
     stem = Path(file.filename or "upload").stem
     dest_dir = Path(writable[0])
 
+    cfg = _plugin_config(settings)
+
+    # Guard: audio files require transcription to be enabled and configured
+    if suffix in {".mp3", ".wav", ".m4a", ".ogg", ".flac", ".webm"}:
+        if not cfg.get("audio_enabled", False):
+            raise HTTPException(
+                status_code=503,
+                detail="Audio transcription is disabled. Enable it in Settings → File Converter.",
+            )
+        audio_provider = cfg.get("audio_provider", "local")
+        if audio_provider == "remote":
+            if not cfg.get("audio_api_base", "").strip():
+                raise HTTPException(
+                    status_code=503,
+                    detail="Remote audio transcription requires an API base URL. Configure it in Settings → File Converter.",
+                )
+        else:
+            from app.plugins.converter.audio import is_model_installed
+            model_size = cfg.get("audio_model", "small")
+            if not is_model_installed(model_size, settings.data_directory):
+                raise HTTPException(
+                    status_code=503,
+                    detail=(
+                        f"Whisper model '{model_size}' is not installed. "
+                        "Download it in Settings → File Converter."
+                    ),
+                )
+
     fd, tmp = tempfile.mkstemp(suffix=suffix)
     try:
         os.close(fd)
         with open(tmp, "wb") as f:
             shutil.copyfileobj(file.file, f)
-        from markitdown import MarkItDown
-        result = MarkItDown().convert_local(Path(tmp))
+        result = _make_markitdown(cfg, settings.data_directory, settings).convert_local(Path(tmp))
     except Exception as exc:
         logger.error("converter/ingest failed for %s: %s", file.filename, exc)
         raise HTTPException(status_code=400, detail=f"Conversion failed: {exc}") from exc
@@ -457,3 +536,111 @@ def conversion_status(request: Request):
             "files_total": _conversion_status["files_total"],
             "errors": _conversion_status["errors"],
         }
+
+
+# -- Audio model management endpoints --
+
+
+class _AudioModelRequest(BaseModel):
+    model_size: str
+
+
+@router.get("/audio/models")
+@limiter.limit(STANDARD)
+def list_audio_models(request: Request, settings: Settings = Depends(get_settings)):
+    """List available Whisper models with installation status."""
+    from app.plugins.converter.audio import WHISPER_MODELS, is_model_installed
+    cfg = _plugin_config(settings)
+    active = cfg.get("audio_model", "small")
+    provider = cfg.get("audio_provider", "local")
+    return {
+        "models": [
+            {
+                "model_size": size,
+                "label": info["label"],
+                "size": info["size"],
+                "installed": is_model_installed(size, settings.data_directory),
+                "active": size == active,
+            }
+            for size, info in WHISPER_MODELS.items()
+        ],
+        "audio_support": _has_audio_support(),
+        "active_model": active,
+        "provider": provider,
+    }
+
+
+def _bg_audio_install(model_size: str, data_dir: str) -> None:
+    """Download a Whisper model in a background thread."""
+    from app.plugins.converter.audio import download_model
+
+    def on_progress(frac: float, msg: str) -> None:
+        with _audio_install_lock:
+            _audio_install_status["progress"] = frac
+            _audio_install_status["message"] = msg
+
+    try:
+        download_model(model_size, data_dir, progress=on_progress)
+        with _audio_install_lock:
+            _audio_install_status["result"] = f"Installed faster-whisper-{model_size}"
+    except Exception as exc:
+        logger.error("Whisper model install failed (%s): %s", model_size, exc)
+        with _audio_install_lock:
+            _audio_install_status["result"] = f"Error: {exc}"
+    finally:
+        with _audio_install_lock:
+            _audio_install_status["running"] = False
+
+
+@router.post("/audio/install")
+@limiter.limit(HEAVY)
+def install_audio_model(
+    request: Request,
+    req: _AudioModelRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """Download a Whisper model in the background."""
+    from app.plugins.converter.audio import WHISPER_MODELS, is_model_installed
+    if req.model_size not in WHISPER_MODELS:
+        raise HTTPException(400, f"Unknown model size: {req.model_size}")
+    if is_model_installed(req.model_size, settings.data_directory):
+        return {"status": "already_installed"}
+    with _audio_install_lock:
+        if _audio_install_status["running"]:
+            raise HTTPException(409, "A model install is already in progress")
+        _audio_install_status["running"] = True
+        _audio_install_status["progress"] = 0.0
+        _audio_install_status["message"] = f"Starting download of faster-whisper-{req.model_size}..."
+        _audio_install_status["result"] = ""
+    threading.Thread(
+        target=_bg_audio_install,
+        args=(req.model_size, settings.data_directory),
+        daemon=True,
+    ).start()
+    return {"status": "installing"}
+
+
+@router.get("/audio/status")
+@limiter.limit(STANDARD)
+def audio_install_status(request: Request):
+    """Return current Whisper model install progress."""
+    with _audio_install_lock:
+        return dict(_audio_install_status)
+
+
+@router.post("/audio/uninstall")
+@limiter.limit(STANDARD)
+def uninstall_audio_model(
+    request: Request,
+    req: _AudioModelRequest,
+    settings: Settings = Depends(get_settings),
+):
+    """Remove downloaded Whisper model weights."""
+    from app.plugins.converter.audio import WHISPER_MODELS, uninstall_model
+    if req.model_size not in WHISPER_MODELS:
+        raise HTTPException(400, f"Unknown model size: {req.model_size}")
+    with _audio_install_lock:
+        if _audio_install_status["running"]:
+            raise HTTPException(409, "An install is in progress")
+    removed = uninstall_model(req.model_size, settings.data_directory)
+    return {"status": "removed" if removed else "not_installed"}

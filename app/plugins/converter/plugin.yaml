@@ -27,6 +27,18 @@ endpoints:
   - method: POST
     path: /api/v1/converter/cancel
     description: Cancel running conversion
+  - method: GET
+    path: /api/v1/converter/audio/models
+    description: List Whisper models with installation status
+  - method: POST
+    path: /api/v1/converter/audio/install
+    description: Download a Whisper model in the background
+  - method: GET
+    path: /api/v1/converter/audio/status
+    description: Whisper model install progress
+  - method: POST
+    path: /api/v1/converter/audio/uninstall
+    description: Remove downloaded Whisper model weights
 
 config:
   web_enabled:
@@ -49,6 +61,42 @@ config:
     default: true
     label: Misc formats (HTML, EPUB, CSV, TXT, and more)
     description: Convert HTML, EPUB, CSV, plain text, RST, RTF, ODT, Jupyter notebooks, and Outlook messages. No extra image dependencies required.
+  audio_enabled:
+    type: boolean
+    default: false
+    label: Audio transcription (MP3, WAV, M4A, OGG, FLAC, WebM)
+    description: Transcribe audio files to markdown. Use local faster-whisper (full image) or a remote OpenAI-compatible API.
+  audio_provider:
+    type: select
+    default: local
+    options:
+      - value: local
+        label: "Local (faster-whisper, CPU)"
+      - value: remote
+        label: "Remote (OpenAI-compatible API)"
+    label: Transcription provider
+    description: "Local uses faster-whisper on CPU — requires the full image variant and a downloaded model. Remote calls any OpenAI-compatible /v1/audio/transcriptions endpoint (e.g. OpenAI, Groq)."
+  audio_api_base:
+    type: string
+    default: ""
+    label: Transcription API base URL
+    description: "Base URL for the remote transcription API, e.g. https://api.openai.com or https://api.groq.com/openai. Set WHISPER_API_KEY env var or whisper_api_key secret for auth."
+  audio_model:
+    type: select
+    default: small
+    options:
+      - value: tiny
+        label: "Tiny (~75 MB) — fastest, lower accuracy"
+      - value: small
+        label: "Small (~244 MB) — good balance (recommended)"
+      - value: medium
+        label: "Medium (~769 MB) — higher accuracy, slower"
+      - value: large-v2
+        label: "Large v2 (~1.5 GB) — best accuracy, slowest"
+      - value: large-v3
+        label: "Large v3 (~1.5 GB) — latest large model"
+    label: Whisper model size (local only)
+    description: "Only applies when using the local provider. Model weights are downloaded once and cached in the data directory."
 
 logging_overrides:
   pdfminer: WARNING
