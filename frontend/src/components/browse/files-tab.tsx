@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { toast } from "sonner"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { useFiles } from "@/hooks/use-files"
 import { useSettings } from "@/hooks/use-settings"
@@ -22,7 +21,7 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable"
-import { AlertCircle, FileDown, FileText, FileX, FilePlus, Loader2, RefreshCw, Search, Tag, Wand2, X } from "lucide-react"
+import { AlertCircle, FileDown, FileText, FileX, Loader2, RefreshCw, Search, Tag, Wand2, X } from "lucide-react"
 import { SortButton } from "@/components/ui/table"
 import type { TrackedFile } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -138,44 +137,10 @@ export function FilesTab() {
   const { files, busyPaths, refresh, toggleIndex, indexFile, reindexFile, indexAll, unindexSource, updateTags, bulkUpdateTags, extractEntities } = useFiles()
   const { settings } = useSettings()
   const kgEnabled = !!settings?.plugins_enabled?.knowledge_graph
-  const converterEnabled = !!settings?.plugins_enabled?.converter
   const COL_IDS = kgEnabled ? KG_COL_IDS : BASE_COL_IDS
   const DEFAULT_LAYOUT = kgEnabled ? KG_LAYOUT : BASE_LAYOUT
   const { isIndexing, lastIndexedAt } = useIndexEvents()
   const [refreshing, setRefreshing] = useState(false)
-  const [importing, setImporting] = useState(false)
-  const importInputRef = useRef<HTMLInputElement>(null)
-  const [acceptedExtensions, setAcceptedExtensions] = useState<string>("")
-
-  useEffect(() => {
-    if (!converterEnabled) return
-    api.get<{ formats?: Record<string, { extensions: string[] }> }>("/api/v1/converter/formats")
-      .then((r) => {
-        if (r.formats) {
-          const exts = Object.values(r.formats).flatMap((f) => f.extensions)
-          setAcceptedExtensions(exts.join(","))
-        }
-      })
-      .catch(() => { /* non-critical */ })
-  }, [converterEnabled])
-
-  const handleImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    e.target.value = ""
-    setImporting(true)
-    try {
-      const fd = new FormData()
-      fd.append("file", file)
-      const result = await api.upload<{ filename: string }>("/api/v1/converter/ingest", fd)
-      toast.success(`Imported "${result.filename}" into knowledge base`)
-      await refresh()
-    } catch (err) {
-      toast.error((err as Error).message || "Import failed")
-    } finally {
-      setImporting(false)
-    }
-  }, [refresh])
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true)
@@ -295,31 +260,6 @@ export function FilesTab() {
                 }
                 {isIndexing ? "Indexing..." : "Index All"}
               </Button>
-              {converterEnabled && (
-                <>
-                  <input
-                    ref={importInputRef}
-                    type="file"
-                    className="hidden"
-                    accept={acceptedExtensions || undefined}
-                    onChange={handleImport}
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="cursor-pointer"
-                    onClick={() => importInputRef.current?.click()}
-                    disabled={importing}
-                    title="Convert and import a document (PDF, DOCX, etc.) into your knowledge base"
-                  >
-                    {importing
-                      ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                      : <FilePlus className="h-3.5 w-3.5 mr-1.5" />
-                    }
-                    {importing ? "Importing..." : "Import File"}
-                  </Button>
-                </>
-              )}
               {errorCount > 0 && (
                 <Button
                   variant="outline"

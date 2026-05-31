@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { Download, Loader2, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
 import { api } from "@/lib/api"
 import { startPolling } from "@/lib/polling"
 
@@ -20,9 +21,18 @@ interface InstallStatus {
   result: string
 }
 
-export function WhisperModelSection({ activeModel }: { activeModel: string }) {
+export function WhisperModelSection({
+  activeModel,
+  saveRequired = false,
+  onModelsChange,
+}: {
+  activeModel: string
+  saveRequired?: boolean
+  onModelsChange?: (models: WhisperModel[]) => void
+}) {
   const [models, setModels] = useState<WhisperModel[]>([])
   const [installing, setInstalling] = useState(false)
+  const [installProgress, setInstallProgress] = useState(0)
   const [status, setStatus] = useState("")
   const [audioSupport, setAudioSupport] = useState(false)
   const pollCleanupRef = useRef<(() => void) | null>(null)
@@ -34,9 +44,12 @@ export function WhisperModelSection({ activeModel }: { activeModel: string }) {
       )
       setModels(res.models)
       setAudioSupport(res.audio_support)
+      onModelsChange?.(res.models)
     } catch {
       // converter plugin may not be enabled yet
     }
+  // onModelsChange is intentionally excluded — callers should memoize if needed
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Check for in-progress install on mount
@@ -46,19 +59,23 @@ export function WhisperModelSection({ activeModel }: { activeModel: string }) {
       if (st.running) {
         setInstalling(true)
         const pct = Math.round(st.progress * 100)
+        setInstallProgress(pct)
         setStatus(`[${pct}%] ${st.message}`)
         pollCleanupRef.current = startPolling("/api/v1/converter/audio/status", 1500, {
           onProgress: (s) => {
             const p = Math.round(s.progress * 100)
+            setInstallProgress(p)
             setStatus(`[${p}%] ${s.message}`)
           },
           onComplete: (result) => {
             setInstalling(false)
+            setInstallProgress(0)
             setStatus(result || "Install complete")
             loadModels()
           },
           onError: () => {
             setInstalling(false)
+            setInstallProgress(0)
             setStatus("Lost connection during install")
           },
         })
@@ -83,15 +100,18 @@ export function WhisperModelSection({ activeModel }: { activeModel: string }) {
       pollCleanupRef.current = startPolling("/api/v1/converter/audio/status", 1000, {
         onProgress: (s) => {
           const pct = Math.round(s.progress * 100)
+          setInstallProgress(pct)
           setStatus(`[${pct}%] ${s.message}`)
         },
         onComplete: (result) => {
           setInstalling(false)
+          setInstallProgress(0)
           setStatus(result || `Installed ${modelSize}`)
           loadModels()
         },
         onError: () => {
           setInstalling(false)
+          setInstallProgress(0)
           setStatus("Lost connection during install")
         },
       })
@@ -130,6 +150,12 @@ export function WhisperModelSection({ activeModel }: { activeModel: string }) {
         The model selected above must be installed before uploading audio files.
       </p>
 
+      {saveRequired && (
+        <p className="text-xs text-amber-600 dark:text-amber-400">
+          Save your settings before downloading to ensure the correct model is installed.
+        </p>
+      )}
+
       <div className="space-y-2">
         {models.map((m) => {
           const isActive = m.model_size === activeModel
@@ -154,7 +180,8 @@ export function WhisperModelSection({ activeModel }: { activeModel: string }) {
                     variant="outline"
                     className="h-7 text-xs"
                     onClick={() => handleInstall(m.model_size)}
-                    disabled={installing}
+                    disabled={installing || saveRequired}
+                    title={saveRequired ? "Save settings first" : undefined}
                   >
                     {installing && isActive ? (
                       <Loader2 className="h-3 w-3 animate-spin mr-1" />
@@ -181,6 +208,10 @@ export function WhisperModelSection({ activeModel }: { activeModel: string }) {
           )
         })}
       </div>
+
+      {installing && (
+        <Progress value={installProgress} max={100} className="h-1.5" />
+      )}
 
       {status && (
         <p className="text-xs text-muted-foreground bg-muted px-3 py-2 rounded-md whitespace-pre-wrap">

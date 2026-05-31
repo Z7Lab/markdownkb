@@ -2,12 +2,14 @@
 
 import logging
 import os
+import re
 import shutil
 import tempfile
 import threading
+import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
 
 from app.config import Settings
@@ -21,6 +23,13 @@ from app.storage.vectorstore import VectorStore
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/converter", tags=["converter"])
+
+# Aggregation layer for content ingestion. Mounted alongside the converter
+# router (see __init__.py) but exposed under /api/v1/import so future surfaces
+# can discover available import methods without knowing about the converter.
+import_router = APIRouter(prefix="/api/v1/import", tags=["import"])
+
+_AUDIO_EXTENSIONS = {".mp3", ".wav", ".m4a", ".ogg", ".flac", ".webm"}
 
 # All formats grouped by sub-converter.
 # "misc" formats need no extra dependencies — base markitdown handles them.
@@ -103,6 +112,68 @@ def _resolve_whisper_api_key(settings) -> str:
     return settings.resolve_provider_key("whisper")
 
 
+def _audio_capability(settings: Settings) -> dict:
+    """Resolve whether audio transcription is actually usable right now.
+
+    Returns a dict with ``available`` plus the ``provider``, ``model_ready``
+    state and a human ``reason`` when unavailable. Shared by ingest validation
+    and the capabilities endpoint so both agree on what "ready" means.
+    """
+    cfg = _plugin_config(settings)
+    enabled = cfg.get("audio_enabled", False)
+    provider = cfg.get("audio_provider", "local")
+    model = cfg.get("audio_model", "small")
+
+    if not enabled:
+        return {"available": False, "provider": provider, "model": model,
+                "model_ready": False, "reason": "Audio transcription is disabled"}
+
+    if provider == "remote":
+        if not cfg.get("audio_api_base", "").strip():
+            return {"available": False, "provider": provider, "model": model,
+                    "model_ready": False,
+                    "reason": "Remote transcription needs an API base URL"}
+        return {"available": True, "provider": provider, "model": model,
+                "model_ready": True, "reason": None}
+
+    # Local provider
+    if not _has_audio_support():
+        return {"available": False, "provider": provider, "model": model,
+                "model_ready": False,
+                "reason": "faster-whisper is not installed (use the full image)"}
+    from app.plugins.converter.audio import is_model_installed
+    if not is_model_installed(model, settings.data_directory):
+        return {"available": False, "provider": provider, "model": model,
+                "model_ready": False,
+                "reason": f"Whisper model '{model}' is not downloaded"}
+    return {"available": True, "provider": provider, "model": model,
+            "model_ready": True, "reason": None}
+
+
+def _resolve_destination(settings: Settings, destination: str) -> Path:
+    """Resolve and validate an ingest destination source directory.
+
+    ``destination`` may be empty (use the first writable source) or an explicit
+    writable source path. Raises HTTPException on an invalid choice.
+    """
+    writable = settings.writable_sources
+    if not writable:
+        raise HTTPException(
+            status_code=422,
+            detail="No writable source directories configured.",
+        )
+    if not destination:
+        return Path(writable[0])
+    resolved = str(Path(destination).resolve())
+    for w in writable:
+        if str(Path(w).resolve()) == resolved:
+            return Path(w)
+    raise HTTPException(
+        status_code=400,
+        detail=f"'{destination}' is not a writable source directory.",
+    )
+
+
 def _make_markitdown(cfg: dict, data_dir: str | None = None, settings=None):
     """Build a MarkItDown instance, registering the audio converter when enabled."""
     from markitdown import MarkItDown
@@ -149,6 +220,40 @@ def _convert_file(source: Path, dest: Path, md=None) -> str | None:
 
 _audio_install_status: dict = {"running": False, "progress": 0.0, "message": "", "result": ""}
 _audio_install_lock = threading.Lock()
+
+
+# -- Background ingest state (per-job, keyed by job id) --
+
+_ingest_jobs: dict[str, dict] = {}
+_ingest_lock = threading.Lock()
+_INGEST_JOB_LIMIT = 50
+
+
+def _new_ingest_job() -> str:
+    """Create a job record and return its id, pruning old finished jobs."""
+    job_id = uuid.uuid4().hex[:12]
+    with _ingest_lock:
+        # Prune finished jobs once we exceed the cap (dict preserves order).
+        if len(_ingest_jobs) >= _INGEST_JOB_LIMIT:
+            for stale_id in [
+                jid for jid, j in list(_ingest_jobs.items()) if not j["running"]
+            ][: len(_ingest_jobs) - _INGEST_JOB_LIMIT + 1]:
+                _ingest_jobs.pop(stale_id, None)
+        _ingest_jobs[job_id] = {
+            "running": True,
+            "progress": 0.0,
+            "message": "Queued…",
+            "result": None,
+            "error": None,
+        }
+    return job_id
+
+
+def _update_ingest_job(job_id: str, **fields) -> None:
+    with _ingest_lock:
+        job = _ingest_jobs.get(job_id)
+        if job is not None:
+            job.update(fields)
 
 
 # -- Background conversion state --
@@ -411,107 +516,202 @@ def start_conversion(
     return {"status": "started"}
 
 
+def _slugify_stem(text: str, fallback: str = "imported") -> str:
+    """Turn arbitrary text into a safe markdown filename stem."""
+    s = re.sub(r"[^\w\s-]", "", text.strip().lower())
+    s = re.sub(r"[\s_-]+", "-", s).strip("-")
+    return s[:60] or fallback
+
+
+def _bg_ingest(
+    job_id: str,
+    *,
+    kind: str,
+    payload: str,
+    suffix: str,
+    base_name: str,
+    dest_dir: Path,
+    cfg: dict,
+    settings: Settings,
+    store: VectorStore,
+    tracking: TrackingDB,
+) -> None:
+    """Convert, write and index a single item in the background.
+
+    ``kind`` is one of ``"file"`` (convert via markitdown), ``"md"`` (raw
+    markdown — write as-is) or ``"url"`` (fetch + convert). For ``file``/``md``
+    the *payload* is a temp file path; for ``url`` it is the URL string.
+    """
+    try:
+        if kind == "md":
+            text = Path(payload).read_text(encoding="utf-8", errors="replace")
+            Path(payload).unlink(missing_ok=True)
+        elif kind == "url":
+            _update_ingest_job(job_id, message=f"Fetching {payload}…", progress=0.3)
+            result = _make_markitdown(cfg, settings.data_directory, settings).convert(payload)
+            text = result.text_content or ""
+            if text and payload not in text:
+                text = f"**Source:** {payload}\n\n" + text
+            title = (result.title or "").strip()
+            if title:
+                base_name = _slugify_stem(title, base_name)
+        elif suffix in _AUDIO_EXTENSIONS and cfg.get("audio_provider", "local") == "local":
+            # Local audio: transcribe directly so we get segment-level progress.
+            from app.plugins.converter.audio import transcribe_path
+
+            def _cb(frac: float, msg: str) -> None:
+                _update_ingest_job(job_id, progress=frac, message=msg)
+
+            transcript = transcribe_path(
+                Path(payload), cfg.get("audio_model", "small"),
+                settings.data_directory, progress=_cb,
+            )
+            text = (
+                f"### Audio Transcript\n\n{transcript}"
+                if transcript.strip()
+                else "### Audio Transcript\n\n*(no speech detected)*"
+            )
+            Path(payload).unlink(missing_ok=True)
+        else:
+            _update_ingest_job(job_id, message=f"Converting {base_name}{suffix}…", progress=0.4)
+            result = _make_markitdown(cfg, settings.data_directory, settings).convert_local(Path(payload))
+            text = result.text_content or ""
+            Path(payload).unlink(missing_ok=True)
+
+        if not text.strip():
+            _update_ingest_job(
+                job_id, running=False, progress=1.0,
+                error="No content could be extracted.",
+            )
+            return
+
+        _update_ingest_job(job_id, message="Writing to knowledge base…", progress=0.95)
+        dest_path = dest_dir / f"{base_name}.md"
+        counter = 1
+        while dest_path.exists():
+            dest_path = dest_dir / f"{base_name}_{counter}.md"
+            counter += 1
+        dest_path.write_text(text, encoding="utf-8")
+        path_str = str(dest_path)
+
+        try:
+            reindex_file(path_str, settings, store, tracking)
+        except ReindexError as e:
+            logger.warning("Ingest wrote %s but indexing failed: %s", path_str, e)
+
+        event_bus.publish(IndexEvent(type="file_imported", path=path_str, filename=dest_path.name))
+        _update_ingest_job(
+            job_id, running=False, progress=1.0, message="Done",
+            result={"path": path_str, "filename": dest_path.name},
+        )
+    except Exception as exc:
+        logger.error("Ingest job %s failed: %s", job_id, exc)
+        if kind != "url":
+            Path(payload).unlink(missing_ok=True)
+        _update_ingest_job(job_id, running=False, error=f"Import failed: {exc}")
+
+
 @router.post("/ingest")
 @limiter.limit(HEAVY)
 async def ingest_file(
     request: Request,
-    file: UploadFile = File(...),
+    file: UploadFile | None = File(None),
+    url: str = Form(""),
+    destination: str = Form(""),
     settings: Settings = Depends(get_settings),
     tracking: TrackingDB = Depends(get_tracking),
     store: VectorStore = Depends(get_store),
 ):
-    """Convert a file and ingest it directly into the main knowledge base.
+    """Convert content and ingest it into the main knowledge base (async).
 
-    Writes the converted .md to the first writable source directory and
-    indexes it immediately. The file appears in the Files tab after import.
+    Accepts either an uploaded *file* or a *url*, plus an optional *destination*
+    (a writable source directory; defaults to the first one). Conversion runs in
+    a background thread — the response returns a job id immediately. Poll
+    ``GET /api/v1/converter/ingest/status/{job_id}`` for progress and the result.
     """
-    writable = settings.writable_sources
-    if not writable:
-        raise HTTPException(
-            status_code=422,
-            detail="No writable source directories configured.",
-        )
-
-    suffix = Path(file.filename or "upload").suffix.lower()
-    if suffix == ".md":
-        raise HTTPException(
-            status_code=400,
-            detail="Markdown files can be placed directly in a source directory — no conversion needed.",
-        )
-
-    fmt_name = _EXT_TO_FORMAT.get(suffix)
-    if fmt_name:
-        fmt_info = ALL_FORMATS[fmt_name]
-        sub = fmt_info["subconverter"]
-        cfg = _plugin_config(settings)
-        if not cfg.get(f"{sub}_enabled", True):
-            raise HTTPException(
-                status_code=503,
-                detail=f"{fmt_info['label']} conversion is disabled. Enable '{sub}_enabled' in converter plugin settings.",
-            )
-
-    stem = Path(file.filename or "upload").stem
-    dest_dir = Path(writable[0])
-
+    dest_dir = _resolve_destination(settings, destination)
     cfg = _plugin_config(settings)
+    url = url.strip()
 
-    # Guard: audio files require transcription to be enabled and configured
-    if suffix in {".mp3", ".wav", ".m4a", ".ogg", ".flac", ".webm"}:
-        if not cfg.get("audio_enabled", False):
-            raise HTTPException(
-                status_code=503,
-                detail="Audio transcription is disabled. Enable it in Settings → File Converter.",
-            )
-        audio_provider = cfg.get("audio_provider", "local")
-        if audio_provider == "remote":
-            if not cfg.get("audio_api_base", "").strip():
+    if file is None and not url:
+        raise HTTPException(400, "Provide a file or a url to ingest.")
+    if file is not None and url:
+        raise HTTPException(400, "Provide either a file or a url, not both.")
+
+    # -- URL ingest --
+    if url:
+        if not cfg.get("web_enabled", True):
+            raise HTTPException(503, "Web/URL conversion is disabled. Enable 'web_enabled' in converter plugin settings.")
+        from app.security.validation import validate_api_base
+        try:
+            validate_api_base(url)
+        except ValueError as exc:
+            raise HTTPException(400, f"URL not allowed: {exc}") from exc
+        job_id = _new_ingest_job()
+        threading.Thread(
+            target=_bg_ingest,
+            args=(job_id,),
+            kwargs=dict(
+                kind="url", payload=url, suffix="",
+                base_name=_slugify_stem(url.split("//")[-1], "clipped"),
+                dest_dir=dest_dir, cfg=cfg, settings=settings, store=store, tracking=tracking,
+            ),
+            daemon=True,
+        ).start()
+        return {"job_id": job_id, "status": "started"}
+
+    # -- File ingest --
+    filename = file.filename or "upload"
+    suffix = Path(filename).suffix.lower()
+    base_name = _slugify_stem(Path(filename).stem, "imported")
+
+    if suffix == ".md":
+        kind = "md"
+    else:
+        kind = "file"
+        fmt_name = _EXT_TO_FORMAT.get(suffix)
+        if fmt_name:
+            fmt_info = ALL_FORMATS[fmt_name]
+            sub = fmt_info["subconverter"]
+            if not cfg.get(f"{sub}_enabled", True):
                 raise HTTPException(
-                    status_code=503,
-                    detail="Remote audio transcription requires an API base URL. Configure it in Settings → File Converter.",
+                    503,
+                    f"{fmt_info['label']} conversion is disabled. Enable '{sub}_enabled' in converter plugin settings.",
                 )
-        else:
-            from app.plugins.converter.audio import is_model_installed
-            model_size = cfg.get("audio_model", "small")
-            if not is_model_installed(model_size, settings.data_directory):
-                raise HTTPException(
-                    status_code=503,
-                    detail=(
-                        f"Whisper model '{model_size}' is not installed. "
-                        "Download it in Settings → File Converter."
-                    ),
-                )
+        if suffix in _AUDIO_EXTENSIONS:
+            audio = _audio_capability(settings)
+            if not audio["available"]:
+                raise HTTPException(503, audio["reason"] or "Audio transcription is unavailable.")
 
-    fd, tmp = tempfile.mkstemp(suffix=suffix)
-    try:
-        os.close(fd)
-        with open(tmp, "wb") as f:
-            shutil.copyfileobj(file.file, f)
-        result = _make_markitdown(cfg, settings.data_directory, settings).convert_local(Path(tmp))
-    except Exception as exc:
-        logger.error("converter/ingest failed for %s: %s", file.filename, exc)
-        raise HTTPException(status_code=400, detail=f"Conversion failed: {exc}") from exc
-    finally:
-        Path(tmp).unlink(missing_ok=True)
+    # Persist the upload synchronously — the UploadFile stream closes once we
+    # return, so the background worker reads from this temp file instead.
+    fd, tmp = tempfile.mkstemp(suffix=suffix or ".bin")
+    os.close(fd)
+    with open(tmp, "wb") as fh:
+        shutil.copyfileobj(file.file, fh)
 
-    if not result.text_content:
-        raise HTTPException(status_code=422, detail="No content could be extracted from the file.")
+    job_id = _new_ingest_job()
+    threading.Thread(
+        target=_bg_ingest,
+        args=(job_id,),
+        kwargs=dict(
+            kind=kind, payload=tmp, suffix=suffix, base_name=base_name,
+            dest_dir=dest_dir, cfg=cfg, settings=settings, store=store, tracking=tracking,
+        ),
+        daemon=True,
+    ).start()
+    return {"job_id": job_id, "status": "started"}
 
-    dest_path = dest_dir / f"{stem}.md"
-    counter = 1
-    while dest_path.exists():
-        dest_path = dest_dir / f"{stem}_{counter}.md"
-        counter += 1
 
-    dest_path.write_text(result.text_content, encoding="utf-8")
-    path_str = str(dest_path)
-
-    try:
-        reindex_file(path_str, settings, store, tracking)
-    except ReindexError as e:
-        logger.warning("Ingest succeeded but indexing failed for %s: %s", path_str, e)
-
-    event_bus.publish(IndexEvent(type="file_imported", path=path_str, filename=dest_path.name))
-    return {"status": "ok", "path": path_str, "filename": dest_path.name}
+@router.get("/ingest/status/{job_id}")
+@limiter.limit(STANDARD)
+def ingest_status(request: Request, job_id: str):
+    """Return progress/result for an async ingest job."""
+    with _ingest_lock:
+        job = _ingest_jobs.get(job_id)
+        if job is None:
+            raise HTTPException(404, "Unknown ingest job")
+        return dict(job)
 
 
 @router.post("/cancel")
@@ -628,6 +828,56 @@ def audio_install_status(request: Request):
         return dict(_audio_install_status)
 
 
+class _AudioTestRemoteRequest(BaseModel):
+    api_base: str
+    api_key: str = ""
+
+
+@router.post("/audio/test-remote")
+@limiter.limit(STANDARD)
+def test_remote_audio_endpoint(
+    request: Request,
+    req: _AudioTestRemoteRequest,
+):
+    """Test connectivity to a remote OpenAI-compatible audio transcription API.
+
+    Sends a lightweight GET to ``{api_base}/v1/models`` to check reachability
+    and authentication without uploading any audio data.
+    """
+    import httpx
+    from app.security.validation import validate_api_base
+
+    try:
+        validate_api_base(req.api_base)
+    except ValueError as exc:
+        raise HTTPException(400, f"URL not allowed: {exc}") from exc
+
+    base = req.api_base.rstrip("/")
+    if not base.endswith("/v1"):
+        base = f"{base}/v1"
+
+    headers: dict[str, str] = {}
+    if req.api_key:
+        headers["Authorization"] = f"Bearer {req.api_key}"
+
+    try:
+        resp = httpx.get(f"{base}/models", headers=headers, timeout=10)
+        if resp.status_code == 200:
+            return {"ok": True, "message": "Connection successful"}
+        elif resp.status_code == 401:
+            return {"ok": False, "message": "Authentication failed — check your API key"}
+        elif resp.status_code == 403:
+            return {"ok": False, "message": "Forbidden — check your API key permissions"}
+        else:
+            return {"ok": True, "message": f"Server reachable (HTTP {resp.status_code})"}
+    except httpx.ConnectError:
+        return {"ok": False, "message": f"Cannot connect to {req.api_base}"}
+    except httpx.TimeoutException:
+        return {"ok": False, "message": "Connection timed out"}
+    except Exception as exc:
+        return {"ok": False, "message": f"Error: {exc}"}
+
+
 @router.post("/audio/uninstall")
 @limiter.limit(STANDARD)
 def uninstall_audio_model(
@@ -644,3 +894,81 @@ def uninstall_audio_model(
             raise HTTPException(409, "An install is in progress")
     removed = uninstall_model(req.model_size, settings.data_directory)
     return {"status": "removed" if removed else "not_installed"}
+
+
+# -- Import capabilities aggregation --
+
+
+@import_router.get("/capabilities")
+@limiter.limit(STANDARD)
+def import_capabilities(request: Request, settings: Settings = Depends(get_settings)):
+    """Aggregate every available content-import method for the main KB.
+
+    Single source of truth for the frontend: each consumer of the shared
+    ingestion UI renders exactly the methods returned here. Availability and the
+    reason for unavailability are decided entirely on the backend so no
+    capability logic lives in the frontend.
+    """
+    cfg = _plugin_config(settings)
+    enabled_fmts = _enabled_formats(settings)
+    audio = _audio_capability(settings)
+
+    # File formats: a format is genuinely available only when its sub-converter
+    # is enabled AND — for audio — transcription is actually usable right now.
+    formats: list[dict] = []
+    accepted: list[str] = [".md", ".markdown"]
+    for name, info in ALL_FORMATS.items():
+        is_audio = info["subconverter"] == "audio"
+        available = (name in enabled_fmts) and (audio["available"] if is_audio else True)
+        formats.append({
+            "label": info["label"],
+            "extensions": info["extensions"],
+            "available": available,
+        })
+        if available:
+            accepted.extend(info["extensions"])
+
+    web_enabled = cfg.get("web_enabled", True)
+    write_api_on = settings.plugin_enabled("write_api")
+    save_document_on = settings.mcp_enabled("save_document")
+
+    def _create_reason() -> str | None:
+        if not write_api_on:
+            return "Enable the Write API plugin to create documents"
+        if not save_document_on:
+            return "Enable the 'save_document' MCP flag to create documents"
+        return None
+
+    methods = [
+        {
+            "id": "file_upload",
+            "label": "Upload File",
+            "available": len(enabled_fmts) > 0,
+            "accept": ",".join(sorted(set(accepted))),
+            "formats": formats,
+            "reason": None if enabled_fmts else "No converter formats are enabled",
+        },
+        {
+            "id": "url_clip",
+            "label": "Web & YouTube",
+            "available": web_enabled,
+            "transcript_support": _has_transcript_support(),
+            "reason": None if web_enabled else "Web/URL conversion is disabled",
+        },
+        {
+            "id": "audio",
+            "label": "Audio Transcription",
+            "available": audio["available"],
+            "provider": audio["provider"],
+            "model": audio["model"],
+            "model_ready": audio["model_ready"],
+            "reason": audio["reason"],
+        },
+        {
+            "id": "create_markdown",
+            "label": "Create Markdown",
+            "available": write_api_on and save_document_on,
+            "reason": _create_reason(),
+        },
+    ]
+    return {"methods": methods}

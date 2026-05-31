@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useState } from "react"
 import { type Bucket, type useBuckets, useBucketFiles } from "@/hooks/use-buckets"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
@@ -10,44 +10,14 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, SortableTableHead } from "@/components/ui/table"
 import {
   Pencil, Trash2, FileText, Loader2, Clock, Check, X as XIcon,
-  Infinity as InfinityIcon, RefreshCw, Link, Upload, Download, FolderInput, MessageSquare, FilePlus, Github,
+  Infinity as InfinityIcon, RefreshCw, Download, FolderInput, MessageSquare, Github,
 } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { BucketEditForm } from "./bucket-edit-form"
 import { BucketPathStatus } from "./bucket-path-status"
 import { BucketChatDrawer } from "./bucket-chat-drawer"
 import { GithubImportDialog } from "./github-import-dialog"
-
-
-function isYouTubeUrl(url: string): boolean {
-  return /youtube\.com\/|youtu\.be\//.test(url)
-}
-
-function filenameFromContent(hint: string, markdown: string): string {
-  const titleMatch = /^#{1,3} (.+)$/m.exec(markdown)
-  if (titleMatch?.[1]) {
-    return slugifyFilename(titleMatch[1]) + ".md"
-  }
-  try {
-    const { hostname, pathname } = new URL(hint)
-    const slug = pathname.replace(/\//g, "-").replace(/[^\w-]/g, "").slice(0, 40)
-    return `${hostname}${slug || ""}.md`
-  } catch {
-    // hint is not a valid URL (e.g. a local path); derive filename from the last segment
-    const base = hint.split("/").pop()?.replace(/\.[^.]+$/, "") ?? "imported"
-    return `${base}.md`
-  }
-}
-
-function converterErrorMessage(msg: string): string {
-  if (msg.includes("404") || msg.includes("Not Found"))
-    return "Converter plugin is not enabled — enable it in Settings → Plugins"
-  if (msg.includes("403") || msg.includes("Forbidden"))
-    return "Import failed: the site blocked the request (403 Forbidden). Try downloading the page and uploading the file instead."
-  if (msg.includes("401") || msg.includes("Unauthorized"))
-    return "Import failed: the URL requires authentication (401). Download the file and upload it instead."
-  return `Import failed: ${msg}`
-}
+import { IngestionPanel } from "@/components/import/ingestion-panel"
 
 export interface BucketDetailPanelProps {
   bucket: Bucket
@@ -86,39 +56,7 @@ export function BucketDetailPanel({
   }
 
   // Import state
-  const [clipUrl, setClipUrl] = useState("")
-  const [clipping, setClipping] = useState(false)
-  const [transcriptSupport, setTranscriptSupport] = useState<boolean | null>(null)
-  const [acceptedExtensions, setAcceptedExtensions] = useState<string>("")
-  const [allFormats, setAllFormats] = useState<Record<string, { label: string; extensions: string[]; available: boolean }>>({})
   const [githubOpen, setGithubOpen] = useState(false)
-
-  useEffect(() => {
-    api.get<{
-      transcript_support?: boolean
-      formats?: Record<string, { label: string; extensions: string[]; available: boolean }>
-    }>("/api/v1/converter/formats")
-      .then((r) => {
-        setTranscriptSupport(r.transcript_support ?? false)
-        if (r.formats) {
-          setAllFormats(r.formats)
-          const exts = Object.values(r.formats).filter((f) => f.available).flatMap((f) => f.extensions)
-          setAcceptedExtensions(exts.join(","))
-        }
-      })
-      .catch(() => setTranscriptSupport(false))
-  }, [])
-  const [uploading, setUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState<{ name: string; done: boolean; error?: string }[]>([])
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const mdInputRef = useRef<HTMLInputElement>(null)
-  const [addingMd, setAddingMd] = useState(false)
-
-  const pushDocument = useCallback(async (name: string, markdown: string) => {
-    await api.post(`/api/v1/buckets/${bucket.id}/documents`, {
-      documents: [{ name, content: markdown }],
-    })
-  }, [bucket.id])
 
   const batchPushDocuments = useCallback(async (docs: { name: string; content: string }[]) => {
     await api.post(`/api/v1/buckets/${bucket.id}/documents`, {
@@ -126,86 +64,6 @@ export function BucketDetailPanel({
       async_embed: true,
     })
   }, [bucket.id])
-
-  const handleClip = useCallback(async () => {
-    const url = clipUrl.trim()
-    if (!url) return
-    setClipping(true)
-    try {
-      const converted = await api.post<{ markdown: string; title?: string }>("/api/v1/converter/url", { url })
-      const name = converted.title ? slugifyFilename(converted.title) + ".md" : filenameFromContent(url, converted.markdown)
-      await pushDocument(name, converted.markdown)
-      setClipUrl("")
-      reloadFiles()
-      toast.success(`Clipped "${name}"`)
-    } catch (err) {
-      toast.error(converterErrorMessage((err as Error).message))
-    } finally {
-      setClipping(false)
-    }
-  }, [clipUrl, pushDocument, reloadFiles])
-
-  const handleFileUpload = useCallback(async (fileList: FileList) => {
-    const files = Array.from(fileList)
-    if (!files.length) return
-    setUploading(true)
-    setUploadProgress(files.map((f) => ({ name: f.name, done: false })))
-
-    let succeeded = 0
-    let failed = 0
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]!
-      try {
-        const fd = new FormData()
-        fd.append("file", file)
-        const data = await api.upload<{ markdown: string; filename: string }>("/api/v1/converter/upload", fd)
-        const name = filenameFromContent(file.name, data.markdown)
-        await pushDocument(name, data.markdown)
-        setUploadProgress((prev) => prev.map((p, j) => j === i ? { ...p, done: true } : p))
-        succeeded++
-      } catch (err) {
-        const msg = (err as Error).message
-        setUploadProgress((prev) => prev.map((p, j) => j === i ? { ...p, done: true, error: msg } : p))
-        failed++
-      }
-    }
-
-    reloadFiles()
-    setUploading(false)
-    if (fileInputRef.current) fileInputRef.current.value = ""
-
-    if (failed === 0) toast.success(`Imported ${succeeded} file${succeeded !== 1 ? "s" : ""}`)
-    else if (succeeded === 0) toast.error(`Import failed for all ${failed} file${failed !== 1 ? "s" : ""}`)
-    else toast.warning(`${succeeded} imported, ${failed} failed`)
-  }, [pushDocument, reloadFiles, uploadProgress])
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    if (e.dataTransfer.files.length) void handleFileUpload(e.dataTransfer.files)
-  }, [handleFileUpload])
-
-  const handleMdUpload = useCallback(async (fileList: FileList) => {
-    const files = Array.from(fileList).filter((f) => f.name.endsWith(".md"))
-    if (!files.length) return
-    if (mdInputRef.current) mdInputRef.current.value = ""
-    setAddingMd(true)
-    let succeeded = 0
-    let failed = 0
-    for (const file of files) {
-      try {
-        const content = await file.text()
-        await pushDocument(file.name, content)
-        succeeded++
-      } catch {
-        failed++
-      }
-    }
-    reloadFiles()
-    setAddingMd(false)
-    if (failed === 0) toast.success(`Added ${succeeded} markdown file${succeeded !== 1 ? "s" : ""}`)
-    else if (succeeded === 0) toast.error("Failed to add markdown file(s)")
-    else toast.warning(`${succeeded} added, ${failed} failed`)
-  }, [pushDocument, reloadFiles])
 
   const handleReindex = useCallback(async () => {
     setReindexing(true)
@@ -294,8 +152,6 @@ export function BucketDetailPanel({
       return []
     }
   })()
-
-  const importing = clipping || uploading
 
   return (
     <>
@@ -449,130 +305,24 @@ export function BucketDetailPanel({
             )}
           </div>
 
-          {/* Add Markdown */}
+          {/* Add content */}
           <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">Add Markdown</p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-muted-foreground">Add content</p>
               <Button
                 variant="outline"
-                className="w-full gap-1.5"
-                onClick={() => mdInputRef.current?.click()}
-                disabled={addingMd}
-              >
-                {addingMd
-                  ? <><Loader2 className="h-4 w-4 animate-spin" />Adding…</>
-                  : <><FilePlus className="h-4 w-4" />Upload .md</>}
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full gap-1.5"
+                size="sm"
+                className="h-7 gap-1.5"
                 onClick={() => setGithubOpen(true)}
-                disabled={addingMd}
                 title="Import .md/.mdx files from a GitHub repository"
               >
-                <Github className="h-4 w-4" />
+                <Github className="h-3.5 w-3.5" />
                 GitHub
               </Button>
             </div>
-            <input
-              ref={mdInputRef}
-              type="file"
-              multiple
-              accept=".md"
-              className="hidden"
-              onChange={(e) => { if (e.target.files?.length) void handleMdUpload(e.target.files) }}
-            />
-          </div>
-
-          {/* Import */}
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">Import</p>
-
-            {/* URL clip */}
-            <div className="flex gap-2">
-              <Input
-                value={clipUrl}
-                onChange={(e) => setClipUrl(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") void handleClip() }}
-                placeholder="Paste a URL (YouTube, article, docs…)"
-                className="h-8 text-xs"
-                disabled={importing}
-                aria-label="URL to import"
-              />
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 shrink-0"
-                onClick={handleClip}
-                disabled={importing || !clipUrl.trim()}
-              >
-                {clipping ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link className="h-3.5 w-3.5" />}
-                <span className="ml-1.5">{clipping ? "Clipping…" : "Clip"}</span>
-              </Button>
-            </div>
-            {transcriptSupport === false && isYouTubeUrl(clipUrl) && (
-              <p className="text-xs text-amber-600 dark:text-amber-400">
-                YouTube transcript extraction requires the <strong>full</strong> image — only page metadata will be captured.
-              </p>
-            )}
-
-            {/* File drop zone */}
-            <div
-              className="border border-dashed rounded-md px-3 py-4 text-center cursor-pointer hover:bg-accent/50 transition-colors"
-              role="button"
-              tabIndex={0}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={handleDrop}
-              onClick={() => !importing && fileInputRef.current?.click()}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (!importing) fileInputRef.current?.click() } }}
-              aria-label="Drop files to import"
-            >
-              {uploading ? (
-                <div className="space-y-1">
-                  {uploadProgress.map((p) => (
-                    <div key={p.name} className="flex items-center gap-2 text-xs justify-center">
-                      {p.done
-                        ? p.error
-                          ? <span className="text-destructive truncate max-w-[200px]">{p.name} — {p.error}</span>
-                          : <span className="text-green-600 truncate max-w-[200px]">✓ {p.name}</span>
-                        : <><Loader2 className="h-3 w-3 animate-spin shrink-0" /><span className="truncate max-w-[200px] text-muted-foreground">{p.name}</span></>
-                      }
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center gap-1.5 text-muted-foreground pointer-events-none">
-                  <Upload className="h-4 w-4" />
-                  <p className="text-xs">Drop files or click to browse</p>
-                  {Object.keys(allFormats).length > 0 ? (
-                    <div className="flex flex-wrap justify-center gap-1 mt-0.5">
-                      {Object.values(allFormats).map((f) => (
-                        <span
-                          key={f.label}
-                          className={`text-[10px] px-1.5 py-0.5 rounded border ${
-                            f.available
-                              ? "border-green-500/40 text-green-700 dark:text-green-400 bg-green-500/10"
-                              : "border-muted text-muted-foreground/50 bg-muted/30"
-                          }`}
-                          title={f.available ? `${f.extensions.join(", ")} — available` : `${f.extensions.join(", ")} — converter plugin disabled`}
-                        >
-                          {f.label}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-[10px]">PDF, Word, PowerPoint, Excel, EPUB and more</p>
-                  )}
-                </div>
-              )}
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept={acceptedExtensions || undefined}
-              className="hidden"
-              onChange={(e) => { if (e.target.files?.length) void handleFileUpload(e.target.files) }}
+            <IngestionPanel
+              destination={{ type: "bucket", id: bucket.id }}
+              onIngested={reloadFiles}
             />
           </div>
 

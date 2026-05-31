@@ -381,7 +381,9 @@ Requires `plugins.converter.enabled: true`. Plugin: `app/plugins/converter/`. Us
 |--------|------|-------------|
 | POST | `/api/v1/converter/url` | Fetch a URL and convert to markdown (web pages, YouTube, etc.) |
 | POST | `/api/v1/converter/upload` | Upload a file and convert to markdown (returns markdown, does not write to KB) |
-| POST | `/api/v1/converter/ingest` | Upload a file, convert, and import it directly into the main knowledge base |
+| POST | `/api/v1/converter/ingest` | Convert content and import it into the main KB (async). Multipart with a `file` **or** `url` field, plus optional `destination` (a writable source dir; defaults to the first). Returns `{ job_id, status }` immediately |
+| GET | `/api/v1/converter/ingest/status/{job_id}` | Poll an async ingest job: `{ running, progress, message, result, error }`. `result` is `{ path, filename }` on success |
+| GET | `/api/v1/import/capabilities` | Aggregate available import methods (`file_upload`, `url_clip`, `audio`, `create_markdown`) with availability + reason. Single source of truth for the Import tab and Buckets ingestion panel |
 | GET | `/api/v1/converter/formats` | List supported input formats |
 | POST | `/api/v1/converter/convert` | Start batch conversion (source_dir → dest_dir) |
 | GET | `/api/v1/converter/status` | Conversion progress (running, files done/total, errors) |
@@ -389,6 +391,7 @@ Requires `plugins.converter.enabled: true`. Plugin: `app/plugins/converter/`. Us
 | GET | `/api/v1/converter/audio/models` | List Whisper models with installation status (local provider only) |
 | POST | `/api/v1/converter/audio/install` | Download a Whisper model in the background |
 | GET | `/api/v1/converter/audio/status` | Whisper model download progress |
+| POST | `/api/v1/converter/audio/test-remote` | Test connectivity to a remote OpenAI-compatible transcription API (no audio uploaded) |
 | POST | `/api/v1/converter/audio/uninstall` | Remove downloaded Whisper model weights |
 
 ### POST /api/v1/converter/url

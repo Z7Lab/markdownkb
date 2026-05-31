@@ -192,11 +192,11 @@ Use this when the documents live on disk and you want the bucket to reflect the 
 
 ### Via upload, URL clip, or GitHub (no local path needed)
 
-From the bucket detail panel, you can import content directly without any filesystem path:
+From the bucket detail panel, you can import content directly without any filesystem path. The "Add content" area uses the same shared ingestion panel as the **Import** tab, pre-wired to this bucket as the destination:
 
 - **URL clip** — paste a URL (article, YouTube video, documentation page) into the import field and click **Clip**. The converter plugin fetches and converts the page to markdown, then stores it in the bucket. Requires the `converter` plugin.
-- **File upload** — drag files into the drop zone or click to browse. The drop zone shows format availability: green chips are ready now, grey chips require enabling that subconverter in the converter plugin settings. Supported formats include PDF, Word, PowerPoint, Excel, EPUB, HTML, and more. Requires the `converter` plugin.
-- **Upload .md files** — select one or more `.md` files directly (no conversion needed). Accepts multi-select.
+- **File upload** — drag files into the drop zone or click to browse. The drop zone shows format availability: green chips are ready now, grey chips require enabling that subconverter in the converter plugin settings. Supported formats include PDF, Word, PowerPoint, Excel, EPUB, HTML, audio, and more. `.md` files are accepted too and stored as-is (no conversion). Requires the `converter` plugin.
+- **Create markdown note** — type a filename and content directly. Appears when the `write_api` plugin and the `save_document` MCP flag are both enabled.
 - **GitHub import** — paste a GitHub repo URL (e.g. `https://github.com/owner/repo` or a subfolder URL like `https://github.com/owner/repo/tree/main/docs`). MarkdownKB fetches the file tree, shows a checklist of all `.md` and `.mdx` files found, and lets you filter by path and select/deselect before importing. MDX files have import/export statements and JSX component tags stripped automatically. No GitHub authentication required — public repos only. Files are downloaded in the dialog, then stored immediately so they appear in the file list at once; embedding runs in the background. If the embedding model is unavailable, files stay listed with 0 chunks and are re-queued on the next Reindex.
 
 Uploaded and clipped documents are stored as **virtual documents** — they exist only as vectors in ChromaDB with paths like `bucket://bucket-name/filename.md`. There is no file on disk. They are permanent members of the bucket and survive reindexes. They do not require a source path or Docker mount.

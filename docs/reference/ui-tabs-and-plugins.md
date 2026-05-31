@@ -1,6 +1,6 @@
 # UI Tabs and Plugins
 
-MarkdownKB's web UI has seven tabs. Some are always available (core), some only appear when their plugin is enabled in Settings.
+MarkdownKB's web UI is organized into core tabs (always available) and plugin tabs (which appear only when their plugin is enabled in Settings).
 
 ## Core Tabs (always available)
 
@@ -18,7 +18,7 @@ The primary interface. Ask questions about your knowledge base and get AI-powere
 
 ### Files
 
-Browse, search, and manage all indexed documents. View file contents, edit tags, toggle index inclusion, trigger re-indexing, and see indexing status. When the converter plugin is enabled, an **Import File** button appears in the toolbar — upload a PDF, DOCX, or other supported format and it is converted and indexed directly into the knowledge base.
+Browse, search, and manage all indexed documents. View file contents, edit tags, toggle index inclusion, trigger re-indexing, and see indexing status. Files is a read-oriented surface — to add new content, use the **Import** tab (available when the converter plugin is enabled).
 
 **Sidebar:** None — full-width file table.
 
@@ -31,6 +31,17 @@ Configure everything: LLM provider, embedding model, sources, scopes, plugins, r
 ## Plugin Tabs
 
 These tabs appear in the navigation bar only when their plugin is enabled in Settings > Plugins.
+
+### Import
+
+The unified content-ingestion hub for the main knowledge base. A single surface for adding documents, web pages, audio, and notes — it asks the backend which import methods are available (via `GET /api/v1/import/capabilities`) and renders only those: file upload (drag-and-drop or browse, any enabled converter format), web/YouTube URL clip, audio transcription, and create-a-markdown-note (when the `write_api` plugin and the `save_document` MCP flag are both on). A destination picker chooses which writable source directory the content lands in. Conversion runs as a background job with live progress (local audio shows per-segment progress); files are converted and indexed directly into the knowledge base.
+
+**Plugin:** `converter` (enabled by default)
+**Requires:** At least one writable source directory. Individual methods depend on their converter sub-converters (PDF/DOCX/audio need the `full` image).
+
+**Sidebar:** None — single ingestion panel.
+
+The same ingestion panel is reused inside the **Buckets** tab (pre-wired to the active bucket as its destination), so the two surfaces stay behaviorally identical.
 
 ### Search
 
@@ -79,7 +90,7 @@ All plugins live in `app/plugins/<name>/` and are toggled via the Settings UI or
 | `docmap` | on | Doc Map | Document similarity visualization (3D force graph) |
 | `catalogs` | on | — | Model catalog providers (Ollama, Venice) for the Settings model picker |
 | `export` | on | — | Export chat conversations as markdown or JSON |
-| `converter` | on | — | Convert DOCX, PDF, PPTX, XLSX, HTML, EPUB and more to markdown via markitdown — supports batch directory conversion and direct KB ingestion from the Files tab |
+| `converter` | on | Import | Convert DOCX, PDF, PPTX, XLSX, HTML, EPUB, audio and more to markdown via markitdown — powers the Import tab (file/URL/audio/create ingestion), the shared Buckets ingestion panel, and batch directory conversion |
 | `planner` | off | Planner | MCTS implementation planning with skill reviews |
 | `knowledge_graph` | off | Knowledge Graph | Entity extraction and relationship visualization |
 | `buckets` | off | — | Temporary scoped document collections with independent vector storage |

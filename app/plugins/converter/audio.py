@@ -138,8 +138,15 @@ def transcribe_path(
     audio_path: Path,
     model_size: str = "small",
     data_dir: str | None = None,
+    progress: Callable[[float, str], None] | None = None,
 ) -> str:
-    """Transcribe an audio file using faster-whisper. Returns transcript text."""
+    """Transcribe an audio file using faster-whisper. Returns transcript text.
+
+    When *progress* is supplied it is called with ``(fraction, message)`` as
+    each segment is decoded, where ``fraction`` is ``segment.end / duration``.
+    faster-whisper decodes lazily, so iterating ``segments`` is what actually
+    drives the transcription forward.
+    """
     from faster_whisper import WhisperModel
 
     # Use pre-downloaded local weights when available; fall back to auto-download.
@@ -150,17 +157,33 @@ def transcribe_path(
         model_source = model_size
         logger.info("Loading Whisper model '%s' (may auto-download)...", model_size)
 
+    if progress:
+        progress(0.0, "Loading transcription model…")
+
     model = WhisperModel(model_source, device="cpu", compute_type="int8")
 
     logger.info("Transcribing %s...", audio_path.name)
     segments, info = model.transcribe(str(audio_path), beam_size=5)
 
-    parts = [seg.text.strip() for seg in segments if seg.text.strip()]
+    duration = getattr(info, "duration", 0.0) or 0.0
+    parts: list[str] = []
+    for seg in segments:
+        text = seg.text.strip()
+        if text:
+            parts.append(text)
+        if progress and duration > 0:
+            frac = min(max(seg.end / duration, 0.0), 0.99)
+            mins = int(duration // 60)
+            secs = int(duration % 60)
+            progress(frac, f"Transcribing… {int(seg.end)}s / {mins}:{secs:02d}")
+
     transcript = " ".join(parts)
     logger.info(
         "Transcription complete: %d chars, detected language '%s'",
         len(transcript), info.language,
     )
+    if progress:
+        progress(1.0, "Transcription complete")
     return transcript
 
 

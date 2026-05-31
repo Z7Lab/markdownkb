@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
 import {
   Dialog,
   DialogContent,
@@ -15,7 +14,6 @@ import {
 } from "@/components/ui/dialog"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
-import { WhisperModelSection } from "./whisper-model-section"
 import type { PluginInfo } from "./plugin-types"
 
 export function PluginConfigDialog({
@@ -56,8 +54,6 @@ export function PluginConfigDialog({
   const updateField = (key: string, value: unknown) => {
     setConfig((prev) => ({ ...prev, [key]: value }))
   }
-
-  const audioEnabled = plugin.name === "converter" && !!(config["audio_enabled"] ?? schema["audio_enabled"]?.default)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -157,13 +153,6 @@ export function PluginConfigDialog({
             })
           )}
 
-          {/* Whisper model management — shown when audio transcription is enabled */}
-          {audioEnabled && (
-            <>
-              <Separator />
-              <WhisperModelSection activeModel={(config["audio_model"] as string) ?? "small"} />
-            </>
-          )}
         </div>
 
         <DialogFooter>
