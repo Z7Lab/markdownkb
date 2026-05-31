@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
+import { useLocation } from "wouter"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -6,8 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+// Plugins that have a dedicated Settings section — show a navigate link instead of the config dialog
+const PLUGINS_WITH_DEDICATED_SECTION = new Set(["converter"])
+
 import {
   AlertCircle,
+  ArrowRight,
   Brain,
   ChevronDown,
   Database,
@@ -80,15 +85,18 @@ function PluginCard({
   plugin,
   onToggle,
   onConfigure,
+  onNavigate,
   onUninstall,
 }: {
   plugin: PluginInfo
   onToggle: (name: string, enabled: boolean) => Promise<void>
   onConfigure: (plugin: PluginInfo) => void
+  onNavigate: (path: string) => void
   onUninstall?: (name: string) => void
 }) {
   const Icon = getIcon(plugin.icon)
-  const hasConfig = plugin.config_schema && Object.keys(plugin.config_schema).some(
+  const hasDedicatedSection = PLUGINS_WITH_DEDICATED_SECTION.has(plugin.name)
+  const hasConfig = !hasDedicatedSection && plugin.config_schema && Object.keys(plugin.config_schema).some(
     (k) => plugin.config_schema[k]?.type,
   )
   const [endpointsOpen, setEndpointsOpen] = useState(false)
@@ -165,6 +173,18 @@ function PluginCard({
         )}
       </div>
       <div className="flex items-center gap-1.5 shrink-0">
+        {hasDedicatedSection && plugin.enabled && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs gap-1 px-2"
+            onClick={() => onNavigate(`/settings/${plugin.name}`)}
+            aria-label={`Open ${plugin.display_name} settings`}
+          >
+            Settings
+            <ArrowRight className="h-3 w-3" />
+          </Button>
+        )}
         {hasConfig && plugin.enabled && (
           <Button
             variant="ghost"
@@ -260,6 +280,7 @@ export function PluginsPanel({
   onToggleMcpFlag: (name: string, enabled: boolean) => Promise<void>
   onTogglePlugin: (name: string, enabled: boolean) => Promise<void>
 }) {
+  const [, setLocation] = useLocation()
   const [plugins, setPlugins] = useState<PluginInfo[]>([])
   const [coreFeatures, setCoreFeatures] = useState<CoreFeature[]>([])
   const [loading, setLoading] = useState(true)
@@ -379,6 +400,7 @@ export function PluginsPanel({
                       loadPlugins()
                     }}
                     onConfigure={setConfigPlugin}
+                    onNavigate={(path) => setLocation(path)}
                     onUninstall={plugin.source === "external" ? setPendingUninstall : undefined}
                   />
                   {idx < catPlugins.length - 1 && <Separator />}

@@ -33,7 +33,8 @@ import { BucketsPanel } from "./buckets-panel"
 import { McpPanel } from "./mcp-panel"
 import { SecurityPanel } from "./security-panel"
 import { AppearancePanel } from "./appearance-panel"
-import { Library, Archive, HardDriveDownload, Info, Palette } from "lucide-react"
+import { Library, Archive, HardDriveDownload, Info, Palette, FileEdit } from "lucide-react"
+import { ConverterPanel } from "./converter-panel"
 
 const sections = [
   { id: "llm", label: "Chat Model", icon: Cpu },
@@ -42,6 +43,7 @@ const sections = [
   { id: "sources", label: "Sources", icon: FolderCog },
   { id: "scopes", label: "Scopes", icon: Library },
   { id: "buckets", label: "Buckets", icon: Archive, plugin: "buckets" },
+  { id: "converter", label: "File Converter", icon: FileEdit, plugin: "converter" },
   { id: "features", label: "Plugins", icon: ToggleRight },
   { id: "mcp", label: "MCP", icon: Plug },
   { id: "prompt", label: "System Prompt", icon: MessageSquareText },
@@ -226,6 +228,9 @@ export function SettingsTab({ initialSection }: { initialSection?: string } = {}
             )}
             {activeSection === "buckets" && (
               <BucketsPanel />
+            )}
+            {activeSection === "converter" && (
+              <ConverterPanel />
             )}
             {activeSection === "embeddings" && (
               <EmbeddingPanel

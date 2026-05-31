@@ -118,9 +118,9 @@ MarkdownKB publishes two image tags:
 | Tag | Contents |
 | --- | -------- |
 | `latest` | Base image — all core features, no optional extras |
-| `full` | Base + optional extras: YouTube transcript extraction, PDF/DOCX/XLSX/PPTX conversion |
+| `full` | Base + optional extras: YouTube transcript extraction, PDF/DOCX/XLSX/PPTX conversion, audio transcription (faster-whisper) |
 
-Use `full` if you want the converter plugin to pull full transcripts from YouTube URLs or convert PDF, Word, Excel, and PowerPoint files to markdown.
+Use `full` if you want the converter plugin to pull full transcripts from YouTube URLs, convert PDF, Word, Excel, and PowerPoint files to markdown, or transcribe audio files locally with faster-whisper.
 
 ### Pulling a specific tag
 

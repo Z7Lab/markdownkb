@@ -111,7 +111,7 @@ Some plugins have external dependencies:
 
 | Plugin | Dependency | Notes |
 |--------|-----------|-------|
-| `converter` | markitdown | Bundled in base image. Each sub-converter (web/YouTube, office, pdf, misc) can be independently toggled in plugin settings. DOCX/XLSX/PPTX and PDF require the `full` image or a custom build (`make generate-compose && make docker-build-custom`). |
+| `converter` | markitdown | Bundled in base image. Each sub-converter (web/YouTube, office, pdf, misc, audio) can be independently toggled in Settings → File Converter. DOCX/XLSX/PPTX, PDF, and audio transcription (faster-whisper) require the `full` image. Audio also supports a remote OpenAI-compatible transcription API as an alternative to local faster-whisper. |
 | `knowledge_graph` | LLM provider | Entity extraction calls the configured LLM. |
 | `planner` | LLM provider | Plan generation calls the configured LLM. |
 | `tags` (AI generation) | LLM provider | Optional `ai_generation: true` sub-flag for AI-powered tagging. |
