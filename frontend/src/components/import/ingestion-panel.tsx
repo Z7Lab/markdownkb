@@ -1,37 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useRef, useState } from "react"
+import { useLocation } from "wouter"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
 import { slugifyFilename } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Progress } from "@/components/ui/progress"
 import {
-  Loader2, Link as LinkIcon, Upload, FilePlus, FileText, AudioLines, AlertCircle,
+  Loader2, Link as LinkIcon, Upload, AudioLines, AlertCircle, Settings2,
 } from "lucide-react"
+import { useImportCapabilities } from "@/hooks/use-import-capabilities"
 
 export type IngestDestination =
   | { type: "source"; path: string }
   | { type: "bucket"; id: string }
-
-interface FormatInfo {
-  label: string
-  extensions: string[]
-  available: boolean
-}
-
-interface ImportMethod {
-  id: string
-  label: string
-  available: boolean
-  reason: string | null
-  accept?: string
-  formats?: FormatInfo[]
-  transcript_support?: boolean
-  provider?: string
-  model?: string
-  model_ready?: boolean
-}
 
 interface ProgressItem {
   name: string
@@ -102,28 +84,16 @@ async function pollIngestJob(
 }
 
 export function IngestionPanel({ destination, onIngested }: IngestionPanelProps) {
-  const [methods, setMethods] = useState<ImportMethod[] | null>(null)
+  const { methods, loading, find } = useImportCapabilities()
+  const [, setLocation] = useLocation()
   const [clipUrl, setClipUrl] = useState("")
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<ProgressItem[]>([])
-  const [createName, setCreateName] = useState("")
-  const [createBody, setCreateBody] = useState("")
-  const [creating, setCreating] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    let active = true
-    api.get<{ methods: ImportMethod[] }>("/api/v1/import/capabilities")
-      .then((r) => { if (active) setMethods(r.methods) })
-      .catch(() => { if (active) setMethods([]) })
-    return () => { active = false }
-  }, [])
-
-  const find = (id: string) => methods?.find((m) => m.id === id)
   const fileMethod = find("file_upload")
   const urlMethod = find("url_clip")
   const audioMethod = find("audio")
-  const createMethod = find("create_markdown")
 
   const pushToBucket = useCallback(async (name: string, content: string) => {
     if (destination.type !== "bucket") return
@@ -210,31 +180,7 @@ export function IngestionPanel({ destination, onIngested }: IngestionPanelProps)
     }
   }, [clipUrl, destination, pushToBucket, onIngested])
 
-  const handleCreate = useCallback(async () => {
-    const name = createName.trim()
-    if (!name || !createBody.trim()) return
-    const filename = name.toLowerCase().endsWith(".md") ? name : slugifyFilename(name) + ".md"
-    setCreating(true)
-    try {
-      if (destination.type === "source") {
-        await api.post("/api/v1/documents", {
-          path: filename, content: createBody, source: destination.path,
-        })
-      } else {
-        await pushToBucket(filename, createBody)
-      }
-      setCreateName("")
-      setCreateBody("")
-      toast.success(`Created "${filename}"`)
-      onIngested?.()
-    } catch (err) {
-      toast.error(`Create failed: ${(err as Error).message}`)
-    } finally {
-      setCreating(false)
-    }
-  }, [createName, createBody, destination, pushToBucket, onIngested])
-
-  if (methods === null) {
+  if (loading || methods === null) {
     return (
       <div className="flex items-center gap-2 py-8 justify-center text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" />
@@ -243,13 +189,14 @@ export function IngestionPanel({ destination, onIngested }: IngestionPanelProps)
     )
   }
 
-  const anyAvailable = methods.some((m) => m.available)
-  if (!anyAvailable) {
+  if (!methods.some((m) => m.available)) {
     return (
       <div className="flex flex-col items-center gap-2 py-8 text-center text-sm text-muted-foreground">
         <AlertCircle className="h-5 w-5" />
         <p>No import methods are available.</p>
-        <p className="text-xs">Enable converter formats or audio transcription in Settings → File Converter.</p>
+        <button className="text-xs text-primary underline" onClick={() => setLocation("/settings/converter")}>
+          Enable converter formats in Settings → File Converter
+        </button>
       </div>
     )
   }
@@ -305,23 +252,6 @@ export function IngestionPanel({ destination, onIngested }: IngestionPanelProps)
               <div className="flex flex-col items-center gap-1.5 text-muted-foreground pointer-events-none">
                 <Upload className="h-4 w-4" />
                 <p className="text-xs">Drop files or click to browse</p>
-                {fileMethod.formats && fileMethod.formats.length > 0 && (
-                  <div className="flex flex-wrap justify-center gap-1 mt-0.5">
-                    {fileMethod.formats.map((f) => (
-                      <span
-                        key={f.label}
-                        className={`text-[10px] px-1.5 py-0.5 rounded border ${
-                          f.available
-                            ? "border-green-500/40 text-green-700 dark:text-green-400 bg-green-500/10"
-                            : "border-muted text-muted-foreground/50 bg-muted/30"
-                        }`}
-                        title={f.available ? `${f.extensions.join(", ")} — available` : `${f.extensions.join(", ")} — not enabled`}
-                      >
-                        {f.label}
-                      </span>
-                    ))}
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -333,6 +263,40 @@ export function IngestionPanel({ destination, onIngested }: IngestionPanelProps)
             className="hidden"
             onChange={(e) => { if (e.target.files?.length) void handleFiles(e.target.files) }}
           />
+
+          {/* Supported types */}
+          {fileMethod.formats && fileMethod.formats.length > 0 && (
+            <div className="rounded-md border bg-muted/20 p-2.5 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] font-medium text-muted-foreground">Supported types</p>
+                <button
+                  className="text-[11px] text-primary hover:underline flex items-center gap-1 shrink-0"
+                  onClick={() => setLocation("/settings/converter")}
+                  title="Enable or disable formats in Settings → File Converter"
+                >
+                  <Settings2 className="h-3 w-3" />
+                  Configure
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {fileMethod.formats.map((f) => (
+                  <span
+                    key={f.label}
+                    className={`text-[10px] px-1.5 py-0.5 rounded border ${
+                      f.available
+                        ? "border-green-500/40 text-green-700 dark:text-green-400 bg-green-500/10"
+                        : "border-muted text-muted-foreground/50 bg-muted/30"
+                    }`}
+                    title={f.available ? `${f.extensions.join(", ")} — available` : `${f.extensions.join(", ")} — not enabled (turn on in Settings → File Converter)`}
+                  >
+                    {f.label}
+                  </span>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground/70">Green = ready · grey = enable its sub-converter in settings</p>
+            </div>
+          )}
+
           {/* Audio status hint */}
           {audioMethod && (
             <p className={`text-[11px] flex items-center gap-1 ${audioMethod.available ? "text-muted-foreground" : "text-amber-600 dark:text-amber-400"}`}>
@@ -377,57 +341,6 @@ export function IngestionPanel({ destination, onIngested }: IngestionPanelProps)
           )}
         </div>
       )}
-
-      {/* Create markdown */}
-      {createMethod?.available && (
-        <div className="space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">Create a markdown note</p>
-          <Input
-            value={createName}
-            onChange={(e) => setCreateName(e.target.value)}
-            placeholder="Filename (e.g. meeting-notes)"
-            className="h-8 text-xs"
-            disabled={creating}
-            aria-label="New document filename"
-          />
-          <Textarea
-            value={createBody}
-            onChange={(e) => setCreateBody(e.target.value)}
-            placeholder="Write markdown content…"
-            className="min-h-[120px] text-xs font-mono"
-            disabled={creating}
-            aria-label="New document content"
-          />
-          <div className="flex justify-end">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8"
-              onClick={handleCreate}
-              disabled={creating || !createName.trim() || !createBody.trim()}
-            >
-              {creating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FilePlus className="h-3.5 w-3.5" />}
-              <span className="ml-1.5">Create</span>
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Unavailable-method hints (so users know what setup unlocks) */}
-      {(urlMethod && !urlMethod.available) || (createMethod && !createMethod.available) ? (
-        <div className="space-y-1 pt-1 border-t">
-          {urlMethod && !urlMethod.available && (
-            <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-              <FileText className="h-3 w-3 shrink-0" />Web clip: {urlMethod.reason}
-            </p>
-          )}
-          {createMethod && !createMethod.available && (
-            <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-              <FilePlus className="h-3 w-3 shrink-0" />Create markdown: {createMethod.reason}
-            </p>
-          )}
-        </div>
-      ) : null}
     </div>
   )
 }

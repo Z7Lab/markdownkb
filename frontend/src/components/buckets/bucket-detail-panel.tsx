@@ -10,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, SortableTableHead } from "@/components/ui/table"
 import {
   Pencil, Trash2, FileText, Loader2, Clock, Check, X as XIcon,
-  Infinity as InfinityIcon, RefreshCw, Download, FolderInput, MessageSquare, Github,
+  Infinity as InfinityIcon, RefreshCw, Download, FolderInput, MessageSquare, Github, FilePlus,
 } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { BucketEditForm } from "./bucket-edit-form"
@@ -18,6 +18,8 @@ import { BucketPathStatus } from "./bucket-path-status"
 import { BucketChatDrawer } from "./bucket-chat-drawer"
 import { GithubImportDialog } from "./github-import-dialog"
 import { IngestionPanel } from "@/components/import/ingestion-panel"
+import { CreateMarkdownDialog } from "@/components/import/create-markdown-dialog"
+import { useImportCapabilities } from "@/hooks/use-import-capabilities"
 
 export interface BucketDetailPanelProps {
   bucket: Bucket
@@ -57,6 +59,9 @@ export function BucketDetailPanel({
 
   // Import state
   const [githubOpen, setGithubOpen] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
+  const { find: findCapability } = useImportCapabilities()
+  const createAvailable = !!findCapability("create_markdown")?.available
 
   const batchPushDocuments = useCallback(async (docs: { name: string; content: string }[]) => {
     await api.post(`/api/v1/buckets/${bucket.id}/documents`, {
@@ -309,16 +314,30 @@ export function BucketDetailPanel({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-muted-foreground">Add content</p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 gap-1.5"
-                onClick={() => setGithubOpen(true)}
-                title="Import .md/.mdx files from a GitHub repository"
-              >
-                <Github className="h-3.5 w-3.5" />
-                GitHub
-              </Button>
+              <div className="flex items-center gap-1.5">
+                {createAvailable && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 gap-1.5"
+                    onClick={() => setCreateOpen(true)}
+                    title="Write a new markdown note into this bucket"
+                  >
+                    <FilePlus className="h-3.5 w-3.5" />
+                    New note
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 gap-1.5"
+                  onClick={() => setGithubOpen(true)}
+                  title="Import .md/.mdx files from a GitHub repository"
+                >
+                  <Github className="h-3.5 w-3.5" />
+                  GitHub
+                </Button>
+              </div>
             </div>
             <IngestionPanel
               destination={{ type: "bucket", id: bucket.id }}
@@ -512,6 +531,12 @@ export function BucketDetailPanel({
       onClose={() => setGithubOpen(false)}
       onBatchImport={batchPushDocuments}
       onDone={reloadFiles}
+    />
+    <CreateMarkdownDialog
+      open={createOpen}
+      destination={{ type: "bucket", id: bucket.id }}
+      onClose={() => setCreateOpen(false)}
+      onCreated={reloadFiles}
     />
     </>
   )
