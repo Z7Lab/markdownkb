@@ -21,7 +21,7 @@ cd markdownkb
    cp .env.example .env
    ```
 
-2. **Edit `config/settings.yaml`** — add your source directories under `sources:` and configure your LLM provider. Everything else has sensible defaults.
+2. **(Optional) Seed `config/settings.yaml`** — this file is read **once on first boot** to seed the settings database, then never read again. You can pre-seed source directories (under `sources:`) and an LLM provider here, or skip it and configure everything from the **Settings** tab after the app starts. Runtime config lives in the settings database (`markdownkb_settings.db`), not this file.
 
 3. **Add API keys** (if using cloud providers) — create secret files:
    ```bash
@@ -88,12 +88,13 @@ make docker-clean-all  # stop container, remove image AND data volumes (destruct
 | What changed | What to run |
 |---|---|
 | `.env` (ports, bind address) | `make docker-down && make docker-up` |
-| `config/settings.yaml` (sources, LLM, features) | `make docker-restart` |
+| Settings (sources, LLM, features) | Nothing — change them in the **Settings** tab; they save to the DB and apply live |
+| `config/settings.yaml` | Only read on first boot to seed the DB; editing it later has no effect (delete the DB to re-seed) |
 | Code or dependencies | `make docker-rebuild` |
 
 ## Configuration
 
-Edit `config/settings.yaml` or use the **Settings** tab in the UI. See [docs/reference/configuration.md](docs/reference/configuration.md) for the full reference (all settings, feature flags, `.env` vs `settings.yaml` precedence).
+Configure via the **Settings** tab in the UI — changes save to the settings database and apply live. `config/settings.yaml` is a one-time seed read on first boot (when the DB is empty), not the live config surface. See [docs/reference/configuration.md](docs/reference/configuration.md) for the full reference (all settings, feature flags, `.env` vs seed precedence).
 
 **Advanced — symlink pattern:** If you manage multiple machines or want configs and secrets centrally backed up outside the repo, move `.env`, `config/settings.yaml`, and the `secrets/` directory to a gitignored location outside the project and symlink them back. Most users don't need this — plain files work fine.
 
