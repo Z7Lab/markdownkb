@@ -126,10 +126,16 @@ A generic API is available for reading/writing any plugin's config:
 | Plugin | Directory | Description |
 |--------|-----------|-------------|
 | [search](search/) | `search` | Search with history, AI summaries, query enhancement, exact phrase matching |
-| [export](export/) | `export` | Conversation export in markdown or JSON |
-| [graph](graph/) | `graph` | 3D document similarity graph visualization |
+| [converter](converter/) | `converter` | Document + audio → markdown conversion; powers the Import tab and Buckets ingestion |
+| [buckets](buckets/) | `buckets` | Temporary scoped document collections with independent vector storage |
+| [docmap](docmap/) | `docmap` | 3D document-similarity graph visualization |
+| [knowledge_graph](knowledge_graph/) | `knowledge_graph` | Entity/relationship extraction and graph visualization |
+| [wiki_compile](wiki_compile/) | `wiki_compile` | LLM-synthesized wiki pages with index/log maintenance |
+| [lint](lint/) | `lint` | Tiered knowledge-base health check (coverage, orphans, contradictions) |
 | [planner](planner/) | `planner` | MCTS-based implementation plan generation |
 | [tags](tags/) | `tags` | Tag storage, CRUD, auto-tagging, and optional AI tag generation |
+| [catalogs](catalogs/) | `catalogs` | Model catalog providers (Ollama, Venice) for the Settings model picker |
+| [export](export/) | `export` | Conversation export in markdown or JSON |
 | [write_api](write_api/) | `write_api` | HTTP endpoint for creating/updating markdown documents |
 
 **Note:** Deep Research (`core.deep_research`) is not a plugin — it's a shared service (`app/services/deep_research.py`) that uses the MCTS engine to provide multi-angle research synthesis. Its config lives under `services.deep_research`. Currently consumed by the search plugin's summarize endpoint.

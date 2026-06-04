@@ -55,7 +55,7 @@ The next time a question comes up about that topic, the compiled page is in the 
 - **One verb, one page.** `wiki_compile` v1 writes a summary page per source. It does not yet update existing entity or concept pages when new sources are ingested. A richer version — which reads the existing wiki and proposes cross-references or revisions — is a follow-up.
 - **No schema file.** Karpathy's gist describes a schema file (CLAUDE.md or AGENTS.md) that tells the LLM the wiki's conventions, page templates, and workflows. v1 uses hard-coded defaults. A per-target schema is a natural v2 addition.
 - **No in-UI ingest.** Compilation is CLI/API-only right now. A future "ingest this bucket doc" button is a planned UI gesture.
-- **Lint is a separate plugin.** The Lint verb is implemented in the `lint` plugin (`plugins.lint.enabled: true`). Without it, the compiled wiki can drift — contradictions between pages, stale claims, orphan pages — and there's no automated detection. See `app/plugins/lint/README.md` for the four passes and their LLM cost model.
+- **Lint is a separate plugin.** The Lint verb is implemented in the `lint` plugin (`plugins.lint.enabled: true`). Without it, the compiled wiki can drift — contradictions between pages, stale claims, orphan pages — and there's no automated detection. See [the lint plugin README](../../app/plugins/lint/README.md) for the four passes and their LLM cost model.
 - **No automatic re-compilation on source change.** If the raw source file changes, the compiled page stays stale until you re-ingest with `force=true`. Detecting source drift and flagging it for re-compile is a straightforward extension.
 
 ## Managed wikis

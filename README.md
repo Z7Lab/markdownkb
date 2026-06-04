@@ -175,7 +175,7 @@ app/
 ├── main.py              # Entry point, async lifespan, static serving, SPA catch-all
 ├── api.py               # App factory (create_app), CORS, router + plugin registration
 ├── auth.py              # API key middleware (X-MarkdownKB-Key header)
-├── config.py            # Settings singleton from YAML
+├── config/              # Settings package (DB-backed; settings.yaml seeds it on first boot)
 ├── schemas.py           # Pydantic request/response models
 ├── deps.py              # FastAPI Depends() functions for dependency injection
 ├── utils.py             # Shared helpers (SSE formatting, title generation)
@@ -184,24 +184,45 @@ app/
 ├── cli.py               # CLI commands (index, search, add-source, stats)
 ├── routers/             # Core API endpoint modules (always registered)
 │   ├── health.py        # Health checks, stats
-│   ├── search.py        # Search, history, query enhancement
 │   ├── chat.py          # RAG chat (sync + streaming)
 │   ├── threads.py       # Thread listing, messages, rename, delete
 │   ├── files.py         # File listing, indexing, RAG toggle
-│   ├── settings.py      # Provider config, features, database maintenance
+│   ├── sources.py       # Source directories + project roots
+│   ├── settings.py      # Core/MCP flags, prompts, retrieval tuning
+│   ├── llm.py           # LLM provider config, discovery, testing
 │   ├── embeddings.py    # Embedding model management, indexing
-│   └── export.py        # Conversation export
+│   ├── scopes.py        # Scope CRUD
+│   ├── plugins.py       # Plugin enable/disable + per-plugin config
+│   ├── mcp.py           # MCP tool flags + config
+│   ├── setup.py         # First-run setup, API key generation
+│   ├── dashboard.py     # Home dashboard stats + widgets
+│   ├── maintenance.py   # Database maintenance, reindex
+│   ├── tasks.py         # Background task registry status
+│   └── export_md.py     # Conversation export
 ├── plugins/             # Auto-discovered, enabled via plugins.<name>.enabled
+│   ├── search/          # Semantic search, history, deep research
+│   ├── converter/       # Document + audio → markdown, Import-tab ingestion
+│   ├── buckets/         # Temporary scoped document collections
+│   ├── docmap/          # 3D document-similarity visualization
+│   ├── knowledge_graph/ # Entity/relationship extraction + graph
+│   ├── wiki_compile/    # LLM-synthesized wiki pages
+│   ├── lint/            # Tiered knowledge-base health check
 │   ├── planner/         # MCTS plan generation
 │   ├── tags/            # Tag storage, CRUD, AI tag generation
+│   ├── catalogs/        # Model catalog providers (Ollama, Venice)
+│   ├── export/          # Chat conversation export
 │   └── write_api/       # Document creation via HTTP
 ├── services/
-│   ├── chat_service.py  # Conversation memory, streaming RAG, think-block stripping
-│   ├── llm_service.py   # Ollama model discovery, connection testing
-│   ├── query_service.py # LLM-powered query enhancement
-│   ├── kg_extraction.py # LLM-based entity/relationship extraction for knowledge graph
+│   ├── chat_service.py    # Conversation memory, streaming RAG, think-block stripping
+│   ├── llm_service.py     # Ollama model discovery, connection testing
+│   ├── query_service.py   # LLM-powered query enhancement
+│   ├── kg_extraction.py   # LLM-based entity/relationship extraction
+│   ├── graph_service.py   # Knowledge-graph queries (entities, paths)
+│   ├── scope_service.py   # Scope resolution for retrieval
+│   ├── settings_service.py # Builds the GET /settings response
+│   ├── task_registry.py   # Shared background-task registry
 │   ├── planner_service.py # MCTS planner orchestration + skill reviews
-│   └── deep_research.py # MCTS-powered multi-angle research synthesis
+│   └── deep_research.py   # MCTS-powered multi-angle research synthesis
 ├── ingestion/           # File scanning, parsing, watching, indexing
 ├── embeddings/          # ONNX embedding (3 models, no PyTorch)
 ├── storage/             # ChromaDB vector store + SQLite (tracking, chat, search, KG)
@@ -214,7 +235,7 @@ mcp_server.py            # Standalone MCP server (stdio/Streamable HTTP, separat
 
 frontend/
 ├── src/
-│   ├── App.tsx          # Tab layout (Chat, Search, Planner, Browse, Settings)
+│   ├── App.tsx          # Tab layout (Home, Chat, Search, Planner, Doc Map, Knowledge Graph, Buckets, Wiki, Import, Files, Settings)
 │   ├── lib/             # api.ts, sse.ts, types.ts, query-enhancement.ts
 │   ├── contexts/        # React contexts (navigation)
 │   ├── hooks/           # use-chat, use-search, use-planner, use-files, use-settings, + more

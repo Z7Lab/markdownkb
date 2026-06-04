@@ -9,6 +9,7 @@ Task-oriented. Follow these when you're trying to get something done.
 | Document | Description |
 |----------|-------------|
 | [Getting Started](how-to/getting-started.md) | Install, configure, index your first docs, search and chat |
+| [Importing Content](how-to/importing-content.md) | The Import tab — files, web/YouTube clips, audio transcription, create-a-note; choosing a destination and the formats each method needs |
 | [Docker Deployment](how-to/docker-deployment.md) | Docker compose setup, secrets, persistent data, source mounts, image variants |
 | [Local LLM Setup](how-to/local-llm-setup.md) | Step-by-step Ollama install and model setup (macOS, Linux, Windows) |
 | [API Key Setup](how-to/api-key-setup.md) | When you need a key, how to set one, how to use it |
@@ -43,7 +44,7 @@ Look things up mid-task. Structured for scanning, not reading top-to-bottom.
 | [Architecture](reference/architecture.md) | System overview, components, data flow, storage layer, plugin system |
 | [Configuration](reference/configuration.md) | All settings keys, feature flags, `.env` precedence, seed YAML format |
 | [API](reference/api.md) | Full REST endpoint listing for all features |
-| [MCP Server](reference/mcp-server.md) | 35 MCP tools, transports (stdio/Streamable HTTP), authentication, scope support |
+| [MCP Server](reference/mcp-server.md) | 40+ MCP tools, transports (stdio/Streamable HTTP), authentication, scope support |
 | [CLI](reference/cli.md) | Command-line interface — search, chat, index, sources, buckets, over HTTP |
 | [LLM Benchmarking](reference/llm-benchmarking.md) | Measuring tokens/second for Ollama and llama.cpp |
 
@@ -62,8 +63,8 @@ Background and reasoning. Read when you want to understand why, not how.
 | [Buckets](explanation/buckets.md) | Temporary isolated document collections — built-in docs, comparison workflows |
 | [Planner](explanation/planner.md) | MCTS-based implementation planner with skill reviews |
 | [Wiki Compile](explanation/wiki-compile.md) | Karpathy-style wiki compilation — managed wikis, the three-tier model, retrieval-augmented ingest, when to use it |
-| [Versioning](explanation/versioning.md) | Git-backed revision history for mdkb-authored writes — what gets versioned, managed repo layout, non-goals |
-| [Versioning and Upgrades](explanation/versioning-and-upgrades.md) | App versioning, update detection (PyPI / Docker Hub / git), schema migration pattern, plugin contract versioning |
+| [Document Versioning](explanation/versioning.md) | Git-backed **revision history for documents** mdkb writes — what gets versioned, managed repo layout, non-goals |
+| [App Versioning & Upgrades](explanation/versioning-and-upgrades.md) | **Application** versioning — update detection (PyPI / Docker Hub / git), schema migration pattern, plugin contract versioning |
 | [Philosophy](explanation/manifesto.md) | The markdown-first paradigm — why tokens are value |
 | [Value Proposition](explanation/value-proposition.md) | What MarkdownKB is, who it's for, what makes it different |
 

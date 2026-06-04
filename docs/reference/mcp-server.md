@@ -4,6 +4,8 @@ MarkdownKB includes a standalone MCP (Model Context Protocol) server that expose
 
 The server runs as a **separate process** alongside the FastAPI app. It imports core services directly (no HTTP proxy), sharing the same settings database, vector store, and SQLite databases.
 
+> Adding a new tool or working on the server internals? See the developer reference at [`app/mcp/README.md`](../../app/mcp/README.md) for the tool-module layout and registration pattern.
+
 ## All MCP Tools at a Glance
 
 40+ tools organized by category. Core tools are always available; plugin tools appear when their plugin is enabled.

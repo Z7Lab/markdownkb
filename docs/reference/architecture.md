@@ -7,7 +7,9 @@ MarkdownKB is a chat-with-your-docs tool with a Python backend and React fronten
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  React SPA (Vite + TypeScript + Shadcn/ui)              │
-│  Tabs: Chat │ Search │ Planner │ Doc Map │ Knowledge Graph │ Browse │ Settings │
+│  Tabs: Home │ Chat │ Search │ Planner │ Doc Map │        │
+│        Knowledge Graph │ Buckets │ Wiki │ Import │       │
+│        Files │ Settings  (plugin tabs appear when on)    │
 └────────────────────────┬────────────────────────────────┘
                          │ HTTP/SSE (/api/v1/*)
 ┌────────────────────────▼────────────────────────────────┐
@@ -106,6 +108,10 @@ The backup and restore feature lives in `app/backups/` (`router.py` + `manager.p
 | `planner_service` | MCTS planner orchestration (HTTP endpoint is in the planner plugin) |
 | `deep_research` | Multi-angle research synthesis using MCTS (consumed by search plugin) |
 | `graph_service` | Document similarity computation (HTTP endpoint is in the docmap plugin) |
+| `kg_extraction` | LLM-based entity/relationship extraction for the knowledge graph |
+| `scope_service` | Resolves scope presets into source/tag filters for retrieval |
+| `settings_service` | Assembles the `GET /api/v1/settings` response body |
+| `task_registry` | Shared registry tracking background tasks (indexing, conversion, installs) |
 
 Note: `planner_service` and `graph_service` live in core because they are reusable — the docmap and knowledge_graph plugins add the HTTP + UI layer on top.
 

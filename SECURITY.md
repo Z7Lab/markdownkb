@@ -64,6 +64,19 @@ All outbound URLs (LLM API bases, Ollama endpoints, embedding API bases) are val
 - Sources with `writable: false` reject writes via the API and MCP tools (403).
 - File paths provided to API endpoints are validated to prevent directory traversal.
 
+### File Uploads (Converter Plugin)
+
+When the `converter` plugin is enabled, it exposes multipart upload endpoints (`POST /api/v1/converter/upload`, `POST /api/v1/converter/ingest`) and a URL-fetch endpoint (`POST /api/v1/converter/url`). These are an upload attack surface; the mitigations in place:
+
+- **API-key gated** — like all `/api/v1/*` endpoints, uploads require the `X-MarkdownKB-Key` header when a key is configured.
+- **Temp-file isolation** — uploads are streamed to a temporary file, converted via Microsoft markitdown, and the temp file is removed in a `finally` block. Converted output is never executed.
+- **Extension/sub-converter gating** — only file types whose sub-converter is enabled are accepted (others get 503/400); audio files additionally require transcription to be configured and a model present.
+- **Destination restriction** — `/ingest` writes the converted markdown only into a configured **writable** source directory, subject to the same path-traversal and `writable: false` checks as the write API.
+- **URL conversion is SSRF-guarded** — `/converter/url` (and remote audio transcription) validate the target through `validate_api_base()`.
+- **Rate limiting** — upload/convert endpoints use the `HEAVY` limiter tier when rate limiting is active (see below).
+
+**Caveat — no application-level upload size cap:** the converter endpoints do not enforce a maximum request-body size (unlike bucket import, which caps archives at 256 MB / 512 MB decompressed). When exposing the server to a network, set a request-body size limit at your reverse proxy to bound resource use from large uploads.
+
 ## Feature Flags
 
 Security-sensitive features are disabled by default and must be explicitly enabled in `config/settings.yaml`:

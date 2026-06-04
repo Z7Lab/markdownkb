@@ -455,7 +455,7 @@ These endpoints additionally require the `mcp_tag_generator` feature flag (sub-f
 
 Requires `plugins.wiki_compile.enabled: true`. Plugin: `app/plugins/wiki_compile/`.
 
-Karpathy-style wiki compilation — reads a source document, asks the configured LLM to produce a summary page, and writes it into a managed wiki directory while maintaining `index.md` and `log.md` for navigation. See [wiki-compile.md](../explanation/wiki-compile.md) and `app/plugins/wiki_compile/README.md` for the architectural pattern.
+Karpathy-style wiki compilation — reads a source document, asks the configured LLM to produce a summary page, and writes it into a managed wiki directory while maintaining `index.md` and `log.md` for navigation. See [wiki-compile.md](../explanation/wiki-compile.md) and [the wiki_compile plugin README](../../app/plugins/wiki_compile/README.md) for the architectural pattern.
 
 | Method | Path | Description |
 |--------|------|-------------|
