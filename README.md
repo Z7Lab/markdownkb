@@ -9,7 +9,7 @@ Python (FastAPI) backend + React (Vite + TypeScript + Shadcn/ui) frontend.
 ## Quick Start
 
 ```bash
-git clone https://github.com/markdownkb/markdownkb
+git clone https://github.com/Z7Lab/markdownkb
 cd markdownkb
 ```
 
