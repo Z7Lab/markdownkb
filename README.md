@@ -108,8 +108,6 @@ MarkdownKB doesn't run model inference itself — it calls an LLM endpoint over 
 
 ## API
 
-Interactive docs (Swagger UI) at `http://localhost:9713/docs` — always up to date.
-
 See [docs/reference/api.md](docs/reference/api.md) for the full endpoint reference.
 
 ## CLI

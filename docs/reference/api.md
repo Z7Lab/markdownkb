@@ -1,6 +1,6 @@
 # API Reference
 
-All endpoints under `http://localhost:9713/api/v1/`. Interactive docs (Swagger UI) at `http://localhost:9713/docs`.
+All endpoints under `http://localhost:9713/api/v1/`. This reference is hand-maintained; the built-in OpenAPI/Swagger endpoints (`/openapi.json`, `/docs`, `/redoc`) are disabled.
 
 ## Authentication
 

@@ -152,7 +152,15 @@ def create_app(lifespan=None, settings_override=None) -> FastAPI:
             singleton.
     """
     from app.version import APP_VERSION
-    app = FastAPI(title="MarkdownKB API", version=APP_VERSION, lifespan=lifespan)
+    # The built-in API docs are disabled: /docs and /redoc load Swagger/ReDoc
+    # assets from a CDN, which the strict CSP (script-src 'self') blocks, and
+    # openapi_url is turned off so the full route map isn't publicly readable
+    # (it sits outside the API-key middleware). The hand-maintained reference
+    # in docs/reference/api.md is the documentation surface instead.
+    app = FastAPI(
+        title="MarkdownKB API", version=APP_VERSION, lifespan=lifespan,
+        docs_url=None, redoc_url=None, openapi_url=None,
+    )
 
     # Rate limiting
     app.state.limiter = limiter
