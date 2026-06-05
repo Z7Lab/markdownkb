@@ -62,15 +62,17 @@ By default the container binds to `127.0.0.1` — only this machine can reach it
 
 ```
 # in .env
-SERVER_HOST=0.0.0.0                # web UI on every interface
+MARKDOWNKB_HOST=0.0.0.0            # web UI on every interface
 MARKDOWNKB_MCP_HOST=0.0.0.0       # MCP server on every interface
 ```
+
+These control the published port's bind address. (Inside the container the app already listens on `0.0.0.0`; `SERVER_HOST` is fixed there and has no effect from `.env` in Docker — the port mapping is the boundary.)
 
 For a tighter setup, bind to a specific IP instead of `0.0.0.0`:
 
 ```
 # Replace <your-server-ip> with your server's LAN IP
-SERVER_HOST=<your-server-ip>
+MARKDOWNKB_HOST=<your-server-ip>
 MARKDOWNKB_MCP_HOST=<your-server-ip>
 ```
 
