@@ -2,12 +2,12 @@
 
 The graph plugin provides two complementary views of your knowledge base:
 
-1. **Knowledge Graph** — Entities (concepts, tools, processes, etc.) extracted from your documents with typed relationships (uses, is-a, part-of, etc.). Built via LLM extraction during indexing.
+1. **Knowledge Graph** — Entities (concepts, tools, processes, etc.) extracted from your documents with typed relationships (uses, is-a, part-of, etc.). Built via a separate LLM extraction pass you trigger after indexing — it is **not** populated automatically.
 2. **Document Similarity Graph** — Documents as nodes, edges as semantic similarity. Built from embedding vectors.
 
 ## Knowledge Graph (Entity Extraction)
 
-When documents are indexed, MarkdownKB uses the configured LLM to extract entities and typed relationships from each chunk. These are stored in a separate SQLite database (`markdownkb_kg.db`) that survives embedding model switches.
+Extraction is a separate step from indexing. After your documents are indexed, you start it explicitly via `POST /api/v1/knowledge-graph/extract` (or per file via `extract-file`). MarkdownKB then uses the configured LLM to extract entities and typed relationships from each chunk. These are stored in a separate SQLite database (`markdownkb_kg.db`) that survives embedding model switches. Until you run extraction, the graph is empty even if your documents are fully indexed.
 
 ### Entity Types
 
@@ -19,7 +19,7 @@ Relationships between entities are typed: `uses`, `is-a`, `part-of`, `relates-to
 
 ### How Extraction Works
 
-1. During indexing, each chunk is hashed (SHA-256). Chunks that have already been extracted are skipped.
+1. When extraction runs, each chunk is hashed (SHA-256). Chunks that have already been extracted are skipped, so re-running extraction only processes new or changed content.
 2. Chunks are batched (3 per LLM call) and sent with a structured extraction prompt requesting JSON output.
 3. The LLM returns entities and relationships, which are upserted into the KG database.
 4. Entities with the same name and type across different documents are merged — the `mention_count` tracks how many source files reference each entity.
@@ -36,6 +36,17 @@ Every entity and relationship links back to its `source_path`. When a document i
 The knowledge graph uses its own SQLite database (`{data_directory}/markdownkb_kg.db`), separate from the main tracking database. This means:
 - **Embedding model switches** do not affect KG data (they only clear ChromaDB and the tracking table)
 - **KG clear** (`POST /api/v1/knowledge-graph/clear`) wipes the KG; run extraction to rebuild
+
+### How the Graph Augments Chat
+
+When the plugin is enabled, chat uses the graph to add context to answers — without any extra LLM calls at question time:
+
+1. Your query is matched against entity names with a case-insensitive **substring** check (no separate entity-extraction step).
+2. The top matches (by `mention_count`, up to 5 entities) are selected.
+3. For each, up to 4 outgoing relationships are pulled and formatted into a **Knowledge Graph Context** block.
+4. That block is appended to the chat system prompt, alongside the normal vector-retrieved chunks.
+
+This is a fast local lookup, so it adds negligible latency. Note that chat does **not** perform graph traversal — relationship path-finding (BFS) is only available on demand through the `path` endpoint and the `find_relationship_path` MCP tool below.
 
 ### API Endpoints
 

@@ -1,6 +1,6 @@
 # Running Ollama on a Separate Machine
 
-MarkdownKB doesn't run LLMs locally — it calls them over the network. This guide sets up Ollama on a separate machine so MarkdownKB can use it. Works with any hardware: Mac Mini, GPU server, ARM SBC, dedicated Linux box, etc.
+MarkdownKB doesn't run model inference in-process — it calls an LLM endpoint over HTTP. That endpoint can run on the same machine or a different one; this guide sets up Ollama on a *separate* machine so MarkdownKB can use it. Works with any hardware: Mac Mini, GPU server, ARM SBC, dedicated Linux box, etc.
 
 ---
 

@@ -100,11 +100,11 @@ Configure via the **Settings** tab in the UI — changes save to the settings da
 
 ## LLM Setup
 
-MarkdownKB calls LLMs over the network — it doesn't run them locally.
+MarkdownKB doesn't run model inference itself — it calls an LLM endpoint over HTTP. That endpoint can be a hosted API or a local server you run yourself, so local models are fully supported; they just run as a separate process, not inside MarkdownKB.
 
-**Anthropic / OpenAI / Venice:** Add your API key to `secrets/<provider>_api_key` (run `make secrets-init` to scaffold the directory) or set the `<PROVIDER>_API_KEY` environment variable.
+**Hosted (Anthropic / OpenAI / Venice):** Add your API key to `secrets/<provider>_api_key` (run `make secrets-init` to scaffold the directory) or set the `<PROVIDER>_API_KEY` environment variable. The OpenAI provider works with any OpenAI-compatible endpoint via its base URL.
 
-**Ollama on another machine:** See [docs/thirdparty/ollama-remote-setup.md](docs/thirdparty/ollama-remote-setup.md).
+**Local models:** Run Ollama, llama.cpp, or any OpenAI-compatible server and point MarkdownKB at it — no API key needed. See [docs/how-to/local-llm-setup.md](docs/how-to/local-llm-setup.md), or [docs/thirdparty/ollama-remote-setup.md](docs/thirdparty/ollama-remote-setup.md) for Ollama on another machine.
 
 ## API
 
