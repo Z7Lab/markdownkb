@@ -16,7 +16,7 @@ export function BucketSelector({
   /** When true, the section starts expanded (used inside the filter modal) */
   defaultOpen?: boolean
 }) {
-  const activeBuckets = buckets.filter((b) => !b.expired)
+  const activeBuckets = buckets.filter((b) => !b.expired && !b.hidden)
 
   // Don't run stale cleanup until buckets have been loaded at least once;
   // avoids clearing valid localStorage-persisted selections before the API responds.

@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS buckets (
     created_at  TEXT NOT NULL DEFAULT (datetime('now')),
     expires_at  TEXT,
     expired     INTEGER NOT NULL DEFAULT 0,
+    hidden      INTEGER NOT NULL DEFAULT 0,
     color       TEXT,
     description TEXT
 );
@@ -70,6 +71,8 @@ _MIGRATIONS: list[tuple[int, str, str]] = [
      """),
     (7, "index pending_documents by bucket",
      "CREATE INDEX IF NOT EXISTS idx_pending_documents_bucket ON pending_documents(bucket_id)"),
+    (8, "add hidden column to buckets",
+     "ALTER TABLE buckets ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0"),
 ]
 
 
@@ -137,7 +140,7 @@ class BucketDB:
 
     _UPDATABLE_COLUMNS = frozenset({
         "name", "sources", "file_count", "chunk_count",
-        "expires_at", "expired", "color", "description", "scope_paths",
+        "expires_at", "expired", "hidden", "color", "description", "scope_paths",
     })
 
     def update(self, bucket_id: str, **fields) -> bool:

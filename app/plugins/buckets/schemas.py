@@ -45,6 +45,7 @@ class UpdateBucketRequest(BaseModel):
     color: str | None = Field(None, max_length=20, description="Hex color")
     description: str | None = Field(None, max_length=1000, description="Optional description")
     scope_paths: list[str] | None = Field(None, description="Paths to include in retrieval scope (null = all files)")
+    hidden: bool | None = Field(None, description="Hide from bucket lists and selectors without deleting")
 
 
 class RenameDocumentRequest(BaseModel):

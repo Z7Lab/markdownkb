@@ -42,13 +42,14 @@ Files assigned to a bucket are excluded from the **Files tab** — they appear i
 
 The **Buckets tab** is the primary UI for managing buckets. It has a left sidebar listing all buckets and a main panel for detail and creation.
 
-**Sidebar:** Lists all buckets with a color indicator and file count. Expired buckets are dimmed and badged. Clicking a bucket opens its detail view. The **New Bucket** button at the top of the sidebar opens the creation form.
+**Sidebar:** Lists all buckets with a color indicator and file count. Expired buckets are dimmed and badged. Hidden buckets are omitted entirely (see [Hiding buckets](#hiding-buckets)). Clicking a bucket opens its detail view. The **New Bucket** button at the top of the sidebar opens the creation form.
 
 **Detail panel:** Shows the selected bucket's name, stats (file count, chunk count, created time, expiration), sources, and a file table. Action icons in the header:
 - **Edit** (pencil) — opens an inline form to change the name, description, expiration, and color
 - **Reindex** (refresh) — re-scans the original sources and indexes any new files
 - **Export** (download) — downloads the bucket as a portable zip archive
 - **Promote** (folder-input) — adds the bucket's source paths to the main watched directories
+- **Hide / Restore** (eye) — hides the bucket from lists and selectors, or restores it (see [Hiding buckets](#hiding-buckets))
 - **Delete** (trash) — removes the bucket and all its vector data
 
 **Sidebar header:** The **New Bucket** button creates a fresh bucket. The **Import** button (upload icon) restores a bucket from a previously exported zip file. Zip archives must be 256 MB or smaller (raw upload size); each entry inside the archive must decompress to 512 MB or less.
@@ -126,7 +127,17 @@ To recover an expired bucket, edit it and set a new expiration (or remove it to 
 
 To permanently remove it, click the **trash icon** in the bucket detail panel header, or delete it from **Settings > Buckets**.
 
-**Settings > Buckets** shows a sortable table of all buckets with their status (Active, Expiring soon, Expired). You can delete any bucket from this table. Bucket creation is on the Buckets tab — the Settings panel is management-only.
+**Settings > Buckets** shows a sortable table of all buckets with their status (Active, Expiring soon, Expired). You can hide, restore, or delete any bucket from this table. Bucket creation is on the Buckets tab — the Settings panel is management-only.
+
+## Hiding buckets
+
+Hiding is for decluttering: old buckets you want to keep but not see every day. Unlike expiration, **a hidden bucket stays fully usable** — it is not inert and is not on a path to deletion.
+
+- A hidden bucket is omitted from the Buckets tab sidebar and from the bucket selector in Chat, Search, Planner, and Doc Map.
+- It remains fully queryable: if you target it directly (by ID via the API, or by restoring it), chat, search, and reindex all work normally. There is no `410` behaviour.
+- Toggle it from the **eye** icon in the bucket detail panel header, or from the per-row eye button in **Settings > Buckets**. The Settings table has a **Show hidden** toggle that reveals hidden buckets (dimmed, with a "Hidden" badge) so you can restore them.
+
+This is the key difference from expiration: **expired = inert and awaiting deletion; hidden = working, just out of the way.** The two flags are independent — a bucket can be expired, hidden, or both.
 
 ## Bucket Colors
 

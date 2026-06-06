@@ -12,7 +12,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Trash2 } from "lucide-react"
+import { Trash2, Eye, EyeOff } from "lucide-react"
 import { useBuckets, type Bucket } from "@/hooks/use-buckets"
 import { useTableSort } from "@/hooks/use-table-sort"
 import { relativeTime } from "@/lib/utils"
@@ -178,10 +178,14 @@ function BasePathConfig() {
 }
 
 export function BucketsPanel() {
-  const { buckets, deleteBucket } = useBuckets()
+  const { buckets, deleteBucket, setBucketHidden } = useBuckets()
   const [deleteTarget, setDeleteTarget] = useState<Bucket | null>(null)
+  const [showHidden, setShowHidden] = useState(false)
 
   const { sorted, sortKey, sortDir, onSort } = useTableSort(buckets, getValue, "created_at")
+
+  const hiddenCount = buckets.filter((b) => b.hidden).length
+  const visible = showHidden ? sorted : sorted.filter((b) => !b.hidden)
 
   async function handleDelete() {
     if (!deleteTarget) return
@@ -197,15 +201,29 @@ export function BucketsPanel() {
       <div className="border-t pt-4 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium">Bucket History</h3>
-          {buckets.length > 0 && (
-            <span className="text-xs text-muted-foreground">
-              {buckets.length} bucket{buckets.length !== 1 ? "s" : ""}
-            </span>
-          )}
+          <div className="flex items-center gap-3">
+            {hiddenCount > 0 && (
+              <button
+                type="button"
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => setShowHidden((v) => !v)}
+              >
+                {showHidden ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                {showHidden ? "Hide hidden" : `Show hidden (${hiddenCount})`}
+              </button>
+            )}
+            {buckets.length > 0 && (
+              <span className="text-xs text-muted-foreground">
+                {buckets.length} bucket{buckets.length !== 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
         </div>
 
-        {buckets.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No buckets. Create one on the Buckets tab.</p>
+        {visible.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            {buckets.length === 0 ? "No buckets. Create one on the Buckets tab." : "No visible buckets."}
+          </p>
         ) : (
           <Table>
             <TableHeader>
@@ -229,10 +247,10 @@ export function BucketsPanel() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sorted.map((b) => {
+              {visible.map((b) => {
                 const status = bucketStatus(b)
                 return (
-                  <TableRow key={b.id} className={b.expired ? "opacity-60" : undefined}>
+                  <TableRow key={b.id} className={b.expired || b.hidden ? "opacity-60" : undefined}>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <span
@@ -240,6 +258,11 @@ export function BucketsPanel() {
                           style={{ backgroundColor: b.color ?? "var(--bucket-default)" }}
                         />
                         <span className="font-medium text-xs">{b.name}</span>
+                        {b.hidden && (
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                            Hidden
+                          </Badge>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground tabular-nums">{b.file_count}</TableCell>
@@ -251,15 +274,27 @@ export function BucketsPanel() {
                       <StatusBadge status={status} />
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                        aria-label="Delete bucket"
-                        onClick={() => setDeleteTarget(b)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                      <div className="flex items-center gap-0.5">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                          aria-label={b.hidden ? "Restore bucket" : "Hide bucket"}
+                          title={b.hidden ? "Restore to lists and selectors" : "Hide from lists and selectors"}
+                          onClick={() => setBucketHidden(b.id, !b.hidden)}
+                        >
+                          {b.hidden ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                          aria-label="Delete bucket"
+                          onClick={() => setDeleteTarget(b)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 )

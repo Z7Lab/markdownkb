@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Sortable
 import {
   Pencil, Trash2, FileText, Loader2, Clock, Check, X as XIcon,
   Infinity as InfinityIcon, RefreshCw, Download, FolderInput, MessageSquare, Github, FilePlus,
+  EyeOff, Eye,
 } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { BucketEditForm } from "./bucket-edit-form"
@@ -28,6 +29,7 @@ export interface BucketDetailPanelProps {
   updateBucket: ReturnType<typeof useBuckets>["updateBucket"]
   exportBucket: ReturnType<typeof useBuckets>["exportBucket"]
   promoteBucket: ReturnType<typeof useBuckets>["promoteBucket"]
+  setBucketHidden: ReturnType<typeof useBuckets>["setBucketHidden"]
   refresh: () => Promise<void>
 }
 
@@ -38,6 +40,7 @@ export function BucketDetailPanel({
   updateBucket,
   exportBucket,
   promoteBucket,
+  setBucketHidden,
   refresh,
 }: BucketDetailPanelProps) {
   const { files, loading: loadingFiles, indexing: filesIndexing, reload: reloadFiles } = useBucketFiles(bucket.id)
@@ -184,6 +187,11 @@ export function BucketDetailPanel({
                     expired
                   </Badge>
                 )}
+                {bucket.hidden && (
+                  <Badge variant="outline" className="text-[10px] text-muted-foreground shrink-0">
+                    hidden
+                  </Badge>
+                )}
               </h2>
               {!bucket.expired && (
                 <Button
@@ -258,6 +266,16 @@ export function BucketDetailPanel({
                   onClick={() => promoteBucket(bucket.id, bucket.name)}
                 >
                   <FolderInput className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                  aria-label={bucket.hidden ? "Restore bucket" : "Hide bucket"}
+                  title={bucket.hidden ? "Restore to lists and selectors" : "Hide from lists and selectors"}
+                  onClick={() => setBucketHidden(bucket.id, !bucket.hidden)}
+                >
+                  {bucket.hidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
                 </Button>
                 <Button
                   variant="ghost"

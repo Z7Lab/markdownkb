@@ -35,7 +35,7 @@ export function FilterPicker({
 }) {
   const [open, setOpen] = useState(false)
 
-  const activeBuckets = buckets.filter((b) => !b.expired)
+  const activeBuckets = buckets.filter((b) => !b.expired && !b.hidden)
   const noScopesSelected = selectedScopeIds.size === 0
   const hasBucket = selectedBucketIds.size > 0
 

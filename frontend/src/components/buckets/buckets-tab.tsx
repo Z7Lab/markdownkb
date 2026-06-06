@@ -15,7 +15,7 @@ interface BucketsTabProps {
 }
 
 export function BucketsTab({ defaultBucketId }: BucketsTabProps) {
-  const { buckets, createBucket, updateBucket, deleteBucket, exportBucket, importBucket, promoteBucket, refresh } = useBuckets()
+  const { buckets, createBucket, updateBucket, deleteBucket, exportBucket, importBucket, promoteBucket, setBucketHidden, refresh } = useBuckets()
   const [, setLocation] = useLocation()
   const [selectedId, setSelectedId] = useState<string | null>(defaultBucketId ?? null)
   const [creating, setCreating] = useState(false)
@@ -42,6 +42,8 @@ export function BucketsTab({ defaultBucketId }: BucketsTabProps) {
   }, [buckets, selectedId, setLocation])
 
   const selectedBucket = buckets.find((b) => b.id === selectedId) ?? null
+  // Hidden buckets stay accessible by direct link but are kept out of the sidebar list.
+  const visibleBuckets = buckets.filter((b) => !b.hidden)
 
   function handleSelectBucket(id: string) {
     setCreating(false)
@@ -64,7 +66,7 @@ export function BucketsTab({ defaultBucketId }: BucketsTabProps) {
   return (
     <div className="flex h-full overflow-hidden">
       <BucketsSidebar
-        buckets={buckets}
+        buckets={visibleBuckets}
         selectedId={creating ? null : selectedId}
         onSelect={handleSelectBucket}
         onNewBucket={handleNewBucket}
@@ -99,6 +101,7 @@ export function BucketsTab({ defaultBucketId }: BucketsTabProps) {
             updateBucket={updateBucket}
             exportBucket={exportBucket}
             promoteBucket={promoteBucket}
+            setBucketHidden={setBucketHidden}
             refresh={refresh}
           />
         )}

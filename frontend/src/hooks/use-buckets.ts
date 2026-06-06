@@ -14,6 +14,7 @@ export interface Bucket {
   created_at: string
   expires_at: string | null
   expired: boolean
+  hidden: boolean
   color: string | null
   description: string | null
   scope_paths: string[] | null
@@ -33,6 +34,7 @@ export interface UpdateBucketParams {
   color?: string | null
   description?: string | null
   scope_paths?: string[] | null
+  hidden?: boolean
 }
 
 export interface BucketFile {
@@ -88,8 +90,8 @@ export function useBuckets() {
   const refresh = useCallback(async () => {
     try {
       const res = await api.get<{ buckets: Bucket[] }>("/api/v1/buckets")
-      // SQLite returns expired as 0/1 integer; coerce to boolean at the boundary
-      setBuckets(res.buckets.map((b) => ({ ...b, expired: Boolean(b.expired) })))
+      // SQLite returns expired/hidden as 0/1 integers; coerce to booleans at the boundary
+      setBuckets(res.buckets.map((b) => ({ ...b, expired: Boolean(b.expired), hidden: Boolean(b.hidden) })))
     } catch {
       // Buckets plugin may be disabled
     }
@@ -168,6 +170,20 @@ export function useBuckets() {
     [updateBucket],
   )
 
+  const setBucketHidden = useCallback(
+    async (id: string, hidden: boolean) => {
+      const name = buckets.find((b) => b.id === id)?.name
+      try {
+        await api.patch(`/api/v1/buckets/${id}`, { hidden })
+        await refresh()
+        toast.success(hidden ? `Hid "${name ?? id}"` : `Restored "${name ?? id}"`, { duration: 2000 })
+      } catch (err) {
+        toast.error(`Failed to ${hidden ? "hide" : "restore"} bucket: ${(err as Error).message}`)
+      }
+    },
+    [buckets, refresh],
+  )
+
   const exportBucket = useCallback((id: string, name: string) => {
     const toastId = toast.loading(`Exporting "${name}"...`)
     api
@@ -236,6 +252,7 @@ export function useBuckets() {
     updateBucket,
     deleteBucket,
     updateExpiration,
+    setBucketHidden,
     exportBucket,
     importBucket,
     promoteBucket,

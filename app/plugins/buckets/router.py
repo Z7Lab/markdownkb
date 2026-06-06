@@ -225,6 +225,9 @@ def update_bucket(
     if "scope_paths" in req.model_fields_set:
         updates["scope_paths"] = json.dumps(req.scope_paths) if req.scope_paths else None
 
+    if req.hidden is not None:
+        updates["hidden"] = 1 if req.hidden else 0
+
     if updates:
         svc.db.update(record["id"], **updates)
 
@@ -233,7 +236,7 @@ def update_bucket(
     scope_paths = json.loads(scope_paths_raw) if scope_paths_raw else None
     return {
         "status": "updated",
-        **{k: updated.get(k) for k in ("name", "expires_at", "expired", "color", "description")},
+        **{k: updated.get(k) for k in ("name", "expires_at", "expired", "hidden", "color", "description")},
         "scope_paths": scope_paths,
     }
 
