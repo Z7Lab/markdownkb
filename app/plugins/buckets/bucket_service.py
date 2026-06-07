@@ -509,7 +509,9 @@ class BucketService:
             raise ValueError(f"Bucket not found: {bucket}")
 
         retriever = self.get_retriever(record["id"], settings)
-        results = retriever.search(query, top_k=top_k)
+        raw_scope = record.get("scope_paths")
+        allowed = set(json.loads(raw_scope)) if raw_scope else None
+        results = retriever.search(query, top_k=top_k, allowed_paths=allowed)
 
         formatted = [
             {
@@ -532,12 +534,15 @@ class BucketService:
             raise ValueError(f"Bucket not found: {bucket}")
 
         retriever = self.get_retriever(record["id"], settings)
+        raw_scope = record.get("scope_paths")
+        allowed = set(json.loads(raw_scope)) if raw_scope else None
 
         sources: list[str] = []
         source_map: dict[str, str] = {}
         response = ""
         for chunk in chat_respond(
             message, retriever, settings,
+            allowed_paths=allowed,
             sources_out=sources, source_map_out=source_map,
         ):
             response = chunk

@@ -153,6 +153,15 @@ export function useBucketChat(bucketId: string) {
     }
   }, [stop])
 
+  const renameThread = useCallback(async (threadId: string, title: string) => {
+    try {
+      await api.patch(`/api/v1/threads/${threadId}`, { title })
+      await refreshThreads()
+    } catch (err) {
+      toast.error(`Failed to rename conversation: ${(err as Error).message}`)
+    }
+  }, [refreshThreads])
+
   const deleteThread = useCallback(async (threadId: string) => {
     try {
       await api.del(`/api/v1/threads/${threadId}`)
@@ -172,6 +181,6 @@ export function useBucketChat(bucketId: string) {
   return {
     messages, isStreaming, send, stop,
     threads, activeThreadId, activeTitle,
-    newChat, loadThread, deleteThread, refreshThreads,
+    newChat, loadThread, renameThread, deleteThread, refreshThreads,
   }
 }

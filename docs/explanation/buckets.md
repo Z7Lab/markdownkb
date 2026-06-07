@@ -44,7 +44,7 @@ The **Buckets tab** is the primary UI for managing buckets. It has a left sideba
 
 **Sidebar:** Lists all buckets with a color indicator and file count. Expired buckets are dimmed and badged. Hidden buckets are omitted entirely (see [Hiding buckets](#hiding-buckets)). Clicking a bucket opens its detail view. The **New Bucket** button at the top of the sidebar opens the creation form.
 
-**Detail panel:** A header with the bucket's name and stats (file count, chunk count, created time, expiration), then two sub-tabs: **Files** (sources, add-content, and the file table) and **Chat** (a bucket-scoped chat surface with its own conversation history; hidden for expired buckets). Action icons in the header:
+**Detail panel:** A header with the bucket's name and stats (file count, chunk count, created time, expiration), then two sub-tabs: **Files** (sources, add-content, and the file table) and **Bucket Chat** (a bucket-scoped chat surface with its own conversation history; hidden for expired buckets). Bucket actions sit on the right of the tab bar:
 - **Edit** (pencil) — opens an inline form to change the name, description, expiration, and color
 - **Reindex** (refresh) — re-scans the original sources and indexes any new files
 - **Export** (download) — downloads the bucket as a portable zip archive
@@ -165,7 +165,7 @@ Concrete examples:
 - Clip a vendor's overview video, their API docs page, and two comparison articles. Ask: "What are the real tradeoffs based on everything here?"
 - Build a research bucket with 10 articles. Ask: "What gaps in this field do these authors collectively identify?"
 
-Bucket conversations are **saved with the bucket**. The Chat tab has a conversation switcher (and a **New** button) so you can revisit or continue a past conversation, or start a fresh one. These conversations are owned by the bucket — they appear here, not in the global **Chat** tab, so that tab stays for cross-corpus chat. To export an exchange, use the **Save MD** or **Save HTML** buttons in the Chat header — MD for a plain markdown transcript, HTML for a self-contained rendered version.
+Bucket conversations are **saved with the bucket**. The **Bucket Chat** tab has a conversation history list — filter by title, rename, or delete — plus a **New chat** button, so you can revisit, continue, or start a fresh conversation. These conversations are owned by the bucket — they appear here, not in the global **Chat** tab, so that tab stays for cross-corpus chat. To export an exchange, use the **Save MD** or **Save HTML** buttons in the Chat header — MD for a plain markdown transcript, HTML for a self-contained rendered version.
 
 **File scoping:** Retrieval scope is configured in the bucket's **Files** tab. Each file has a **Scope** checkbox — checked files are included in all retrieval (chat, search, planner, Doc Map); unchecked files are excluded. By default all files are in scope. Changes persist on the bucket and apply globally across all features, not just chat.
 

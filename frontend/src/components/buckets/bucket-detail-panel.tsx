@@ -67,9 +67,9 @@ export function BucketDetailPanel({
 }: BucketDetailPanelProps) {
   const { files, loading: loadingFiles, indexing: filesIndexing, reload: reloadFiles } = useBucketFiles(bucket.id)
   const [editing, setEditing] = useState(false)
-  const [tab, setTab] = useState<"files" | "chat">("files")
-  // Expired buckets have no Chat tab; fall back so content never goes blank.
-  const activeTab: "files" | "chat" = bucket.expired ? "files" : tab
+  const [tab, setTab] = useState<"files" | "bucket-chat">("files")
+  // Expired buckets have no Bucket Chat tab; fall back so content never goes blank.
+  const activeTab: "files" | "bucket-chat" = bucket.expired ? "files" : tab
   const [reindexing, setReindexing] = useState(false)
   const [renamingPath, setRenamingPath] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState("")
@@ -217,22 +217,32 @@ export function BucketDetailPanel({
           </h2>
         </div>
 
-        {/* Stats + action toolbar */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-3 text-xs text-muted-foreground min-w-0">
-            <span>{bucket.file_count} files</span>
-            <span>{bucket.chunk_count} chunks</span>
-            <span>{relativeTime(bucket.created_at)}</span>
-            {bucket.expires_at && !bucket.expired && (
-              <span className="flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                expires {new Date(bucket.expires_at + "Z").toLocaleDateString()}
-              </span>
-            )}
-            {!bucket.expires_at && !bucket.expired && (
-              <span className="flex items-center gap-1">
-                <InfinityIcon className="h-3 w-3" /> permanent
-              </span>
+        {/* Stats */}
+        <div className="flex items-center gap-3 text-xs text-muted-foreground min-w-0">
+          <span>{bucket.file_count} files</span>
+          <span>{bucket.chunk_count} chunks</span>
+          <span>{relativeTime(bucket.created_at)}</span>
+          {bucket.expires_at && !bucket.expired && (
+            <span className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              expires {new Date(bucket.expires_at + "Z").toLocaleDateString()}
+            </span>
+          )}
+          {!bucket.expires_at && !bucket.expired && (
+            <span className="flex items-center gap-1">
+              <InfinityIcon className="h-3 w-3" /> permanent
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Tab layout: Files | Chat (local control — see TabButton note); bucket actions on the right */}
+      <div className="flex flex-col flex-1 min-h-0 mt-3">
+        <div className="px-6 border-b shrink-0 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1">
+            <TabButton active={activeTab === "files"} onClick={() => setTab("files")}>Files</TabButton>
+            {!bucket.expired && (
+              <TabButton active={activeTab === "bucket-chat"} onClick={() => setTab("bucket-chat")}>Bucket Chat</TabButton>
             )}
           </div>
           <div className="flex items-center gap-0.5 shrink-0">
@@ -299,16 +309,6 @@ export function BucketDetailPanel({
             </Button>
           </div>
         </div>
-      </div>
-
-      {/* Tab layout: Files | Chat (local control — see TabButton note) */}
-      <div className="flex flex-col flex-1 min-h-0 mt-3">
-        <div className="px-6 border-b shrink-0 flex items-center gap-1">
-          <TabButton active={activeTab === "files"} onClick={() => setTab("files")}>Files</TabButton>
-          {!bucket.expired && (
-            <TabButton active={activeTab === "chat"} onClick={() => setTab("chat")}>Chat</TabButton>
-          )}
-        </div>
 
         {/* Files tab */}
         <div className={cn("flex-1 min-h-0", activeTab !== "files" && "hidden")}>
@@ -347,7 +347,7 @@ export function BucketDetailPanel({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground">No local sources — add content via upload or URL clip.</p>
+                  <p className="text-xs text-muted-foreground">No watched folders — this bucket's content comes from uploaded or clipped documents (add more below).</p>
                 )}
               </div>
 
@@ -563,7 +563,7 @@ export function BucketDetailPanel({
 
         {/* Chat tab — kept mounted (hidden) so an active conversation isn't reset on switch */}
         {!bucket.expired && (
-          <div className={cn("flex-1 min-h-0", activeTab !== "chat" && "hidden")}>
+          <div className={cn("flex-1 min-h-0", activeTab !== "bucket-chat" && "hidden")}>
             <BucketChatSection bucketId={bucket.id} bucketName={bucket.name} />
           </div>
         )}

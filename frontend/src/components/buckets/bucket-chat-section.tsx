@@ -1,11 +1,11 @@
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { ChatMessageList } from "@/components/chat/chat-message-list"
 import { ChatInput } from "@/components/chat/chat-input"
 import { DownloadButtons } from "@/components/ui/download-buttons"
+import { SidebarItemList } from "@/components/ui/sidebar-item-list"
 import { useBucketChat } from "@/hooks/use-bucket-chat"
-import { MessageSquare, Plus, Trash2 } from "lucide-react"
-import { cn, relativeTime, formatChatTranscript } from "@/lib/utils"
+import { MessageSquare, Plus } from "lucide-react"
+import { formatChatTranscript } from "@/lib/utils"
 
 export function BucketChatSection({
   bucketId,
@@ -23,17 +23,19 @@ export function BucketChatSection({
     activeThreadId,
     newChat,
     loadThread,
+    renameThread,
     deleteThread,
   } = useBucketChat(bucketId)
 
   const safeFilename = `chat-${bucketName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`
+  const activeTitle = threads.find((t) => t.id === activeThreadId)?.title ?? "New chat"
 
   return (
     <div className="flex h-full overflow-hidden">
-      {/* Thread history sidebar — only shown when there are prior conversations */}
+      {/* Conversation history — reuses the Chat tab's list (search, tooltip, rename, delete) */}
       {threads.length > 0 && (
-        <div className="w-44 border-r flex flex-col shrink-0">
-          <div className="p-2 border-b">
+        <div className="w-56 border-r flex flex-col shrink-0 min-h-0">
+          <div className="p-2 border-b shrink-0">
             <Button
               variant="outline"
               size="sm"
@@ -44,55 +46,29 @@ export function BucketChatSection({
               New chat
             </Button>
           </div>
-          <ScrollArea className="flex-1">
-            <div className="p-1 space-y-0.5">
-              {threads.map((t) => (
-                <div key={t.id} className="group relative">
-                  <button
-                    className={cn(
-                      "w-full text-left px-2 py-1.5 rounded-sm text-xs hover:bg-accent transition-colors pr-6",
-                      activeThreadId === t.id && "bg-accent",
-                    )}
-                    onClick={() => loadThread(t.id)}
-                  >
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <MessageSquare className="h-3 w-3 shrink-0 text-muted-foreground" />
-                      <span className="truncate">{t.title || "Chat"}</span>
-                    </div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5 pl-4">
-                      {relativeTime(t.updated_at)}
-                    </div>
-                  </button>
-                  <button
-                    className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      void deleteThread(t.id)
-                    }}
-                    aria-label="Delete conversation"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <SidebarItemList
+              items={threads}
+              activeId={activeThreadId}
+              emptyMessage="No conversations yet"
+              deleteTitle="Delete conversation?"
+              deleteDescription={(t) => `This will permanently delete "${t.title || "this conversation"}".`}
+              getLabel={(t) => t.title || "Chat"}
+              getTime={(t) => t.updated_at}
+              renderIcon={() => <MessageSquare className="h-3 w-3 shrink-0 text-muted-foreground" />}
+              onSelect={(t) => loadThread(t.id)}
+              onRename={(id, label) => void renameThread(id, label)}
+              onDelete={(id) => void deleteThread(id)}
+            />
+          </div>
         </div>
       )}
 
       {/* Chat area */}
       <div className="flex flex-col flex-1 min-w-0 min-h-0">
-        {/* Top bar: new chat (when no sidebar) + download */}
-        {threads.length === 0 && (
-          <div className="px-3 py-2 border-b flex items-center justify-between shrink-0">
-            <span className="text-xs text-muted-foreground">No prior conversations</span>
-          </div>
-        )}
         {threads.length > 0 && messages.length > 0 && (
           <div className="px-3 py-2 border-b flex items-center justify-between shrink-0">
-            <span className="text-xs font-medium truncate text-foreground/80">
-              {threads.find((t) => t.id === activeThreadId)?.title ?? "New chat"}
-            </span>
+            <span className="text-xs font-medium truncate text-foreground/80">{activeTitle}</span>
             <DownloadButtons
               content={() => formatChatTranscript(`Chat: ${bucketName}`, messages)}
               filename={safeFilename}

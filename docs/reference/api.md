@@ -497,8 +497,8 @@ Temporary scoped document collections with independent vector storage. Each buck
 | GET | `/api/v1/buckets/{id}` | Get bucket details |
 | PATCH | `/api/v1/buckets/{id}` | Update bucket metadata. Accepts any subset of: `name`, `expires_in`, `color`, `description`, `scope_paths`, `hidden`. `scope_paths` is a list of file paths to restrict retrieval to (null = all files). `hidden` (bool) omits the bucket from lists and selectors without deleting it — it stays fully queryable. |
 | DELETE | `/api/v1/buckets/{id}` | Delete a bucket and its vector data |
-| POST | `/api/v1/buckets/{id}/search` | Search within a bucket. Returns 410 if the bucket is expired. |
-| POST | `/api/v1/buckets/{id}/chat` | RAG chat scoped to a bucket. Returns 410 if the bucket is expired. |
+| POST | `/api/v1/buckets/{id}/search` | Search within a bucket. Respects the bucket's saved file scope (`scope_paths`). Returns 410 if the bucket is expired. |
+| POST | `/api/v1/buckets/{id}/chat` | RAG chat scoped to a bucket. Respects the bucket's saved file scope (`scope_paths`). Returns 410 if the bucket is expired. |
 | POST | `/api/v1/buckets/{id}/add` | Add documents to an existing bucket (skips duplicates) |
 | POST | `/api/v1/buckets/{id}/documents` | Push documents by content (no filesystem access needed) |
 | PATCH | `/api/v1/buckets/{id}/documents` | Rename a virtual document. Body: `{ old_path, new_name }`. Only `bucket://` paths accepted; returns 400 for filesystem-sourced files. |
