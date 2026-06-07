@@ -12,7 +12,7 @@ from fastapi.responses import StreamingResponse
 
 from app.config import Settings
 from app.config.docker import in_docker
-from app.deps import get_settings, get_store, get_tracking
+from app.deps import get_chatdb, get_settings, get_store, get_tracking
 from app.ratelimit import LLM, STANDARD, limiter
 
 from .bucket_service import BucketService
@@ -239,6 +239,20 @@ def update_bucket(
         **{k: updated.get(k) for k in ("name", "expires_at", "expired", "hidden", "color", "description")},
         "scope_paths": scope_paths,
     }
+
+
+@router.get("/buckets/{bucket_id}/threads")
+@limiter.limit(STANDARD)
+def list_bucket_threads(
+    request: Request,
+    bucket_id: str,
+    svc: BucketService = Depends(_get_bucket_service),
+    chatdb=Depends(get_chatdb),
+):
+    """List the chat threads owned by this bucket (bucket-local history)."""
+    record = _resolve_bucket(svc, bucket_id)
+    items = chatdb.list_threads(bucket_id=record["id"])
+    return {"items": items, "total": len(items)}
 
 
 @router.get("/buckets/{bucket_id}/files")

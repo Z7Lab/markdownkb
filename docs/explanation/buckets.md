@@ -44,7 +44,7 @@ The **Buckets tab** is the primary UI for managing buckets. It has a left sideba
 
 **Sidebar:** Lists all buckets with a color indicator and file count. Expired buckets are dimmed and badged. Hidden buckets are omitted entirely (see [Hiding buckets](#hiding-buckets)). Clicking a bucket opens its detail view. The **New Bucket** button at the top of the sidebar opens the creation form.
 
-**Detail panel:** Shows the selected bucket's name, stats (file count, chunk count, created time, expiration), sources, and a file table. Action icons in the header:
+**Detail panel:** A header with the bucket's name and stats (file count, chunk count, created time, expiration), then two sub-tabs: **Files** (sources, add-content, and the file table) and **Chat** (a bucket-scoped chat surface with its own conversation history; hidden for expired buckets). Action icons in the header:
 - **Edit** (pencil) — opens an inline form to change the name, description, expiration, and color
 - **Reindex** (refresh) — re-scans the original sources and indexes any new files
 - **Export** (download) — downloads the bucket as a portable zip archive
@@ -54,7 +54,7 @@ The **Buckets tab** is the primary UI for managing buckets. It has a left sideba
 
 **Sidebar header:** The **New Bucket** button creates a fresh bucket. The **Import** button (upload icon) restores a bucket from a previously exported zip file. Zip archives must be 256 MB or smaller (raw upload size); each entry inside the archive must decompress to 512 MB or less.
 
-**Files table:** Lists all files indexed in the bucket with sortable columns: **File**, **Chunks**, and **Last indexed** (time since the file was last embedded — null for files ingested before this field was added). Click a file to open it in the viewer. Each row has a **Scope** checkbox — uncheck files to exclude them from retrieval. Unchecked files remain in the bucket but are not searched when the bucket is active in chat, search, planner, or doc map. By default all files are in scope (null scope = all). This saved scope is the authoritative filter: the chat drawer no longer has a per-session file picker, and any other part of the app that uses this bucket respects the same scope automatically.
+**Files table:** Lists all files indexed in the bucket with sortable columns: **File**, **Chunks**, and **Last indexed** (time since the file was last embedded — null for files ingested before this field was added). Click a file to open it in the viewer. Each row has a **Scope** checkbox — uncheck files to exclude them from retrieval. Unchecked files remain in the bucket but are not searched when the bucket is active in chat, search, planner, or doc map. By default all files are in scope (null scope = all). This saved scope is the authoritative filter: bucket chat has no per-session file picker, and any other part of the app that uses this bucket respects the same scope automatically.
 
 ## Creating a Bucket
 
@@ -150,7 +150,7 @@ The default palette cycles through indigo, violet, pink, orange, teal, cyan, lim
 
 ## Chat with a Bucket
 
-The bucket detail panel has a **Chat** button that opens a streaming chat drawer scoped entirely to that bucket's content. You don't need to leave the Buckets tab or configure anything — just click and start asking questions.
+The bucket detail panel has a **Chat** tab (alongside **Files**) — a streaming chat surface scoped entirely to that bucket's content. You don't need to leave the Buckets tab or configure anything — just open the tab and start asking questions.
 
 This is where buckets become qualitatively different from chatting with a single document.
 
@@ -165,7 +165,7 @@ Concrete examples:
 - Clip a vendor's overview video, their API docs page, and two comparison articles. Ask: "What are the real tradeoffs based on everything here?"
 - Build a research bucket with 10 articles. Ask: "What gaps in this field do these authors collectively identify?"
 
-The chat session is ephemeral — it doesn't persist between drawer opens. It's designed for the active working session: open, investigate, close. If you want to save a useful exchange, use the **Save MD** or **Save HTML** buttons in the drawer header — MD for a plain markdown transcript, HTML for a self-contained rendered version.
+Bucket conversations are **saved with the bucket**. The Chat tab has a conversation switcher (and a **New** button) so you can revisit or continue a past conversation, or start a fresh one. These conversations are owned by the bucket — they appear here, not in the global **Chat** tab, so that tab stays for cross-corpus chat. To export an exchange, use the **Save MD** or **Save HTML** buttons in the Chat header — MD for a plain markdown transcript, HTML for a self-contained rendered version.
 
 **File scoping:** Retrieval scope is configured in the bucket's **Files** tab. Each file has a **Scope** checkbox — checked files are included in all retrieval (chat, search, planner, Doc Map); unchecked files are excluded. By default all files are in scope. Changes persist on the bucket and apply globally across all features, not just chat.
 

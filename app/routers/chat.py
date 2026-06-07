@@ -101,7 +101,7 @@ def chat_stream(
         title = ""
     else:
         title = short_title(req.message)
-        thread_id = chatdb.create_thread(title)
+        thread_id = chatdb.create_thread(title, bucket_id=req.owner_bucket_id)
 
     def generate():
         yield sse("thread", {"thread_id": thread_id, "title": title})

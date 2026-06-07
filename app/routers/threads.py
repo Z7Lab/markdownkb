@@ -18,8 +18,9 @@ def list_threads(
     limit: int = Query(50, ge=1, le=200),
     chatdb: ChatDB = Depends(get_chatdb),
 ):
-    total = chatdb.thread_count()
-    items = chatdb.list_threads(offset=offset, limit=limit)
+    # Bucket-owned threads live in their bucket's Chat tab, not the global list.
+    total = chatdb.thread_count(only_global=True)
+    items = chatdb.list_threads(offset=offset, limit=limit, only_global=True)
     return {"items": items, "total": total, "offset": offset, "limit": limit}
 
 

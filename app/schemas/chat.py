@@ -22,6 +22,9 @@ class StreamChatRequest(BaseModel):
     ad_hoc_tags: list[str] | None = None
     bucket_ids: list[str] | None = None
     bucket_file_paths: list[str] | None = None
+    # When set, the new thread is owned by this bucket (bucket-local chat) and is
+    # kept out of the global Chat tab. Distinct from bucket_ids (retrieval filter).
+    owner_bucket_id: str | None = None
 
     _normalize_scope_ids = field_validator("scope_ids", mode="before")(normalize_id_list)
     _normalize_bucket_ids = field_validator("bucket_ids", mode="before")(normalize_id_list)

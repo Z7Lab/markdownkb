@@ -71,7 +71,7 @@ When the buckets plugin is enabled and a bucket is selected in the sidebar:
 - **Bucket only** (no scope selected) — chat retrieves from the bucket's documents only. Good for focused conversations about the bucket's content.
 - **Bucket + scope** — chat retrieves from both the bucket AND your permanent knowledge base (filtered by the scope). Results are merged and the LLM has context from both. This is the most powerful mode — ask questions that compare or synthesize across both document sets. For example: "How does this vendor's auth approach compare to what we already do?"
 
-You can also chat with a bucket directly from the **Buckets tab** — the bucket detail panel has a Chat button that opens a streaming drawer scoped to that bucket. This is faster for the common case of "I just loaded some content, let me ask it questions." The drawer chat is ephemeral (no thread persistence) and designed for active investigation sessions.
+You can also chat with a bucket directly from the **Buckets tab** — the bucket detail panel has a **Chat** sub-tab scoped to that bucket. This is faster for the common case of "I just loaded some content, let me ask it questions." These conversations are owned by the bucket: they persist in the bucket's own conversation history and do **not** appear in this global Chat tab's thread list. See [Buckets](buckets.md#chat-with-a-bucket).
 
 The key advantage of bucket chat over chatting with a single source: **synthesis across all content simultaneously**. A bucket with 5 YouTube transcripts, 3 PDFs, and 4 articles answers questions by drawing on all of them at once. You can ask what the collective material agrees on, where it conflicts, and what questions it leaves unanswered — answers that no single source could give you.
 

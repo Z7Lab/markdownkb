@@ -42,7 +42,7 @@ Supports Google-style quoted phrases: `"exact phrase"` requires literal match in
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/api/v1/chat` | RAG chat (non-streaming) |
-| POST | `/api/v1/chat/stream` | SSE streaming chat. Pass `bucket_id` to chat within a specific bucket. |
+| POST | `/api/v1/chat/stream` | SSE streaming chat. Pass `bucket_ids` to chat within specific buckets (retrieval filter). Pass `owner_bucket_id` to make the new thread owned by a bucket (bucket-local chat; kept out of the global thread list). |
 | DELETE | `/api/v1/chat/history` | Clear conversation |
 | POST | `/api/v1/chat/save-plan` | Save response as markdown |
 
@@ -50,7 +50,7 @@ Supports Google-style quoted phrases: `"exact phrase"` requires literal match in
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/v1/threads` | List chat threads (paginated) |
+| GET | `/api/v1/threads` | List chat threads (paginated). Excludes bucket-owned threads, which live in their bucket's Chat tab. |
 | GET | `/api/v1/threads/{id}/messages` | Get messages for a thread |
 | DELETE | `/api/v1/threads/{id}` | Delete a thread |
 | PATCH | `/api/v1/threads/{id}` | Rename a thread |
@@ -504,6 +504,7 @@ Temporary scoped document collections with independent vector storage. Each buck
 | PATCH | `/api/v1/buckets/{id}/documents` | Rename a virtual document. Body: `{ old_path, new_name }`. Only `bucket://` paths accepted; returns 400 for filesystem-sourced files. |
 | GET | `/api/v1/buckets/{id}/files` | List all files in a bucket. Response: `{ files: [{ path, title, chunk_count, indexed_at }], indexing }`. `indexed_at` is an ISO-like UTC timestamp string or null for files ingested before this field was added. |
 | GET | `/api/v1/buckets/{id}/file` | Read full content of a bucket file (reconstructed from chunks). Query param: `path`. |
+| GET | `/api/v1/buckets/{id}/threads` | List the bucket's owned chat conversations (bucket-local history shown in the bucket's Chat tab). |
 | GET | `/api/v1/buckets/{id}/export` | Export bucket as a portable zip archive (manifest + pre-computed embeddings) |
 | POST | `/api/v1/buckets/import` | Import a bucket from a previously exported zip (multipart file upload, no re-embedding). Max upload size: 256 MB. Max decompressed size per entry: 512 MB. Returns HTTP 413 if exceeded. |
 | POST | `/api/v1/buckets/{id}/promote` | Add bucket source paths to the main watched directories in settings |

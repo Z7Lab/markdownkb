@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS threads (
     id         TEXT PRIMARY KEY,
     title      TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    bucket_id  TEXT
 );
 
 CREATE TABLE IF NOT EXISTS messages (
@@ -43,6 +44,8 @@ _MIGRATIONS: list[tuple[int, str, str]] = [
     (2, "add source_map column to messages", "ALTER TABLE messages ADD COLUMN source_map TEXT"),
     (3, "add provider column to messages", "ALTER TABLE messages ADD COLUMN provider TEXT"),
     (4, "add model column to messages", "ALTER TABLE messages ADD COLUMN model TEXT"),
+    (5, "add bucket_id column to threads (bucket-owned chats)",
+     "ALTER TABLE threads ADD COLUMN bucket_id TEXT"),
 ]
 
 
@@ -73,34 +76,58 @@ class ChatDB:
 
     # --- Threads ---
 
-    def create_thread(self, title: str = "") -> str:
-        """Create a new chat thread and return its ID."""
+    def create_thread(self, title: str = "", bucket_id: str | None = None) -> str:
+        """Create a new chat thread and return its ID.
+
+        ``bucket_id`` marks the thread as owned by a bucket (bucket-local chat);
+        ``None`` is a normal global thread shown in the Chat tab.
+        """
         thread_id = uuid.uuid4().hex[:12]
         with self._lock:
             self._conn.execute(
-                "INSERT INTO threads (id, title) VALUES (?, ?)",
-                (thread_id, title),
+                "INSERT INTO threads (id, title, bucket_id) VALUES (?, ?, ?)",
+                (thread_id, title, bucket_id),
             )
             self._conn.commit()
         return thread_id
 
+    def _ownership_clause(self, only_global: bool, bucket_id: str | None) -> tuple[str, list]:
+        """Build a WHERE clause for thread-ownership filtering.
+
+        ``bucket_id`` set → that bucket's threads. ``only_global`` → unowned
+        (Chat tab) threads. Neither → all threads.
+        """
+        if bucket_id is not None:
+            return " WHERE bucket_id = ?", [bucket_id]
+        if only_global:
+            return " WHERE bucket_id IS NULL", []
+        return "", []
+
     def list_threads(
         self, *, offset: int = 0, limit: int | None = None,
+        only_global: bool = False, bucket_id: str | None = None,
     ) -> list[dict]:
-        """List chat threads ordered by most recently updated, with optional pagination."""
+        """List chat threads ordered by most recently updated, with optional pagination.
+
+        By default returns all threads. Pass ``only_global=True`` for unowned
+        (Chat tab) threads, or ``bucket_id`` for a single bucket's threads.
+        """
+        where, params = self._ownership_clause(only_global, bucket_id)
         with self._lock:
-            sql = "SELECT * FROM threads ORDER BY updated_at DESC"
-            params: list = []
+            sql = f"SELECT * FROM threads{where} ORDER BY updated_at DESC"
             if limit is not None:
                 sql += " LIMIT ? OFFSET ?"
-                params = [limit, offset]
+                params = params + [limit, offset]
             rows = self._conn.execute(sql, params).fetchall()
             return [dict(r) for r in rows]
 
-    def thread_count(self) -> int:
-        """Return total number of threads."""
+    def thread_count(self, *, only_global: bool = False, bucket_id: str | None = None) -> int:
+        """Return the number of threads, with the same ownership filtering as list_threads."""
+        where, params = self._ownership_clause(only_global, bucket_id)
         with self._lock:
-            row = self._conn.execute("SELECT COUNT(*) as cnt FROM threads").fetchone()
+            row = self._conn.execute(
+                f"SELECT COUNT(*) as cnt FROM threads{where}", params
+            ).fetchone()
             return row["cnt"]
 
     def get_thread(self, thread_id: str) -> dict | None:
