@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Cpu, Terminal, ExternalLink, ChevronDown, ChevronUp, Copy, Check } from "lucide-react"
+import { toast } from "sonner"
 import { copyToClipboard } from "@/lib/utils"
 
 type Platform = "macos" | "linux" | "windows"
@@ -22,7 +23,11 @@ function CopyButton({ text }: { text: string }) {
       type="button"
       className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
       onClick={async () => {
-        await copyToClipboard(text)
+        const ok = await copyToClipboard(text)
+        if (!ok) {
+          toast.error("Failed to copy — clipboard access denied")
+          return
+        }
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
       }}

@@ -319,17 +319,25 @@ export async function copyToClipboard(text: string): Promise<boolean> {
       // Fall through to legacy method
     }
   }
+  // Legacy path. The textarea must live INSIDE any open dialog: Radix focus
+  // traps steal focus back from elements outside the dialog, leaving
+  // execCommand to "copy" an empty selection while still returning true.
+  const prevActive = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  const container = prevActive?.closest<HTMLElement>('[role="dialog"], [role="alertdialog"]') ?? document.body
   const textarea = document.createElement("textarea")
   textarea.value = text
   textarea.style.position = "fixed"
   textarea.style.opacity = "0"
-  document.body.appendChild(textarea)
+  container.appendChild(textarea)
   textarea.select()
   try {
-    return document.execCommand("copy")
+    // If something still stole focus, execCommand would copy the wrong
+    // selection — report failure instead of toasting a false success.
+    return document.activeElement === textarea && document.execCommand("copy")
   } catch {
     return false // execCommand throws in some sandboxed contexts; report failure
   } finally {
-    document.body.removeChild(textarea)
+    container.removeChild(textarea)
+    prevActive?.focus()
   }
 }

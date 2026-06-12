@@ -4,7 +4,8 @@ import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter"
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism"
 import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism"
 import { useIsDark } from "@/hooks/use-is-dark"
-import { cn } from "@/lib/utils"
+import { toast } from "sonner"
+import { cn, copyToClipboard } from "@/lib/utils"
 
 // Register only the languages we need to keep bundle size small
 import javascript from "react-syntax-highlighter/dist/esm/languages/prism/javascript"
@@ -67,11 +68,14 @@ export const CodeBlock = memo(function CodeBlock({
   const lang = (language || "").toLowerCase().replace(/^language-/, "")
   const displayLang = lang || ""
 
-  function handleCopy() {
-    navigator.clipboard.writeText(code).then(() => {
+  async function handleCopy() {
+    const ok = await copyToClipboard(code)
+    if (ok) {
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
-    })
+    } else {
+      toast.error("Failed to copy — clipboard access denied")
+    }
   }
 
   return (
