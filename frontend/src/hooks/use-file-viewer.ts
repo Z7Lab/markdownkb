@@ -43,6 +43,7 @@ export interface UseFileViewerReturn {
   handleReindexFile: () => Promise<void>
   handleUnindexFile: () => Promise<void>
   handleCopyContent: (isMarkdown: boolean) => Promise<void>
+  fetchFullContent: (isMarkdown: boolean) => Promise<string>
 }
 
 export function useFileViewer(path: string | null, bucketId?: string | null): UseFileViewerReturn {
@@ -205,18 +206,21 @@ export function useFileViewer(path: string | null, bucketId?: string | null): Us
     })
   }
 
+  const fetchFullContent = useCallback(async (isMarkdown: boolean): Promise<string> => {
+    if (!path) return ""
+    if (bucketId) {
+      const data = await api.get<{ content: string }>(`/api/v1/buckets/${bucketId}/file?path=${encodeURIComponent(path)}`)
+      return data.content
+    }
+    const res = await api.get<FileReadResponse>(`/api/v1/file?path=${encodeURIComponent(path)}`)
+    return isMarkdown ? parseFrontmatter(res.content).content : res.content
+  }, [path, bucketId])
+
   const handleCopyContent = async (isMarkdown: boolean) => {
     if (!path) return
     setCopyingAll(true)
     try {
-      let fullContent: string
-      if (bucketId) {
-        const data = await api.get<{ content: string }>(`/api/v1/buckets/${bucketId}/file?path=${encodeURIComponent(path)}`)
-        fullContent = data.content
-      } else {
-        const res = await api.get<FileReadResponse>(`/api/v1/file?path=${encodeURIComponent(path)}`)
-        fullContent = isMarkdown ? parseFrontmatter(res.content).content : res.content
-      }
+      const fullContent = await fetchFullContent(isMarkdown)
       const ok = await copyToClipboard(fullContent)
       if (ok) {
         toast.success("File content copied to clipboard")
@@ -237,5 +241,6 @@ export function useFileViewer(path: string | null, bucketId?: string | null): Us
     page, totalPages, totalLines, fileTags, copyingAll,
     fetchPage, handleSaveTags, handleToggleIndex,
     handleIndexFile, handleReindexFile, handleUnindexFile, handleCopyContent,
+    fetchFullContent,
   }
 }

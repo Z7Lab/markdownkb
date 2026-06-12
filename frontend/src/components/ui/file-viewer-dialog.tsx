@@ -17,6 +17,7 @@ import { useFileViewer } from "@/hooks/use-file-viewer"
 import { useWikiCompileAvailable } from "@/hooks/use-wiki-compile-available"
 import { toast } from "sonner"
 import { copyToClipboard, parseFrontmatter } from "@/lib/utils"
+import { DownloadButtons } from "@/components/ui/download-buttons"
 import { TagEditDialog } from "@/components/tags/tag-edit-dialog"
 import { FileActions } from "@/components/browse/file-actions"
 import { ConfirmDialog } from "./confirm-dialog"
@@ -39,6 +40,7 @@ export function FileViewerDialog({
     page, totalPages, totalLines, fileTags, copyingAll,
     fetchPage, handleSaveTags, handleToggleIndex,
     handleIndexFile, handleReindexFile, handleUnindexFile, handleCopyContent,
+    fetchFullContent,
   } = useFileViewer(path, bucketId)
 
   const {
@@ -250,6 +252,14 @@ export function FileViewerDialog({
                 <Copy className="h-3.5 w-3.5 mr-1.5" />
                 {copyingAll ? "Copying..." : "Copy Content"}
               </Button>
+              {isMarkdown && (
+                <DownloadButtons
+                  content={() => fetchFullContent(isMarkdown)}
+                  filename={filename.replace(/\.md$/i, "")}
+                  disabled={loading || !content}
+                  className="ml-1"
+                />
+              )}
             </div>
             {totalPages > 1 && (
               <div className="flex items-center gap-2">
