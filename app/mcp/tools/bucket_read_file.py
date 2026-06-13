@@ -2,6 +2,8 @@
 
 import logging
 
+from app.ingestion.reconstruct import reconstruct_chunks
+
 TOOL = {
     "name": "bucket_read_file",
     "requires_plugin": "buckets",
@@ -45,20 +47,11 @@ def handler(bucket: str, path: str) -> dict:
         key=lambda x: x[1].get("chunk_index", 0),
     )
 
-    # Strip breadcrumb prefix to get clean content
-    parts = []
-    for doc, _meta in chunks:
-        lines = doc.split("\n", 2)
-        if lines[0].startswith("From:") and len(lines) > 2:
-            parts.append(lines[2])
-        else:
-            parts.append(doc)
-
     title = chunks[0][1].get("title", "") if chunks else ""
 
     return {
         "path": path,
         "title": title,
-        "content": "\n\n".join(parts),
+        "content": reconstruct_chunks([doc for doc, _meta in chunks]),
         "chunk_count": len(chunks),
     }

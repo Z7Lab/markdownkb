@@ -10,6 +10,7 @@ from app.config import Settings
 from app.deps import get_bucket_service, get_retriever, get_settings, get_store, get_tagdb, get_tracking
 from app.events import IndexEvent, event_bus
 from app.ingestion.indexer import ReindexError, reindex_file
+from app.ingestion.reconstruct import reconstruct_chunks
 from app.ingestion.scanner import _matches_ignore, discover_sources
 from app.rag.retriever import Retriever
 from app.ratelimit import HEAVY, STANDARD, limiter
@@ -244,14 +245,7 @@ def read_file(
             zip(result["documents"], result["metadatas"]),
             key=lambda x: x[1].get("chunk_index", 0),
         )
-        parts = []
-        for doc, meta in chunks:
-            lines = doc.split("\n", 2)
-            if lines[0].startswith("From:") and len(lines) > 2:
-                parts.append(lines[2])
-            else:
-                parts.append(doc)
-        content = "\n\n".join(parts)
+        content = reconstruct_chunks([doc for doc, _meta in chunks])
         return {
             "content": content,
             "page": 1,

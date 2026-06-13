@@ -188,6 +188,7 @@ Separate files per topic are still recommended for **search result granularity**
 | File | Purpose |
 |------|---------|
 | `app/ingestion/parser.py` | Header splitting, paragraph chunking, breadcrumbs, frontmatter |
+| `app/ingestion/reconstruct.py` | Inverse of chunking — rebuilds full documents from stored chunks (strips breadcrumbs and overlap) |
 | `app/ingestion/indexer.py` | Orchestrates parse → embed → store pipeline |
 | `app/ingestion/watcher.py` | File change detection, triggers re-indexing |
 | `app/ingestion/scanner.py` | File discovery across source directories |

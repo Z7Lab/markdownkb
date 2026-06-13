@@ -73,6 +73,8 @@ When documents are split into chunks during indexing (see [Chunking](chunking.md
 
 The default overlap is 150 characters (~37 tokens). Higher overlap means more retrieval redundancy at the cost of slightly more storage and embedding computation.
 
+The overlap exists only inside the vector store. When a document is rebuilt from its chunks — the bucket file viewer, the `bucket_read_file` MCP tool, markdown exports — the overlap is stripped so the reconstructed text reads cleanly without repeated seams.
+
 ## Configuration
 
 All retrieval settings are configurable via **Settings → Retrieval** in the web UI. The equivalent structure in `config/settings.yaml` (for initial seed configuration) is:

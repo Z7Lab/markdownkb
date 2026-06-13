@@ -13,6 +13,7 @@ from fastapi.responses import StreamingResponse
 from app.config import Settings
 from app.config.docker import in_docker
 from app.deps import get_chatdb, get_settings, get_store, get_tracking
+from app.ingestion.reconstruct import reconstruct_chunks
 from app.ratelimit import LLM, STANDARD, limiter
 
 from .bucket_service import BucketService
@@ -353,20 +354,12 @@ def read_bucket_file(
         key=lambda x: x[1].get("chunk_index", 0),
     )
 
-    parts = []
-    for doc, _meta in chunks:
-        lines = doc.split("\n", 2)
-        if lines[0].startswith("From:") and len(lines) > 2:
-            parts.append(lines[2])
-        else:
-            parts.append(doc)
-
     title = chunks[0][1].get("title", "") if chunks else ""
 
     return {
         "path": path,
         "title": title,
-        "content": "\n\n".join(parts),
+        "content": reconstruct_chunks([doc for doc, _meta in chunks]),
         "chunk_count": len(chunks),
     }
 

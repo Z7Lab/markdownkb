@@ -14,6 +14,8 @@ import zipfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Generator
 
+from app.ingestion.reconstruct import reconstruct_chunks
+
 if TYPE_CHECKING:
     from app.config import Settings
 
@@ -128,15 +130,7 @@ class MarkdownArchiveBuilder:
 
             for source_path, chunks in by_path.items():
                 chunks.sort(key=lambda x: x[0])
-                parts = []
-                for _, doc in chunks:
-                    # Strip the "From: ..." wrapper header added by the chunker
-                    lines = doc.split("\n", 2)
-                    if lines[0].startswith("From:") and len(lines) > 2:
-                        parts.append(lines[2])
-                    else:
-                        parts.append(doc)
-                content = "\n\n".join(parts)
+                content = reconstruct_chunks([doc for _, doc in chunks])
                 filename = Path(source_path).name or "document.md"
                 if not filename.endswith(".md"):
                     filename += ".md"
