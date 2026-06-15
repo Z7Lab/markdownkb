@@ -289,13 +289,17 @@ def graduate(
         )
 
     body = _build_document(draft)
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_text(body, encoding="utf-8")
-
-    log_path = _append_log(
-        target_dir,
-        f"{draft['title']} (from {draft.get('source_type') or 'source'}:{draft.get('source_ref') or '?'})",
-    )
+    try:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(body, encoding="utf-8")
+        log_path = _append_log(
+            target_dir,
+            f"{draft['title']} (from {draft.get('source_type') or 'source'}:{draft.get('source_ref') or '?'})",
+        )
+    except OSError as e:
+        # Surface the failure loud-but-clear (e.g. a read-only mount or a
+        # permissions problem on the target dir) instead of a bare 500.
+        raise CurateError(f"could not write to {dest}: {e}") from e
 
     logger.info("curate: graduated %s -> %s", draft_id, dest)
 
