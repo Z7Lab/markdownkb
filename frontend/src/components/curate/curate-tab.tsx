@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { EmptyHero } from "@/components/ui/empty-hero"
+import { HelpTip } from "@/components/ui/help-tip"
 import { AppSidebar } from "@/components/ui/app-sidebar"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -202,6 +203,14 @@ export function CurateTab() {
             <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-1.5">
               <Sprout className="h-4 w-4" />
               Curate
+              <HelpTip>
+                <p>
+                  Review queue for the analyze–match–codify loop. Agents file
+                  practiced-but-uncodified patterns here as <strong>drafts</strong>;
+                  nothing enters the corpus until you graduate it. Two gates:
+                  drafting is opt-in, and a human graduates each candidate by hand.
+                </p>
+              </HelpTip>
             </h3>
             <Button variant="ghost" size="icon" className="h-6 w-6" onClick={load} aria-label="Refresh drafts">
               <RefreshCw className="h-3.5 w-3.5" />
@@ -270,14 +279,33 @@ export function CurateTab() {
                 />
               </div>
 
-              <div className="flex gap-4 flex-wrap text-xs text-muted-foreground">
-                <span className="flex items-center gap-1"><SourceIcon type={selected.source_type} />{selected.source_type || "source"}</span>
-                {selected.source_ref && <span className="font-mono truncate max-w-md">{selected.source_ref}</span>}
-                {selected.run_id && <span>run {selected.run_id}</span>}
+              <div className="rounded-md border bg-muted/30 px-3 py-2 space-y-1 text-xs">
+                <p className="text-[11px] font-medium text-muted-foreground">Provenance — where this draft came from</p>
+                <div className="flex gap-x-5 gap-y-1 flex-wrap text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <SourceIcon type={selected.source_type} />
+                    Source type: <span className="text-foreground">{selected.source_type || "—"}</span>
+                  </span>
+                  <span className="flex items-center gap-1 min-w-0">
+                    Origin: <span className="text-foreground font-mono truncate max-w-md" title={selected.source_ref}>{selected.source_ref || "—"}</span>
+                  </span>
+                  <span>Run: <span className="text-foreground">{selected.run_id || "—"}</span></span>
+                </div>
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Taxonomy slot (graduation path)</Label>
+                <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  Taxonomy slot (graduation path)
+                  <HelpTip>
+                    <p>
+                      Where this draft lands in the corpus when graduated, relative to
+                      the chosen source — e.g. <span className="font-mono">patterns/error-handling</span>{" "}
+                      writes <span className="font-mono">…/patterns/error-handling/&lt;slug&gt;.md</span>.
+                      A slot ending in <span className="font-mono">.md</span> is used as the full file path.
+                      Paths matching <span className="font-mono">global_ignore</span> are refused (they'd never be indexed).
+                    </p>
+                  </HelpTip>
+                </Label>
                 <Input
                   value={editSlot}
                   onChange={(e) => setEditSlot(e.target.value)}
@@ -314,20 +342,32 @@ export function CurateTab() {
                       Unsaved edits — Save, or Graduate (which saves first).
                     </p>
                   )}
-                  <div className="flex items-end gap-3 flex-wrap">
-                    <div className="space-y-1.5 flex-1 min-w-[240px]">
-                      <Label className="text-xs text-muted-foreground">Graduate into</Label>
-                      <Select value={target} onValueChange={setTarget} disabled={noWritable}>
-                        <SelectTrigger className="text-xs">
-                          <SelectValue placeholder={noWritable ? "No writable source" : "Choose target"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {writableSources.map((s) => (
-                            <SelectItem key={s} value={s} className="text-xs font-mono">{s}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      Graduate into
+                      <HelpTip>
+                        <p>
+                          The writable source this draft is written into. Graduating
+                          composes the gated write: it saves the doc with provenance
+                          frontmatter, appends to <span className="font-mono">log.md</span>, and makes a
+                          version commit. Read-only sources can't be targets.
+                        </p>
+                      </HelpTip>
+                    </Label>
+                    <Select value={target} onValueChange={setTarget} disabled={noWritable}>
+                      <SelectTrigger className="h-9 text-sm w-full">
+                        <SelectValue placeholder={noWritable ? "No writable source" : "Choose target"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {writableSources.map((s) => (
+                          <SelectItem key={s} value={s} className="text-sm font-mono">
+                            <span title={s}>{s}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex gap-3 flex-wrap">
                     <Button variant="secondary" onClick={handleSave} disabled={busy || !dirty}>
                       Save
                     </Button>
