@@ -25,6 +25,7 @@ const SettingsTab = lazy(() => import("@/components/settings/settings-tab").then
 const VisualizationTab = lazy(() => import("@/components/visualization/visualization-tab").then(m => ({ default: m.VisualizationTab })))
 const BucketsTab = lazy(() => import("@/components/buckets/buckets-tab").then(m => ({ default: m.BucketsTab })))
 const WikiTab = lazy(() => import("@/components/wiki/wiki-tab").then(m => ({ default: m.WikiTab })))
+const CurateTab = lazy(() => import("@/components/curate/curate-tab").then(m => ({ default: m.CurateTab })))
 const ImportTab = lazy(() => import("@/components/import/import-tab").then(m => ({ default: m.ImportTab })))
 
 function TabFallback() {
@@ -34,6 +35,7 @@ function TabFallback() {
 const TAB_COMPONENTS: Record<string, ComponentType<Record<string, never>>> = {
   files: FilesTab,
   wiki: WikiTab,
+  curate: CurateTab,
   import: ImportTab,
 }
 

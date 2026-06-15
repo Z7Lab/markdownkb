@@ -225,6 +225,8 @@ plugins:
     enabled: false                  # Tiered health check — flag raw-coverage gaps, orphans, contradictions. LLM for within/cross-tier passes only
   buckets:
     enabled: false
+  curate:
+    enabled: false                  # Corpus growth (analyze–match–codify) — harvest bucket-C drafts, two human gates before they graduate. Composes search + promote_to_wiki
   catalogs:
     enabled: true
 

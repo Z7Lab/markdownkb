@@ -79,6 +79,15 @@ AI-powered implementation planning using MCTS (Monte Carlo Tree Search). Describ
 
 **Sidebar:** Entity/relationship stats, type badges, extraction controls (start/cancel/progress).
 
+### Curate
+
+The corpus-growth queue. Implements the analyze–match–codify loop: an agent reads a non-canonical source (a codebase or a bucket), matches each pattern against the existing corpus via `search`/`bucket-search`, and files the practiced-but-uncodified ones (bucket-C) as **drafts** via the `curate_submit_draft` MCP tool. Nothing touches the live corpus until a human acts. The tab is the per-candidate review gate: read/edit each draft, then **Graduate** it into a writable source at the path implied by its taxonomy slot (provenance in frontmatter, a `log.md` entry, and a version commit) or **Reject** it (kept for provenance, never written). Graduation is the gated analog of `promote_to_wiki`; it refuses read-only targets and any path matching `global_ignore` (which would be written but never indexed).
+
+**Plugin:** `curate` (disabled by default)
+**Requires:** a writable + indexed source to graduate into (normally the canonical knowledge_docs tree); `search` for the substance match; `mcp.save_document` on for the agent-driven graduate path.
+
+**Sidebar:** Status filters (Open / Graduated / Rejected) and the draft list.
+
 ## Builtin Plugins
 
 All plugins live in `app/plugins/<name>/` and are toggled via the Settings UI or by setting `plugins.<name>.enabled` in `config/settings.yaml` before first run. Disabling a plugin removes its tab, API routes, and background processing — zero trace when off.
@@ -97,6 +106,7 @@ All plugins live in `app/plugins/<name>/` and are toggled via the Settings UI or
 | `write_api` | off | — | MCP/API write access (save documents, index files) |
 | `wiki_compile` | off | — | Karpathy-style wiki compilation — create named wikis, ingest source files into them, maintain index.md + log.md per wiki |
 | `lint` | off | — | Tiered knowledge-base health check — raw-coverage, orphan detection, within-tier contradictions, cross-tier tensions. Flag-only; works across all configured source tiers regardless of whether wiki_compile is active |
+| `curate` | off | Curate | Corpus growth via the analyze–match–codify loop — harvest practiced-but-uncodified (bucket-C) patterns an agent finds in a codebase or bucket into review drafts, with two human gates before they graduate into the canonical corpus. Composes `search` + the `promote_to_wiki` write primitive |
 
 Plugins marked "on" are enabled in the default configuration. Plugins marked "off" need to be explicitly enabled via **Settings → Plugins** in the UI.
 

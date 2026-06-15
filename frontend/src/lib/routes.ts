@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react"
 import {
   Archive, BookOpen, FilePlus, FolderOpen, Globe, LayoutDashboard,
-  Lightbulb, MessageSquare, Network, Share2,
+  Lightbulb, MessageSquare, Network, Share2, Sprout,
 } from "lucide-react"
 
 export interface RouteEntry {
@@ -21,6 +21,7 @@ export const ROUTE_CONFIG: RouteEntry[] = [
   { value: "knowledge-graph", path: "/knowledge-graph", icon: Network,     label: "Knowledge Graph", pluginKey: "knowledge_graph" },
   { value: "buckets",   path: "/buckets",           icon: Archive,         label: "Buckets",         pluginKey: "buckets" },
   { value: "wiki",      path: "/wiki",              icon: BookOpen,        label: "Wiki",            pluginKey: "wiki_compile" },
+  { value: "curate",    path: "/curate",            icon: Sprout,          label: "Curate",          pluginKey: "curate" },
   { value: "import",    path: "/import",            icon: FilePlus,        label: "Import",          pluginKey: "converter" },
   { value: "files",     path: "/files",             icon: FolderOpen,      label: "Files" },
 ]

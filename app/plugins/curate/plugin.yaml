@@ -1,0 +1,37 @@
+name: curate
+display_name: Curate
+description: Corpus growth via the analyze–match–codify loop. Harvests practiced-but-uncodified (bucket-C) patterns an agent finds in a codebase or bucket into reviewed knowledge-doc drafts, with two human gates before they graduate into the canonical corpus.
+version: 0.1.0
+author: markdownkb
+icon: sprout
+category: synthesis
+feature_flag: curate
+# Soft runtime deps — declarative only. The loader does not enforce these;
+# curate reaches each via an app.state accessor that returns None when the
+# plugin is disabled, guarded at the call site. See README.
+requires:
+  - search
+  - buckets
+
+endpoints:
+  - method: POST
+    path: /api/v1/curate/drafts
+    description: Submit a bucket-C candidate as a draft (gate 1 outcome)
+  - method: GET
+    path: /api/v1/curate/drafts
+    description: List drafts — the curation queue
+  - method: POST
+    path: /api/v1/curate/drafts/{id}/graduate
+    description: Graduate a reviewed draft into the canonical corpus (gate 2)
+  - method: POST
+    path: /api/v1/curate/drafts/{id}/reject
+    description: Discard a candidate (kept as rejected for provenance)
+
+dashboard_widget:
+  enabled: true
+  widget_type: status
+  endpoint: /api/v1/curate/drafts
+  label: Curate Queue
+  empty_message: No drafts yet
+
+config: {}

@@ -113,6 +113,12 @@ async def lifespan(server: FastMCP):
             wikidb = WikiDB(settings.data_directory)
             logger.info("WikiDB initialized for MCP (wiki_compile plugin enabled)")
 
+        curatedb = None
+        if settings.plugin_enabled("curate"):
+            from app.plugins.curate.curatedb import CurateDB
+            curatedb = CurateDB(settings.data_directory)
+            logger.info("CurateDB initialized for MCP (curate plugin enabled)")
+
         versioning_manager = None
         if settings.versioning_enabled:
             try:
@@ -142,6 +148,7 @@ async def lifespan(server: FastMCP):
             "searchdb": searchdb,
             "bucket_service": bucket_service,
             "wikidb": wikidb,
+            "curatedb": curatedb,
             "kgdb": kgdb,
             "versioning_manager": versioning_manager,
         }

@@ -355,6 +355,8 @@ plugins:
     enabled: false              # Requires LLM — ingest sources into a writable wiki dir, maintain index.md + log.md
   buckets:
     enabled: false
+  curate:
+    enabled: false              # Corpus growth — harvest bucket-C drafts, two human gates before graduating into the corpus
 ```
 
 Plugin config (excluding `enabled`) is read/written via the generic API:

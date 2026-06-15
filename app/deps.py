@@ -85,6 +85,11 @@ def get_wikidb(request: Request):
     return getattr(request.app.state, "wikidb", None)
 
 
+def get_curatedb(request: Request):
+    """Return the curate draft DB, or None if the curate plugin is disabled."""
+    return getattr(request.app.state, "curatedb", None)
+
+
 def get_versioning_manager(request: Request):
     """Return the versioning manager, or None if versioning is disabled."""
     return getattr(request.app.state, "versioning_manager", None)

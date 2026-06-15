@@ -565,3 +565,41 @@ Tiered knowledge-base health check modelled on Karpathy's Lint verb. Runs four p
 | `cross_tier` | LLM | Each tier-1 doc vs its closest tier-0 neighbour: aligned / extension / contradiction / evolution |
 
 Response includes `findings` (array of finding objects with `pass`, `severity`, `kind`, `title`, `detail`, `paths`, `suggested_action`), `counts` by severity, `report_path`, and `report_markdown`. The report is written to disk and picked up by the file watcher — lint findings become retrievable context for future queries.
+
+## Curate
+
+Requires `plugins.curate.enabled: true`. Plugin: `app/plugins/curate/`.
+
+Corpus growth via the analyze–match–codify loop. Stores bucket-C candidates (practiced-but-uncodified patterns an agent harvests from a codebase or bucket) as review **drafts**, with two human gates before they graduate into the canonical corpus. `graduate()` is the gated analog of `promote_to_wiki`.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/v1/curate/drafts` | Submit a bucket-C candidate as a draft; returns the draft + `shape_warnings` |
+| GET | `/api/v1/curate/drafts` | List drafts (the curation queue); optional `?status=draft\|graduated\|rejected` |
+| PATCH | `/api/v1/curate/drafts/{id}` | Edit an open draft's title/body/taxonomy_slot (per-candidate edit gate) |
+| POST | `/api/v1/curate/drafts/{id}/graduate` | Write a reviewed draft into a writable source at its taxonomy slot |
+| POST | `/api/v1/curate/drafts/{id}/reject` | Mark a draft rejected (kept for provenance, never written) |
+| DELETE | `/api/v1/curate/drafts/{id}` | Permanently remove a draft record |
+
+### POST /api/v1/curate/drafts
+
+```json
+{
+  "title": "Retry with bounded jitter",
+  "body_md": "## Pattern\n...\n## Why it works\n...\n## Example\n...\n## TODOs\n...",
+  "taxonomy_slot": "patterns/resilience",
+  "source_type": "code",
+  "source_ref": "/repo/path",
+  "run_id": "optional-correlation-id"
+}
+```
+
+`title`, `body_md`, and `taxonomy_slot` are required. Thin bodies (missing rationale, worked example, or honest TODOs) are accepted but flagged in `shape_warnings`.
+
+### POST /api/v1/curate/drafts/{id}/graduate
+
+```json
+{ "target_source": "", "overwrite": false }
+```
+
+`target_source` defaults to the first writable source. Graduation refuses read-only targets and any path matching `global_ignore` (which would be written but never indexed). Writes the document with provenance frontmatter, appends a `log.md` entry, and makes a version commit.
