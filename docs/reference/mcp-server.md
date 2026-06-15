@@ -578,6 +578,17 @@ make docker-down        # stop both services
 
 The `markdownkb-mcp` service uses Streamable HTTP transport on port 9715 (configurable via `MARKDOWNKB_MCP_PORT`). It shares the same data volume and config as the main app.
 
+### Source mounts are read-only in the MCP container
+
+The auto-generated `compose.override.yml` mounts every source directory into the **`markdownkb-mcp` container as read-only** (`:ro`) — unconditionally, regardless of each source's `writable` flag (the main `markdownkb` container honors the flag and mounts writable sources read-write). See `build_compose_override` in `app/config/docker.py`.
+
+This is a deliberate second layer of defense beyond `mcp.read_only`, and the two are independent:
+
+- **`mcp.read_only`** controls whether write *tools are registered* on the MCP server.
+- **The `:ro` source mounts** control whether the container can write to a source *directory* on disk at all.
+
+Consequence: even with `mcp.read_only: false` and `save_document: true`, MCP tools that write into a **source directory** — `save_file`, `promote_to_wiki`, `wiki_compile_ingest`, `curate_graduate` — fail with a read-only-filesystem error from the MCP container. Tools that write only to the **`/data` volume** (which *is* mounted read-write) work normally over MCP: the `curate` draft store, bucket create/add/push, indexing metadata, history. So a cloud/MCP agent can *submit* `curate` drafts but cannot *graduate* them into the corpus — graduation stays a human action in the UI/REST app, which has the read-write source mounts. To allow a specific MCP write target, mount that one path read-write into `markdownkb-mcp` (and accept the prompt-injection trade-off).
+
 Connect from another service on the Docker network:
 
 ```

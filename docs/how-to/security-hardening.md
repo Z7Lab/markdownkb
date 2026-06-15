@@ -89,6 +89,8 @@ The MCP server exposes tools that read and search your knowledge base. Optionall
 
 **Bucket write exemption:** `mcp.allow_bucket_writes` lets agents create and manage buckets even with `read_only: true`. Buckets are ephemeral, isolated from the main knowledge base, and have precise mount boundaries — this is a reasonable carve-out for agents that need to assemble temporary working sets without getting write access to your permanent documents.
 
+**The MCP container mounts all sources read-only — a second, independent layer.** Separate from `mcp.read_only` (which controls tool *registration*), the `markdownkb-mcp` container mounts **every** source directory `:ro`, regardless of its `writable` flag. So even with write tools enabled, MCP tools that target a source directory (`save_file`, `promote_to_wiki`, `wiki_compile_ingest`, `curate_graduate`) cannot write the corpus from the MCP server — they fail with a read-only-filesystem error. Only `/data`-volume writes succeed over MCP (the `curate` draft store, buckets, indexing/history). This means an MCP agent can *submit* `curate` drafts but graduation into the corpus stays a human action in the UI/REST app. See [MCP source mounts are read-only](../reference/mcp-server.md#source-mounts-are-read-only-in-the-mcp-container).
+
 See [Write tool security](../reference/mcp-server.md#write-tool-security) for the full technical detail.
 
 ---
